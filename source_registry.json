@@ -1,0 +1,714 @@
+{
+  "version": 1,
+  "updated_at": "2026-09-13T23:48:42.422978+00:00",
+  "registry_status": "seed_v0.1",
+  "notes": "Initial 45-source seed. Sources explicitly verified in current web audit include National Job Portal, AllJobs/Teletalk recruitment endpoints, selected government jobs pages, CARE Bangladesh, UNICEF Bangladesh, ActionAid Bangladesh, Square Pharma, Renata, BRAC Bank, Walton, Grameenphone, Robi, Evercare, Square Hospital and BUET. Remaining seed entries are carry-forward candidates from the prior source audit and must pass live health checks before production activation.",
+  "sources": [
+    {
+      "id": "national_job_portal",
+      "name": "National Job Portal",
+      "categories": [
+        "government",
+        "job_portal"
+      ],
+      "source_type": "government_aggregator",
+      "priority": "P0",
+      "url": "https://jobs.gov.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bangladesh_national_portal_jobs",
+      "name": "Bangladesh National Portal - Job/Tender Announcements",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://bangladesh.gov.bd/pages/job-tender-announcements",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "alljobs_teletalk",
+      "name": "AllJobs Teletalk",
+      "categories": [
+        "government",
+        "job_portal"
+      ],
+      "source_type": "government_aggregator",
+      "priority": "P0",
+      "url": "https://alljobs.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "smart_job",
+      "name": "Smart Job",
+      "categories": [
+        "government",
+        "job_portal"
+      ],
+      "source_type": "government_aggregator",
+      "priority": "P0",
+      "url": "https://smartjob.portal.gov.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bpsc",
+      "name": "Bangladesh Public Service Commission",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://bpsc.gov.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "mopa_jobs",
+      "name": "Ministry of Public Administration - Jobs",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://mopa.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "moha_jobs",
+      "name": "Ministry of Home Affairs - Jobs",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://moha.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "rthd_jobs",
+      "name": "Road Transport and Highways Division - Jobs",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://rthd.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "rhd_jobs",
+      "name": "Roads and Highways Department - Jobs",
+      "categories": [
+        "government",
+        "engineering"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://rhd.portal.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "mocat_jobs",
+      "name": "Ministry of Civil Aviation and Tourism - Jobs",
+      "categories": [
+        "government",
+        "aviation",
+        "hospitality"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://mocat.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "caab_jobs",
+      "name": "Civil Aviation Authority of Bangladesh - Jobs",
+      "categories": [
+        "government",
+        "aviation"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://caab.portal.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "ictd_jobs",
+      "name": "ICT Division - Jobs",
+      "categories": [
+        "government",
+        "technology"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://ictd.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "a2i_jobs",
+      "name": "a2i - Jobs",
+      "categories": [
+        "government",
+        "technology"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://a2i.gov.bd/pages/jobs",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "jobs_teletalk_tbl",
+      "name": "Teletalk Bangladesh Limited Recruitment",
+      "categories": [
+        "government",
+        "telecom"
+      ],
+      "source_type": "official_employer",
+      "priority": "P0",
+      "url": "https://jobs.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bkkb_teletalk",
+      "name": "Bangladesh Employees Welfare Board Recruitment",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://bkkb.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bteab_teletalk",
+      "name": "Bangladesh Tea Board Recruitment",
+      "categories": [
+        "government",
+        "agriculture"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://bteab.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bpi_teletalk",
+      "name": "Bangladesh Petroleum Institute Recruitment",
+      "categories": [
+        "government",
+        "energy"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://bpi.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "btrc_teletalk",
+      "name": "Bangladesh Telecommunication Regulatory Commission Recruitment",
+      "categories": [
+        "government",
+        "telecom"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://btrc.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "dss_teletalk",
+      "name": "Department of Social Services Recruitment",
+      "categories": [
+        "government",
+        "social_services"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://dss.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "ictd_teletalk",
+      "name": "ICT Division Teletalk Recruitment",
+      "categories": [
+        "government",
+        "technology"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://ictd.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "telecomdept_teletalk",
+      "name": "Department of Telecommunications Recruitment",
+      "categories": [
+        "government",
+        "telecom"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://telecomdept.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bscplc_teletalk",
+      "name": "Bangladesh Submarine Cables PLC Recruitment",
+      "categories": [
+        "government",
+        "telecom"
+      ],
+      "source_type": "official_employer",
+      "priority": "P0",
+      "url": "https://bscplc.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "mopme_teletalk",
+      "name": "Ministry of Primary and Mass Education Recruitment",
+      "categories": [
+        "government",
+        "education"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://mopme.teletalk.com.bd/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "rdcd_teletalk",
+      "name": "Rural Development and Co-operative Division Recruitment",
+      "categories": [
+        "government"
+      ],
+      "source_type": "official_government",
+      "priority": "P0",
+      "url": "https://rdcd.teletalk.com.bd/rdcd2025/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bscl_teletalk",
+      "name": "Bangladesh Satellite Company Ltd Recruitment",
+      "categories": [
+        "government",
+        "technology"
+      ],
+      "source_type": "official_employer",
+      "priority": "P0",
+      "url": "https://bscl.teletalk.com.bd/bscl_panel_lawyer/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bdjobs",
+      "name": "BDJobs",
+      "categories": [
+        "job_portal"
+      ],
+      "source_type": "job_aggregator",
+      "priority": "P2",
+      "url": "https://www.bdjobs.com/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "skill_jobs",
+      "name": "Skill Jobs",
+      "categories": [
+        "job_portal"
+      ],
+      "source_type": "job_aggregator",
+      "priority": "P2",
+      "url": "https://skill.jobs/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "niyog",
+      "name": "Niyog",
+      "categories": [
+        "job_portal"
+      ],
+      "source_type": "job_aggregator",
+      "priority": "P2",
+      "url": "https://jobs.niyog.co/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "bdjobs_live",
+      "name": "BDJobs Live",
+      "categories": [
+        "job_portal"
+      ],
+      "source_type": "job_aggregator",
+      "priority": "P2",
+      "url": "https://www.bdjobslive.com/",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "care_career",
+      "name": "CARE Bangladesh",
+      "categories": [
+        "ngo",
+        "development"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://career.carebangladesh.org/care-recruitment/home/index",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "unicef_bd",
+      "name": "UNICEF Bangladesh Careers",
+      "categories": [
+        "ingo",
+        "development"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://jobs.unicef.org/en-us/filter/?location=bangladesh",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "actionaid_bd",
+      "name": "ActionAid Bangladesh Recruitment",
+      "categories": [
+        "ngo",
+        "development"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://jobs.actionaidbd.org/apply",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "square_pharma",
+      "name": "Square Pharmaceuticals eRecruitment",
+      "categories": [
+        "pharma"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://career.squarepharma.com.bd/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "renata",
+      "name": "Renata Career",
+      "categories": [
+        "pharma"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://career.renata-ltd.com/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "brac_bank",
+      "name": "BRAC Bank Careers",
+      "categories": [
+        "banking",
+        "finance"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://bracbank.com/en/career",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "brac_bank_taleo",
+      "name": "BRAC Bank Job Search",
+      "categories": [
+        "banking",
+        "finance"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://bracbank.taleo.net/careersection/external/jobsearch.ftl",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "walton",
+      "name": "Walton I-Recruitment",
+      "categories": [
+        "manufacturing",
+        "technology"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://jobs.waltonbd.com/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "gp_career",
+      "name": "Grameenphone Careers",
+      "categories": [
+        "telecom",
+        "technology"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://career.grameenphone.com/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "robi_career",
+      "name": "Robi Career Portal",
+      "categories": [
+        "telecom",
+        "technology"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://www.robicareer.com/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "evercare",
+      "name": "Evercare Hospital Dhaka Careers",
+      "categories": [
+        "healthcare"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://www.evercarebd.com/bn/dhaka/careers",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "evercare_bdjobs",
+      "name": "Evercare Hospital Job Portal",
+      "categories": [
+        "healthcare"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://evercare.bdjobs.com/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "square_hospital",
+      "name": "Square Hospitals Careers",
+      "categories": [
+        "healthcare"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://www.squarehospital.com/career-all-job",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active"
+    },
+    {
+      "id": "buet_jobs",
+      "name": "BUET Job Portal",
+      "categories": [
+        "university",
+        "education"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://recruitment.buet.ac.bd/dashboard",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 120,
+      "status": "active"
+    },
+    {
+      "id": "buet_registrar_jobs",
+      "name": "BUET Registrar Job Circulars",
+      "categories": [
+        "university",
+        "education"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://regoffice.buet.ac.bd/?page_id=12",
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 120,
+      "status": "active"
+    },
+    {
+      "id": "daraz",
+      "name": "Daraz Bangladesh Careers",
+      "categories": [
+        "ecommerce",
+        "retail",
+        "technology"
+      ],
+      "source_type": "official_employer",
+      "priority": "P1",
+      "url": "https://www.daraz.com.bd/careers/",
+      "parser": "html",
+      "supports_pdf": false,
+      "official": true,
+      "crawl_minutes": 120,
+      "status": "active"
+    }
+  ]
+}
