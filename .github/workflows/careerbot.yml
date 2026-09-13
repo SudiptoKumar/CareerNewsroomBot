@@ -1,1 +1,48 @@
+name: Career Newsroom Bot
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 1-17 * * *"
+
+concurrency:
+  group: career-newsroom
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  career-news:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Career Newsroom
+        env:
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CEREBRAS_MODEL: ${{ vars.CEREBRAS_MODEL }}
+          TELEGRAM_CHANNEL: ${{ vars.TELEGRAM_CHANNEL }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ vars.TELEGRAM_ADMIN_CHAT_ID }}
+        run: python main.py
+
+      - name: Commit state changes
+        run: |
+          git config user.name "CareerNewsroom Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add job_state.json posted_urls.txt source_registry.json
+          git diff --cached --quiet || git commit -m "chore: update career newsroom state"
+          git push
