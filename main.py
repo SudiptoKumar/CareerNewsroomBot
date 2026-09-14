@@ -132,7 +132,7 @@ def now_iso() -> str:
 
 def default_state() -> dict[str, Any]:
     return {
-        "version": 2,
+        "version": 4,
         "updated_at": None,
         "jobs": {},
         "sources": {},
@@ -143,9 +143,21 @@ def default_state() -> dict[str, Any]:
 def load_state() -> dict[str, Any]:
     if not STATE_FILE.exists():
         return default_state()
-    data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("State file invalid; starting clean state: %s", exc)
+        return default_state()
     for key, value in default_state().items():
         data.setdefault(key, value)
+    # V1 schema migration. Existing jobs are retained; missing flags are backfilled.
+    data["version"] = 4
+    for event in data.get("jobs", {}).values():
+        event.setdefault("repost_due", False)
+        event.setdefault("update_pending", False)
+        event.setdefault("update_history", [])
+        event.setdefault("repost_history", [])
+        event.setdefault("telegram", {"published": False, "message_id": None, "published_at": None, "last_event_type": None})
     return data
 
 
@@ -225,7 +237,7 @@ def build_session() -> requests.Session:
         "User-Agent": (
             "Mozilla/5.0 (X11; Linux x86_64) "
             "AppleWebKit/537.36 Chrome/128 Safari/537.36 "
-            "CareerNewsroom/2.0"
+            "CareerNewsroom/1.0"
         ),
         "Accept-Language": "en-US,en;q=0.9,bn;q=0.8",
         "Accept": "text/html,application/xhtml+xml,application/pdf,*/*;q=0.5",
@@ -1106,11 +1118,14 @@ def same_event(a: dict[str, Any], b: dict[str, Any]) -> bool:
 
 
 def make_event_id(job: dict[str, Any]) -> str:
+    """Stable event identity. Mutable fields such as deadline, salary and URL are excluded."""
     seed = "|".join([
-        safe_text(job.get("company")).lower(),
-        safe_text(job.get("title")).lower(),
-        safe_text(job.get("deadline")).lower(),
-        canonical_url(job.get("application_url", "")),
+        safe_text(job.get("source_id")).lower(),
+        normalize_company(job.get("company")),
+        normalize_title(job.get("title")),
+        normalize_text(job.get("location")),
+        normalize_text(job.get("job_level")),
+        normalize_text(job.get("job_type")),
     ])
     return "evt_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
 
@@ -1255,9 +1270,11 @@ def normalized_job(job: dict[str, Any]) -> dict[str, Any]:
 
 
 def job_fingerprint(job: dict[str, Any]) -> str:
+    """Fingerprint a specific published revision, including fields that can materially update."""
     n = job.get("normalized") or normalized_job(job)
     seed = "|".join([
-        n["company"], n["title"], n["location"], n["deadline"], n["application_url"]
+        n["company"], n["title"], n["location"], n["deadline"], n["application_url"],
+        n["vacancy"], n["salary"], n["job_type"], n["job_level"],
     ])
     return "job_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
 
@@ -1318,41 +1335,48 @@ def scam_filter(job: dict[str, Any]) -> dict[str, Any]:
     return {"passed": not signals, "signals": signals, "checked_at": now_iso()}
 
 
-def importance_score(job: dict[str, Any], quality: int) -> int:
-    score = {"P0":16,"P1":14,"P2":9,"P3":4}.get(job.get("source_priority","P3"),4)
-    title = safe_text(job.get("title")).lower()
+def importance_score(job: dict[str, Any], quality: int, ai_score: int | None = None) -> int:
+    """Stable 0-100 editorial importance score. AI ranks refine, never replace, deterministic value."""
+    score = base_importance(job)
 
-    if any(x in title for x in ("intern","internship","trainee","graduate","fresher")):
-        score += 10
-    if any(x in title for x in ("manager","engineer","officer","executive","director")):
-        score += 5
+    # Quality is a supporting signal, not a substitute for job importance.
+    score += int(round(max(0, min(100, quality)) * 0.20))
 
-    nums = re.findall(r"\d+", safe_text(job.get("vacancy")).replace(",",""))
-    if nums:
-        try:
-            n = int(nums[-1])
-            score += 12 if n >= 100 else 8 if n >= 20 else 5 if n >= 5 else 0
-        except ValueError:
-            pass
+    if ai_score is not None:
+        ai = max(0, min(100, int(ai_score)))
+        score = int(round(score * 0.70 + ai * 0.30))
 
-    status, days = deadline_state(job.get("deadline"))
-    if status == "deadline_today": score += 13
-    elif status == "deadline_soon": score += 10
-    elif days is not None and days <= 7: score += 7
-    elif days is not None and days <= 14: score += 4
-
-    if job.get("salary"): score += 4
-    if job.get("application_url"): score += 5
-    score += max(0, quality - 70) // 5
     return max(0, min(100, score))
 
-
 def classify_job_event(state: dict[str, Any], job: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    """Classify the incoming job against the persisted event identity."""
     for event in state["jobs"].values():
-        if event.get("fingerprint") == job["fingerprint"] or same_job(event.get("canonical",{}), job):
-            if event.get("fingerprint") == job["fingerprint"]:
-                return ("REPOST" if event.get("repost_due") else "NONE"), event
-            return "UPDATE", event
+        canonical = event.get("canonical", {})
+        if not (same_job(canonical, job) or event.get("identity_fingerprint") == job.get("identity_fingerprint")):
+            continue
+
+        same_fingerprint = event.get("fingerprint") == job.get("fingerprint")
+        old_status = safe_text(event.get("status"))
+        new_status = deadline_state(job.get("deadline"))[0]
+        previously_published = bool(event.get("telegram", {}).get("published"))
+
+        # Exact same listing: normally no-op. If an expired, previously published listing
+        # becomes active again, treat it as a legitimate repost.
+        if same_fingerprint:
+            if previously_published and old_status == "expired" and new_status in ("active", "deadline_today", "deadline_soon"):
+                return "REPOST", event
+            return "NONE", event
+
+        # Same job identity with changed fields is an UPDATE. A later deadline after an
+        # expired publication is a REPOST because the employer reopened/reissued it.
+        changes = field_changes(canonical, job)
+        if previously_published and old_status == "expired" and changes:
+            old_deadline = parse_deadline(safe_text(canonical.get("deadline")))
+            new_deadline = parse_deadline(safe_text(job.get("deadline")))
+            if new_deadline and (not old_deadline or new_deadline > old_deadline):
+                return "REPOST", event
+        return "UPDATE", event
+
     return "NEW", None
 
 
@@ -1379,6 +1403,7 @@ def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any
             "update_history": [],
             "repost_history": [],
             "repost_due": False,
+            "update_pending": False,
             "telegram": {"published":False,"message_id":None,"published_at":None,"last_event_type":None},
         }
         state["jobs"][event["event_id"]] = event
@@ -1388,18 +1413,27 @@ def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any
     changes = field_changes(old, job)
     existing["last_seen"] = now_iso()
 
-    if event_type == "UPDATE":
-        existing["event_type"] = "UPDATE"
+    if event_type in ("UPDATE", "REPOST"):
+        existing["event_type"] = event_type
         existing["canonical"] = {**old, **{k:v for k,v in job.items() if v not in (None,"",[],{})}}
         existing["normalized"] = job["normalized"]
         existing["fingerprint"] = job["fingerprint"]
         existing["identity_fingerprint"] = identity_fingerprint(existing["canonical"])
-        existing["update_history"] = (existing.get("update_history") or []) + [{"timestamp":now_iso(),"changes":changes}]
-        existing["repost_due"] = bool(changes)
-    elif event_type == "REPOST":
-        existing["event_type"] = "REPOST"
-        existing["repost_history"] = (existing.get("repost_history") or []) + [{"timestamp":now_iso(),"reason":"same job reappeared"}]
-        existing["repost_due"] = True
+        if event_type == "UPDATE":
+            existing["update_history"] = (existing.get("update_history") or []) + [{"timestamp":now_iso(),"changes":changes}]
+            existing["update_pending"] = bool(changes)
+            existing["repost_due"] = False
+        else:
+            existing["repost_history"] = (existing.get("repost_history") or []) + [{"timestamp":now_iso(),"reason":"previously published job reappeared with a later active deadline"}]
+            existing["repost_due"] = True
+            existing["update_pending"] = False
+    elif event_type == "NONE":
+        # Exact duplicate: keep the canonical revision and explicitly mark this scan as a no-op.
+        existing["event_type"] = "NONE"
+        existing["canonical"] = {**old, **{k:v for k,v in job.items() if v not in (None,"",[],{})}}
+        existing["normalized"] = job["normalized"]
+        existing["fingerprint"] = job["fingerprint"]
+        existing["identity_fingerprint"] = identity_fingerprint(existing["canonical"])
 
     existing["verification"] = job["verification"]
     existing["scam_filter"] = job["scam_filter"]
@@ -1407,7 +1441,6 @@ def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any
     existing["importance_score"] = job["importance_score"]
     existing["status"] = deadline_state(existing["canonical"].get("deadline"))[0]
     return existing
-
 
 def quality_score(job: dict[str, Any]) -> int:
     priority = job.get("source_priority", "P3")
@@ -1433,38 +1466,43 @@ def quality_score(job: dict[str, Any]) -> int:
 
 
 def base_importance(job: dict[str, Any]) -> int:
-    score = {"P0": 18, "P1": 15, "P2": 10, "P3": 5}.get(
-        job.get("source_priority", "P3"), 5
-    )
+    """Deterministic baseline calibrated so strong jobs can realistically reach publish threshold."""
+    score = {"P0": 24, "P1": 21, "P2": 17, "P3": 12}.get(job.get("source_priority", "P3"), 12)
 
     title = safe_text(job.get("title")).lower()
     if any(x in title for x in ("intern", "internship", "trainee", "graduate", "fresher")):
-        score += 10
-    if any(x in title for x in ("manager", "engineer", "officer", "executive", "director")):
+        score += 8
+    if any(x in title for x in ("manager", "engineer", "officer", "executive", "director", "specialist")):
         score += 5
 
     nums = re.findall(r"\d+", safe_text(job.get("vacancy")).replace(",", ""))
     if nums:
         try:
             n = int(nums[-1])
-            score += 12 if n >= 100 else 8 if n >= 20 else 5 if n >= 5 else 0
+            score += 12 if n >= 100 else 9 if n >= 20 else 6 if n >= 5 else 3
         except ValueError:
             pass
 
     status, days = deadline_state(job.get("deadline"))
     if status == "deadline_today":
-        score += 13
-    elif status == "deadline_soon":
         score += 10
+    elif status == "deadline_soon":
+        score += 8
     elif days is not None and days <= 7:
-        score += 7
+        score += 6
     elif days is not None and days <= 14:
         score += 4
 
     if job.get("salary"):
-        score += 4
+        score += 6
     if job.get("application_url"):
-        score += 5
+        score += 10
+    if job.get("location"):
+        score += 4
+    if job.get("company"):
+        score += 4
+    if job.get("summary"):
+        score += 3
 
     return max(0, min(100, score))
 
@@ -1490,8 +1528,6 @@ def ai_rank(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "deadline": job.get("deadline"),
             "vacancy": job.get("vacancy"),
             "salary": job.get("salary"),
-            "education": job.get("education"),
-            "experience": job.get("experience"),
             "source_priority": job.get("source_priority"),
             "verification": event.get("verification", {}),
             "quality_score": event.get("quality_score", 0),
@@ -1501,25 +1537,24 @@ def ai_rank(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     payload = {
         "instructions": (
-            "Rank Bangladesh job opportunities by real reader value. "
-            "Prefer verified government/official employer jobs, meaningful vacancies, "
-            "fresh opportunities, accessible entry-level roles, clear deadlines and "
-            "clear application paths. Do not invent facts. Score 0-100. "
-            "Do not create sector quotas."
+            "Rank Bangladesh job opportunities by reader value. "
+            "Use 50 as an average opportunity, 70+ as clearly publishable, and 85+ only for exceptional value. "
+            "Prefer verified/official sources, active deadlines, clear application paths, strong vacancy relevance, and fresh opportunities. "
+            "Do not invent facts. Return every supplied candidate exactly once."
         ),
         "candidates": ranked_input,
     }
 
     system = (
-        "You are the editor of @CareerNewsroom. "
-        "Rank the supplied job candidates. Return every candidate exactly once. "
-        "Do not invent facts. Use quality_score and verification as evidence. "
-        "A publish=true decision requires a score of at least 70 and genuine active value."
+        "You are the editor of @CareerNewsroom. Rank supplied jobs on a 0-100 scale. "
+        "This score is a refinement signal, not a hard gate. Do not force most jobs below 70. "
+        "Use quality_score and verification as evidence. A verified, complete, active job with a valid application path "
+        "should normally score at least 65. Exceptional jobs may score 85-100. Return strict JSON only."
     )
 
     data = cerebras_structured(system, payload, RANK_SCHEMA, 2500)
 
-    by_id = {}
+    by_id: dict[int, dict[str, Any]] = {}
     if data and isinstance(data.get("ranked"), list):
         for item in data["ranked"]:
             if isinstance(item, dict):
@@ -1528,22 +1563,30 @@ def ai_rank(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 except (KeyError, TypeError, ValueError):
                     pass
 
-    for idx, event in enumerate(events[:MAX_RANKING_DOCS]):
-        item = by_id.get(idx)
+    for idx, event in enumerate(events):
+        base = int(event.get("base_importance") or base_importance(event.get("canonical", {})))
+        quality = int(event.get("quality_score") or 0)
+        item = by_id.get(idx) if idx < MAX_RANKING_DOCS else None
+        ai_score = None
         if item:
-            event["importance_score"] = max(0, min(100, int(item.get("score", 0))))
+            try:
+                ai_score = int(item.get("score", 0))
+            except (TypeError, ValueError):
+                ai_score = None
+            event["ai_rank_score"] = ai_score or 0
             event["rank_reason"] = safe_text(item.get("reason"))
             event["ai_publish_hint"] = bool(item.get("publish"))
         else:
-            event["importance_score"] = event.get("base_importance", 0)
-            event["ai_publish_hint"] = False
+            event["ai_rank_score"] = None
+            event["rank_reason"] = "Deterministic ranking fallback"
+            event["ai_publish_hint"] = True
+
+        event["base_importance"] = base
+        event["importance_score"] = importance_score(event.get("canonical", {}), quality, ai_score)
 
     return sorted(
         events,
-        key=lambda e: (
-            -int(e.get("importance_score", 0)),
-            -int(e.get("quality_score", 0)),
-        ),
+        key=lambda e: (-int(e.get("importance_score", 0)), -int(e.get("quality_score", 0)))
     )
 
 
@@ -1812,40 +1855,87 @@ def merge_jobs(jobs: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[s
             continue
 
         job["quality_score"] = quality_score(job)
+        job["base_importance"] = base_importance(job)
         job["importance_score"] = importance_score(job, job["quality_score"])
 
         events.append(apply_job_event(state, job))
     return events
 
 
-PUBLISH_THRESHOLD = 70
-MIN_QUALITY_FOR_PUBLISH = 70
-
+# Calibrated publish policy: quality and trust are hard gates; importance is the editorial threshold.
+PUBLISH_THRESHOLD = 60
+MIN_QUALITY_FOR_PUBLISH = 60
+MAX_NEW_PER_RUN = 6
+MAX_UPDATE_PER_RUN = 6
+MAX_REPOST_PER_RUN = 4
 
 def publishable(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Publish threshold gate before Telegram publishing."""
-    out=[]
+    """Select verified, non-scam, active events that are genuinely publishable."""
+    out = []
+    counts = {"NEW": 0, "UPDATE": 0, "REPOST": 0}
+    rejects = {
+        "verification": 0, "scam": 0, "inactive": 0, "quality": 0,
+        "importance": 0, "already_published": 0, "no_update_pending": 0,
+        "no_repost_due": 0, "invalid_event": 0,
+    }
+
     for event in events:
-        if event.get("verification",{}).get("status") != "verified":
+        verification = event.get("verification", {})
+        scam = event.get("scam_filter", {})
+        kind = event.get("event_type", "NEW")
+        published = bool(event.get("telegram", {}).get("published"))
+
+        if verification.get("status") != "verified":
+            rejects["verification"] += 1
             continue
-        if not event.get("scam_filter",{}).get("passed",False):
+        if not scam.get("passed", False):
+            rejects["scam"] += 1
             continue
-        if event.get("status") not in ("active","deadline_today","deadline_soon"):
+        if event.get("status") not in ("active", "deadline_today", "deadline_soon"):
+            rejects["inactive"] += 1
             continue
-        if int(event.get("quality_score",0)) < MIN_QUALITY_FOR_PUBLISH:
+        if int(event.get("quality_score", 0)) < MIN_QUALITY_FOR_PUBLISH:
+            rejects["quality"] += 1
             continue
-        if int(event.get("importance_score",0)) < PUBLISH_THRESHOLD:
+        if int(event.get("importance_score", 0)) < PUBLISH_THRESHOLD:
+            rejects["importance"] += 1
             continue
 
-        kind=event.get("event_type","NEW")
-        published=event.get("telegram",{}).get("published",False)
-        if kind=="NEW" and published:
+        if kind == "NEW":
+            if published:
+                rejects["already_published"] += 1
+                continue
+            if counts["NEW"] >= MAX_NEW_PER_RUN:
+                continue
+        elif kind == "UPDATE":
+            if not event.get("update_pending"):
+                rejects["no_update_pending"] += 1
+                continue
+            if counts["UPDATE"] >= MAX_UPDATE_PER_RUN:
+                continue
+        elif kind == "REPOST":
+            if not event.get("repost_due"):
+                rejects["no_repost_due"] += 1
+                continue
+            if counts["REPOST"] >= MAX_REPOST_PER_RUN:
+                continue
+        else:
+            rejects["invalid_event"] += 1
             continue
-        if kind in ("UPDATE","REPOST") and not event.get("repost_due"):
-            continue
+
         out.append(event)
+        counts[kind] += 1
 
-    return sorted(out,key=lambda e:(-int(e.get("importance_score",0)),-int(e.get("quality_score",0))))[:MAX_PUBLISHED_PER_RUN]
+    selected = sorted(
+        out,
+        key=lambda e: (-int(e.get("importance_score", 0)), -int(e.get("quality_score", 0)))
+    )[:MAX_PUBLISHED_PER_RUN]
+    logger.info(
+        "PUBLISH GATE | selected=%d | rejects=%s",
+        len(selected),
+        json.dumps(rejects, sort_keys=True),
+    )
+    return selected
 
 
 def prune_state(state: dict[str, Any]) -> None:
@@ -2126,7 +2216,29 @@ def self_test() -> None:
     e3 = apply_job_event(st, changed)
     assert e3["event_id"] == e1["event_id"]
     assert e3["event_type"] == "UPDATE"
-    assert e3["repost_due"] is True
+    assert e3["update_pending"] is True
+
+    published_state = default_state()
+    first = dict(sample)
+    first["fingerprint"] = job_fingerprint(first)
+    first["identity_fingerprint"] = identity_fingerprint(first)
+    pe = apply_job_event(published_state, first)
+    pe["telegram"]["published"] = True
+    pe["status"] = "expired"
+    reopened = dict(first)
+    reopened["deadline"] = "01-10-2099"
+    reopened["normalized"] = normalized_job(reopened)
+    reopened["fingerprint"] = job_fingerprint(reopened)
+    reopened["identity_fingerprint"] = identity_fingerprint(reopened)
+    reopened["verification"] = verify(reopened)
+    reopened["scam_filter"] = scam_filter(reopened)
+    reopened["quality_score"] = quality_score(reopened)
+    reopened["base_importance"] = base_importance(reopened)
+    reopened["importance_score"] = importance_score(reopened, reopened["quality_score"])
+    revent = apply_job_event(published_state, reopened)
+    assert revent["event_id"] == pe["event_id"]
+    assert revent["event_type"] == "REPOST"
+    assert revent["repost_due"] is True
 
     scam_case = dict(sample)
     scam_case["summary"] = "Pay registration fee before applying."

@@ -1,4 +1,4 @@
-# CareerNewsroomBot V2
+# CareerNewsroomBot V1
 
 Bangladesh job aggregation, ranking, deduplication, verification and Telegram publishing bot.
 
