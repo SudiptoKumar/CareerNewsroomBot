@@ -15,6 +15,7 @@ permissions:
 jobs:
   career-news:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
 
     steps:
       - name: Checkout
@@ -29,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Self-test
+        run: python main.py --self-test
+
       - name: Run Career Newsroom
         env:
           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
@@ -40,9 +44,14 @@ jobs:
         run: python main.py
 
       - name: Commit state changes
+        if: always()
         run: |
           git config user.name "CareerNewsroom Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add job_state.json posted_urls.txt source_registry.json
-          git diff --cached --quiet || git commit -m "chore: update career newsroom state"
-          git push
+          if git diff --cached --quiet; then
+            echo "No state changes."
+          else
+            git commit -m "chore: update career newsroom state"
+            git push
+          fi
