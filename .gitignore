@@ -1,0 +1,5 @@
+.runtime/
+__pycache__/
+*.pyc
+*.tmp
+.env
