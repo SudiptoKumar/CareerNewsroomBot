@@ -1,4 +1,4 @@
-name: Career Newsroom V1
+name: Career Newsroom V2
 
 on:
   schedule:
@@ -10,13 +10,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-newsroom-v1
+  group: career-newsroom-v2
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     env:
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
@@ -39,6 +39,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: requirements.txt
+
+      - name: Install OCR runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-ben
 
       - name: Install dependencies
         run: |
