@@ -45,13 +45,11 @@ STATE_FILE = Path("job_state.json")
 REGISTRY_FILE = Path("source_registry.json")
 RUNTIME_DIR = Path(".runtime")
 
-MAX_DIRECT_SOURCES_PER_RUN = 24
-MAX_DISCOVERY_CANDIDATES = 100
-MAX_AI_EXTRACTION_DOCS = 12
-MAX_RANKING_DOCS = 28
-MAX_PUBLISHED_PER_RUN = 6
-MAX_EXA_QUERIES = 12
-MAX_EXA_RESULTS_PER_QUERY = 6
+MAX_DIRECT_LINKS_PER_SOURCE = 160
+MAX_DISCOVERY_CANDIDATES = 0  # unlimited after URL deduplication
+AI_BATCH_SIZE = 10
+MAX_EXA_QUERIES = 80
+MAX_EXA_RESULTS_PER_QUERY = 8
 EXA_FRESHNESS_DAYS = 45
 POST_DELAY_SECONDS = 2.5
 EVENT_RETENTION_DAYS = 90
@@ -359,8 +357,13 @@ def extract_meta(content: bytes, url: str) -> dict[str, Any]:
     return meta
 
 
+def normalize_bengali_digits(text: str) -> str:
+    table = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+    return safe_text(text).translate(table)
+
+
 def deterministic_hints(text: str) -> dict[str, Any]:
-    t = safe_text(text)
+    t = normalize_bengali_digits(text)
     lower = t.lower()
 
     deadline = None
@@ -435,117 +438,108 @@ def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, An
 
 
 def due_sources(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return every enabled source on every run. No interval rotation or source cap."""
     priority = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
-    due = []
-
-    for source in registry.get("sources", []):
-        if not source.get("enabled", True):
-            continue
-        if source.get("status") not in (None, "active", "verified"):
-            continue
-
-        sid = source["id"]
-        last = float(state["sources"].get(sid, {}).get("last_crawl_epoch", 0))
-        interval = int(source.get("crawl_minutes") or 60)
-
-        if time.time() - last >= interval * 60:
-            due.append(source)
-
-    # Keep proven bounded-source behavior. Prioritize official sources.
-    due.sort(
-        key=lambda s: (
-            priority.get(s.get("priority", "P3"), 3),
-            float(state["sources"].get(s["id"], {}).get("last_crawl_epoch", 0)),
-        )
-    )
-    return due[:MAX_DIRECT_SOURCES_PER_RUN]
-
+    sources = [
+        source for source in registry.get("sources", [])
+        if source.get("enabled", True)
+        and source.get("status") in (None, "active", "verified")
+    ]
+    return sorted(sources, key=lambda x: (priority.get(x.get("priority", "P3"), 3), safe_text(x.get("name"))))
 
 def direct_discover(source: dict[str, Any]) -> list[dict[str, Any]]:
+    """Crawl the source page and discover job pages plus linked PDF circulars."""
     r = http_get(source.get("url", ""))
     if not r:
         return []
-
     final_url = canonical_url(r.url)
     content_type = r.headers.get("content-type", "").lower()
 
     if "pdf" in content_type or final_url.lower().endswith(".pdf"):
         text = extract_pdf_text(r.content)
         return [{
-            "url": final_url,
-            "source_id": source["id"],
-            "source_name": source["name"],
-            "source_priority": source.get("priority", "P3"),
-            "title_hint": source["name"],
-            "text_hint": text[:18000],
-            "image": "",
-            "meta": {},
+            "url": final_url, "source_id": source["id"], "source_name": source["name"],
+            "source_priority": source.get("priority", "P3"), "title_hint": "",
+            "text_hint": text[:30000], "image": "", "meta": {}, "published_date": "",
             "discovery": "direct_pdf",
         }] if text else []
 
     if "xml" in content_type or final_url.lower().endswith((".rss", ".xml")):
         parsed = feedparser.parse(r.content)
-        return [
-            {
-                "url": canonical_url(getattr(e, "link", "")),
-                "source_id": source["id"],
-                "source_name": source["name"],
-                "source_priority": source.get("priority", "P3"),
-                "title_hint": safe_text(getattr(e, "title", "")),
-                "text_hint": BeautifulSoup(
-                    safe_text(getattr(e, "summary", "")),
-                    "html.parser",
-                ).get_text(" ", strip=True),
-                "image": "",
-                "meta": {},
-                "discovery": "rss",
-            }
-            for e in parsed.entries[:50]
-            if getattr(e, "link", "")
-        ]
+        out=[]
+        for e in parsed.entries:
+            link=canonical_url(getattr(e,"link",""))
+            if not link: continue
+            out.append({
+                "url": link, "source_id": source["id"], "source_name": source["name"],
+                "source_priority": source.get("priority","P3"), "title_hint": safe_text(getattr(e,"title","")),
+                "text_hint": BeautifulSoup(safe_text(getattr(e,"summary","")),"html.parser").get_text(" ",strip=True),
+                "image":"", "meta": {}, "published_date": safe_text(getattr(e,"published","") or getattr(e,"updated","")),
+                "discovery":"rss",
+            })
+        return out
 
     text = extract_html_text(r.content, final_url)
     meta = extract_meta(r.content, final_url)
-    candidates = []
+    candidates=[]
+    soup=BeautifulSoup(r.content,"html.parser")
 
-    # Landing page can itself contain multiple jobs or a job posting.
-    if looks_like_job(text, final_url):
+    # Do not treat a source homepage as a job unless it has an actual dated application signal.
+    if looks_like_job(text, final_url) and has_deadline_signal(text):
         candidates.append({
-            "url": final_url,
-            "source_id": source["id"],
-            "source_name": source["name"],
-            "source_priority": source.get("priority", "P3"),
-            "title_hint": meta.get("title", source["name"]),
-            "text_hint": text[:18000],
-            "image": meta.get("image", ""),
-            "meta": meta,
-            "discovery": "direct_page",
+            "url": final_url, "source_id": source["id"], "source_name": source["name"],
+            "source_priority": source.get("priority","P3"), "title_hint": meta.get("title", ""),
+            "text_hint": text[:30000], "image": meta.get("image", ""), "meta": meta,
+            "published_date": meta.get("datePublished") or meta.get("datePosted") or "",
+            "discovery":"direct_page",
         })
 
-    soup = BeautifulSoup(r.content, "html.parser")
-    seen = set()
-    for a in soup.find_all("a", href=True):
-        link = canonical_url(urljoin(final_url, a.get("href", "")))
-        label = safe_text(a.get_text(" ", strip=True))
-        if not link or link in seen:
-            continue
+    seen=set()
+    for node in soup.find_all(["a","iframe","embed","object"]):
+        href=node.get("href") or node.get("src") or node.get("data") or ""
+        link=canonical_url(urljoin(final_url,href))
+        label=safe_text(node.get_text(" ",strip=True))
+        if not link or link in seen: continue
         seen.add(link)
+        path=urlparse(link).path.lower()
+        hay=f"{label} {link}".lower()
+        is_pdf=(".pdf" in path) or (".pdf" in hay) or "application/pdf" in hay
+        is_job=looks_like_job(hay,link)
+        is_notice=any(x in hay for x in ("circular","recruitment","appointment","vacancy","career","notice","নিয়োগ","চাকরি","বিজ্ঞপ্তি","আবেদন","শূন্যপদ"))
+        if not (is_pdf or is_job or is_notice): continue
+        candidates.append({
+            "url":link,"source_id":source["id"],"source_name":source["name"],
+            "source_priority":source.get("priority","P3"),"title_hint":label,"text_hint":"",
+            "image":"","meta":{},"published_date":"",
+            "discovery":"direct_pdf_link" if is_pdf else "direct_link",
+        })
+        if len(candidates)>=MAX_DIRECT_LINKS_PER_SOURCE: break
 
-        hay = f"{label} {link}".lower()
-        if looks_like_job(hay, link):
+    # Some government portals expose PDF URLs only inside JavaScript/JSON. Catch those too.
+    try:
+        raw_html = r.content.decode("utf-8", errors="ignore")
+        for match in re.findall(r"https?://[^\s\"']+?\.pdf(?:\?[^\s\"']*)?", raw_html, flags=re.I):
+            link = canonical_url(match.rstrip(",;)]}"))
+            if not link or link in seen: continue
+            seen.add(link)
             candidates.append({
-                "url": link,
-                "source_id": source["id"],
-                "source_name": source["name"],
-                "source_priority": source.get("priority", "P3"),
-                "title_hint": label,
-                "text_hint": "",
-                "image": "",
-                "meta": {},
-                "discovery": "direct_link",
+                "url": link, "source_id": source["id"], "source_name": source["name"],
+                "source_priority": source.get("priority", "P3"), "title_hint": "", "text_hint": "",
+                "image": "", "meta": {}, "published_date": "", "discovery": "direct_pdf_link",
             })
-    return candidates[:60]
+            if len(candidates) >= MAX_DIRECT_LINKS_PER_SOURCE: break
+    except Exception:
+        pass
+    return candidates
 
+
+def has_deadline_signal(text: str) -> bool:
+    t=normalize_bengali_digits(text)
+    pats=(
+        r"(?i)(?:application\s+)?(?:deadline|last\s+date|closing\s+date|apply\s+by).{0,100}(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
+        r"(?i)(?:আবেদনের\s*শেষ\s*তারিখ|শেষ\s*তারিখ|আবেদন\s*করার\s*শেষ\s*তারিখ).{0,100}\d{1,2}[./-]\d{1,2}[./-]\d{2,4}",
+    )
+    return any(re.search(x,t) for x in pats)
 
 def google_news_url(query: str) -> str:
     return (
@@ -621,11 +615,8 @@ def exa_queries(registry: dict[str, Any]) -> list[str]:
             base.append(f'"{name}" Bangladesh jobs')
     unique = list(dict.fromkeys(base))
 
-    # Rotate based on current UTC hour to spread queries over the day.
-    hour = datetime.now(timezone.utc).hour
-    start = hour % len(unique)
-    rotated = unique[start:] + unique[:start]
-    return rotated[:MAX_EXA_QUERIES]
+    # Full query coverage every run. No hourly rotation.
+    return unique[:MAX_EXA_QUERIES]
 
 
 def discover_exa(registry: dict[str, Any]) -> list[dict[str, Any]]:
@@ -679,29 +670,21 @@ def discover_exa(registry: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def candidate_is_fresh(candidate: dict[str, Any]) -> bool:
-    """Reject clearly stale discovery results before expensive extraction."""
-    published = safe_text(candidate.get("published_date"))
-    if not published:
-        return True
-    try:
-        value = published.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        age_days = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() / 86400
-        return age_days <= EXA_FRESHNESS_DAYS
-    except ValueError:
-        return True
-
-
 def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
     candidates = []
 
-    for source in due_sources(registry, state):
+    all_sources = due_sources(registry, state)
+    crawl_ok = 0
+    crawl_failed = 0
+    pdf_candidates = 0
+
+    for source in all_sources:
         try:
             found = direct_discover(source)
             candidates.extend(found)
+            pdf_candidates += sum(1 for item in found if item.get("discovery") in ("direct_pdf", "direct_pdf_link"))
+            crawl_ok += 1
+            logger.info("SOURCE CRAWL OK | %s | candidates=%d", source.get("name"), len(found))
             health = state["sources"].setdefault(source["id"], {})
             health["last_crawl_epoch"] = time.time()
             health["last_success"] = now_iso()
@@ -709,12 +692,14 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
             health["consecutive_failures"] = 0
             health["candidates_last_run"] = len(found)
         except Exception as exc:
+            crawl_failed += 1
             logger.warning("Direct source failed %s: %s", source.get("id"), exc)
             health = state["sources"].setdefault(source["id"], {})
             health["last_crawl_epoch"] = time.time()
             health["last_failure"] = now_iso()
             health["consecutive_failures"] = int(health.get("consecutive_failures", 0)) + 1
 
+    logger.info("SOURCE CRAWL SUMMARY | total=%d ok=%d failed=%d pdf_candidates=%d", len(all_sources), crawl_ok, crawl_failed, pdf_candidates)
     candidates.extend(discover_google_news())
     candidates.extend(discover_exa(registry))
 
@@ -723,13 +708,11 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
         url = canonical_url(candidate.get("url", ""))
         if not url:
             continue
-        if candidate.get("discovery") == "exa" and not candidate_is_fresh(candidate):
-            continue
         unique.setdefault(url, candidate)
 
     result = list(unique.values())
 
-    # Deterministically prioritize evidence-rich candidates.
+    # Deterministically prioritize evidence-rich candidates. No global candidate cap.
     def key(c: dict[str, Any]) -> tuple[int, int, int]:
         text = safe_text(c.get("text_hint", ""))
         priority = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}.get(
@@ -739,7 +722,8 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
         discovery_bonus = 0 if c.get("discovery") in ("direct_page", "direct_pdf") else 1
         return (priority, -min(richness, 15000), discovery_bonus)
 
-    return sorted(result, key=key)[:MAX_DISCOVERY_CANDIDATES]
+    ordered = sorted(result, key=key)
+    return ordered if MAX_DISCOVERY_CANDIDATES <= 0 else ordered[:MAX_DISCOVERY_CANDIDATES]
 
 
 # ============================================================
@@ -881,10 +865,6 @@ def rule_extract(document: dict[str, Any]) -> dict[str, Any]:
         or safe_text(meta.get("title"))
     )
     company = structured.get("company") or ""
-
-    # Official source names are safe deterministic hints for company identity.
-    if not company and document.get("source_priority") in ("P0", "P1"):
-        company = safe_text(document.get("source_name"))
 
     job = {
         "is_job": True,
@@ -1037,73 +1017,23 @@ def cerebras_structured(
 
 
 def ai_enrich(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # Only ambiguous/incomplete documents consume an AI extraction call.
-    candidates = [
-        job for job in jobs
-        if not job.get("company")
-        or not job.get("sector")
-        or not job.get("job_function")
-        or not job.get("deadline")
-        or not job.get("published_date")
-    ][:MAX_AI_EXTRACTION_DOCS]
-
-    if not candidates:
-        return jobs
-
-    payload = {
-        "taxonomy": {
-            "sectors": SECTORS,
-            "job_functions": JOB_FUNCTIONS,
-            "job_levels": JOB_LEVELS,
-            "job_types": JOB_TYPES,
-        },
-        "documents": [
-            {
-                "id": i,
-                "source_name": job.get("source_name"),
-                "source_url": job.get("source_url"),
-                "title_hint": job.get("title"),
-                "text": safe_text(job.get("text"))[:5000],
-            }
-            for i, job in enumerate(candidates)
-        ],
-    }
-
-    system = (
-        "You extract Bangladesh job listings in one batch. "
-        "Return strict JSON only. Extract only source-supported facts. "
-        "Never invent salary, vacancy, deadline, employer, eligibility, or benefits. "
-        "Use taxonomy values exactly when applicable. Missing values must be null or []."
-    )
-    data = cerebras_structured(system, payload, AI_SCHEMA, 5000)
-    if not data or not isinstance(data.get("jobs"), list):
-        return jobs
-
-    by_id = {
-        int(item.get("id")): item
-        for item in data["jobs"]
-        if isinstance(item, dict) and str(item.get("id", "")).isdigit()
-    }
-
-    candidate_index = {id(job): idx for idx, job in enumerate(candidates)}
-
-    for i, job in enumerate(candidates):
-        ai = by_id.get(i)
-        if not ai:
-            continue
-
-        for key in (
-            "company", "title", "sector", "job_function", "job_level", "job_type",
-            "location", "vacancy", "salary", "education", "experience", "deadline",
-            "published_date", "application_url", "requirements", "responsibilities", "summary",
-            "confidence",
-        ):
-            value = ai.get(key)
-            if value not in (None, "", [], {}):
-                job[key] = value
-
-        job["ai_extracted"] = True
-
+    """Enrich every incomplete posting in batches, with special emphasis on PDF deadlines."""
+    candidates=[job for job in jobs if (not job.get("company") or not job.get("title") or not job.get("deadline") or not job.get("application_url") or not job.get("requirements") or not job.get("sector") or not job.get("job_function"))]
+    total=(len(candidates)+AI_BATCH_SIZE-1)//AI_BATCH_SIZE
+    for batch_no,start_idx in enumerate(range(0,len(candidates),AI_BATCH_SIZE),1):
+        batch=candidates[start_idx:start_idx+AI_BATCH_SIZE]
+        payload={"taxonomy":{"sectors":SECTORS,"job_functions":JOB_FUNCTIONS,"job_levels":JOB_LEVELS,"job_types":JOB_TYPES},"documents":[{"id":i,"source_name":j.get("source_name"),"source_url":j.get("source_url"),"title_hint":j.get("title"),"text":safe_text(j.get("text"))[:9000]} for i,j in enumerate(batch)]}
+        data=cerebras_structured(("Extract Bangladesh job circulars from the supplied source text, including PDF notices. Extract only stated facts. The APPLICATION DEADLINE is mandatory for publication: find the final application date exactly. Do not mistake page counters or dashboard statistics for a deadline. Never invent facts. Missing values must be null or []."),payload,AI_SCHEMA,6500)
+        logger.info("AI ENRICHMENT BATCH %d/%d | docs=%d | success=%s",batch_no,total,len(batch),bool(data))
+        if not data or not isinstance(data.get("jobs"),list): continue
+        by_id={int(x.get("id")):x for x in data["jobs"] if isinstance(x,dict) and str(x.get("id","")).isdigit()}
+        for i,job in enumerate(batch):
+            ai=by_id.get(i)
+            if not ai: continue
+            for key in ("company","title","sector","job_function","job_level","job_type","location","vacancy","salary","education","experience","deadline","published_date","application_url","requirements","responsibilities","summary","confidence"):
+                v=ai.get(key)
+                if v not in (None,"",[],{}): job[key]=v
+            job["ai_extracted"]=True
     return jobs
 
 
@@ -1303,6 +1233,26 @@ def verify(job: dict[str, Any]) -> dict[str, Any]:
 # ============================================================
 # NORMALIZATION / FINGERPRINT / JOB EVENT STATE
 # ============================================================
+
+
+def is_generic_job_title(job: dict[str, Any]) -> bool:
+    title = normalize_text(job.get("title"))
+    company = normalize_text(job.get("company"))
+    source = normalize_text(job.get("source_name"))
+    generic = {
+        "home", "jobs", "job", "career", "careers", "vacancy", "recruitment",
+        "alljobs by teletalk bridging aspirations with excellence",
+        "national job portal",
+    }
+    if not title:
+        return True
+    if title in generic:
+        return True
+    if source and title == source:
+        return True
+    if company and title == company and len(title.split()) < 7:
+        return True
+    return False
 
 def normalize_text(value: Any) -> str:
     value = html.unescape(safe_text(value)).lower()
@@ -1600,85 +1550,6 @@ def base_importance(job: dict[str, Any]) -> int:
 # BATCH AI RANKING
 # ============================================================
 
-def ai_rank(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not events:
-        return []
-
-    ranked_input = []
-    for idx, event in enumerate(events[:MAX_RANKING_DOCS]):
-        job = event["canonical"]
-        ranked_input.append({
-            "id": idx,
-            "title": job.get("title"),
-            "company": job.get("company"),
-            "sector": job.get("sector"),
-            "job_function": job.get("job_function"),
-            "location": job.get("location"),
-            "deadline": job.get("deadline"),
-            "vacancy": job.get("vacancy"),
-            "salary": job.get("salary"),
-            "source_priority": job.get("source_priority"),
-            "verification": event.get("verification", {}),
-            "quality_score": event.get("quality_score", 0),
-            "base_importance": event.get("base_importance", 0),
-            "summary": job.get("summary"),
-        })
-
-    payload = {
-        "instructions": (
-            "Rank Bangladesh job opportunities by reader value. "
-            "Use 50 as an average opportunity, 70+ as clearly publishable, and 85+ only for exceptional value. "
-            "Prefer verified/official sources, active deadlines, clear application paths, strong vacancy relevance, and fresh opportunities. "
-            "Do not invent facts. Return every supplied candidate exactly once."
-        ),
-        "candidates": ranked_input,
-    }
-
-    system = (
-        "You are the editor of @CareerNewsroom. Rank supplied jobs on a 0-100 scale. "
-        "This score is a refinement signal, not a hard gate. Do not force most jobs below 70. "
-        "Use quality_score and verification as evidence. A verified, complete, active job with a valid application path "
-        "should normally score at least 65. Exceptional jobs may score 85-100. Return strict JSON only."
-    )
-
-    data = cerebras_structured(system, payload, RANK_SCHEMA, 2500)
-
-    by_id: dict[int, dict[str, Any]] = {}
-    if data and isinstance(data.get("ranked"), list):
-        for item in data["ranked"]:
-            if isinstance(item, dict):
-                try:
-                    by_id[int(item["id"])] = item
-                except (KeyError, TypeError, ValueError):
-                    pass
-
-    for idx, event in enumerate(events):
-        base = int(event.get("base_importance") or base_importance(event.get("canonical", {})))
-        quality = int(event.get("quality_score") or 0)
-        item = by_id.get(idx) if idx < MAX_RANKING_DOCS else None
-        ai_score = None
-        if item:
-            try:
-                ai_score = int(item.get("score", 0))
-            except (TypeError, ValueError):
-                ai_score = None
-            event["ai_rank_score"] = ai_score or 0
-            event["rank_reason"] = safe_text(item.get("reason"))
-            event["ai_publish_hint"] = bool(item.get("publish"))
-        else:
-            event["ai_rank_score"] = None
-            event["rank_reason"] = "Deterministic ranking fallback"
-            event["ai_publish_hint"] = True
-
-        event["base_importance"] = base
-        event["importance_score"] = importance_score(event.get("canonical", {}), quality, ai_score)
-
-    return sorted(
-        events,
-        key=lambda e: (-int(e.get("importance_score", 0)), -int(e.get("quality_score", 0)))
-    )
-
-
 # ============================================================
 # TELEGRAM / IMAGES
 # ============================================================
@@ -1688,37 +1559,51 @@ def html_escape(value: Any) -> str:
 
 
 def build_caption(job: dict[str, Any]) -> str:
+    title = html_escape(job.get("title") or "Job Vacancy")
+    summary = safe_text(job.get("summary"))
+    if not summary:
+        company = safe_text(job.get("company") or "The organization")
+        summary = f"{company} is recruiting for this position in Bangladesh."
+
     lines = [
-        f"<b>📌 {html_escape(job.get('title') or 'Job Vacancy')}</b>",
+        f"<b>📌 {title}</b>",
         "",
-        f"🏢 <b>Organization:</b> {html_escape(job.get('company') or 'Not specified')}",
+        html_escape(summary[:360]),
+        "",
+        "<b>KEY HIGHLIGHTS</b>",
     ]
 
-    def add(icon: str, label: str, value: Any) -> None:
+    highlights = []
+    for icon, label, value in (
+        ("🏢", "Organization", job.get("company")),
+        ("📍", "Location", job.get("location")),
+        ("👥", "Vacancy", job.get("vacancy")),
+        ("🎓", "Education", ", ".join(job.get("education") or [])),
+        ("🧑‍💼", "Experience", job.get("experience")),
+        ("💰", "Salary", job.get("salary")),
+        ("💼", "Employment", job.get("employment_type") or job.get("job_type")),
+        ("📅", "Application Deadline", job.get("deadline")),
+    ):
         if value:
-            lines.append(f"{icon} <b>{label}:</b> {html_escape(value)}")
+            highlights.append(f"{icon} <b>{label}:</b> {html_escape(value)}")
+    lines.extend(highlights[:8])
 
-    add("📍", "Location", job.get("location"))
-    add("💼", "Type", job.get("employment_type") or job.get("job_type"))
-    add("🎯", "Level", job.get("job_level"))
-    add("🎓", "Education", ", ".join(job.get("education") or []))
-    add("🧑‍💼", "Experience", job.get("experience"))
-    add("💰", "Salary", job.get("salary"))
-    add("👥", "Vacancy", job.get("vacancy"))
-    add("📅", "Deadline", job.get("deadline"))
-
-    req = [safe_text(x) for x in job.get("requirements", []) if safe_text(x)][:4]
+    req = [html_escape(x) for x in (job.get("requirements") or []) if safe_text(x)]
     if req:
-        lines.extend(["", "<b>KEY REQUIREMENTS</b>"])
-        lines.extend(f"• {html_escape(x)}" for x in req)
+        lines.extend(["", "<b>REQUIREMENTS</b>"])
+        lines.extend(f"• {x}" for x in req[:5])
 
-    summary = safe_text(job.get("summary"))
-    if summary:
-        lines.extend(["", html_escape(summary[:420])])
+    responsibilities = [html_escape(x) for x in (job.get("responsibilities") or []) if safe_text(x)]
+    if responsibilities:
+        lines.extend(["", "<b>JOB RESPONSIBILITIES</b>"])
+        lines.extend(f"• {x}" for x in responsibilities[:3])
 
     lines.extend([
         "",
-        f"Source: {html_escape(job.get('source_name') or 'Career Newsroom')}",
+        "<b>HOW TO APPLY</b>",
+        "Use the <b>APPLY NOW</b> button below and follow the official application instructions.",
+        "",
+        f"<b>Source:</b> {html_escape(job.get('source_name') or 'Career Newsroom')}",
     ])
     return "\n".join(lines)[:MAX_CAPTION]
 
@@ -1800,13 +1685,12 @@ def prepare_image(job: dict[str, Any], index: int) -> Path:
     meta = job.get("meta") or {}
     candidates = []
 
-    for key in ("image", "logo"):
+    if job.get("image"):
+        candidates.append(canonical_url(job.get("image", "")))
+    for key in ("logo", "image"):
         value = canonical_url(meta.get(key, ""))
         if value:
             candidates.append(value)
-
-    if job.get("image"):
-        candidates.insert(0, canonical_url(job.get("image", "")))
 
     for i, url in enumerate(dict.fromkeys(x for x in candidates if x)):
         image = download_image(url, job.get("source_url", ""))
@@ -1951,88 +1835,45 @@ def merge_jobs(jobs: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[s
     return events
 
 
-# Calibrated publish policy: quality and trust are hard gates; importance is the editorial threshold.
+# Publish policy: validity first. Every qualifying job is publishable.
 PUBLISH_THRESHOLD = 60
 MIN_QUALITY_FOR_PUBLISH = 60
-MAX_NEW_PER_RUN = 6
-MAX_UPDATE_PER_RUN = 6
-MAX_REPOST_PER_RUN = 4
+MIN_DAYS_TO_DEADLINE = 7
 
 def publishable(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Select verified, non-scam, active events that are genuinely publishable."""
-    out = []
-    counts = {"NEW": 0, "UPDATE": 0, "REPOST": 0}
-    rejects = {
-        "verification": 0, "scam": 0, "inactive": 0, "quality": 0,
-        "importance": 0, "already_published": 0, "no_update_pending": 0,
-        "no_repost_due": 0, "invalid_event": 0,
-    }
-
+    """Hard-validity gate only. No category diversity, importance threshold, or per-run quota."""
+    out=[]
+    rejects={"verification":0,"scam":0,"missing_deadline":0,"expired":0,"deadline_under_7_days":0,"quality":0,"already_published":0,"no_update_pending":0,"no_repost_due":0,"invalid_event":0}
     for event in events:
-        verification = event.get("verification", {})
-        scam = event.get("scam_filter", {})
-        kind = event.get("event_type", "NEW")
-        published = bool(event.get("telegram", {}).get("published"))
-
-        if verification.get("status") != "verified":
-            rejects["verification"] += 1
-            continue
-        if not scam.get("passed", False):
-            rejects["scam"] += 1
-            continue
-        canonical = event.get("canonical", {})
-        status, status_basis = current_listing_status(canonical)
-        event["status"] = status
-        event["status_basis"] = status_basis
-        if status == "expired":
-            rejects["inactive"] += 1
-            continue
-        if status == "unknown" and status_basis != "official_undated":
-            rejects["inactive"] += 1
-            continue
-        if int(event.get("quality_score", 0)) < MIN_QUALITY_FOR_PUBLISH:
-            rejects["quality"] += 1
-            continue
-        if int(event.get("importance_score", 0)) < PUBLISH_THRESHOLD:
-            rejects["importance"] += 1
-            continue
-
-        if kind == "NEW":
-            if published:
-                rejects["already_published"] += 1
-                continue
-            if counts["NEW"] >= MAX_NEW_PER_RUN:
-                continue
-        elif kind == "UPDATE":
-            if not event.get("update_pending"):
-                rejects["no_update_pending"] += 1
-                continue
-            if counts["UPDATE"] >= MAX_UPDATE_PER_RUN:
-                continue
-        elif kind == "REPOST":
-            if not event.get("repost_due"):
-                rejects["no_repost_due"] += 1
-                continue
-            if counts["REPOST"] >= MAX_REPOST_PER_RUN:
-                continue
-        else:
-            rejects["invalid_event"] += 1
-            continue
-
+        kind=event.get("event_type","NEW")
+        if kind not in ("NEW","UPDATE","REPOST"):
+            rejects["invalid_event"]+=1; continue
+        if event.get("verification",{}).get("status")!="verified":
+            rejects["verification"]+=1; continue
+        if not event.get("scam_filter",{}).get("passed",False):
+            rejects["scam"]+=1; continue
+        job=event.get("canonical",{})
+        dt=parse_deadline(safe_text(job.get("deadline")))
+        if not dt:
+            rejects["missing_deadline"]+=1; continue
+        days=(dt-datetime.now(timezone.utc)).total_seconds()/86400
+        if days<0:
+            rejects["expired"]+=1; continue
+        if days<MIN_DAYS_TO_DEADLINE:
+            rejects["deadline_under_7_days"]+=1; continue
+        if int(event.get("quality_score",0))<MIN_QUALITY_FOR_PUBLISH:
+            rejects["quality"]+=1; continue
+        published=bool(event.get("telegram",{}).get("published"))
+        if kind=="NEW" and published:
+            rejects["already_published"]+=1; continue
+        if kind=="UPDATE" and not event.get("update_pending"):
+            rejects["no_update_pending"]+=1; continue
+        if kind=="REPOST" and not event.get("repost_due"):
+            rejects["no_repost_due"]+=1; continue
         out.append(event)
-        counts[kind] += 1
-
-    selected = sorted(
-        out,
-        key=lambda e: (-int(e.get("importance_score", 0)), -int(e.get("quality_score", 0)))
-    )[:MAX_PUBLISHED_PER_RUN]
-    logger.info(
-        "PUBLISH GATE | selected=%d | rejects=%s",
-        len(selected),
-        json.dumps(rejects, sort_keys=True),
-    )
-    return selected
-
+    out.sort(key=lambda e:(-int(e.get("quality_score",0)),-int(e.get("importance_score",0)),safe_text(e.get("canonical",{}).get("deadline"))))
+    logger.info("PUBLISH GATE | selected=%d | rejects=%s",len(out),json.dumps(rejects,sort_keys=True))
+    return out
 
 def prune_state(state: dict[str, Any]) -> None:
     cutoff = datetime.now(timezone.utc) - timedelta(days=EVENT_RETENTION_DAYS)
@@ -2121,17 +1962,22 @@ def run() -> None:
             job["source_priority"] = job.get("source_priority", "P3")
             job["official_source"] = False
 
+    # Final pre-event validation: source homepages must never become fake job posts.
+    jobs = [j for j in jobs if not is_generic_job_title(j)]
+    logger.info("REAL JOBS AFTER TITLE VALIDATION: %d", len(jobs))
+
     # Merge into events.
     events = merge_jobs(jobs, state)
 
-    # Rank in one bounded AI call instead of one call per job.
-    ranked_events = ai_rank(events)
+    # Every valid job is important. There is no editorial diversity/ranking filter.
+    ranked_events = events
+    for event in ranked_events:
+        event["importance_score"] = int(event.get("base_importance") or event.get("importance_score") or 0)
 
-    # If the ranking call failed, the deterministic base score remains active.
     candidates_to_publish = publishable(ranked_events)
 
     logger.info(
-        "EVENTS=%d PUBLISHABLE=%d",
+        "EVENTS=%d VALID_FOR_PUBLISH=%d",
         len(ranked_events),
         len(candidates_to_publish),
     )
@@ -2272,6 +2118,9 @@ def self_test() -> None:
 
     caption = build_caption(sample)
     assert "Management Trainee Officer" in caption
+    assert "KEY HIGHLIGHTS" in caption
+    assert "HOW TO APPLY" in caption
+    assert is_generic_job_title({"title":"National Job Portal","company":"National Job Portal","source_name":"National Job Portal"})
     assert len(caption) <= MAX_CAPTION
 
     robust_list = '[{"id": 0, "score": 80, "publish": true, "reason": "ok"}]'
@@ -2345,10 +2194,36 @@ def self_test() -> None:
     low["verification"] = {"status":"verified"}
     low["scam_filter"] = {"passed":True}
     low["quality_score"] = 90
-    low["importance_score"] = PUBLISH_THRESHOLD - 1
     low["telegram"] = {"published":False}
-    low["status"] = "active"
+    low["canonical"] = dict(sample)
+    low["canonical"]["deadline"] = (datetime.now(timezone.utc) + timedelta(days=3)).strftime("%d-%m-%Y")
     assert not publishable([low])
+
+    missing_deadline = dict(e1)
+    missing_deadline["canonical"] = dict(sample)
+    missing_deadline["canonical"]["deadline"] = None
+    missing_deadline["verification"] = {"status":"verified"}
+    missing_deadline["scam_filter"] = {"passed":True}
+    missing_deadline["quality_score"] = 90
+    missing_deadline["telegram"] = {"published":False}
+    assert not publishable([missing_deadline])
+
+    # PDF extraction regression test: a real circular deadline must be recoverable.
+    try:
+        from reportlab.pdfgen import canvas
+        pdf_path = RUNTIME_DIR / "self_test_job.pdf"
+        c = canvas.Canvas(str(pdf_path))
+        c.drawString(72, 760, "ABC Bank PLC Recruitment Circular")
+        c.drawString(72, 735, "Position: Management Trainee Officer")
+        c.drawString(72, 710, "Application deadline: 30-09-2099")
+        c.save()
+        pdf_bytes = pdf_path.read_bytes()
+        pdf_text = extract_pdf_text(pdf_bytes)
+        assert "Application deadline" in pdf_text
+        hints = deterministic_hints(pdf_text)
+        assert parse_deadline(hints["deadline"]) is not None
+    except ImportError:
+        pass
 
     path = fallback_card(sample, RUNTIME_DIR / "self_test.jpg")
     assert path.exists()
