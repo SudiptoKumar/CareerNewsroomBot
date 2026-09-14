@@ -2,30 +2,56 @@
 
 Production-oriented Bangladesh job discovery and Telegram publishing bot.
 
-## Core rule
+## Publication policy
 
-Every enabled source is crawled on every run. There is no source rotation, sector-diversity filter, importance threshold, or NEW/UPDATE/REPOST quota.
+Every enabled source in `source_registry.json` is attempted on every run. There is no source rotation, category/news diversity filter, artificial per-run post quota, or importance threshold that blocks a valid job.
 
-A job is eligible for publication only when all of these are true:
+A job is published only when:
 
-1. It is a real Bangladesh job/circular, not a source homepage or dashboard.
-2. The organization/title are meaningful and source-supported.
-3. The application deadline is present and is **at least 7 full days in the future**.
-4. Verification passes.
-5. Scam filtering passes.
-6. Quality score is at least 60.
-7. Job Event state says NEW, UPDATE, or REPOST and the corresponding event is publishable.
+1. It is a real Bangladesh job/circular, not a source homepage, dashboard, login page, or generic portal page.
+2. A meaningful organization and job title are supported by the source or recovered from the circular.
+3. A real application deadline is extracted. Missing deadlines are never invented.
+4. The deadline is **at least 7 full days in the future**.
+5. Verification passes and scam filtering passes.
+6. Quality is at least 60.
+7. The Job Event lifecycle permits `NEW`, `UPDATE`, or `REPOST` publication.
 
-## PDF-first discovery
+## Source coverage and runtime
 
-Bangladesh recruitment is frequently published as PDF circulars. V1 therefore:
+All 45 registered sources are attempted each run. Source crawling uses bounded concurrency so a few inaccessible `gov.bd`/Teletalk hosts cannot hold the entire workflow for 30 minutes.
 
-- crawls source landing pages every run;
-- finds linked `.pdf`, embedded PDF, circular, recruitment, appointment and notice links;
-- downloads PDFs;
-- extracts PDF text with `pypdf`;
-- extracts deadlines from English and Bengali date labels;
-- sends incomplete records to Cerebras in batches so PDF jobs are not limited to a tiny AI sample.
+Source status is truthful:
+
+- `SOURCE CRAWL OK` means the HTTP/source request completed and candidates were read.
+- `SOURCE CRAWL FAILED` means the source request or extraction failed.
+
+`mailto:`, `javascript:`, localhost, login, account, and other non-source URLs are ignored.
+
+## PDF-first extraction
+
+Government and institutional Bangladesh recruitment notices are often PDFs. V1 treats PDF circulars as first-class job documents:
+
+```text
+Registered source
+→ HTML/PDF discovery
+→ direct PDF / embedded PDF / JavaScript PDF URL detection
+→ pypdf text extraction
+→ deadline/date extraction
+→ organization/title/application URL extraction
+→ 7-day eligibility
+→ Job Event processing
+→ Telegram
+```
+
+Bengali digits and Bengali month names are normalized for date extraction.
+
+## AI rate-limit protection
+
+Cerebras is **not** called for every discovered job. Deterministically complete jobs bypass AI.
+
+AI is used as a rescue layer only when an essential field is missing, especially when the document is a PDF/circular or contains deadline evidence.
+
+The Cerebras client is configured with automatic retries disabled when supported, and calls are bounded to a small rate window. A `429` skips the affected rescue batch instead of sleeping through the whole GitHub Actions run.
 
 ## Telegram post template
 
@@ -80,6 +106,8 @@ Normalized Job
 → State Update
 ```
 
+The Job Event ID excludes mutable fields such as deadline and application URL, so a deadline/salary/application update remains the same event and becomes an `UPDATE` instead of a duplicate.
+
 ## State files
 
 - `source_registry.json`
@@ -100,4 +128,4 @@ Normalized Job
 
 ## Scheduling
 
-The GitHub Actions workflow runs hourly during the Bangladesh day/evening window and also supports manual `workflow_dispatch` runs.
+GitHub Actions runs hourly during the Bangladesh day/evening window and supports `workflow_dispatch`.
