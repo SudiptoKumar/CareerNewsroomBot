@@ -323,9 +323,26 @@ def extract_pdf_text(content: bytes) -> str:
     return "\n".join(chunks).strip()
 
 
+def _absolute_media_url(value: Any, base_url: str) -> str:
+    value = safe_text(value)
+    return canonical_url(urljoin(base_url, value)) if value else ""
+
+
+def _jsonld_logo(value: Any, base_url: str) -> str:
+    if isinstance(value, str):
+        return _absolute_media_url(value, base_url)
+    if isinstance(value, dict):
+        return _absolute_media_url(value.get("url") or value.get("contentUrl") or value.get("@id"), base_url)
+    return ""
+
+
 def extract_meta(content: bytes, url: str) -> dict[str, Any]:
+    """Extract job-specific media separately from page/social media and source branding."""
     soup = BeautifulSoup(content, "html.parser")
-    meta: dict[str, Any] = {}
+    meta: dict[str, Any] = {
+        "job_image_candidates": [],
+        "source_logo_candidates": [],
+    }
 
     if soup.title:
         meta["title"] = soup.title.get_text(" ", strip=True)
@@ -337,20 +354,36 @@ def extract_meta(content: bytes, url: str) -> dict[str, Any]:
         if key and value:
             tags[key.lower()] = value.strip()
 
-    if tags.get("og:image"):
-        meta["image"] = urljoin(url, tags["og:image"])
     if tags.get("og:description"):
         meta["description"] = tags["og:description"]
+    # IMPORTANT: og:image is normally a page/share banner, not proof of a job image.
+    # Never treat it as the job photo automatically.
+    if tags.get("og:image"):
+        meta["page_social_image"] = _absolute_media_url(tags["og:image"], url)
 
-    # Logo / icons.
+    # High-quality source logo candidates.
     for link in soup.find_all("link"):
         href = link.get("href")
         rel = [x.lower() for x in link.get("rel", [])]
-        if href and "icon" in rel:
-            meta["logo"] = urljoin(url, href)
-            break
+        sizes = safe_text(link.get("sizes"))
+        if not href:
+            continue
+        abs_url = _absolute_media_url(href, url)
+        rel_text = " ".join(rel)
+        if "apple-touch-icon" in rel_text:
+            meta["source_logo_candidates"].append(abs_url)
+        elif "icon" in rel_text:
+            meta["source_logo_candidates"].append(abs_url)
+        elif "logo" in rel_text or "image_src" in rel_text:
+            if "image_src" in rel_text:
+                meta["job_image_candidates"].append(abs_url)
+            else:
+                meta["source_logo_candidates"].append(abs_url)
+        if sizes:
+            meta.setdefault("media_sizes", {})[abs_url] = sizes
 
-    # JSON-LD JobPosting.
+    # JSON-LD: JobPosting image is a stronger signal than og:image.
+    # Organization/website logo is explicitly kept for source fallback.
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
         raw = script.string or script.get_text()
         try:
@@ -361,10 +394,61 @@ def extract_meta(content: bytes, url: str) -> dict[str, Any]:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            if item.get("@type") == "JobPosting":
+            types = item.get("@type")
+            types = types if isinstance(types, list) else [types]
+            if "JobPosting" in types:
                 meta["jobposting"] = item
-                break
+                image = item.get("image")
+                if isinstance(image, list):
+                    meta["job_image_candidates"].extend(_absolute_media_url(x, url) for x in image)
+                else:
+                    img_url = _absolute_media_url(image, url)
+                    if img_url:
+                        meta["job_image_candidates"].append(img_url)
+                org = item.get("hiringOrganization") or {}
+                if isinstance(org, list):
+                    org = org[0] if org else {}
+                if isinstance(org, dict):
+                    logo_url = _jsonld_logo(org.get("logo"), url)
+                    if logo_url:
+                        meta["source_logo_candidates"].append(logo_url)
+            if "Organization" in types or "WebSite" in types:
+                logo_url = _jsonld_logo(item.get("logo"), url)
+                if logo_url:
+                    meta["source_logo_candidates"].append(logo_url)
 
+    # Page images: only consider images inside likely job-content containers and score them by
+    # semantic similarity to the job title/company plus filename/alt text. This avoids picking
+    # the orange site avatar/banner shown in the failing run.
+    page_title = safe_text(soup.title.get_text(" ", strip=True) if soup.title else "").lower()
+    for container in soup.find_all(["article", "main", "section", "div"]):
+        cls = " ".join(container.get("class", [])) if container.get("class") else ""
+        ident = safe_text(container.get("id")).lower()
+        hay = f"{cls} {ident}".lower()
+        if not any(k in hay for k in ("job", "career", "vacancy", "recruit", "position", "opportunity", "posting", "detail")):
+            continue
+        for img in container.find_all("img")[:12]:
+            src = img.get("src") or img.get("data-src") or img.get("data-lazy-src") or img.get("data-original")
+            if not src:
+                continue
+            abs_url = _absolute_media_url(src, url)
+            if not abs_url:
+                continue
+            alt = safe_text(img.get("alt"))
+            title_attr = safe_text(img.get("title"))
+            token_text = f"{alt} {title_attr} {src} {page_title}".lower()
+            bad = ("favicon", "icon", "avatar", "placeholder", "default-image", "social-share", "header", "footer")
+            if any(k in token_text for k in bad):
+                continue
+            score = 0
+            for hint in (page_title, alt.lower(), title_attr.lower()):
+                if hint and len(hint) >= 4:
+                    words = set(re.findall(r"[a-z0-9]{4,}", hint))
+                    score += sum(1 for w in words if w in token_text)
+            meta["job_image_candidates"].append({"url": abs_url, "score": score})
+
+    meta["job_image_candidates"] = [x for x in meta["job_image_candidates"] if x]
+    meta["source_logo_candidates"] = list(dict.fromkeys(x for x in meta["source_logo_candidates"] if x))
     return meta
 
 
@@ -669,6 +753,25 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
 # DOCUMENT RETRIEVAL
 # ============================================================
 
+def _render_pdf_preview(pdf_bytes: bytes, target: Path) -> str:
+    """Render page 1 of a job circular at print-like resolution for Telegram."""
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        if doc.page_count < 1:
+            return ""
+        page = doc.load_page(0)
+        matrix = fitz.Matrix(2.4, 2.4)
+        pix = page.get_pixmap(matrix=matrix, alpha=False)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        pix.save(str(target))
+        doc.close()
+        return str(target)
+    except Exception as exc:
+        logger.debug("PDF preview render failed: %s", exc)
+        return ""
+
+
 def retrieve(candidate: dict[str, Any]) -> dict[str, Any] | None:
     url=canonical_url(candidate.get("url","")); text_hint=safe_text(candidate.get("text_hint","")); meta=candidate.get("meta") or {}
     if len(text_hint)>=250 and looks_like_job_document(candidate.get("title_hint",""),text_hint,url,candidate.get("source_priority","P3")):
@@ -679,7 +782,7 @@ def retrieve(candidate: dict[str, Any]) -> dict[str, Any] | None:
     if "pdf" in ctype or final_url.lower().endswith(".pdf") or ".pdf" in final_url.lower():
         text=extract_pdf_text(r.content)
         if not text: return None
-        meta={}
+        meta={"pdf_preview_path": _render_pdf_preview(r.content, RUNTIME_DIR / f"pdf_{hash_text(final_url)[:12]}.jpg")}
     else:
         text=extract_html_text(r.content,final_url); meta=extract_meta(r.content,final_url)
     title=candidate.get("title_hint","") or meta.get("title","")
@@ -1463,7 +1566,17 @@ def build_caption(job: dict[str, Any]) -> str:
         "",
         f"<b>Source:</b> {html_escape(job.get('source_name') or 'Career Newsroom')}",
     ])
-    return "\n".join(lines)[:MAX_CAPTION]
+    text = "\n".join(lines)
+    if len(text) <= MAX_CAPTION:
+        return text
+    # Never cut an HTML tag/entity in half. Keep complete lines only.
+    kept=[]; total=0
+    for line in lines:
+        add = len(line) + (1 if kept else 0)
+        if total + add > MAX_CAPTION - 24:
+            break
+        kept.append(line); total += add
+    return "\n".join(kept) + "\n…"
 
 
 def download_image(url: str, referer: str = "") -> Image.Image | None:
@@ -1538,26 +1651,153 @@ def fallback_card(job: dict[str, Any], path: Path) -> Path:
     return path
 
 
+CAREER_USERNAME = "@CareerNewsroom"
+MIN_JOB_IMAGE_SHORT = 600
+MIN_JOB_IMAGE_LONG = 1000
+MIN_LOGO_SIZE = 160
+
+def _image_has_usable_size(image: Image.Image, min_w: int, min_h: int) -> bool:
+    try:
+        w, h = image.size
+        return min(w, h) >= MIN_JOB_IMAGE_SHORT and max(w, h) >= MIN_JOB_IMAGE_LONG
+    except Exception:
+        return False
+
+def _logo_has_usable_size(image: Image.Image) -> bool:
+    try:
+        w, h = image.size
+        return max(w, h) >= MIN_LOGO_SIZE
+    except Exception:
+        return False
+
+def fit_with_padding(image: Image.Image, size=(1200, 675)) -> Image.Image:
+    """Preserve the complete circular/photo. No destructive crop of job-circular content."""
+    image = image.convert("RGB")
+    image.thumbnail(size, Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", size, "white")
+    x = (size[0] - image.width) // 2
+    y = (size[1] - image.height) // 2
+    canvas.paste(image, (x, y))
+    return canvas
+
+def overlay_username(image: Image.Image) -> Image.Image:
+    image = image.convert("RGB")
+    draw = ImageDraw.Draw(image)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    font = ImageFont.truetype(font_path, 26) if Path(font_path).exists() else ImageFont.load_default()
+    text = CAREER_USERNAME
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
+    pad_x, pad_y = 12, 7
+    x = image.width - tw - 24
+    y = image.height - th - 18
+    # Only the username is added. No title, source, logo, or decorative label.
+    draw.rounded_rectangle((x-pad_x, y-pad_y, x+tw+pad_x, y+th+pad_y), radius=8, fill=(0,0,0,150))
+    draw.text((x, y), text, fill="white", font=font)
+    return image
+
+def source_name_fallback(job: dict[str, Any], path: Path) -> Path:
+    image = Image.new("RGB", (1200, 675), "white")
+    draw = ImageDraw.Draw(image)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font = ImageFont.truetype(font_path, 54) if Path(font_path).exists() else ImageFont.load_default()
+    text = safe_text(job.get("source_name") or "Job Source")[:90]
+    # Last fallback: only bold centered source name, absolutely no username.
+    bbox = draw.multiline_textbbox((0,0), text, font=font, spacing=10)
+    tw = bbox[2]-bbox[0]
+    lines=[]
+    words=text.split()
+    cur=[]
+    for word in words:
+        trial=" ".join(cur+[word])
+        if draw.textbbox((0,0),trial,font=font)[2] > 1040 and cur:
+            lines.append(" ".join(cur)); cur=[word]
+        else:
+            cur.append(word)
+    if cur: lines.append(" ".join(cur))
+    total_h=len(lines)*70
+    y=(675-total_h)//2
+    for line in lines[:3]:
+        w=draw.textbbox((0,0),line,font=font)[2]
+        draw.text(((1200-w)//2,y),line,fill="black",font=font)
+        y+=70
+    image.save(path,"JPEG",quality=95)
+    return path
+
 def prepare_image(job: dict[str, Any], index: int) -> Path:
+    """Three-level image strategy:
+    1) real job/circular image, high quality + username only;
+    2) high-quality source logo + username only;
+    3) centered bold source name, no username.
+    Never use page og:image/social banners as a job photo.
+    """
     RUNTIME_DIR.mkdir(exist_ok=True)
     meta = job.get("meta") or {}
-    candidates = []
 
-    if job.get("image"):
-        candidates.append(canonical_url(job.get("image", "")))
-    for key in ("logo", "image"):
-        value = canonical_url(meta.get(key, ""))
-        if value:
-            candidates.append(value)
+    # LEVEL 1: actual job/circular image. PDF page preview is strongest because it is the job circular itself.
+    preview = safe_text(meta.get("pdf_preview_path"))
+    if preview and Path(preview).exists():
+        try:
+            image = Image.open(preview).convert("RGB")
+            if _image_has_usable_size(image, 900, 500):
+                out = fit_with_padding(image)
+                out = overlay_username(out)
+                path = RUNTIME_DIR / f"job_{index}_circular.jpg"
+                out.save(path, "JPEG", quality=95, optimize=True)
+                logger.info("IMAGE | level=1 job_circular source=pdf title=%s", safe_text(job.get("title"))[:100])
+                return path
+        except Exception:
+            pass
 
-    for i, url in enumerate(dict.fromkeys(x for x in candidates if x)):
+    candidates = meta.get("job_image_candidates") or []
+    normalized=[]
+    for item in candidates:
+        if isinstance(item, dict):
+            url=canonical_url(item.get("url","")); score=int(item.get("score",0))
+        else:
+            url=canonical_url(item); score=0
+        if url: normalized.append((score,url))
+    normalized.sort(key=lambda x:x[0], reverse=True)
+
+    for score, url in normalized[:8]:
         image = download_image(url, job.get("source_url", ""))
-        if image:
-            path = RUNTIME_DIR / f"job_{index}_{i}.jpg"
-            crop_cover(image).save(path, "JPEG", quality=92)
-            return path
+        if not image or not _image_has_usable_size(image, MIN_JOB_IMAGE_SHORT, MIN_JOB_IMAGE_LONG):
+            continue
+        out = fit_with_padding(image)
+        out = overlay_username(out)
+        path = RUNTIME_DIR / f"job_{index}_matched.jpg"
+        out.save(path, "JPEG", quality=95, optimize=True)
+        logger.info("IMAGE | level=1 job_match score=%s url=%s", score, url[:160])
+        return path
 
-    return fallback_card(job, RUNTIME_DIR / f"job_{index}_fallback.jpg")
+    # LEVEL 2: source logo only. Prefer semantic/logo candidates; reject tiny favicons.
+    logos = meta.get("source_logo_candidates") or []
+    # If the HTML collector did not expose a logo, try the source homepage once.
+    if not logos:
+        source_url = canonical_url(job.get("source_homepage") or job.get("source_url") or "")
+        if source_url:
+            try:
+                r=http_get(source_url)
+                if r:
+                    homepage_meta=extract_meta(r.content, canonical_url(r.url))
+                    logos=list(homepage_meta.get("source_logo_candidates") or [])
+            except Exception:
+                pass
+    for i, url in enumerate(dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x))):
+        image = download_image(url, job.get("source_url", ""))
+        if not image or not _logo_has_usable_size(image):
+            continue
+        out = fit_with_padding(image)
+        out = overlay_username(out)
+        path = RUNTIME_DIR / f"job_{index}_source_logo_{i}.jpg"
+        out.save(path, "JPEG", quality=95, optimize=True)
+        logger.info("IMAGE | level=2 source_logo url=%s", url[:160])
+        return path
+
+    # LEVEL 3: source name only, centered.
+    path = RUNTIME_DIR / f"job_{index}_source_name.jpg"
+    logger.info("IMAGE | level=3 source_name title=%s", safe_text(job.get("title"))[:100])
+    return source_name_fallback(job, path)
 
 
 def telegram_call(
