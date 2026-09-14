@@ -50,8 +50,9 @@ MAX_DISCOVERY_CANDIDATES = 100
 MAX_AI_EXTRACTION_DOCS = 12
 MAX_RANKING_DOCS = 28
 MAX_PUBLISHED_PER_RUN = 6
-MAX_EXA_QUERIES = 10
+MAX_EXA_QUERIES = 12
 MAX_EXA_RESULTS_PER_QUERY = 6
+EXA_FRESHNESS_DAYS = 45
 POST_DELAY_SECONDS = 2.5
 EVENT_RETENTION_DAYS = 90
 MAX_CAPTION = 1000
@@ -590,23 +591,27 @@ def discover_google_news() -> list[dict[str, Any]]:
 
 
 def exa_queries(registry: dict[str, Any]) -> list[str]:
+    now = datetime.now(timezone.utc)
+    month_name = now.strftime('%B')
+    month_year = now.strftime('%B %Y')
+    year = now.strftime('%Y')
     base = [
-        '"Bangladesh" "job circular"',
-        '"Bangladesh" recruitment vacancy',
-        '"নিয়োগ বিজ্ঞপ্তি" Bangladesh',
-        '"চাকরির বিজ্ঞপ্তি" Bangladesh',
-        'site:gov.bd "নিয়োগ বিজ্ঞপ্তি"',
-        'site:gov.bd recruitment Bangladesh',
-        'site:edu.bd recruitment Bangladesh',
-        'Bangladesh bank recruitment',
-        'Bangladesh NGO jobs',
-        'Bangladesh pharmaceutical jobs',
-        'Bangladesh healthcare jobs',
-        'Bangladesh university recruitment',
-        'Bangladesh IT jobs',
-        'Bangladesh garments jobs',
-        'Bangladesh manufacturing jobs',
-        'Bangladesh internship jobs',
+        f'"Bangladesh" "job circular" "{month_name}"',
+        f'"Bangladesh" recruitment vacancy "{month_year}"',
+        f'"নিয়োগ বিজ্ঞপ্তি" Bangladesh "{year}"',
+        f'"চাকরির বিজ্ঞপ্তি" Bangladesh "{month_name}"',
+        f'site:gov.bd "নিয়োগ বিজ্ঞপ্তি" "{year}"',
+        f'site:gov.bd recruitment Bangladesh "{month_year}"',
+        f'site:edu.bd recruitment Bangladesh "{year}"',
+        f'Bangladesh bank recruitment "{month_year}"',
+        f'Bangladesh NGO jobs "{month_year}"',
+        f'Bangladesh pharmaceutical jobs "{month_year}"',
+        f'Bangladesh healthcare jobs "{month_year}"',
+        f'Bangladesh university recruitment "{month_year}"',
+        f'Bangladesh IT jobs "{month_year}"',
+        f'Bangladesh garments jobs "{month_year}"',
+        f'Bangladesh manufacturing jobs "{month_year}"',
+        f'Bangladesh internship jobs "{month_year}"',
     ]
 
     # Add a rotating subset of known source names. This can discover new jobs and new source endpoints.
@@ -667,10 +672,27 @@ def discover_exa(registry: dict[str, Any]) -> list[dict[str, Any]]:
                 "title_hint": safe_text(getattr(item, "title", "")),
                 "text_hint": text[:12000],
                 "image": safe_text(getattr(item, "image", "")),
+                "published_date": safe_text(getattr(item, "published_date", "")),
                 "meta": {},
                 "discovery": "exa",
             })
     return out
+
+
+def candidate_is_fresh(candidate: dict[str, Any]) -> bool:
+    """Reject clearly stale discovery results before expensive extraction."""
+    published = safe_text(candidate.get("published_date"))
+    if not published:
+        return True
+    try:
+        value = published.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() / 86400
+        return age_days <= EXA_FRESHNESS_DAYS
+    except ValueError:
+        return True
 
 
 def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -700,6 +722,8 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
     for candidate in candidates:
         url = canonical_url(candidate.get("url", ""))
         if not url:
+            continue
+        if candidate.get("discovery") == "exa" and not candidate_is_fresh(candidate):
             continue
         unique.setdefault(url, candidate)
 
@@ -1504,6 +1528,24 @@ def base_importance(job: dict[str, Any]) -> int:
     if job.get("summary"):
         score += 3
 
+    # Fresh listings get a modest editorial boost. This rewards genuinely new
+    # opportunities without allowing freshness to overpower trust/quality.
+    published = safe_text(job.get("published_date"))
+    if published:
+        try:
+            dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() / 86400
+            if age <= 1:
+                score += 6
+            elif age <= 3:
+                score += 4
+            elif age <= 7:
+                score += 2
+        except ValueError:
+            pass
+
     return max(0, min(100, score))
 
 
@@ -1891,9 +1933,25 @@ def publishable(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not scam.get("passed", False):
             rejects["scam"] += 1
             continue
-        if event.get("status") not in ("active", "deadline_today", "deadline_soon"):
-            rejects["inactive"] += 1
-            continue
+        status = event.get("status")
+        if status not in ("active", "deadline_today", "deadline_soon"):
+            # A job without a parsed deadline may still be publishable when the source is
+            # official and the listing itself is demonstrably fresh. Never allow unknown
+            # or stale third-party listings through this exception.
+            canonical = event.get("canonical", {})
+            published = safe_text(canonical.get("published_date"))
+            fresh_official = False
+            if published and (canonical.get("official_source") or canonical.get("source_priority") in ("P0", "P1")):
+                try:
+                    dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    fresh_official = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() <= 14 * 86400
+                except ValueError:
+                    pass
+            if not (status == "unknown" and fresh_official):
+                rejects["inactive"] += 1
+                continue
         if int(event.get("quality_score", 0)) < MIN_QUALITY_FOR_PUBLISH:
             rejects["quality"] += 1
             continue
