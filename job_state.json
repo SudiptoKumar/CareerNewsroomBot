@@ -1,6 +1,322 @@
 {
   "version": 1,
-  "updated_at": null,
+  "updated_at": "2026-09-14T00:07:48.479591+00:00",
   "jobs": {},
-  "sources": {}
+  "sources": {
+    "a2i_jobs": {
+      "last_crawl_epoch": 1789343883.7931101,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:03.793115+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "alljobs_teletalk": {
+      "last_crawl_epoch": 1789343884.9995003,
+      "last_success": "2026-09-13T23:58:04.999504+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "bangladesh_national_portal_jobs": {
+      "last_crawl_epoch": 1789343888.1345277,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:08.134530+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bkkb_teletalk": {
+      "last_crawl_epoch": 1789343892.7211223,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:12.721126+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bpi_teletalk": {
+      "last_crawl_epoch": 1789343897.7360628,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:17.736066+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bpsc": {
+      "last_crawl_epoch": 1789343899.3027978,
+      "last_success": "2026-09-13T23:58:19.302800+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "bscl_teletalk": {
+      "last_crawl_epoch": 1789343908.1401553,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:28.140158+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bscplc_teletalk": {
+      "last_crawl_epoch": 1789343913.1440163,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:33.144020+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bteab_teletalk": {
+      "last_crawl_epoch": 1789343920.6690948,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:40.669098+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "btrc_teletalk": {
+      "last_crawl_epoch": 1789343927.8699412,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:47.869945+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "caab_jobs": {
+      "last_crawl_epoch": 1789343932.9299443,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:52.929948+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "dss_teletalk": {
+      "last_crawl_epoch": 1789343937.7217073,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:58:57.721711+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "ictd_jobs": {
+      "last_crawl_epoch": 1789343939.3181086,
+      "last_success": "2026-09-13T23:58:59.318112+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 11
+    },
+    "ictd_teletalk": {
+      "last_crawl_epoch": 1789343944.3229153,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:04.322919+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "jobs_teletalk_tbl": {
+      "last_crawl_epoch": 1789343949.3035965,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:09.303599+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "mocat_jobs": {
+      "last_crawl_epoch": 1789343954.342394,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:14.342397+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "moha_jobs": {
+      "last_crawl_epoch": 1789343955.750727,
+      "last_success": "2026-09-13T23:59:15.750730+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 2
+    },
+    "mopa_jobs": {
+      "last_crawl_epoch": 1789343957.565581,
+      "last_success": "2026-09-13T23:59:17.565585+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 11
+    },
+    "mopme_teletalk": {
+      "last_crawl_epoch": 1789343962.5425742,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:22.542577+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "national_job_portal": {
+      "last_crawl_epoch": 1789343967.3149526,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:27.314955+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "rdcd_teletalk": {
+      "last_crawl_epoch": 1789343972.2995865,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:32.299590+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "rhd_jobs": {
+      "last_crawl_epoch": 1789343977.314617,
+      "last_success": null,
+      "last_failure": "2026-09-13T23:59:37.314620+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "rthd_jobs": {
+      "last_crawl_epoch": 1789343979.1143115,
+      "last_success": "2026-09-13T23:59:39.114315+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 8
+    },
+    "smart_job": {
+      "last_crawl_epoch": 1789344042.8264291,
+      "last_success": null,
+      "last_failure": "2026-09-14T00:00:42.826433+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "telecomdept_teletalk": {
+      "last_crawl_epoch": 1789344047.8135517,
+      "last_success": null,
+      "last_failure": "2026-09-14T00:00:47.813555+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "actionaid_bd": {
+      "last_crawl_epoch": 1789344049.5361738,
+      "last_success": "2026-09-14T00:00:49.536176+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 8
+    },
+    "brac_bank": {
+      "last_crawl_epoch": 1789344050.1232257,
+      "last_success": "2026-09-14T00:00:50.123229+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 6
+    },
+    "brac_bank_taleo": {
+      "last_crawl_epoch": 1789344050.8520887,
+      "last_success": "2026-09-14T00:00:50.852092+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 2
+    },
+    "buet_jobs": {
+      "last_crawl_epoch": 1789344051.9989057,
+      "last_success": "2026-09-14T00:00:51.998907+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "buet_registrar_jobs": {
+      "last_crawl_epoch": 1789344053.4360816,
+      "last_success": "2026-09-14T00:00:53.436085+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 13
+    },
+    "care_career": {
+      "last_crawl_epoch": 1789344054.9450958,
+      "last_success": "2026-09-14T00:00:54.945098+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 8
+    },
+    "daraz": {
+      "last_crawl_epoch": 1789344057.899959,
+      "last_success": "2026-09-14T00:00:57.899962+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 1
+    },
+    "evercare": {
+      "last_crawl_epoch": 1789344058.945986,
+      "last_success": "2026-09-14T00:00:58.945989+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 6
+    },
+    "evercare_bdjobs": {
+      "last_crawl_epoch": 1789344060.1027327,
+      "last_success": "2026-09-14T00:01:00.102735+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 15
+    },
+    "gp_career": {
+      "last_crawl_epoch": 1789344061.2943013,
+      "last_success": "2026-09-14T00:01:01.294303+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "renata": {
+      "last_crawl_epoch": 1789344062.233328,
+      "last_success": "2026-09-14T00:01:02.233331+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 5
+    },
+    "robi_career": {
+      "last_crawl_epoch": 1789344063.1938877,
+      "last_success": "2026-09-14T00:01:03.193889+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "square_hospital": {
+      "last_crawl_epoch": 1789344064.4520624,
+      "last_success": "2026-09-14T00:01:04.452065+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 3
+    },
+    "square_pharma": {
+      "last_crawl_epoch": 1789344067.1817815,
+      "last_success": "2026-09-14T00:01:07.181784+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 8
+    },
+    "unicef_bd": {
+      "last_crawl_epoch": 1789344067.8829365,
+      "last_success": "2026-09-14T00:01:07.882940+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 5
+    },
+    "walton": {
+      "last_crawl_epoch": 1789344073.846573,
+      "last_success": null,
+      "last_failure": "2026-09-14T00:01:13.846576+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "bdjobs": {
+      "last_crawl_epoch": 1789344075.9013438,
+      "last_success": "2026-09-14T00:01:15.901347+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 0
+    },
+    "bdjobs_live": {
+      "last_crawl_epoch": 1789344077.395187,
+      "last_success": "2026-09-14T00:01:17.395191+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "jobs_found_last_run": 50
+    },
+    "niyog": {
+      "last_crawl_epoch": 1789344080.5857787,
+      "last_success": null,
+      "last_failure": "2026-09-14T00:01:20.585781+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    },
+    "skill_jobs": {
+      "last_crawl_epoch": 1789344083.723934,
+      "last_success": null,
+      "last_failure": "2026-09-14T00:01:23.723936+00:00",
+      "consecutive_failures": 1,
+      "jobs_found_last_run": 0
+    }
+  }
 }
