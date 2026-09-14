@@ -1,8 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "updated_at": "2026-09-13T23:48:42.422978+00:00",
-  "registry_status": "production_seed",
-  "notes": "Seed registry for CareerNewsroom. Direct crawling is best-effort; Exa and Google News are discovery fallbacks. Source health is stored in job_state.json.",
+  "registry_status": "production_v2",
+  "notes": "V2 adds direct corporate/MNC career sources, source-domain aliases, government grade routing, PDF/OCR-ready acquisition, and unified source attribution. Discovery services remain non-authoritative.",
   "sources": [
     {
       "id": "national_job_portal",
@@ -752,6 +752,198 @@
       "supports_pdf": false,
       "official": true,
       "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "bkash_career",
+      "name": "bKash Careers",
+      "categories": [
+        "private",
+        "mnc",
+        "fintech",
+        "banking_fintech"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://www.bkash.com/en/career",
+      "domains": [
+        "bkash.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "bat_career",
+      "name": "BAT Bangladesh Careers",
+      "categories": [
+        "private",
+        "mnc",
+        "fmcg"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://careers.bat.com/en/location/bangladesh-jobs/1045/1210997/2",
+      "domains": [
+        "careers.bat.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "nestle_career",
+      "name": "Nestlé Bangladesh Careers",
+      "categories": [
+        "private",
+        "mnc",
+        "fmcg"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://www.nestle.com.bd/jobs",
+      "domains": [
+        "nestle.com.bd"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "unilever_bd",
+      "name": "Unilever Bangladesh Careers",
+      "categories": [
+        "private",
+        "mnc",
+        "fmcg"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://careers.unilever.com/en/bangladesh",
+      "domains": [
+        "careers.unilever.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "brac_career",
+      "name": "BRAC Careers",
+      "categories": [
+        "private",
+        "ngo",
+        "careers"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://careers.brac.net/auth/register",
+      "domains": [
+        "careers.brac.net",
+        "brac.net"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "aci_career",
+      "name": "ACI Careers",
+      "categories": [
+        "private",
+        "fmcg",
+        "pharma",
+        "manufacturing"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://www.aci-bd.com/career/how-to-apply.html",
+      "domains": [
+        "aci-bd.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "standard_chartered_careers",
+      "name": "Standard Chartered Careers",
+      "categories": [
+        "private",
+        "banking",
+        "mnc"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://www.sc.com/careers/",
+      "domains": [
+        "sc.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "citybank_careers",
+      "name": "City Bank Careers",
+      "categories": [
+        "private",
+        "banking"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://www.citybankplc.com/life-at-city-evp/propositions/city-careers",
+      "domains": [
+        "citybankplc.com",
+        "thecitybank.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true
+    },
+    {
+      "id": "marico_career",
+      "name": "Marico Bangladesh Careers",
+      "categories": [
+        "private",
+        "mnc",
+        "fmcg"
+      ],
+      "source_type": "corporate_career",
+      "priority": "P1",
+      "url": "https://marico.com/bangladesh/careers/life-at-marico",
+      "domains": [
+        "marico.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": true,
+      "crawl_minutes": 60,
       "status": "active",
       "enabled": true
     }

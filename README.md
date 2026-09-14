@@ -158,3 +158,20 @@ The Event ID is based on stable job identity, not mutable deadline/application f
 ## Scheduling
 
 GitHub Actions runs hourly during the Bangladesh day/evening window and supports `workflow_dispatch`.
+
+
+## V2 Intelligence Layer
+
+CareerNewsroomBot V2 combines Government Job Intelligence and Corporate Career Intelligence. Government sources are routed through Grade 1-10 detection and PDF/OCR-ready extraction. Corporate jobs prefer official employer career pages and ATS-style domains. Exa and Google News are discovery-only and are never authoritative publication sources.
+
+The audience priority favors BBA/MBA, business, finance, accounting, marketing, HR, banking, procurement, supply chain, management trainee, graduate trainee, internship and fresher opportunities while keeping other valid jobs eligible.
+
+Bangla rich messages are rendered left-to-right. Telegram Rich Messages use the current Bot API rich markdown/media path, with sendPhoto/sendMessage fallback.
+
+## V2 Production Notes
+
+Telegram V2 uses the Bot API Rich Messages path first, with ordinary `sendPhoto` / `sendMessage` as a fallback. Rich Messages support structured markdown/HTML, media attachments, headings, details blocks and links. Bangla output is explicitly rendered with the normal left-to-right direction.
+
+Discovery providers are not publication sources. The bot resolves the original employer, government department, portal, or application site before assigning `source_name` and `source_url`.
+
+The current V2 registry contains direct government, Teletalk, portal, NGO/INGO, university, healthcare and corporate/MNC career sources. The corporate additions were validated during V2 planning against their public career pages.

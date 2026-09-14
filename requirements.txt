@@ -9,3 +9,5 @@ trafilatura
 pypdf
 
 PyMuPDF
+
+pytesseract
