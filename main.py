@@ -57,6 +57,9 @@ POST_DELAY_SECONDS = 1.5
 HTTP_TIMEOUT_SECONDS = 10
 CEREBRAS_CALLS_PER_MINUTE = 3
 CEREBRAS_RETRY_AFTER_SECONDS = 61
+BBA_RELEVANCE_BONUS = 22
+FAIR_SOURCE_WINDOW = 3
+MAX_PDF_IMAGE_PAGES = 4
 
 EVENT_RETENTION_DAYS = 90
 MAX_CAPTION = 1000
@@ -530,20 +533,37 @@ def registry_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
-    """Promote Exa/Google discoveries to a known source when hostname matches."""
-    host = urlparse(url).netloc.lower()
+    """Resolve the actual publisher/apply-site source. Exa/Google are discovery layers, never display sources."""
+    host = urlparse(canonical_url(url)).netloc.lower().removeprefix("www.")
     if not host:
         return None
-
-    best = None
-    best_len = -1
+    best = None; best_len = -1
     for source in sources.values():
-        source_host = urlparse(safe_text(source.get("url", ""))).netloc.lower()
-        if source_host and (host == source_host or host.endswith("." + source_host)):
-            if len(source_host) > best_len:
-                best = source
-                best_len = len(source_host)
+        source_host = urlparse(canonical_url(safe_text(source.get("url", "")))).netloc.lower().removeprefix("www.")
+        if source_host and (host == source_host or host.endswith("." + source_host)) and len(source_host) > best_len:
+            best = source; best_len = len(source_host)
     return best
+
+
+def source_display_name(url: str, sources: dict[str, dict[str, Any]]) -> str:
+    mapped = source_for_url(url, sources)
+    if mapped:
+        return safe_text(mapped.get("name"))
+    host = urlparse(canonical_url(url)).netloc.lower().removeprefix("www.")
+    if not host:
+        return "Career Newsroom"
+    known = {
+        "bdjobs.com": "Bdjobs.com", "bdjobslive.com": "BDJobs Live", "alljobs.teletalk.com.bd": "AllJobs Teletalk",
+        "jobs.gov.bd": "National Job Portal", "bpsc.gov.bd": "Bangladesh Public Service Commission",
+        "career.bracu.ac.bd": "BRAC University", "squaregroup.com": "Square Group", "squarespharma.com.bd": "Square Pharmaceuticals",
+        "careers.unilever.com": "Unilever Careers", "jobs.waltonbd.com": "Walton Careers", "intertek.com": "Intertek",
+        "jobs.bdjobs.com": "Bdjobs.com",
+    }
+    for domain,name in known.items():
+        if host == domain or host.endswith('.'+domain):
+            return name
+    base = host.split('.')[0].replace('-', ' ').strip()
+    return base.title() if base else "Career Newsroom"
 
 
 def due_sources(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -753,49 +773,71 @@ def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[di
 # DOCUMENT RETRIEVAL
 # ============================================================
 
-def _render_pdf_preview(pdf_bytes: bytes, target: Path) -> str:
-    """Render page 1 of a job circular at print-like resolution for Telegram."""
+def _render_pdf_previews(pdf_bytes: bytes, target_prefix: Path, max_pages: int = MAX_PDF_IMAGE_PAGES) -> list[str]:
+    """Render several circular pages and rank them by visible-content density."""
     try:
-        import fitz  # PyMuPDF
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        if doc.page_count < 1:
-            return ""
-        page = doc.load_page(0)
-        matrix = fitz.Matrix(2.4, 2.4)
-        pix = page.get_pixmap(matrix=matrix, alpha=False)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        pix.save(str(target))
+        import fitz
+        doc=fitz.open(stream=pdf_bytes,filetype="pdf")
+    except Exception:
+        return []
+    scored=[]
+    try:
+        for i in range(min(max_pages, doc.page_count)):
+            try:
+                page=doc.load_page(i)
+                pix=page.get_pixmap(matrix=fitz.Matrix(2.4,2.4),alpha=False)
+                target=target_prefix.with_name(target_prefix.stem+f"_p{i+1}.jpg")
+                target.parent.mkdir(parents=True,exist_ok=True)
+                pix.save(str(target))
+                # Rank pages by non-white raster density. Text-heavy circular pages generally
+                # carry substantially more usable job information than near-empty cover pages.
+                samples=0; ink=0; channels=3 if pix.n >= 3 else 1
+                sx=max(1,pix.width//60); sy=max(1,pix.height//34)
+                for y in range(0,pix.height,sy):
+                    row=y*pix.width
+                    for x in range(0,pix.width,sx):
+                        idx=(row+x)*channels
+                        samples += 1
+                        if channels==3:
+                            r,g,b=pix.samples[idx:idx+3]
+                            if min(r,g,b)<245: ink += 1
+                        else:
+                            if pix.samples[idx]<245: ink += 1
+                density=ink/max(1,samples)
+                scored.append((density,-i,str(target)))
+            except Exception:
+                continue
+    finally:
         doc.close()
-        return str(target)
-    except Exception as exc:
-        logger.debug("PDF preview render failed: %s", exc)
-        return ""
+    scored.sort(reverse=True)
+    return [path for _,__,path in scored]
+
+
+def _render_pdf_preview(pdf_bytes: bytes, target: Path) -> str:
+    paths=_render_pdf_previews(pdf_bytes,target,1)
+    return paths[0] if paths else ""
 
 
 def retrieve(candidate: dict[str, Any]) -> dict[str, Any] | None:
-    url=canonical_url(candidate.get("url","")); text_hint=safe_text(candidate.get("text_hint","")); meta=candidate.get("meta") or {}
+    url=canonical_url(candidate.get("url","")); text_hint=safe_text(candidate.get("text_hint","")); meta=dict(candidate.get("meta") or {})
     if len(text_hint)>=250 and looks_like_job_document(candidate.get("title_hint",""),text_hint,url,candidate.get("source_priority","P3")):
-        return {**candidate,"url":url,"text":text_hint[:24000],"hints":deterministic_hints(text_hint),"meta":meta}
+        return {**candidate,"url":url,"text":text_hint[:30000],"hints":deterministic_hints(text_hint),"meta":meta}
     r=http_get(url)
     if not r: return None
     final_url=canonical_url(r.url); ctype=r.headers.get("content-type","").lower()
     if "pdf" in ctype or final_url.lower().endswith(".pdf") or ".pdf" in final_url.lower():
         text=extract_pdf_text(r.content)
         if not text: return None
-        meta={"pdf_preview_path": _render_pdf_preview(r.content, RUNTIME_DIR / f"pdf_{hash_text(final_url)[:12]}.jpg")}
+        previews=_render_pdf_previews(r.content,RUNTIME_DIR / f"pdf_{hash_text(final_url)[:12]}")
+        meta.update({"pdf_preview_path": previews[0] if previews else "", "pdf_preview_paths": previews})
     else:
         text=extract_html_text(r.content,final_url); meta=extract_meta(r.content,final_url)
     title=candidate.get("title_hint","") or meta.get("title","")
     if not looks_like_job_document(title,text,final_url,candidate.get("source_priority","P3")): return None
     if not (is_bangladesh(text,final_url) or candidate.get("source_priority") in ("P0","P1")): return None
-    return {**candidate,"url":final_url,"text":text[:24000],"hints":deterministic_hints(text),"meta":meta,
+    return {**candidate,"url":final_url,"text":text[:30000],"hints":deterministic_hints(text),"meta":meta,
             "published_date":candidate.get("published_date") or meta.get("datePublished") or meta.get("datePosted") or ""}
 
-
-
-# ============================================================
-# DETERMINISTIC + CEREBRAS EXTRACTION
-# ============================================================
 
 def jsonld_job(meta: dict[str, Any]) -> dict[str, Any] | None:
     item = meta.get("jobposting")
@@ -877,23 +919,112 @@ def infer_application_url(text: str, source_url: str) -> str:
     return ''
 
 
+def _strip_field_prefix(value: Any, labels: tuple[str,...]) -> str:
+    text=safe_text(value)
+    if not text: return ""
+    for label in labels:
+        text=re.sub(rf"^\s*{re.escape(label)}\s*[:：-]\s*", "", text, flags=re.I)
+    text=re.sub(r"\s*\.\.\.\s*$", "", text)
+    return safe_text(text)
+
+
+def clean_field(value: Any, field: str) -> Any:
+    if isinstance(value,list):
+        cleaned=[]
+        for x in value:
+            y=clean_field(x,"text")
+            if y and y not in cleaned: cleaned.append(y)
+        return cleaned
+    text=safe_text(value)
+    if not text: return ""
+    labels={
+        "vacancy":("vacancy","vacancies","number of vacancies","পদসংখ্যা","শূন্যপদ"),
+        "salary":("salary","salary & benefits","বেতন","বেতন-ভাতা"),
+        "experience":("experience","অভিজ্ঞতা"),
+        "education":("education","educational qualification","যোগ্যতা","শিক্ষাগত যোগ্যতা"),
+        "location":("location","job location","কর্মস্থল","চাকরির স্থান"),
+    }
+    if field in labels: text=_strip_field_prefix(text,labels[field])
+    low=text.lower()
+    if field=="vacancy":
+        m=re.search(r"(?:vacancy|vacancies|পদসংখ্যা|শূন্যপদ)\s*[:：-]?\s*(\d{1,5}(?:\s*[-–]\s*\d{1,5})?)",text,re.I)
+        if m: return m.group(1)
+    if field=="salary":
+        if "company information" in low or low in {"salary","salary,","salary & benefits company information"}: return ""
+        m=re.search(r"(?i)(?:৳|bdt|tk\.?|salary)\s*([\d,]+(?:\s*[-–]\s*[\d,]+)?)",text)
+        if m: return m.group(1).strip()
+    if low in {"salary", "salary,", "salary & benefits company information", "vacancy", "not specified", "n/a", "na", "none"}: return ""
+    if "company information" in low or re.search(r"\bdeadline\s*:", low): return ""
+    if text.endswith(("…","..","...")): return ""
+    return text[:600]
+
+def clean_job_title(value: Any) -> str:
+    t=safe_text(value)
+    if not t: return ""
+    # Remove common portal/article wrappers without stripping genuine title words.
+    t=re.sub(r"\s*[|•·]\s*(Bdjobs(?:\.com)?|BDJobs Live|EZ Jobs|Jobs? Test bd|Jobs?\s*bd|Career Opportunity).*$","",t,flags=re.I)
+    t=re.sub(r"\s+[-–]\s+(?:Apply online|Apply Now|Jobs?|Job Circular.*)$","",t,flags=re.I)
+    t=re.sub(r"\s+at\s+(Bdjobs(?:\.com)?|BDJobs Live|Jobs? Test bd|EZ Jobs)$","",t,flags=re.I)
+    t=re.sub(r"^(?:job circular|vacancy|career opportunity)\s*[:：-]\s*","",t,flags=re.I)
+    t=re.sub(r"^\s*(?:position|designation|job title|পদের নাম)\s*[:：-]\s*","",t,flags=re.I)
+    t=re.sub(r"\s{2,}"," ",t).strip(" -|:;")
+    return t[:180]
+
+
+def is_weak_job_title(title: Any) -> bool:
+    t=safe_text(title)
+    low=t.lower()
+    if len(t)<4 or len(t)>180: return True
+    bad=("graduate degree", "salary", "vacancy", "job location", "category in", "job type", "deadline:", "apply online", "career opportunity")
+    if any(x in low for x in bad): return True
+    return bool(re.match(r"^[.\s:-]+$",t))
+
+
+def is_bad_company(value: Any) -> bool:
+    v=safe_text(value).lower()
+    bad={"telecommunication","telecommunications","engineering/architects","architects","category","jobs test bd","bdjobs live","exa discovery","career opportunity"}
+    return v in bad or len(v)<2 or len(v)>160
+
+
+def infer_company_from_title(title: str) -> str:
+    t=safe_text(title)
+    patterns=(
+        r"\bat\s+(.+)$", r"\bby\s+(.+)$", r"\|\s*([^|]+)$", r"[-–]\s*(.+?)\s+(?:is|are)\s+(?:looking|hiring|recruiting)",
+    )
+    for pat in patterns:
+        m=re.search(pat,t,flags=re.I)
+        if m:
+            c=safe_text(m.group(1)).strip(" -|:")
+            if c and len(c)<120 and not is_generic_job_title({"title":c,"company":c}): return c
+    return ""
+
+
+def detect_post_language(job_or_title: Any) -> str:
+    text=safe_text(job_or_title if isinstance(job_or_title,str) else job_or_title.get("title"))
+    bn=len(re.findall(r"[\u0980-\u09ff]",text)); en=len(re.findall(r"[A-Za-z]",text))
+    return "bn" if bn and bn >= max(3,int(en*0.25)) else "en"
+
+
 def rule_extract(document: dict[str, Any]) -> dict[str, Any]:
     meta=document.get("meta") or {}; hints=document.get("hints") or {}; structured=jsonld_job(meta) or {}; inferred=infer_from_text(document.get("text",""))
-    title=structured.get("title") or inferred.get("title") or safe_text(document.get("title_hint")) or safe_text(meta.get("title"))
-    company=structured.get("company") or inferred.get("company") or ""
+    raw_title=structured.get("title") or inferred.get("title") or safe_text(document.get("title_hint")) or safe_text(meta.get("title"))
+    title=clean_job_title(raw_title)
+    company=clean_field(structured.get("company") or inferred.get("company"),"company")
+    if not company: company=clean_field(infer_company_from_title(raw_title),"company")
     if not company and document.get("source_official") and document.get("source_priority")=="P1": company=safe_text(document.get("source_name"))
+    source_url=canonical_url(document.get("url",""))
     return {
         "is_job":True,"company":company or None,"title":title or None,"organization_type":None,"sector":None,"job_function":None,"job_level":None,"job_type":None,
-        "employment_type":structured.get("employment_type") or None,"location":structured.get("location") or None,"vacancy":hints.get("vacancy"),
-        "salary":structured.get("salary") or hints.get("salary"),"education":structured.get("education") or [],"experience":structured.get("experience") or None,"skills":structured.get("skills") or [],
+        "employment_type":structured.get("employment_type") or None,"location":clean_field(structured.get("location") or hints.get("location"),"location") or None,"vacancy":clean_field(structured.get("vacancy") or hints.get("vacancy"),"vacancy") or None,
+        "salary":clean_field(structured.get("salary") or hints.get("salary"),"salary") or None,"education":clean_field(structured.get("education") or [],"education"),"experience":clean_field(structured.get("experience"),"experience") or None,"skills":structured.get("skills") or [],
         "age_limit":None,"gender":None,"published_date":structured.get("date_posted") or document.get("published_date") or safe_text(meta.get("datePublished")) or safe_text(meta.get("datePosted")) or None,
         "application_start":None,"deadline":structured.get("deadline") or hints.get("deadline"),"application_method":None,
-        "application_url":structured.get("application_url") or infer_application_url(document.get("text", ""), document.get("url", "")) or document.get("url"),"requirements":[],"responsibilities":[],"summary":safe_text(meta.get("description")),
-        "confidence":0.88 if structured else (0.68 if company and title else 0.52),"source_id":document.get("source_id"),"source_name":document.get("source_name"),
-        "source_priority":document.get("source_priority","P3"),"official_source":bool(document.get("source_official")),"source_url":document.get("url"),"discovery":document.get("discovery"),"meta":meta,
+        "application_url":structured.get("application_url") or infer_application_url(document.get("text",""),source_url) or (source_url if looks_like_job_link(raw_title,source_url) else ""),
+        "requirements":[],"responsibilities":[],"summary":safe_text(meta.get("description")),
+        "confidence":0.90 if structured else (0.75 if company and title else 0.55),"source_id":document.get("source_id"),"source_name":document.get("source_name"),
+        "source_priority":document.get("source_priority","P3"),"official_source":bool(document.get("source_official")),"source_url":source_url,"discovery":document.get("discovery"),"meta":meta,
         "text":document.get("text",""),"scam_signals":hints.get("scam_signals",[]),"deadline_signal":bool(hints.get("deadline_signal")),
     }
-
 
 
 AI_SCHEMA = {
@@ -1012,12 +1143,78 @@ def ai_enrich(jobs: list[dict[str,Any]])->list[dict[str,Any]]:
         for i,job in enumerate(batch):
             ai=by_id.get(i)
             if not ai: continue
-            for key in ("company","title","sector","job_function","job_level","job_type","location","vacancy","salary","education","experience","deadline","published_date","application_url","requirements","responsibilities","summary","confidence"):
+            for key in ("company","title","sector","job_function","job_level","job_type","location","vacancy","salary","education","experience","deadline","published_date","application_url","requirements","responsibilities","summary"):
                 v=ai.get(key)
-                if v not in (None,"",[],{}): job[key]=v
+                current=job.get(key)
+                accept = current in (None,"",[],{})
+                if key=="title" and current and (is_generic_job_title({"title":current,"company":job.get("company")}) or is_weak_job_title(current)): accept=True
+                if key=="company" and current and is_bad_company(current): accept=True
+                if key in ("vacancy","salary") and current and ("vacancy:" in safe_text(current).lower() or "salary"==safe_text(current).lower() or "company information" in safe_text(current).lower()): accept=True
+                if key=="deadline" and not parse_deadline(safe_text(current)): accept=True
+                if key=="application_url" and not canonical_url(safe_text(current)): accept=True
+                if accept and v not in (None,"",[],{}): job[key]=v
+            if ai.get("confidence") is not None:
+                job["ai_confidence"]=max(0.0,min(1.0,float(ai.get("confidence") or 0)))
             job["ai_extracted"]=True
     return jobs
 
+
+
+def finalize_job_fields(job: dict[str, Any], sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Clean AI/deterministic output and resolve the real source before event processing."""
+    for field in ("company","title","location","vacancy","salary","experience","summary"):
+        job[field]=clean_field(job.get(field),field)
+    job["title"]=clean_job_title(job.get("title"))
+    if is_weak_job_title(job.get("title")):
+        inferred=infer_from_text(job.get("text","")); candidate=clean_job_title(inferred.get("title"))
+        if candidate: job["title"]=candidate
+    if is_bad_company(job.get("company")): job["company"]=""
+    # Remove obvious article/body fragments from title.
+    if len(safe_text(job.get("title")))>140 or re.search(r"\b(?:vacancy|category in|job location|job type|deadline:)\b",safe_text(job.get("title")),re.I):
+        inferred=infer_from_text(job.get("text","")); candidate=clean_job_title(inferred.get("title"))
+        if candidate and len(candidate)<=140: job["title"]=candidate
+    job["source_url"]=canonical_url(job.get("source_url") or "")
+    job["application_url"]=canonical_url(job.get("application_url") or "")
+    src=source_for_url(job.get("application_url") or "",sources) or source_for_url(job.get("source_url") or "",sources)
+    if src:
+        job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["official_source"]=bool(src.get("official")); job["source_homepage"]=src.get("url")
+    else:
+        job["source_name"]=source_display_name(job.get("application_url") or job.get("source_url"),sources)
+        job["source_id"]=job.get("source_id") or "source_"+hash_text(job["source_name"].lower())[:12]
+    if job.get("source_name")=="Exa Discovery": job["source_name"]=source_display_name(job.get("application_url") or job.get("source_url"),sources)
+    job["language"]=detect_post_language(job)
+    return job
+
+
+def student_relevance_score(job: dict[str, Any]) -> int:
+    hay=" ".join([safe_text(job.get("title")),safe_text(job.get("job_function")),safe_text(job.get("sector")),safe_text(job.get("education")),safe_text(job.get("experience")),safe_text(job.get("summary"))]).lower()
+    score=0
+    exact_terms=("bba","mba","business administration","business studies","management trainee","graduate trainee","intern","internship","fresher","entry level","marketing","finance","accounting","audit","banking","hr","human resources","administration","business development","sales","procurement")
+    for term in exact_terms:
+        if term in hay: score += 8
+    if "bba" in hay or "mba" in hay: score += 20
+    if "intern" in hay or "trainee" in hay or "fresher" in hay: score += 14
+    return min(100,score)
+
+
+def fair_interleave(events: list[dict[str,Any]]) -> list[dict[str,Any]]:
+    """Prioritize BBA/MBA relevance, then round-robin across sources without excluding any valid job."""
+    prepared=[]
+    for e in events:
+        job=e.get("canonical",{}); rel=student_relevance_score(job)
+        e["student_relevance_score"]=rel
+        prepared.append(e)
+    prepared.sort(key=lambda e:(-int(e.get("student_relevance_score",0)),-int(e.get("quality_score",0)),-int(e.get("importance_score",0))))
+    buckets={}
+    for e in prepared: buckets.setdefault(safe_text(e.get("canonical",{}).get("source_id")) or "unknown",[]).append(e)
+    keys=sorted(buckets, key=lambda k:(-int(buckets[k][0].get("student_relevance_score",0)),-int(buckets[k][0].get("quality_score",0)),k))
+    out=[]
+    while True:
+        progressed=False
+        for k in keys:
+            if buckets[k]: out.append(buckets[k].pop(0)); progressed=True
+        if not progressed: break
+    return out
 
 
 # ============================================================
@@ -1068,7 +1265,6 @@ def same_event(a: dict[str, Any], b: dict[str, Any]) -> bool:
 def make_event_id(job: dict[str, Any]) -> str:
     """Stable event identity. Mutable fields such as deadline, salary and URL are excluded."""
     seed = "|".join([
-        safe_text(job.get("source_id")).lower(),
         normalize_company(job.get("company")),
         normalize_title(job.get("title")),
         normalize_text(job.get("location")),
@@ -1519,64 +1715,62 @@ def html_escape(value: Any) -> str:
     return html.escape(safe_text(value), quote=False)
 
 
-def build_caption(job: dict[str, Any]) -> str:
-    title = html_escape(job.get("title") or "Job Vacancy")
-    summary = safe_text(job.get("summary"))
-    if not summary:
-        company = safe_text(job.get("company") or "The organization")
-        summary = f"{company} is recruiting for this position in Bangladesh."
-
-    lines = [
-        f"<b>📌 {title}</b>",
-        "",
-        html_escape(summary[:360]),
-        "",
-        "<b>KEY HIGHLIGHTS</b>",
+def build_rich_html(job: dict[str, Any]) -> str:
+    """Telegram Bot API rich HTML with clean, language-consistent presentation."""
+    title_raw=clean_job_title(job.get("title") or "Job Vacancy") or "Job Vacancy"
+    title=html_escape(title_raw)
+    lang=job.get("language") or detect_post_language({"title":title_raw,"summary":job.get("summary")})
+    company_raw=safe_text(job.get("company") or "")
+    company=html_escape(company_raw)
+    summary_raw=safe_text(job.get("summary"))
+    summary_bn=len(re.findall(r"[\u0980-\u09ff]",summary_raw))
+    summary_en=len(re.findall(r"[A-Za-z]",summary_raw))
+    if lang=="bn":
+        if not summary_raw or (summary_en>summary_bn*3 and summary_en>20):
+            summary_raw=f"{company_raw} এই পদে নিয়োগ দিচ্ছে।" if company_raw else "এই পদের জন্য আবেদন করা যাচ্ছে।"
+        labels={"high":"গুরুত্বপূর্ণ তথ্য","org":"প্রতিষ্ঠান","loc":"কর্মস্থল","vac":"পদসংখ্যা","edu":"শিক্ষাগত যোগ্যতা","exp":"অভিজ্ঞতা","sal":"বেতন","emp":"চাকরির ধরন","deadline":"আবেদনের শেষ তারিখ","req":"যোগ্যতা","resp":"দায়িত্ব","apply":"আবেদন করুন","source":"উৎস"}
+    else:
+        if not summary_raw or (summary_bn>summary_en*2 and summary_bn>12):
+            summary_raw=f"{company_raw} is hiring for {title_raw}." if company_raw else f"Applications are open for {title_raw}."
+        labels={"high":"KEY HIGHLIGHTS","org":"Organization","loc":"Location","vac":"Vacancy","edu":"Education","exp":"Experience","sal":"Salary","emp":"Employment","deadline":"Application Deadline","req":"REQUIREMENTS","resp":"JOB RESPONSIBILITIES","apply":"APPLY NOW","source":"Source"}
+    blocks=[
+        '<img src="tg://photo?id=jobphoto"/>',
+        f"<h1>{title}</h1>",
+        f"<p>{html_escape(summary_raw[:420])}</p>",
+        f"<h2>{labels['high']}</h2>",
     ]
+    vals=[
+        (labels["org"],company_raw),(labels["loc"],clean_field(job.get("location"),"location")),
+        (labels["vac"],clean_field(job.get("vacancy"),"vacancy")),
+        (labels["edu"],", ".join(job.get("education") or []) if isinstance(job.get("education"),list) else clean_field(job.get("education"),"education")),
+        (labels["exp"],clean_field(job.get("experience"),"experience")),
+        (labels["sal"],clean_field(job.get("salary"),"salary")),
+        (labels["emp"],clean_field(job.get("employment_type") or job.get("job_type"),"text")),
+        (labels["deadline"],clean_field(job.get("deadline"),"text")),
+    ]
+    for label,value in vals:
+        v=clean_field(value,"text")
+        if v: blocks.append(f"<p><b>{html_escape(label)}:</b> {html_escape(v)}</p>")
+    req=[clean_field(x,"text") for x in (job.get("requirements") or []) if clean_field(x,"text")]
+    resp=[clean_field(x,"text") for x in (job.get("responsibilities") or []) if clean_field(x,"text")]
+    if req: blocks.append(f"<details><summary><b>{labels['req']}</b></summary><ul>"+"".join(f"<li>{html_escape(x)}</li>" for x in req[:6])+"</ul></details>")
+    if resp: blocks.append(f"<details><summary><b>{labels['resp']}</b></summary><ul>"+"".join(f"<li>{html_escape(x)}</li>" for x in resp[:6])+"</ul></details>")
+    url=canonical_url(job.get("application_url") or "")
+    if url: blocks.append(f'<p><tg-button type="url" style="success" url="{html.escape(url,quote=True)}">{labels["apply"]}</tg-button></p>')
+    source_name=safe_text(job.get("source_name") or source_display_name(url or safe_text(job.get("source_url")),{}))
+    source_url=canonical_url(job.get("application_url") or job.get("source_url") or url)
+    blocks.append(f'<footer><b>{html_escape(labels["source"])}:</b> <a href="{html.escape(source_url,quote=True)}">{html_escape(source_name)}</a></footer>')
+    return "\n".join(blocks)
 
-    highlights = []
-    for icon, label, value in (
-        ("🏢", "Organization", job.get("company")),
-        ("📍", "Location", job.get("location")),
-        ("👥", "Vacancy", job.get("vacancy")),
-        ("🎓", "Education", ", ".join(job.get("education") or [])),
-        ("🧑‍💼", "Experience", job.get("experience")),
-        ("💰", "Salary", job.get("salary")),
-        ("💼", "Employment", job.get("employment_type") or job.get("job_type")),
-        ("📅", "Application Deadline", job.get("deadline")),
-    ):
-        if value:
-            highlights.append(f"{icon} <b>{label}:</b> {html_escape(value)}")
-    lines.extend(highlights[:8])
 
-    req = [html_escape(x) for x in (job.get("requirements") or []) if safe_text(x)]
-    if req:
-        lines.extend(["", "<b>REQUIREMENTS</b>"])
-        lines.extend(f"• {x}" for x in req[:5])
-
-    responsibilities = [html_escape(x) for x in (job.get("responsibilities") or []) if safe_text(x)]
-    if responsibilities:
-        lines.extend(["", "<b>JOB RESPONSIBILITIES</b>"])
-        lines.extend(f"• {x}" for x in responsibilities[:3])
-
-    lines.extend([
-        "",
-        "<b>HOW TO APPLY</b>",
-        "Use the <b>APPLY NOW</b> button below and follow the official application instructions.",
-        "",
-        f"<b>Source:</b> {html_escape(job.get('source_name') or 'Career Newsroom')}",
-    ])
-    text = "\n".join(lines)
-    if len(text) <= MAX_CAPTION:
-        return text
-    # Never cut an HTML tag/entity in half. Keep complete lines only.
-    kept=[]; total=0
-    for line in lines:
-        add = len(line) + (1 if kept else 0)
-        if total + add > MAX_CAPTION - 24:
-            break
-        kept.append(line); total += add
-    return "\n".join(kept) + "\n…"
+def build_caption(job: dict[str, Any]) -> str:
+    """Legacy HTML caption fallback for clients/Telegram fallback methods."""
+    text=build_rich_html(job)
+    text=re.sub(r'<img[^>]+/>','',text)
+    text=re.sub(r'<details><summary>(.*?)</summary>',r'<b>\1</b>\n',text,flags=re.S)
+    text=text.replace('</details>','')
+    text=re.sub(r'<tg-button[^>]*>(.*?)</tg-button>',r'\1',text,flags=re.S)
+    return text[:MAX_CAPTION]
 
 
 def download_image(url: str, referer: str = "") -> Image.Image | None:
@@ -1725,79 +1919,56 @@ def source_name_fallback(job: dict[str, Any], path: Path) -> Path:
     return path
 
 def prepare_image(job: dict[str, Any], index: int) -> Path:
-    """Three-level image strategy:
-    1) real job/circular image, high quality + username only;
-    2) high-quality source logo + username only;
-    3) centered bold source name, no username.
-    Never use page og:image/social banners as a job photo.
-    """
+    """Image priority: actual circular/photo -> high-quality source logo -> source name card."""
     RUNTIME_DIR.mkdir(exist_ok=True)
-    meta = job.get("meta") or {}
-
-    # LEVEL 1: actual job/circular image. PDF page preview is strongest because it is the job circular itself.
-    preview = safe_text(meta.get("pdf_preview_path"))
-    if preview and Path(preview).exists():
-        try:
-            image = Image.open(preview).convert("RGB")
-            if _image_has_usable_size(image, 900, 500):
-                out = fit_with_padding(image)
-                out = overlay_username(out)
-                path = RUNTIME_DIR / f"job_{index}_circular.jpg"
-                out.save(path, "JPEG", quality=95, optimize=True)
-                logger.info("IMAGE | level=1 job_circular source=pdf title=%s", safe_text(job.get("title"))[:100])
-                return path
-        except Exception:
-            pass
-
-    candidates = meta.get("job_image_candidates") or []
-    normalized=[]
-    for item in candidates:
-        if isinstance(item, dict):
-            url=canonical_url(item.get("url","")); score=int(item.get("score",0))
+    meta=job.get("meta") or {}
+    candidates=[]
+    for pth in (meta.get("pdf_preview_paths") or []):
+        if pth: candidates.append((1000,pth,"pdf"))
+    preview=safe_text(meta.get("pdf_preview_path"))
+    if preview: candidates.append((1000,preview,"pdf"))
+    raw=meta.get("job_image_candidates") or []
+    for item in raw:
+        if isinstance(item,dict): candidates.append((int(item.get("score",0)),canonical_url(item.get("url","")),"job"))
+        else: candidates.append((0,canonical_url(item),"job"))
+    # PDF circular pages always win over HTML page images. Among page images, highest semantic score wins.
+    candidates=[x for x in candidates if x[1]]
+    pdfs=[x for x in candidates if x[2]=="pdf"]
+    jobs=[x for x in candidates if x[2]=="job"]
+    jobs.sort(key=lambda x:x[0],reverse=True)
+    candidates=pdfs+jobs
+    for score,value,kind in candidates[:12]:
+        if kind=="pdf":
+            try: image=Image.open(value).convert("RGB")
+            except Exception: continue
         else:
-            url=canonical_url(item); score=0
-        if url: normalized.append((score,url))
-    normalized.sort(key=lambda x:x[0], reverse=True)
+            image=download_image(value,job.get("source_url", ""))
+        if not image: continue
+        if kind=="pdf" or _image_has_usable_size(image,MIN_JOB_IMAGE_SHORT,MIN_JOB_IMAGE_LONG):
+            out=fit_with_padding(image); out=overlay_username(out)
+            path=RUNTIME_DIR/f"job_{index}_matched.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
+            logger.info("IMAGE | level=1 job_asset kind=%s score=%s source=%s size=%sx%s",kind,score,safe_text(job.get("source_name")),image.width,image.height)
+            return path
 
-    for score, url in normalized[:8]:
-        image = download_image(url, job.get("source_url", ""))
-        if not image or not _image_has_usable_size(image, MIN_JOB_IMAGE_SHORT, MIN_JOB_IMAGE_LONG):
-            continue
-        out = fit_with_padding(image)
-        out = overlay_username(out)
-        path = RUNTIME_DIR / f"job_{index}_matched.jpg"
-        out.save(path, "JPEG", quality=95, optimize=True)
-        logger.info("IMAGE | level=1 job_match score=%s url=%s", score, url[:160])
-        return path
-
-    # LEVEL 2: source logo only. Prefer semantic/logo candidates; reject tiny favicons.
-    logos = meta.get("source_logo_candidates") or []
-    # If the HTML collector did not expose a logo, try the source homepage once.
+    logos=meta.get("source_logo_candidates") or []
     if not logos:
-        source_url = canonical_url(job.get("source_homepage") or job.get("source_url") or "")
+        source_url=canonical_url(job.get("source_homepage") or job.get("source_url") or "")
         if source_url:
             try:
                 r=http_get(source_url)
                 if r:
-                    homepage_meta=extract_meta(r.content, canonical_url(r.url))
-                    logos=list(homepage_meta.get("source_logo_candidates") or [])
-            except Exception:
-                pass
-    for i, url in enumerate(dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x))):
-        image = download_image(url, job.get("source_url", ""))
-        if not image or not _logo_has_usable_size(image):
-            continue
-        out = fit_with_padding(image)
-        out = overlay_username(out)
-        path = RUNTIME_DIR / f"job_{index}_source_logo_{i}.jpg"
-        out.save(path, "JPEG", quality=95, optimize=True)
-        logger.info("IMAGE | level=2 source_logo url=%s", url[:160])
+                    hm=extract_meta(r.content,canonical_url(r.url)); logos=list(hm.get("source_logo_candidates") or [])
+            except Exception: pass
+    for i,url in enumerate(dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x))):
+        image=download_image(url,job.get("source_url",""))
+        if not image or not _logo_has_usable_size(image): continue
+        out=fit_with_padding(image); out=overlay_username(out)
+        path=RUNTIME_DIR/f"job_{index}_source_logo.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
+        logger.info("IMAGE | level=2 source_logo source=%s",safe_text(job.get("source_name")))
         return path
-
-    # LEVEL 3: source name only, centered.
-    path = RUNTIME_DIR / f"job_{index}_source_name.jpg"
-    logger.info("IMAGE | level=3 source_name title=%s", safe_text(job.get("title"))[:100])
-    return source_name_fallback(job, path)
+    path=RUNTIME_DIR/f"job_{index}_source_name.jpg"; source_name_fallback(job,path)
+    logger.info("IMAGE | level=3 source_name source=%s",safe_text(job.get("source_name")))
+    return path
 
 
 def telegram_call(
@@ -1848,43 +2019,30 @@ def telegram_preflight() -> None:
 
 
 def publish_job(job: dict[str, Any], image_path: Path) -> dict[str, Any]:
-    caption = build_caption(job)
-    application_url = canonical_url(job.get("application_url") or job.get("source_url") or "")
-    markup = (
-        json.dumps(
-            {"inline_keyboard": [[{"text": "APPLY NOW", "url": application_url}]]},
-            ensure_ascii=False,
-        )
-        if application_url
-        else ""
-    )
-
+    rich_html=build_rich_html(job)
+    application_url=canonical_url(job.get("application_url") or job.get("source_url") or "")
+    rich_payload={
+        "html": rich_html,
+        "is_rtl": (job.get("language")=="bn"),
+        "skip_entity_detection": False,
+        "media":[{"id":"jobphoto","media":{"type":"photo","media":"attach://photo"}}],
+    }
     try:
         with image_path.open("rb") as fh:
-            result = telegram_call(
-                "sendPhoto",
-                {
-                    "chat_id": TELEGRAM_CHANNEL,
-                    "caption": caption,
-                    "parse_mode": "HTML",
-                    "reply_markup": markup,
-                },
-                files={"photo": fh},
-            )
-        return {"published": True, "message_id": result.get("message_id"), "mode": "photo"}
+            result=telegram_call("sendRichMessage",{"chat_id":TELEGRAM_CHANNEL,"rich_message":json.dumps(rich_payload,ensure_ascii=False)},files={"photo":fh})
+        return {"published":True,"message_id":result.get("message_id"),"mode":"rich"}
     except Exception as exc:
-        logger.warning("sendPhoto failed; text fallback: %s", exc)
-
-    result = telegram_call(
-        "sendMessage",
-        {
-            "chat_id": TELEGRAM_CHANNEL,
-            "text": caption,
-            "parse_mode": "HTML",
-            "reply_markup": markup,
-        },
-    )
-    return {"published": True, "message_id": result.get("message_id"), "mode": "text"}
+        logger.warning("sendRichMessage failed; photo HTML fallback: %s",exc)
+    caption=build_caption(job)
+    markup=(json.dumps({"inline_keyboard":[[{"text":"APPLY NOW","url":application_url}]]},ensure_ascii=False) if application_url else "")
+    try:
+        with image_path.open("rb") as fh:
+            result=telegram_call("sendPhoto",{"chat_id":TELEGRAM_CHANNEL,"caption":caption,"parse_mode":"HTML","reply_markup":markup,"show_caption_above_media":False},files={"photo":fh})
+        return {"published":True,"message_id":result.get("message_id"),"mode":"photo"}
+    except Exception as exc:
+        logger.warning("sendPhoto failed; text fallback: %s",exc)
+    result=telegram_call("sendMessage",{"chat_id":TELEGRAM_CHANNEL,"text":caption,"parse_mode":"HTML","reply_markup":markup})
+    return {"published":True,"message_id":result.get("message_id"),"mode":"text"}
 
 
 def admin_alert(message: str) -> None:
@@ -1959,8 +2117,8 @@ def publishable(events: list[dict[str,Any]])->list[dict[str,Any]]:
         if kind=="UPDATE" and not event.get("update_pending"): rejects["no_update_pending"]+=1; continue
         if kind=="REPOST" and not event.get("repost_due"): rejects["no_repost_due"]+=1; continue
         out.append(event)
-    out.sort(key=lambda e:(-int(e.get("quality_score",0)),-int(e.get("importance_score",0)),safe_text(e.get("canonical",{}).get("deadline"))))
-    logger.info("PUBLISH GATE | selected=%d | rejects=%s",len(out),json.dumps(rejects,sort_keys=True))
+    out=fair_interleave(out)
+    logger.info("PUBLISH GATE | selected=%d | rejects=%s | bba_mba_priority=enabled | source_fair_order=enabled",len(out),json.dumps(rejects,sort_keys=True))
     return out
 
 
@@ -2002,9 +2160,10 @@ def run()->None:
         if text_hash and text_hash in seen_hashes: continue
         if text_hash: seen_hashes.add(text_hash)
         job=rule_extract(document)
-        source=sources.get(job.get("source_id", "")) or source_for_url(job.get("source_url",""),sources)
-        if source:
-            job["source_id"]=source.get("id",job.get("source_id")); job["source_name"]=source.get("name"); job["source_priority"]=source.get("priority","P3"); job["official_source"]=bool(source.get("official"))
+        # Resolve actual source BEFORE any AI enrichment so Exa never survives as display source.
+        src=source_for_url(job.get("application_url") or "",sources) or source_for_url(job.get("source_url") or "",sources) or sources.get(job.get("source_id", ""))
+        if src:
+            job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["official_source"]=bool(src.get("official")); job["source_homepage"]=src.get("url")
         if not is_bangladesh(f"{job.get('company','')} {job.get('title','')} {document.get('text','')}",document.get('url','')) and job.get('source_priority') not in ("P0","P1"):
             rejected_nonjob+=1; continue
         if is_generic_job_title(job) or not looks_like_job_document(job.get("title",""),document.get("text",""),document.get("url",""),job.get("source_priority","P3")):
@@ -2012,7 +2171,24 @@ def run()->None:
         jobs.append(job)
         if parse_deadline(safe_text(job.get("deadline"))): deadline_ready+=1
     logger.info("DOCUMENT RETRIEVAL | retrieved=%d accepted_job_docs=%d rejected_nonjob=%d deadline_ready=%d",retrieved,len(jobs),rejected_nonjob,deadline_ready)
-    jobs=ai_enrich(jobs); logger.info("AI ENRICHMENT COMPLETE")
+    jobs=ai_enrich(jobs)
+    jobs=[finalize_job_fields(j,sources) for j in jobs]
+    logger.info("AI ENRICHMENT COMPLETE")
+    # Deduplicate the same job across direct source + Exa mirrors, preferring PDF/direct-source assets.
+    unique={}
+    for job in jobs:
+        app_key=canonical_url(job.get("application_url") or "")
+        fallback_key=(normalize_company(job.get("company")),normalize_title(job.get("title")),normalize_text(job.get("location")))
+        key=("url",app_key) if app_key else ("identity",)+fallback_key
+        if key in (("url","") , ("identity","","","")):
+            continue
+        current=unique.get(key)
+        quality_media=bool((job.get("meta") or {}).get("pdf_preview_paths") or (job.get("meta") or {}).get("job_image_candidates"))
+        direct_bonus=0 if job.get("discovery")=="exa" else 1
+        rank=(direct_bonus,1 if quality_media else 0,1 if parse_deadline(safe_text(job.get("deadline"))) else 0,int(job.get("confidence",0) or 0))
+        if current is None or rank>(current.get("_dedupe_rank") or (-1,)): job["_dedupe_rank"]=rank; unique[key]=job
+    jobs=list(unique.values())
+    logger.info("CANONICAL JOBS AFTER CROSS-SOURCE DEDUPE: %d",len(jobs))
     eligible=[]; rejected_deadline=0
     for job in jobs:
         dt=parse_deadline(safe_text(job.get("deadline")))
@@ -2024,25 +2200,22 @@ def run()->None:
     logger.info("EVENTS=%d VALID_FOR_PUBLISH=%d",len(events),len(candidates_to_publish))
     published_count=0
     for index,event in enumerate(candidates_to_publish,1):
-        job=dict(event["canonical"]); job["event_id"]=event["event_id"]; job["source_name"]=job.get("source_name") or "Career Newsroom"
+        job=dict(event["canonical"]); job["event_id"]=event["event_id"]; job["source_name"]=job.get("source_name") or source_display_name(job.get("application_url") or job.get("source_url"),sources)
         try:
             image_path=prepare_image(job,index); result=publish_job(job,image_path)
             event["telegram"]["published"]=True; event["telegram"]["message_id"]=result.get("message_id"); event["telegram"]["published_at"]=now_iso(); event["telegram"]["last_event_type"]=event.get("event_type"); event["last_published_fingerprint"]=event.get("fingerprint"); event["repost_due"]=False; event["update_pending"]=False; event["event_type"]="PUBLISHED"
             for u in (canonical_url(job.get("source_url","")),canonical_url(job.get("application_url",""))):
                 if u: posted.add(u)
-            published_count+=1; logger.info("PUBLISHED #%d | score=%s | quality=%s | mode=%s | title=%s",published_count,event.get("importance_score"),event.get("quality_score"),result.get("mode"),safe_text(job.get("title"))); time.sleep(POST_DELAY_SECONDS)
+            published_count+=1; logger.info("PUBLISHED #%d | score=%s | quality=%s | student_relevance=%s | mode=%s | source=%s | title=%s",published_count,event.get("importance_score"),event.get("quality_score"),event.get("student_relevance_score"),result.get("mode"),safe_text(job.get("source_name")),safe_text(job.get("title"))); time.sleep(POST_DELAY_SECONDS)
         except Exception as exc:
             logger.exception("Publication failed: %s",event["event_id"]); admin_alert(f"Publication failed\nevent={event['event_id']}\ntitle={safe_text(job.get('title'))}\nerror={exc}")
-    prune_state(state); state["updated_at"]=now_iso(); state["runs"].append({"timestamp":now_iso(),"sources":len(due_sources(registry,state)),"candidates":len(candidates),"eligible_jobs":len(eligible),"events":len(events),"published":published_count,"rejected_deadline":rejected_deadline}); state["runs"]=state["runs"][-30:]; save_state(state); save_posted(posted)
-    logger.info("FINISHED | sources=%d candidates=%d eligible_jobs=%d events=%d published=%d",len(due_sources(registry,state)),len(candidates),len(eligible),len(events),published_count)
+    state["updated_at"]=now_iso(); state["runs"]=(state.get("runs") or [])[-199:]+[{"timestamp":now_iso(),"sources_attempted":len(due_sources(registry,state)),"candidates":len(candidates),"jobs":len(jobs),"eligible":len(eligible),"events":len(events),"published":published_count}]
+    prune_state(state); save_state(state); save_posted(posted)
+    logger.info("FINISHED | sources=%d candidates=%d canonical_jobs=%d eligible_jobs=%d events=%d published=%d",len(due_sources(registry,state)),len(candidates),len(jobs),len(eligible),len(events),published_count)
 
-
-
-# ============================================================
-# SELF TEST
-# ============================================================
 
 def self_test() -> None:
+    RUNTIME_DIR.mkdir(exist_ok=True)
     sample = {
         "company": "ABC Bank PLC",
         "title": "Management Trainee Officer",
@@ -2104,7 +2277,7 @@ def self_test() -> None:
     caption = build_caption(sample)
     assert "Management Trainee Officer" in caption
     assert "KEY HIGHLIGHTS" in caption
-    assert "HOW TO APPLY" in caption
+    assert "APPLY NOW" in caption
     assert is_generic_job_title({"title":"National Job Portal","company":"National Job Portal","source_name":"National Job Portal"})
     assert len(caption) <= MAX_CAPTION
 
@@ -2235,7 +2408,7 @@ def self_test() -> None:
         result = publish_job(sample, path)
         assert result["published"] is True
         assert result["message_id"] == 999
-        assert calls == ["sendPhoto"]
+        assert calls == ["sendRichMessage"]
     finally:
         globals()["telegram_call"] = original
 
@@ -2244,8 +2417,8 @@ def self_test() -> None:
 
     def photo_fail(method, data, files=None):
         calls.append(method)
-        if method == "sendPhoto":
-            raise RuntimeError("simulated photo failure")
+        if method in ("sendRichMessage", "sendPhoto"):
+            raise RuntimeError("simulated rich/photo failure")
         return {"message_id": 1000}
 
     globals()["telegram_call"] = photo_fail
@@ -2253,9 +2426,36 @@ def self_test() -> None:
         result = publish_job(sample, path)
         assert result["published"] is True
         assert result["mode"] == "text"
-        assert calls == ["sendPhoto", "sendMessage"]
+        assert calls == ["sendRichMessage", "sendPhoto", "sendMessage"]
     finally:
         globals()["telegram_call"] = original
+
+    # Regression: Exa must resolve to the real source, never appear as publication source.
+    real_sources={"bd":{"id":"bd","name":"BDJobs Live","url":"https://www.bdjobslive.com/","priority":"P2","official":False}}
+    assert source_display_name("https://www.bdjobslive.com/jobs/123",real_sources)=="BDJobs Live"
+    exa_job={"source_id":"exa_discovery","source_name":"Exa Discovery","source_url":"https://www.bdjobslive.com/jobs/123","application_url":"https://www.bdjobslive.com/jobs/123"}
+    exa_job=finalize_job_fields(exa_job,real_sources)
+    assert exa_job["source_name"]=="BDJobs Live"
+    assert clean_field("Vacancy: Vacancy: 100","vacancy")=="100"
+    assert clean_field("Salary,", "salary")==""
+    assert clean_job_title("Senior Developer | BDJobs Live - Apply online") == "Senior Developer"
+    bn={"title":"বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬"}; assert detect_post_language(bn)=="bn"
+    en={"title":"Management Trainee Officer"}; assert detect_post_language(en)=="en"
+
+    # Cross-source duplicate should prefer direct/PDF job asset rather than Exa mirror.
+    direct={"company":"ABC Bank","title":"Management Trainee Officer","location":"Dhaka","discovery":"direct_pdf","confidence":0.9,"meta":{"pdf_preview_paths":["x"]}}
+    mirror={"company":"ABC Bank","title":"Management Trainee Officer","location":"Dhaka","discovery":"exa","confidence":0.95,"meta":{}}
+    pool={}
+    for jj in (mirror,direct):
+        key=(normalize_company(jj.get("company")),normalize_title(jj.get("title")),normalize_text(jj.get("location")))
+        rank=(0 if jj.get("discovery")=="exa" else 1,1 if (jj.get("meta") or {}).get("pdf_preview_paths") else 0,int(jj.get("confidence",0)*100))
+        if key not in pool or rank>pool[key][1]: pool[key]=(jj,rank)
+    assert pool[("abc bank","management trainee officer","dhaka")][0]["discovery"]=="direct_pdf"
+
+    # Student-priority ordering without excluding other valid jobs.
+    ev_a={"canonical":{**sample,"source_id":"source_a","title":"Marketing Internship for BBA Students"},"quality_score":80,"importance_score":70}
+    ev_b={"canonical":{**sample,"source_id":"source_b","title":"Senior Engineer"},"quality_score":95,"importance_score":95}
+    ordered=fair_interleave([ev_b,ev_a]); assert ordered[0]["canonical"]["title"].startswith("Marketing Internship")
 
     logger.info("CareerNewsroom self-test passed.")
 
