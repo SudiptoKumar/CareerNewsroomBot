@@ -1,10 +1,10 @@
 {
   "version": 4,
-  "updated_at": "2026-09-14T09:20:06.602153+00:00",
+  "updated_at": "2026-09-14T09:36:13.171453+00:00",
   "jobs": {
     "evt_932493eedd25e950": {
       "event_id": "evt_932493eedd25e950",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -76,12 +76,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.166799+00:00"
+          "checked_at": "2026-09-14T09:35:45.439687+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.166988+00:00"
+          "checked_at": "2026-09-14T09:35:45.439798+00:00"
         },
         "quality_score": 68,
         "base_importance": 36,
@@ -122,17 +122,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.166799+00:00"
+        "checked_at": "2026-09-14T09:35:45.439687+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.166988+00:00"
+        "checked_at": "2026-09-14T09:35:45.439798+00:00"
       },
       "quality_score": 68,
       "importance_score": 50,
       "first_seen": "2026-09-14T09:18:10.167434+00:00",
-      "last_seen": "2026-09-14T09:18:10.167435+00:00",
+      "last_seen": "2026-09-14T09:35:45.440036+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -147,7 +147,7 @@
     },
     "evt_b5f937aff09a4c41": {
       "event_id": "evt_b5f937aff09a4c41",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -219,12 +219,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.167658+00:00"
+          "checked_at": "2026-09-14T09:35:45.440269+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.167872+00:00"
+          "checked_at": "2026-09-14T09:35:45.440413+00:00"
         },
         "quality_score": 83,
         "base_importance": 34,
@@ -265,17 +265,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.167658+00:00"
+        "checked_at": "2026-09-14T09:35:45.440269+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.167872+00:00"
+        "checked_at": "2026-09-14T09:35:45.440413+00:00"
       },
       "quality_score": 83,
       "importance_score": 51,
       "first_seen": "2026-09-14T09:18:10.168303+00:00",
-      "last_seen": "2026-09-14T09:18:10.168304+00:00",
+      "last_seen": "2026-09-14T09:35:45.440641+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -290,7 +290,7 @@
     },
     "evt_5bc1f0c770cd0e64": {
       "event_id": "evt_5bc1f0c770cd0e64",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -362,12 +362,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.168501+00:00"
+          "checked_at": "2026-09-14T09:35:45.440846+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.168628+00:00"
+          "checked_at": "2026-09-14T09:35:45.440939+00:00"
         },
         "quality_score": 68,
         "base_importance": 50,
@@ -408,17 +408,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.168501+00:00"
+        "checked_at": "2026-09-14T09:35:45.440846+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.168628+00:00"
+        "checked_at": "2026-09-14T09:35:45.440939+00:00"
       },
       "quality_score": 68,
       "importance_score": 64,
       "first_seen": "2026-09-14T09:18:10.169035+00:00",
-      "last_seen": "2026-09-14T09:18:10.169036+00:00",
+      "last_seen": "2026-09-14T09:35:45.441175+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -433,7 +433,7 @@
     },
     "evt_d1eabc563ad1aa25": {
       "event_id": "evt_d1eabc563ad1aa25",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -505,12 +505,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.169228+00:00"
+          "checked_at": "2026-09-14T09:35:45.441376+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.169362+00:00"
+          "checked_at": "2026-09-14T09:35:45.441475+00:00"
         },
         "quality_score": 68,
         "base_importance": 53,
@@ -551,17 +551,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.169228+00:00"
+        "checked_at": "2026-09-14T09:35:45.441376+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.169362+00:00"
+        "checked_at": "2026-09-14T09:35:45.441475+00:00"
       },
       "quality_score": 68,
       "importance_score": 67,
       "first_seen": "2026-09-14T09:18:10.169759+00:00",
-      "last_seen": "2026-09-14T09:18:10.169761+00:00",
+      "last_seen": "2026-09-14T09:35:45.441701+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -576,7 +576,7 @@
     },
     "evt_c5c692b5c38d25e5": {
       "event_id": "evt_c5c692b5c38d25e5",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -648,12 +648,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.169947+00:00"
+          "checked_at": "2026-09-14T09:35:45.441896+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.170075+00:00"
+          "checked_at": "2026-09-14T09:35:45.441989+00:00"
         },
         "quality_score": 68,
         "base_importance": 30,
@@ -694,17 +694,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.169947+00:00"
+        "checked_at": "2026-09-14T09:35:45.441896+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.170075+00:00"
+        "checked_at": "2026-09-14T09:35:45.441989+00:00"
       },
       "quality_score": 68,
       "importance_score": 44,
       "first_seen": "2026-09-14T09:18:10.170462+00:00",
-      "last_seen": "2026-09-14T09:18:10.170463+00:00",
+      "last_seen": "2026-09-14T09:35:45.442228+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -862,7 +862,7 @@
     },
     "evt_9f618e09fe3aec58": {
       "event_id": "evt_9f618e09fe3aec58",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -934,12 +934,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.171485+00:00"
+          "checked_at": "2026-09-14T09:35:45.443159+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.171633+00:00"
+          "checked_at": "2026-09-14T09:35:45.443264+00:00"
         },
         "quality_score": 83,
         "base_importance": 45,
@@ -980,17 +980,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.171485+00:00"
+        "checked_at": "2026-09-14T09:35:45.443159+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.171633+00:00"
+        "checked_at": "2026-09-14T09:35:45.443264+00:00"
       },
       "quality_score": 83,
       "importance_score": 62,
       "first_seen": "2026-09-14T09:18:10.172096+00:00",
-      "last_seen": "2026-09-14T09:18:10.172097+00:00",
+      "last_seen": "2026-09-14T09:35:45.443507+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -1005,7 +1005,7 @@
     },
     "evt_cee4a7db52281c56": {
       "event_id": "evt_cee4a7db52281c56",
-      "event_type": "NEW",
+      "event_type": "UPDATE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -1020,10 +1020,11 @@
         "employment_type": null,
         "location": "Dhaka, Panthapath",
         "vacancy": null,
-        "salary": null,
+        "salary": "Negotiable",
         "education": [
-          "Higher Secondary, HSC",
-          "Bachelor/Honors, Any Discipline"
+          "Higher Secondary",
+          "HSC",
+          "Bachelor/Honors"
         ],
         "experience": "0-2 Year",
         "skills": [],
@@ -1051,7 +1052,7 @@
           "Achieve assigned monthly sales targets"
         ],
         "summary": "BDJobs Live is looking for a Sales & Marketing Executive on BDJobs Live. Category in Marketing/ Sales. Job Location Dhaka, Panthapath, Bangladesh. Job Type: F..",
-        "confidence": 1.0,
+        "confidence": 1,
         "source_id": "bdjobs_live",
         "source_name": "BDJobs Live",
         "source_priority": "P2",
@@ -1079,9 +1080,9 @@
           "job_level": "",
           "job_type": "full time permanent",
           "vacancy": "",
-          "salary": ""
+          "salary": "negotiable"
         },
-        "fingerprint": "job_9a6ba87883e13d8cf62d",
+        "fingerprint": "job_280df41aab3d241696e4",
         "identity_fingerprint": "identity_fcff5cc7b29e27d3d5d1",
         "verification": {
           "status": "verified",
@@ -1095,16 +1096,16 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.172297+00:00"
+          "checked_at": "2026-09-14T09:35:45.443715+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.172435+00:00"
+          "checked_at": "2026-09-14T09:35:45.443817+00:00"
         },
         "quality_score": 98,
-        "base_importance": 43,
-        "importance_score": 63
+        "base_importance": 49,
+        "importance_score": 69
       },
       "normalized": {
         "company": "bdjobslive",
@@ -1117,9 +1118,9 @@
         "job_level": "",
         "job_type": "full time permanent",
         "vacancy": "",
-        "salary": ""
+        "salary": "negotiable"
       },
-      "fingerprint": "job_9a6ba87883e13d8cf62d",
+      "fingerprint": "job_280df41aab3d241696e4",
       "identity_fingerprint": "identity_fcff5cc7b29e27d3d5d1",
       "sources": [
         {
@@ -1141,21 +1142,42 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.172297+00:00"
+        "checked_at": "2026-09-14T09:35:45.443715+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.172435+00:00"
+        "checked_at": "2026-09-14T09:35:45.443817+00:00"
       },
       "quality_score": 98,
-      "importance_score": 63,
+      "importance_score": 69,
       "first_seen": "2026-09-14T09:18:10.172855+00:00",
-      "last_seen": "2026-09-14T09:18:10.172857+00:00",
-      "update_history": [],
+      "last_seen": "2026-09-14T09:35:45.444070+00:00",
+      "update_history": [
+        {
+          "timestamp": "2026-09-14T09:35:45.444082+00:00",
+          "changes": {
+            "salary": {
+              "old": null,
+              "new": "Negotiable"
+            },
+            "education": {
+              "old": [
+                "Higher Secondary, HSC",
+                "Bachelor/Honors, Any Discipline"
+              ],
+              "new": [
+                "Higher Secondary",
+                "HSC",
+                "Bachelor/Honors"
+              ]
+            }
+          }
+        }
+      ],
       "repost_history": [],
       "repost_due": false,
-      "update_pending": false,
+      "update_pending": true,
       "telegram": {
         "published": false,
         "message_id": null,
@@ -1165,7 +1187,7 @@
     },
     "evt_d4b4ccd8f92cb5d0": {
       "event_id": "evt_d4b4ccd8f92cb5d0",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -1182,7 +1204,8 @@
         "vacancy": null,
         "salary": null,
         "education": [
-          "Higher Secondary, HSC"
+          "Higher Secondary",
+          "HSC"
         ],
         "experience": "-1 Year",
         "skills": [],
@@ -1193,17 +1216,21 @@
         "deadline": "11 Oct 2026",
         "application_method": null,
         "application_url": "https://www.bdjobslive.com/bdjobs-details/content-posting-executive-usa-based-night-shift-13204",
-        "requirements": [],
+        "requirements": [
+          "Detail‑oriented",
+          "Good written communication",
+          "Basic knowledge of social media platforms"
+        ],
         "responsibilities": [
-          "Regularly publish content across Facebook, Instagram, LinkedIn, YouTube, and other digital channels",
-          "Schedule and publish posts on time according to the approved content calendar",
-          "Accurately add captions, headlines, hashtags, images, videos, and relevant links to each post",
-          "Review spelling, information, visuals, pricing, contact details, and links before publishing",
-          "Monitor basic post performance, including engagement, reach, comments, and responses",
-          "Identify important queries or issues from comments and inbox messages and report them to the relevant department"
+          "Publish content across Facebook, Instagram, LinkedIn, YouTube and other digital channels",
+          "Schedule and publish posts according to the approved content calendar",
+          "Add captions, headlines, hashtags, images, videos and links to each post",
+          "Review spelling, visuals, pricing, contact details and links before publishing",
+          "Monitor basic post performance such as engagement and reach",
+          "Identify queries from comments and report to relevant department"
         ],
         "summary": "Skynex IT is looking for a Content Posting Executive (USA Based-Night Shift) on BDJobs Live. Category in E-commerce/ Digital Marketing. Job Location Gazipur, ..",
-        "confidence": 1.0,
+        "confidence": 1,
         "source_id": "bdjobs_live",
         "source_name": "BDJobs Live",
         "source_priority": "P2",
@@ -1247,12 +1274,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.173059+00:00"
+          "checked_at": "2026-09-14T09:35:45.444280+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.173171+00:00"
+          "checked_at": "2026-09-14T09:35:45.444363+00:00"
         },
         "quality_score": 98,
         "base_importance": 43,
@@ -1293,17 +1320,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.173059+00:00"
+        "checked_at": "2026-09-14T09:35:45.444280+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.173171+00:00"
+        "checked_at": "2026-09-14T09:35:45.444363+00:00"
       },
       "quality_score": 98,
       "importance_score": 63,
       "first_seen": "2026-09-14T09:18:10.173585+00:00",
-      "last_seen": "2026-09-14T09:18:10.173586+00:00",
+      "last_seen": "2026-09-14T09:35:45.444606+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -1478,7 +1505,7 @@
     },
     "evt_3557e48c18562789": {
       "event_id": "evt_3557e48c18562789",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -1509,19 +1536,17 @@
         "application_url": "https://www.bdjobslive.com/bdjobs-details/deputy-manager-assistant-manager-business-development-13131",
         "requirements": [
           "Minimum 4 years of relevant experience in business development within the real estate industry",
-          "Candidates with educational backgrounds from public universities will be preferred",
-          "Strong communication, interpersonal, and computer skills are essential"
+          "Strong communication, interpersonal and computer skills"
         ],
         "responsibilities": [
-          "Identify and capitalize on new business opportunities, drive apartment sales, strengthen client relationships",
-          "Develop and execute effective business development strategies to meet apartment sales targets",
-          "Identify prospective clients, emerging market opportunities, and potential business leads",
-          "Establish and maintain strong professional relationships with customers, brokers, and key business partners",
-          "Collaborate with Marketing, Sales, and other relevant departments to ensure efficient business operations",
-          "Analyze market trends and competitor activities and provide valuable insights and recommendations to Management"
+          "Identify and capitalize on new business opportunities and drive apartment sales",
+          "Develop and execute business development strategies to meet sales targets",
+          "Establish and maintain relationships with customers, brokers and business partners",
+          "Collaborate with Marketing, Sales and other departments for seamless operations",
+          "Analyze market trends and competitor activities and provide insights to management"
         ],
         "summary": "Eastern Housing Ltd. is looking for a Deputy Manager / Assistant Manager - Business Development on BDJobs Live. Category in Marketing/ Sales. Job Location Any..",
-        "confidence": 1.0,
+        "confidence": 1,
         "source_id": "bdjobs_live",
         "source_name": "BDJobs Live",
         "source_priority": "P2",
@@ -1565,12 +1590,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.174595+00:00"
+          "checked_at": "2026-09-14T09:35:45.445512+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.174748+00:00"
+          "checked_at": "2026-09-14T09:35:45.445606+00:00"
         },
         "quality_score": 98,
         "base_importance": 43,
@@ -1611,17 +1636,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.174595+00:00"
+        "checked_at": "2026-09-14T09:35:45.445512+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.174748+00:00"
+        "checked_at": "2026-09-14T09:35:45.445606+00:00"
       },
       "quality_score": 98,
       "importance_score": 63,
       "first_seen": "2026-09-14T09:18:10.175183+00:00",
-      "last_seen": "2026-09-14T09:18:10.175184+00:00",
+      "last_seen": "2026-09-14T09:35:45.445861+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -1786,7 +1811,7 @@
     },
     "evt_2be955248eb6870a": {
       "event_id": "evt_2be955248eb6870a",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -1858,12 +1883,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.176094+00:00"
+          "checked_at": "2026-09-14T09:35:45.446695+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.176425+00:00"
+          "checked_at": "2026-09-14T09:35:45.446934+00:00"
         },
         "quality_score": 83,
         "base_importance": 34,
@@ -1904,17 +1929,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.176094+00:00"
+        "checked_at": "2026-09-14T09:35:45.446695+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.176425+00:00"
+        "checked_at": "2026-09-14T09:35:45.446934+00:00"
       },
       "quality_score": 83,
       "importance_score": 51,
       "first_seen": "2026-09-14T09:18:10.176884+00:00",
-      "last_seen": "2026-09-14T09:18:10.176885+00:00",
+      "last_seen": "2026-09-14T09:35:45.447199+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2085,7 +2110,7 @@
     },
     "evt_c30e10197ed96508": {
       "event_id": "evt_c30e10197ed96508",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2157,12 +2182,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.177891+00:00"
+          "checked_at": "2026-09-14T09:35:45.448110+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.177967+00:00"
+          "checked_at": "2026-09-14T09:35:45.448166+00:00"
         },
         "quality_score": 68,
         "base_importance": 49,
@@ -2203,17 +2228,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.177891+00:00"
+        "checked_at": "2026-09-14T09:35:45.448110+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.177967+00:00"
+        "checked_at": "2026-09-14T09:35:45.448166+00:00"
       },
       "quality_score": 68,
       "importance_score": 63,
       "first_seen": "2026-09-14T09:18:10.178399+00:00",
-      "last_seen": "2026-09-14T09:18:10.178401+00:00",
+      "last_seen": "2026-09-14T09:35:45.448434+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2228,7 +2253,7 @@
     },
     "evt_6f25ae10b123ade8": {
       "event_id": "evt_6f25ae10b123ade8",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2300,12 +2325,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.178599+00:00"
+          "checked_at": "2026-09-14T09:35:45.448642+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.178651+00:00"
+          "checked_at": "2026-09-14T09:35:45.448680+00:00"
         },
         "quality_score": 68,
         "base_importance": 33,
@@ -2346,17 +2371,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.178599+00:00"
+        "checked_at": "2026-09-14T09:35:45.448642+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.178651+00:00"
+        "checked_at": "2026-09-14T09:35:45.448680+00:00"
       },
       "quality_score": 68,
       "importance_score": 47,
       "first_seen": "2026-09-14T09:18:10.179126+00:00",
-      "last_seen": "2026-09-14T09:18:10.179127+00:00",
+      "last_seen": "2026-09-14T09:35:45.448957+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2371,7 +2396,7 @@
     },
     "evt_0865d5e0eb3ca31c": {
       "event_id": "evt_0865d5e0eb3ca31c",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2443,12 +2468,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.179324+00:00"
+          "checked_at": "2026-09-14T09:35:45.449164+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.179395+00:00"
+          "checked_at": "2026-09-14T09:35:45.449217+00:00"
         },
         "quality_score": 68,
         "base_importance": 39,
@@ -2489,17 +2514,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.179324+00:00"
+        "checked_at": "2026-09-14T09:35:45.449164+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.179395+00:00"
+        "checked_at": "2026-09-14T09:35:45.449217+00:00"
       },
       "quality_score": 68,
       "importance_score": 53,
       "first_seen": "2026-09-14T09:18:10.179849+00:00",
-      "last_seen": "2026-09-14T09:18:10.179850+00:00",
+      "last_seen": "2026-09-14T09:35:45.449485+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2514,7 +2539,7 @@
     },
     "evt_2d813138026532e1": {
       "event_id": "evt_2d813138026532e1",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2586,12 +2611,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.180044+00:00"
+          "checked_at": "2026-09-14T09:35:45.449683+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.180274+00:00"
+          "checked_at": "2026-09-14T09:35:45.449856+00:00"
         },
         "quality_score": 68,
         "base_importance": 35,
@@ -2632,17 +2657,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.180044+00:00"
+        "checked_at": "2026-09-14T09:35:45.449683+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.180274+00:00"
+        "checked_at": "2026-09-14T09:35:45.449856+00:00"
       },
       "quality_score": 68,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.180723+00:00",
-      "last_seen": "2026-09-14T09:18:10.180725+00:00",
+      "last_seen": "2026-09-14T09:35:45.450135+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2657,7 +2682,7 @@
     },
     "evt_1674168c789a31e8": {
       "event_id": "evt_1674168c789a31e8",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2729,12 +2754,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.180921+00:00"
+          "checked_at": "2026-09-14T09:35:45.450333+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.181138+00:00"
+          "checked_at": "2026-09-14T09:35:45.450493+00:00"
         },
         "quality_score": 68,
         "base_importance": 35,
@@ -2775,17 +2800,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.180921+00:00"
+        "checked_at": "2026-09-14T09:35:45.450333+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.181138+00:00"
+        "checked_at": "2026-09-14T09:35:45.450493+00:00"
       },
       "quality_score": 68,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.181582+00:00",
-      "last_seen": "2026-09-14T09:18:10.181583+00:00",
+      "last_seen": "2026-09-14T09:35:45.450765+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2800,7 +2825,7 @@
     },
     "evt_d052ddca94dc61c2": {
       "event_id": "evt_d052ddca94dc61c2",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -2872,12 +2897,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.181789+00:00"
+          "checked_at": "2026-09-14T09:35:45.450967+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.181977+00:00"
+          "checked_at": "2026-09-14T09:35:45.451117+00:00"
         },
         "quality_score": 68,
         "base_importance": 35,
@@ -2918,17 +2943,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.181789+00:00"
+        "checked_at": "2026-09-14T09:35:45.450967+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.181977+00:00"
+        "checked_at": "2026-09-14T09:35:45.451117+00:00"
       },
       "quality_score": 68,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.182441+00:00",
-      "last_seen": "2026-09-14T09:18:10.182442+00:00",
+      "last_seen": "2026-09-14T09:35:45.451396+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -2943,7 +2968,7 @@
     },
     "evt_0e1e4830ce1e95c0": {
       "event_id": "evt_0e1e4830ce1e95c0",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3015,12 +3040,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.182649+00:00"
+          "checked_at": "2026-09-14T09:35:45.451608+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.182795+00:00"
+          "checked_at": "2026-09-14T09:35:45.451710+00:00"
         },
         "quality_score": 68,
         "base_importance": 39,
@@ -3061,17 +3086,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.182649+00:00"
+        "checked_at": "2026-09-14T09:35:45.451608+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.182795+00:00"
+        "checked_at": "2026-09-14T09:35:45.451710+00:00"
       },
       "quality_score": 68,
       "importance_score": 53,
       "first_seen": "2026-09-14T09:18:10.183283+00:00",
-      "last_seen": "2026-09-14T09:18:10.183284+00:00",
+      "last_seen": "2026-09-14T09:35:45.451999+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3086,7 +3111,7 @@
     },
     "evt_9aa95bc922344715": {
       "event_id": "evt_9aa95bc922344715",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3158,12 +3183,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.183482+00:00"
+          "checked_at": "2026-09-14T09:35:45.452212+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.183692+00:00"
+          "checked_at": "2026-09-14T09:35:45.452357+00:00"
         },
         "quality_score": 68,
         "base_importance": 30,
@@ -3204,17 +3229,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.183482+00:00"
+        "checked_at": "2026-09-14T09:35:45.452212+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.183692+00:00"
+        "checked_at": "2026-09-14T09:35:45.452357+00:00"
       },
       "quality_score": 68,
       "importance_score": 44,
       "first_seen": "2026-09-14T09:18:10.184219+00:00",
-      "last_seen": "2026-09-14T09:18:10.184220+00:00",
+      "last_seen": "2026-09-14T09:35:45.452652+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3229,7 +3254,7 @@
     },
     "evt_d1f1862b4d3a5465": {
       "event_id": "evt_d1f1862b4d3a5465",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3301,12 +3326,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.184445+00:00"
+          "checked_at": "2026-09-14T09:35:45.452875+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.184636+00:00"
+          "checked_at": "2026-09-14T09:35:45.453013+00:00"
         },
         "quality_score": 83,
         "base_importance": 34,
@@ -3347,17 +3372,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.184445+00:00"
+        "checked_at": "2026-09-14T09:35:45.452875+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.184636+00:00"
+        "checked_at": "2026-09-14T09:35:45.453013+00:00"
       },
       "quality_score": 83,
       "importance_score": 51,
       "first_seen": "2026-09-14T09:18:10.185158+00:00",
-      "last_seen": "2026-09-14T09:18:10.185159+00:00",
+      "last_seen": "2026-09-14T09:35:45.453318+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3372,7 +3397,7 @@
     },
     "evt_36cb8d7546add72e": {
       "event_id": "evt_36cb8d7546add72e",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3444,12 +3469,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.185363+00:00"
+          "checked_at": "2026-09-14T09:35:45.453525+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.185548+00:00"
+          "checked_at": "2026-09-14T09:35:45.453662+00:00"
         },
         "quality_score": 68,
         "base_importance": 35,
@@ -3490,17 +3515,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.185363+00:00"
+        "checked_at": "2026-09-14T09:35:45.453525+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.185548+00:00"
+        "checked_at": "2026-09-14T09:35:45.453662+00:00"
       },
       "quality_score": 68,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.186050+00:00",
-      "last_seen": "2026-09-14T09:18:10.186052+00:00",
+      "last_seen": "2026-09-14T09:35:45.453955+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3515,7 +3540,7 @@
     },
     "evt_e61d8834ede54968": {
       "event_id": "evt_e61d8834ede54968",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3585,12 +3610,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.186303+00:00"
+          "checked_at": "2026-09-14T09:35:45.454209+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.186403+00:00"
+          "checked_at": "2026-09-14T09:35:45.454285+00:00"
         },
         "quality_score": 88,
         "base_importance": 39,
@@ -3631,17 +3656,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.186303+00:00"
+        "checked_at": "2026-09-14T09:35:45.454209+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.186403+00:00"
+        "checked_at": "2026-09-14T09:35:45.454285+00:00"
       },
       "quality_score": 88,
       "importance_score": 57,
       "first_seen": "2026-09-14T09:18:10.186968+00:00",
-      "last_seen": "2026-09-14T09:18:10.186969+00:00",
+      "last_seen": "2026-09-14T09:35:45.454622+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3656,7 +3681,7 @@
     },
     "evt_3177c33a95d9b2d9": {
       "event_id": "evt_3177c33a95d9b2d9",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3723,12 +3748,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.187153+00:00"
+          "checked_at": "2026-09-14T09:35:45.454827+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.187458+00:00"
+          "checked_at": "2026-09-14T09:35:45.455057+00:00"
         },
         "quality_score": 60,
         "base_importance": 44,
@@ -3769,17 +3794,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.187153+00:00"
+        "checked_at": "2026-09-14T09:35:45.454827+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.187458+00:00"
+        "checked_at": "2026-09-14T09:35:45.455057+00:00"
       },
       "quality_score": 60,
       "importance_score": 56,
       "first_seen": "2026-09-14T09:18:10.187943+00:00",
-      "last_seen": "2026-09-14T09:18:10.187944+00:00",
+      "last_seen": "2026-09-14T09:35:45.455352+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3794,7 +3819,7 @@
     },
     "evt_d5c64c3789825611": {
       "event_id": "evt_d5c64c3789825611",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3861,12 +3886,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.188605+00:00"
+          "checked_at": "2026-09-14T09:35:45.455891+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.188890+00:00"
+          "checked_at": "2026-09-14T09:35:45.456101+00:00"
         },
         "quality_score": 60,
         "base_importance": 37,
@@ -3907,17 +3932,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.188605+00:00"
+        "checked_at": "2026-09-14T09:35:45.455891+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.188890+00:00"
+        "checked_at": "2026-09-14T09:35:45.456101+00:00"
       },
       "quality_score": 60,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.189382+00:00",
-      "last_seen": "2026-09-14T09:18:10.189383+00:00",
+      "last_seen": "2026-09-14T09:35:45.456397+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -3932,7 +3957,7 @@
     },
     "evt_2d34d729dae94c60": {
       "event_id": "evt_2d34d729dae94c60",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -3999,12 +4024,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.189567+00:00"
+          "checked_at": "2026-09-14T09:35:45.456584+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.189841+00:00"
+          "checked_at": "2026-09-14T09:35:45.456781+00:00"
         },
         "quality_score": 60,
         "base_importance": 28,
@@ -4045,17 +4070,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.189567+00:00"
+        "checked_at": "2026-09-14T09:35:45.456584+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.189841+00:00"
+        "checked_at": "2026-09-14T09:35:45.456781+00:00"
       },
       "quality_score": 60,
       "importance_score": 40,
       "first_seen": "2026-09-14T09:18:10.190311+00:00",
-      "last_seen": "2026-09-14T09:18:10.190313+00:00",
+      "last_seen": "2026-09-14T09:35:45.457080+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4070,7 +4095,7 @@
     },
     "evt_ce9cacec1e9ea827": {
       "event_id": "evt_ce9cacec1e9ea827",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4137,12 +4162,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.190493+00:00"
+          "checked_at": "2026-09-14T09:35:45.457265+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.190759+00:00"
+          "checked_at": "2026-09-14T09:35:45.457461+00:00"
         },
         "quality_score": 60,
         "base_importance": 29,
@@ -4183,17 +4208,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.190493+00:00"
+        "checked_at": "2026-09-14T09:35:45.457265+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.190759+00:00"
+        "checked_at": "2026-09-14T09:35:45.457461+00:00"
       },
       "quality_score": 60,
       "importance_score": 41,
       "first_seen": "2026-09-14T09:18:10.191226+00:00",
-      "last_seen": "2026-09-14T09:18:10.191228+00:00",
+      "last_seen": "2026-09-14T09:35:45.457752+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4208,7 +4233,7 @@
     },
     "evt_be1dcdf34c157f39": {
       "event_id": "evt_be1dcdf34c157f39",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4275,12 +4300,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.191416+00:00"
+          "checked_at": "2026-09-14T09:35:45.457941+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.191667+00:00"
+          "checked_at": "2026-09-14T09:35:45.458140+00:00"
         },
         "quality_score": 60,
         "base_importance": 25,
@@ -4321,17 +4346,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.191416+00:00"
+        "checked_at": "2026-09-14T09:35:45.457941+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.191667+00:00"
+        "checked_at": "2026-09-14T09:35:45.458140+00:00"
       },
       "quality_score": 60,
       "importance_score": 37,
       "first_seen": "2026-09-14T09:18:10.192164+00:00",
-      "last_seen": "2026-09-14T09:18:10.192165+00:00",
+      "last_seen": "2026-09-14T09:35:45.458439+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4346,7 +4371,7 @@
     },
     "evt_ea9f171de53b0510": {
       "event_id": "evt_ea9f171de53b0510",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4413,12 +4438,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.192356+00:00"
+          "checked_at": "2026-09-14T09:35:45.458632+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.192636+00:00"
+          "checked_at": "2026-09-14T09:35:45.458833+00:00"
         },
         "quality_score": 60,
         "base_importance": 36,
@@ -4459,17 +4484,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.192356+00:00"
+        "checked_at": "2026-09-14T09:35:45.458632+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.192636+00:00"
+        "checked_at": "2026-09-14T09:35:45.458833+00:00"
       },
       "quality_score": 60,
       "importance_score": 48,
       "first_seen": "2026-09-14T09:18:10.193158+00:00",
-      "last_seen": "2026-09-14T09:18:10.193160+00:00",
+      "last_seen": "2026-09-14T09:35:45.459150+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4484,7 +4509,7 @@
     },
     "evt_ceb664a915c8937b": {
       "event_id": "evt_ceb664a915c8937b",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4551,12 +4576,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.193863+00:00"
+          "checked_at": "2026-09-14T09:35:45.459658+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.194126+00:00"
+          "checked_at": "2026-09-14T09:35:45.459852+00:00"
         },
         "quality_score": 60,
         "base_importance": 48,
@@ -4597,17 +4622,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.193863+00:00"
+        "checked_at": "2026-09-14T09:35:45.459658+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.194126+00:00"
+        "checked_at": "2026-09-14T09:35:45.459852+00:00"
       },
       "quality_score": 60,
       "importance_score": 60,
       "first_seen": "2026-09-14T09:18:10.194644+00:00",
-      "last_seen": "2026-09-14T09:18:10.194645+00:00",
+      "last_seen": "2026-09-14T09:35:45.460188+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4622,7 +4647,7 @@
     },
     "evt_e051d8845790ad0f": {
       "event_id": "evt_e051d8845790ad0f",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4689,12 +4714,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.194847+00:00"
+          "checked_at": "2026-09-14T09:35:45.461216+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.195069+00:00"
+          "checked_at": "2026-09-14T09:35:45.461383+00:00"
         },
         "quality_score": 60,
         "base_importance": 36,
@@ -4735,17 +4760,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.194847+00:00"
+        "checked_at": "2026-09-14T09:35:45.461216+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.195069+00:00"
+        "checked_at": "2026-09-14T09:35:45.461383+00:00"
       },
       "quality_score": 60,
       "importance_score": 48,
       "first_seen": "2026-09-14T09:18:10.195564+00:00",
-      "last_seen": "2026-09-14T09:18:10.195565+00:00",
+      "last_seen": "2026-09-14T09:35:45.461702+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4760,7 +4785,7 @@
     },
     "evt_359a27eda4bddaf7": {
       "event_id": "evt_359a27eda4bddaf7",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4827,12 +4852,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.195779+00:00"
+          "checked_at": "2026-09-14T09:35:45.461908+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.196031+00:00"
+          "checked_at": "2026-09-14T09:35:45.462108+00:00"
         },
         "quality_score": 60,
         "base_importance": 41,
@@ -4873,17 +4898,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.195779+00:00"
+        "checked_at": "2026-09-14T09:35:45.461908+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.196031+00:00"
+        "checked_at": "2026-09-14T09:35:45.462108+00:00"
       },
       "quality_score": 60,
       "importance_score": 53,
       "first_seen": "2026-09-14T09:18:10.196584+00:00",
-      "last_seen": "2026-09-14T09:18:10.196585+00:00",
+      "last_seen": "2026-09-14T09:35:45.462454+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -4898,7 +4923,7 @@
     },
     "evt_d8f658cd6963d565": {
       "event_id": "evt_d8f658cd6963d565",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -4965,12 +4990,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.196805+00:00"
+          "checked_at": "2026-09-14T09:35:45.462663+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.197059+00:00"
+          "checked_at": "2026-09-14T09:35:45.462848+00:00"
         },
         "quality_score": 60,
         "base_importance": 37,
@@ -5011,17 +5036,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.196805+00:00"
+        "checked_at": "2026-09-14T09:35:45.462663+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.197059+00:00"
+        "checked_at": "2026-09-14T09:35:45.462848+00:00"
       },
       "quality_score": 60,
       "importance_score": 49,
       "first_seen": "2026-09-14T09:18:10.197608+00:00",
-      "last_seen": "2026-09-14T09:18:10.197610+00:00",
+      "last_seen": "2026-09-14T09:35:45.463210+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -5036,7 +5061,7 @@
     },
     "evt_a69514eff1069b9d": {
       "event_id": "evt_a69514eff1069b9d",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -5103,12 +5128,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.197745+00:00"
+          "checked_at": "2026-09-14T09:35:45.463346+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.197977+00:00"
+          "checked_at": "2026-09-14T09:35:45.463513+00:00"
         },
         "quality_score": 60,
         "base_importance": 32,
@@ -5149,17 +5174,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.197745+00:00"
+        "checked_at": "2026-09-14T09:35:45.463346+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.197977+00:00"
+        "checked_at": "2026-09-14T09:35:45.463513+00:00"
       },
       "quality_score": 60,
       "importance_score": 44,
       "first_seen": "2026-09-14T09:18:10.198270+00:00",
-      "last_seen": "2026-09-14T09:18:10.198271+00:00",
+      "last_seen": "2026-09-14T09:35:45.463693+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -5174,7 +5199,7 @@
     },
     "evt_8f11452fb76b9da2": {
       "event_id": "evt_8f11452fb76b9da2",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -5241,12 +5266,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.198468+00:00"
+          "checked_at": "2026-09-14T09:35:45.463850+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.198669+00:00"
+          "checked_at": "2026-09-14T09:35:45.463999+00:00"
         },
         "quality_score": 60,
         "base_importance": 43,
@@ -5287,17 +5312,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.198468+00:00"
+        "checked_at": "2026-09-14T09:35:45.463850+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.198669+00:00"
+        "checked_at": "2026-09-14T09:35:45.463999+00:00"
       },
       "quality_score": 60,
       "importance_score": 55,
       "first_seen": "2026-09-14T09:18:10.199191+00:00",
-      "last_seen": "2026-09-14T09:18:10.199192+00:00",
+      "last_seen": "2026-09-14T09:35:45.464327+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -5312,7 +5337,7 @@
     },
     "evt_bd839249270a4562": {
       "event_id": "evt_bd839249270a4562",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -5379,12 +5404,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-14T09:18:10.199373+00:00"
+          "checked_at": "2026-09-14T09:35:45.464514+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-14T09:18:10.199556+00:00"
+          "checked_at": "2026-09-14T09:35:45.464655+00:00"
         },
         "quality_score": 60,
         "base_importance": 42,
@@ -5425,17 +5450,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-14T09:18:10.199373+00:00"
+        "checked_at": "2026-09-14T09:35:45.464514+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-14T09:18:10.199556+00:00"
+        "checked_at": "2026-09-14T09:35:45.464655+00:00"
       },
       "quality_score": 60,
       "importance_score": 54,
       "first_seen": "2026-09-14T09:18:10.200078+00:00",
-      "last_seen": "2026-09-14T09:18:10.200080+00:00",
+      "last_seen": "2026-09-14T09:35:45.464978+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -5585,345 +5610,1542 @@
         "last_event_type": "NEW"
       },
       "last_published_fingerprint": "job_67500ed19e2baae50e03"
+    },
+    "evt_bcd8ad650f366a0e": {
+      "event_id": "evt_bcd8ad650f366a0e",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": null,
+        "title": "Purchase Officer (ধান, ভুট্টা, শস্য পণ্য)",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": null,
+        "vacancy": null,
+        "salary": null,
+        "education": [],
+        "experience": null,
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "14 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/purchase-officer-dhan-vutta-ssz-pnz-13279",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "iFarmer Limited is looking for a Purchase Officer (ধান, ভুট্টা, শস্য পণ্য) on BDJobs Live. Category in Marketing/ Sales. Job Location Jamalpur, Bogra, Dinajpu..",
+        "confidence": 0.52,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/purchase-officer-dhan-vutta-ssz-pnz-13279",
+        "discovery": "direct_link",
+        "meta": {
+          "title": "Purchase Officer (ধান, ভুট্টা, শস্য পণ্য) | iFarmer Limited - BDJobs Live",
+          "image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "description": "iFarmer Limited is looking for a Purchase Officer (ধান, ভুট্টা, শস্য পণ্য) on BDJobs Live. Category in Marketing/ Sales. Job Location Jamalpur, Bogra, Dinajpu..",
+          "logo": "https://www.bdjobslive.com/favicon.ico"
+        },
+        "text": "Application Deadline : 14 Oct 2026\nEducation\n- Bachelor/Honors\n- Diploma\nExperience\n- 1-3 Year\nSkills\n- Procurement\n- Purchase\n- Sourcing\n- Quality Inspection\n- Relationship Management\n- Agriculture\nAdditional Requirements\n- \nপ্রার্থীর নিজস্ব মোটরবাইক থাকা আবশ্যক।\n- \nযেকোনো বিষয়ে স্নাতক ডিগ্রি থাকতে হবে; কৃষি-সম্পর্কিত শিক্ষাগত যোগ্যতা থাকলে অগ্রাধিকার দেওয়া হবে।\n- \nসোর্সিং ও প্রোকিউরমেন্ট, কৃষি কার্যক্রম অথবা ফসলের মান যাচাই সংক্রান্ত কাজে ১–৩ বছরের প্রাসঙ্গিক অভিজ্ঞতা থাকতে হবে।\n- \nধান, ভুট্টা ও বিভিন্ন শস্যের গুণগত মান যাচাই সম্পর্কে ভালো জ্ঞান থাকতে হবে।\n- \nMoisture Meter ব্যবহার এবং মৌলিক শস্য গ্রেডিং পদ্ধতি সম্পর্কে ধারণা থাকতে হবে।\n- \nকৃষক ও সরবরাহকারীদের সঙ্গে কার্যকরভাবে যোগাযোগ ও সমন্বয় করার সক্ষমতা থাকতে হবে।\n- \nরিপোর্ট তৈরি ও ডকুমেন্টেশন সংক্রান্ত মৌলিক দক্ষতা থাকা আবশ্যক।\nResponsibilities & Context\nJob Overview\nWe are looking for a responsible and field-oriented Purchase Officer to manage agricultural product procurement, quality inspection, supplier coordination, and collection activities. The role will involve maintaining transparent and efficient purchasing operations while coordinating with farmers, suppliers, and other relevant stakeholders.\nKey Responsibilities\nSupplier Connect App Management\n- \nManage the iFarmer Supplier Connect App and regularly update procurement and order information for paddy, maize, and other agricultural products.\n- \nMonitor and maintain records of registered farmers and suppliers through the app.\nPoint Purchasing & Sourcing\n- \nProcure quality paddy and other agricultural products from designated collection points.\n- \nInspect product quality, weight, and moisture levels and complete purchases at appropriate market prices.\nFarmer & Supplier Relationship Management\n- \nMaintain strong relationships with local farmers, intermediaries, and suppliers and encourage new farmers to use the app.\n- \nEnsure timely payments to farmers and maintain transparency throughout the purchasing process.\nPurchase Tracking & Documentation\n- \nSubmit daily purchase data, invoices, and payment requests accurately and on time through the app.\n- \nReconcile physical stock with system records and ensure data accuracy.\nMarket Monitoring & Field Reconnaissance\n- \nMonitor prevailing paddy and agricultural commodity prices in local markets and prepare regular market reports.\n- \nConduct field visits to assess market conditions, sourcing opportunities, and product availability.\nCompensation & Other Benefits\n- Festival Bonus: 1 (Yearly)\n- Salary Review: Yearly\n- T/A\n- Medical allowance\n- Insurance\nOther Benefits\nEmployment Status\nFull Time/Permanent\nJob Location\nJamalpur, Bogra, Dinajpur\nCompany Information\nAgro Based Industry\nAddress:\n8E, Road - 81, Gulshan-2, Dhaka-1212\nWebsite:\nhttps://www.ifarmer.asia/\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "normalized": {
+          "company": "",
+          "title": "purchase officer ধান ভুট্টা শস্য পণ্য",
+          "location": "",
+          "deadline": "2026-10-14",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/purchase-officer-dhan-vutta-ssz-pnz-13279",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_918828d96bb8a5aabc96",
+        "identity_fingerprint": "identity_fd6acb527b469fc41779",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.438832+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.438976+00:00"
+        },
+        "quality_score": 68,
+        "base_importance": 35,
+        "importance_score": 49
+      },
+      "normalized": {
+        "company": "",
+        "title": "purchase officer ধান ভুট্টা শস্য পণ্য",
+        "location": "",
+        "deadline": "2026-10-14",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/purchase-officer-dhan-vutta-ssz-pnz-13279",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_918828d96bb8a5aabc96",
+      "identity_fingerprint": "identity_fd6acb527b469fc41779",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/purchase-officer-dhan-vutta-ssz-pnz-13279",
+          "seen_at": "2026-09-14T09:35:45.439523+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.438832+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.438976+00:00"
+      },
+      "quality_score": 68,
+      "importance_score": 49,
+      "first_seen": "2026-09-14T09:35:45.439526+00:00",
+      "last_seen": "2026-09-14T09:35:45.439527+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 52,
+        "published_at": "2026-09-14T09:36:05.093811+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_918828d96bb8a5aabc96"
+    },
+    "evt_6165ee5ff75ea886": {
+      "event_id": "evt_6165ee5ff75ea886",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Shins Group",
+        "title": "Sr. Executive/ Asst. Manager- Payroll & PMS (Corporate Office)",
+        "organization_type": null,
+        "sector": "Garments/ Textile",
+        "job_function": "Payroll Management",
+        "job_level": null,
+        "job_type": "Full Time/Permanent",
+        "employment_type": null,
+        "location": "Dhaka, Uttara",
+        "vacancy": null,
+        "salary": "salary revision,",
+        "education": [
+          "Masters",
+          "Master of Business Administration (MBA) in Human Resource"
+        ],
+        "experience": "5-7 Year",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "12 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/sr-executive-asst-manager-payroll-pms-corporate-office-13230",
+        "requirements": [
+          "Payroll management",
+          "Compensation/ Benefits/ Attendance/ Leave Management",
+          "PMS (KPI)"
+        ],
+        "responsibilities": [
+          "Lead and manage the complete monthly payroll and wage processing cycle for employees and workers",
+          "Ensure accurate calculation of salaries, wages, overtime, allowances, incentives, deductions, bonuses, and other payroll components",
+          "Review attendance, leave, overtime, late arrivals, absenteeism, and other payroll-related data before processing",
+          "Verify employee master data, including joining, separation, transfer, promotion, increment, salary revision, department, designation, and grade changes",
+          "Ensure all approved salary revisions, promotions, increments, transfers, and employment changes are properly updated in the payroll system on time",
+          "Ensure accurate and timely disbursement of salaries and wages through bank and cash payments"
+        ],
+        "summary": "SHIN SHIN GROUP is looking for a Sr. Executive/ Asst. Manager- Payroll & PMS (Corporate Office) on BDJobs Live. Category in HR & Organizational Development. J..",
+        "confidence": 1,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/sr-executive-asst-manager-payroll-pms-corporate-office-13230",
+        "discovery": "direct_link",
+        "meta": {
+          "title": "Sr. Executive/ Asst. Manager- Payroll & PMS (Corporate Office) | SHIN SHIN GROUP - BDJobs Live",
+          "image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "description": "SHIN SHIN GROUP is looking for a Sr. Executive/ Asst. Manager- Payroll & PMS (Corporate Office) on BDJobs Live. Category in HR & Organizational Development. J..",
+          "logo": "https://www.bdjobslive.com/favicon.ico"
+        },
+        "text": "Application Deadline : 12 Oct 2026\nEducation\n- Masters, Master of Business Administration (MBA), in Human Resource\nExperience\n- 5-7 Year\nSkills\n- Payroll management\n- Compensation/ Benefits/ Attendance/ Leave Management\n- PMS (KPI)\nResponsibilities & Context\n- \nLead and manage the complete monthly payroll and wage processing cycle for employees and workers.\n- \nEnsure accurate calculation of salaries, wages, overtime, allowances, incentives, deductions, bonuses, and other payroll components.\n- \nReview attendance, leave, overtime, late arrivals, absenteeism, and other payroll-related data before processing.\n- \nVerify employee master data, including joining, separation, transfer, promotion, increment, salary revision, department, designation, and grade changes.\n- \nEnsure all approved salary revisions, promotions, increments, transfers, and employment changes are properly updated in the payroll system on time.\n- \nEnsure accurate and timely disbursement of salaries and wages through bank and cash payments.\n- \nManage employee benefits such as festival bonuses, gratuity, service benefits, and other applicable benefits.\n- \nAddress payroll-related queries, complaints, and discrepancies promptly and professionally.\n- \nConduct regular payroll audits and reconciliations to identify errors, irregularities, and data inconsistencies.\n- \nEnsure compliance with Bangladesh Labor Law and relevant company policies.\n- \nMaintain complete and organized payroll records and documentation for audit and compliance purposes.\n- \nCoordinate with Accounts and Compliance teams during payroll audits, inspections, and related activities.\n- \nPrepare and provide payroll-related MIS reports, summaries, and analysis to management as re\nCompensation & Other Benefits\n- Lunch Facilities: Partially Subsidized\n- Festival Bonus: 2 (Yearly)\n- Salary Review: Half Yearly\n- Mobile bill\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nDhaka, Uttara\nCompany Information\nGarments/ Textile\nAddress:\nHouse: 93, Road: 13, Sector: 10, Uttara Model Town, Dhaka-1230, Bangladesh\nWebsite:\nhttps://www.shinshingroup.com\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_extracted": true,
+        "normalized": {
+          "company": "shins group",
+          "title": "sr executive asst manager payroll pms corporate office",
+          "location": "dhaka uttara",
+          "deadline": "2026-10-12",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/sr-executive-asst-manager-payroll-pms-corporate-office-13230",
+          "sector": "garments textile",
+          "job_function": "payroll management",
+          "job_level": "",
+          "job_type": "full time permanent",
+          "vacancy": "",
+          "salary": "salary revision"
+        },
+        "fingerprint": "job_7f0902ffc1a24f40954c",
+        "identity_fingerprint": "identity_c2a2f289ab3115fca160",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.442441+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.442533+00:00"
+        },
+        "quality_score": 98,
+        "base_importance": 49,
+        "importance_score": 69
+      },
+      "normalized": {
+        "company": "shins group",
+        "title": "sr executive asst manager payroll pms corporate office",
+        "location": "dhaka uttara",
+        "deadline": "2026-10-12",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/sr-executive-asst-manager-payroll-pms-corporate-office-13230",
+        "sector": "garments textile",
+        "job_function": "payroll management",
+        "job_level": "",
+        "job_type": "full time permanent",
+        "vacancy": "",
+        "salary": "salary revision"
+      },
+      "fingerprint": "job_7f0902ffc1a24f40954c",
+      "identity_fingerprint": "identity_c2a2f289ab3115fca160",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/sr-executive-asst-manager-payroll-pms-corporate-office-13230",
+          "seen_at": "2026-09-14T09:35:45.442973+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.442441+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.442533+00:00"
+      },
+      "quality_score": 98,
+      "importance_score": 69,
+      "first_seen": "2026-09-14T09:35:45.442975+00:00",
+      "last_seen": "2026-09-14T09:35:45.442976+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 48,
+        "published_at": "2026-09-14T09:35:50.844401+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_7f0902ffc1a24f40954c"
+    },
+    "evt_33b9a96b4214f869": {
+      "event_id": "evt_33b9a96b4214f869",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Others Industries",
+        "title": "Junior Executive (Internal Audit)",
+        "organization_type": null,
+        "sector": "Others Industries",
+        "job_function": "Internal Audit",
+        "job_level": null,
+        "job_type": "Full Time/Permanent",
+        "employment_type": null,
+        "location": "Dhaka, Tejgaon",
+        "vacancy": null,
+        "salary": null,
+        "education": [
+          "Bachelor/Honors",
+          "Bachelor of Business Administration (BBA) in Accounting",
+          "Masters",
+          "Master of Business Administration (MBA) in Accounting"
+        ],
+        "experience": "2 Year",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "9 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/junior-executive-internal-audit-13194",
+        "requirements": [
+          "Hands‑on experience with accounting software such as Tally Prime, Tally ERP‑9, QuickBooks or corporate ERP systems",
+          "Advanced MS Excel skills including formulas, data analysis and VLOOKUP",
+          "Strong MS Word skills for preparing audit reports"
+        ],
+        "responsibilities": [
+          "Document verification of daily requisitions, challans, bills, gate passes and related documents",
+          "Support internal control and asset protection practices",
+          "Conduct on‑site audit visits and prepare audit reports",
+          "Follow‑up on audit findings with concerned departments",
+          "Verify supplier bills and conduct physical verification when required",
+          "Perform stock audit and verify inventory on a half‑yearly/yearly basis"
+        ],
+        "summary": "multibrand WORKSHOP ltd. is looking for a Junior Executive (Internal Audit) on BDJobs Live. Category in Accounting/ Finance. Job Location Dhaka, Tejgaon , Ban..",
+        "confidence": 1,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/junior-executive-internal-audit-13194",
+        "discovery": "direct_link",
+        "meta": {
+          "title": "Junior Executive (Internal Audit) | multibrand WORKSHOP ltd. - BDJobs Live",
+          "image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "description": "multibrand WORKSHOP ltd. is looking for a Junior Executive (Internal Audit) on BDJobs Live. Category in Accounting/ Finance. Job Location Dhaka, Tejgaon , Ban..",
+          "logo": "https://www.bdjobslive.com/favicon.ico"
+        },
+        "text": "Application Deadline : 9 Oct 2026\nEducation\n- Bachelor/Honors, Bachelor of Business Administration (BBA), in Accounting\n- Masters, Master of Business Administration (MBA), in Accounting\nExperience\n- 2 Year\nSkills\n- Accounts and audit\n- • MS Office\nAdditional Requirements\n✔ Freshers Welcome: Freshers are also encouraged to apply for this position.\n✔ Age: Candidates aged 25 to 35 years are eligible to apply.\n✔ Accounting Software Proficiency: Hands-on experience with accounting software such as Tally Prime, Tally ERP-9, QuickBooks, or corporate ERP systems.\n✔ Advanced MS Office Skills: Strong command of MS Excel, including formulas, data analysis, and VLOOKUP, along with MS Word skills for preparing professional audit reports.\nResponsibilities & Context\nJob Context:\nElectric & Hybrid Car Specialist WORKSHOP is looking for a committed and performance-oriented professional to join the team as Junior Executive (Internal Audit). The role will focus on internal audit, financial document verification, inventory checking, compliance, and safeguarding company assets.\nJob Responsibilities:\n✔ Document Verification: Check daily requisitions, challans, bills, gate passes, and documents related to the inward and outward movement of goods.\n✔ Internal Control & Asset Protection: Provide necessary support to implement standard practices that protect the company’s interests and ensure proper safeguarding of company assets.\n✔ Audit & Reporting: Conduct on-site audit visits and prepare financial and non-financial audit reports based on audit observations and findings.\n✔ Audit Findings Follow-up: Ensure that identified audit findings are properly addressed and resolved by the concerned departments.\n✔ Supplier Bill Verification: Review supplier bills and conduct physical visits when required to verify the authenticity and accuracy of submitted bills.\n✔ Stock Audit: Check and physically verify inventory and stock on a half-yearly/yearly basis.\n✔ Salary Sheet Verification: Review and verify the monthly salary sheet to ensure accuracy.\n✔ Provident Fund Verification: Check and verify Provident Fund activities, including monthly contributions, loan payments, and final settlements.\n✔ Daily Transaction Audit: Check and verify daily financial transactions, including receipts, payments, sales, and purchases.\n✔ Other Responsibilities: Perform any other internal audit or related assignments assigned by management from time to time.\nCompensation & Other Benefits\n- Lunch Facilities: Partially Subsidized\n- Festival Bonus: 2 (Yearly)\n- Salary Review: Yearly\n- Mobile bill\n- Tour allowance\n- Overtime allowance\nOther Benefits\nAs per company policy.\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nDhaka, Tejgaon\nRead the job responsibilities, requirements, and conditions carefully before applying.\nCompany Information\nOthers Industries\nAddress:\n340/341 Tejgoan I/A Dhaka\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_extracted": true,
+        "normalized": {
+          "company": "others industries",
+          "title": "junior executive internal audit",
+          "location": "dhaka tejgaon",
+          "deadline": "2026-10-09",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/junior-executive-internal-audit-13194",
+          "sector": "others industries",
+          "job_function": "internal audit",
+          "job_level": "",
+          "job_type": "full time permanent",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_a9b5b3578d7cfac52694",
+        "identity_fingerprint": "identity_e45146c7ab1963458f3d",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.444815+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.444933+00:00"
+        },
+        "quality_score": 98,
+        "base_importance": 51,
+        "importance_score": 71
+      },
+      "normalized": {
+        "company": "others industries",
+        "title": "junior executive internal audit",
+        "location": "dhaka tejgaon",
+        "deadline": "2026-10-09",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/junior-executive-internal-audit-13194",
+        "sector": "others industries",
+        "job_function": "internal audit",
+        "job_level": "",
+        "job_type": "full time permanent",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_a9b5b3578d7cfac52694",
+      "identity_fingerprint": "identity_e45146c7ab1963458f3d",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/junior-executive-internal-audit-13194",
+          "seen_at": "2026-09-14T09:35:45.445359+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.444815+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.444933+00:00"
+      },
+      "quality_score": 98,
+      "importance_score": 71,
+      "first_seen": "2026-09-14T09:35:45.445361+00:00",
+      "last_seen": "2026-09-14T09:35:45.445362+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 47,
+        "published_at": "2026-09-14T09:35:47.986792+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_a9b5b3578d7cfac52694"
+    },
+    "evt_917e3c87f0eb4989": {
+      "event_id": "evt_917e3c87f0eb4989",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Telecommunication",
+        "title": "Senior Developer",
+        "organization_type": null,
+        "sector": "Telecommunication",
+        "job_function": "Software Development",
+        "job_level": null,
+        "job_type": "Full Time/Permanent",
+        "employment_type": null,
+        "location": "Dhaka, Banasree",
+        "vacancy": null,
+        "salary": "Competitive",
+        "education": [
+          "Bachelor/Honors"
+        ],
+        "experience": "4-6 Year",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "6 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/senior-developer-13072",
+        "requirements": [],
+        "responsibilities": [
+          "Architect and scale enterprise‑level ERP solutions",
+          "Lead high‑impact projects with decision‑making responsibilities"
+        ],
+        "summary": "Betopia Group is looking for a Senior Developer on BDJobs Live. Category in Engineer/ Architects. Job Location Dhaka, Banasree, Bangladesh. Job Type: Full Tim..",
+        "confidence": 1,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/senior-developer-13072",
+        "discovery": "direct_link",
+        "meta": {
+          "title": "Senior Developer | Betopia Group - BDJobs Live",
+          "image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "description": "Betopia Group is looking for a Senior Developer on BDJobs Live. Category in Engineer/ Architects. Job Location Dhaka, Banasree, Bangladesh. Job Type: Full Tim..",
+          "logo": "https://www.bdjobslive.com/favicon.ico"
+        },
+        "text": "Application Deadline : 6 Oct 2026\nEducation\n- Bachelor/Honors\nExperience\n- 4-6 Year\nAdditional Requirements\nResponsibilities & Context\nCompensation & Other Benefits\n- Festival Bonus: 2 (Yearly)\n- Salary Review: Yearly\nOther Benefits\nBenefits & Salary\n- \nTake on a high-impact leadership position with significant ownership and decision-making responsibilities.\n- \nGet the opportunity to architect and scale enterprise-level ERP solutions.\n- \nEnjoy an annual salary review along with two festival bonuses.\n- \nWork in a collaborative, supportive, and growth-oriented environment.\nSalary\n- \nCompetitive salary package based on expertise, leadership experience, and overall capabilities.\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nDhaka, Banasree\nCompany Information\nTelecommunication\nAddress:\nDaisy Garden, House – 14 (3rd Floor) Main Road, Block-A, Banasree, Dhaka 1219.\nWebsite:\nhttps://www.betopiagroup.com/\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_extracted": true,
+        "normalized": {
+          "company": "telecommunication",
+          "title": "senior developer",
+          "location": "dhaka banasree",
+          "deadline": "2026-10-06",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/senior-developer-13072",
+          "sector": "telecommunication",
+          "job_function": "software development",
+          "job_level": "",
+          "job_type": "full time permanent",
+          "vacancy": "",
+          "salary": "competitive"
+        },
+        "fingerprint": "job_cf8bf7a41d12feb6f182",
+        "identity_fingerprint": "identity_43f654f98138f5464f85",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.446072+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.446133+00:00"
+        },
+        "quality_score": 98,
+        "base_importance": 44,
+        "importance_score": 64
+      },
+      "normalized": {
+        "company": "telecommunication",
+        "title": "senior developer",
+        "location": "dhaka banasree",
+        "deadline": "2026-10-06",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/senior-developer-13072",
+        "sector": "telecommunication",
+        "job_function": "software development",
+        "job_level": "",
+        "job_type": "full time permanent",
+        "vacancy": "",
+        "salary": "competitive"
+      },
+      "fingerprint": "job_cf8bf7a41d12feb6f182",
+      "identity_fingerprint": "identity_43f654f98138f5464f85",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/senior-developer-13072",
+          "seen_at": "2026-09-14T09:35:45.446541+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.446072+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.446133+00:00"
+      },
+      "quality_score": 98,
+      "importance_score": 64,
+      "first_seen": "2026-09-14T09:35:45.446543+00:00",
+      "last_seen": "2026-09-14T09:35:45.446544+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 49,
+        "published_at": "2026-09-14T09:35:56.197766+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_cf8bf7a41d12feb6f182"
+    },
+    "evt_5bd65091502f65d2": {
+      "event_id": "evt_5bd65091502f65d2",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Education Institute",
+        "title": "অ্যাসিস্ট্যান্ট টেকনিশিয়ান, ফায়ার এন্ড সেফটি",
+        "organization_type": null,
+        "sector": "Education Institute",
+        "job_function": "Fire Safety Management",
+        "job_level": null,
+        "job_type": "Full Time/Permanent",
+        "employment_type": null,
+        "location": "Dhaka, Badda",
+        "vacancy": null,
+        "salary": null,
+        "education": [
+          "Higher Secondary",
+          "HSC"
+        ],
+        "experience": "2 Year",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "18 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/azsistzant-teknisiyan-fayar-end-sefti-13040",
+        "requirements": [
+          "At least 2 years of HSE related experience",
+          "Training in fire fighting and first aid preferred"
+        ],
+        "responsibilities": [
+          "Identify and assess occupational health, safety and environmental risks",
+          "Maintain and update PA system for emergency announcements",
+          "Coordinate with rescue teams during fire or earthquake emergencies",
+          "Maintain fire control panels and ensure functionality",
+          "Organize safety training for staff",
+          "Monitor and document safety equipment and procedures"
+        ],
+        "summary": "BRAC University is looking for a অ্যাসিস্ট্যান্ট টেকনিশিয়ান, ফায়ার এন্ড সেফটি on BDJobs Live. Category in Security/Support Service. Job Location Dhaka, Badda,..",
+        "confidence": 1,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/azsistzant-teknisiyan-fayar-end-sefti-13040",
+        "discovery": "direct_link",
+        "meta": {
+          "title": "অ্যাসিস্ট্যান্ট টেকনিশিয়ান, ফায়ার এন্ড সেফটি | BRAC University - BDJobs Live",
+          "image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "description": "BRAC University is looking for a অ্যাসিস্ট্যান্ট টেকনিশিয়ান, ফায়ার এন্ড সেফটি on BDJobs Live. Category in Security/Support Service. Job Location Dhaka, Badda,..",
+          "logo": "https://www.bdjobslive.com/favicon.ico"
+        },
+        "text": "Application Deadline : 18 Oct 2026\nEducation\n- Higher Secondary, HSC\nExperience\n- 2 Year\nSkills\n- Fire safety Management\n- Fire Protection and Detection System\n- Safety Management\nAdditional Requirements\n- \nপেশাগত স্বাস্থ্য, নিরাপত্তা ও পরিবেশ (HSE) সংক্রান্ত কাজে কমপক্ষে ২ বছরের বাস্তব অভিজ্ঞতা থাকলে প্রার্থীদের অগ্রাধিকার দেওয়া হবে।\n- \nফায়ার ফাইটিং ও ফার্স্ট এইড বিষয়ে প্রশিক্ষণপ্রাপ্ত প্রার্থীদের বিশেষভাবে অগ্রাধিকার দেওয়া হবে।\nResponsibilities & Context\n- কর্মক্ষেত্রে পেশাগত স্বাস্থ্য, নিরাপত্তা ও পরিবেশগত সম্ভাব্য ঝুঁকি চিহ্নিত ও মূল্যায়ন করা।\n- জরুরি পরিস্থিতিতে ঘোষণা দেওয়ার জন্য PA (Public Address) সিস্টেম সচল ও নিয়মিত আপডেট রাখা।\n- অগ্নিকাণ্ড, ভূমিকম্পসহ বিভিন্ন জরুরি পরিস্থিতিতে উদ্ধারকারী দলের সঙ্গে সমন্বয় করে সক্রিয়ভাবে দায়িত্ব পালন করা।\n- ফায়ার কন্ট্রোল প্যানেলের নিয়মিত রক্ষণাবেক্ষণ নিশ্চিত করে এর কার্যকারিতা বজায় রাখা।\n- কর্মী, সহকর্মী ও সংশ্লিষ্ট ব্যক্তিদের জন্য প্রয়োজনীয় নিরাপত্তা প্রশিক্ষণের আয়োজন ও পরিচালনা করা।\n- রক্ষণাবেক্ষণ কার্যক্রম চলাকালে সার্বক্ষণিক পর্যবেক্ষণ করে দুর্ঘটনা ও নিরাপত্তাজনিত ঝুঁকি কমিয়ে আনা।\n- প্রয়োজনীয় নথিপত্র ও নিরাপত্তা সংক্রান্ত রেজিস্টার যথাযথভাবে সংরক্ষণ ও নিয়মিত হালনাগাদ করা হচ্ছে কিনা তা নিশ্চিত করা।\n- বিশ্ববিদ্যালয়ের গুরুত্বপূর্ণ নিরাপত্তা সরঞ্জাম ও ইকুইপমেন্ট নিয়মিত পরীক্ষা করে প্রয়োজনীয় রিপোর্ট প্রদান করা।\n- কোনো ইকুইপমেন্টে ত্রুটি দেখা দিলে তা মেরামত, রিফিলিং বা প্রয়োজনীয় ব্যবস্থা গ্রহণের উদ্যোগ নেওয়া।\n- দৈনিক, মাসিক ও বার্ষিক ভিত্তিতে নিরাপত্তা সংক্রান্ত প্রতিবেদন প্রস্তুত ও সংরক্ষণ করা।\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nDhaka, Badda\nআবেদন প্রক্রিয়া\nআবেদনের ধরন: হার্ড কপি\nযোগ্য ও আগ্রহী প্রার্থীদের আগামী ১৭ সেপ্টেম্বর ২০২৬ তারিখের মধ্যে সকল একাডেমিক সনদপত্রের কপি, জাতীয় পরিচয়পত্রের অনুলিপি এবং প্রয়োজনীয় তথ্যসহ পূর্ণাঙ্গ জীবনবৃত্তান্ত (CV) নিম্নোক্ত ঠিকানায় পাঠানোর জন্য অনুরোধ করা হচ্ছে।\nআবেদন পাঠানোর ঠিকানা:\nখ-২২৪, প্রগতি সরণি, মেরুল বাড্ডা, ঢাকা-১২১২।\nখামের ওপর অবশ্যই আবেদনকৃত পদের নাম স্পষ্টভাবে উল্লেখ করতে হবে।\nশুধুমাত্র প্রাথমিকভাবে বাছাইকৃত প্রার্থীদের পরবর্তী নিয়োগ প্রক্রিয়ার জন্য যোগাযোগ করা হবে।\nCompany Information\nEducation Institute\nAddress:\nKha 224 Bir Uttam Rafiqul Islam Avenue Merul Badda Dhaka 1212. Bangladesh\nWebsite:\nhttps://www.bracu.ac.bd\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_extracted": true,
+        "normalized": {
+          "company": "education institute",
+          "title": "অ্যাসিস্ট্যান্ট টেকনিশিয়ান ফায়ার এন্ড সেফটি",
+          "location": "dhaka badda",
+          "deadline": "2026-10-18",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/azsistzant-teknisiyan-fayar-end-sefti-13040",
+          "sector": "education institute",
+          "job_function": "fire safety management",
+          "job_level": "",
+          "job_type": "full time permanent",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_00ce12e830bd0c56d682",
+        "identity_fingerprint": "identity_254a7ef3510ca06355dc",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.447412+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.447510+00:00"
+        },
+        "quality_score": 98,
+        "base_importance": 38,
+        "importance_score": 58
+      },
+      "normalized": {
+        "company": "education institute",
+        "title": "অ্যাসিস্ট্যান্ট টেকনিশিয়ান ফায়ার এন্ড সেফটি",
+        "location": "dhaka badda",
+        "deadline": "2026-10-18",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/azsistzant-teknisiyan-fayar-end-sefti-13040",
+        "sector": "education institute",
+        "job_function": "fire safety management",
+        "job_level": "",
+        "job_type": "full time permanent",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_00ce12e830bd0c56d682",
+      "identity_fingerprint": "identity_254a7ef3510ca06355dc",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/azsistzant-teknisiyan-fayar-end-sefti-13040",
+          "seen_at": "2026-09-14T09:35:45.447957+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.447412+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.447510+00:00"
+      },
+      "quality_score": 98,
+      "importance_score": 58,
+      "first_seen": "2026-09-14T09:35:45.447959+00:00",
+      "last_seen": "2026-09-14T09:35:45.447960+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 50,
+        "published_at": "2026-09-14T09:35:59.128206+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_00ce12e830bd0c56d682"
+    },
+    "evt_d3ddb16f3cad7ae5": {
+      "event_id": "evt_d3ddb16f3cad7ae5",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": null,
+        "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": null,
+        "vacancy": "শূন্যপদ | 142",
+        "salary": "বেতন স্কেল | 8,250 – 30,230",
+        "education": [],
+        "experience": null,
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-08T00:00:00.000Z",
+        "application_start": null,
+        "deadline": "06 October 2026",
+        "application_method": null,
+        "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.52,
+        "source_id": "exa_discovery",
+        "source_name": "Exa Discovery",
+        "source_priority": "P3",
+        "official_source": false,
+        "source_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "সরকারি চাকরির প্রত্যাশীদের জন্য সুখবর। বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BOF Job Circular 2026) প্রকাশিত হয়েছে। গণপ্রজাতন্ত্রী বাংলাদেশ সরকারের প্রতিরক্ষা মন্ত্রণালয়ের অধীন বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ)-এর স্থায়ী রাজস্ব খাতভুক্ত শূন্য পদে সরাসরি জনবল নিয়োগের লক্ষ্যে এই বিজ্ঞপ্তি প্রকাশ করা হয়েছে। ... মুদ্রাক্ষরিক, ড্রাইভার, জুনিয়র টেকনিশিয়ান, টেকনিক্যাল হেলপার, ১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত # ১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত 08 Sep 2026 সরকারি চাকরির প্রত্যাশীদের জন্য সুখবর। বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BOF Job Circular 2026) প্রকাশিত হয়েছে। গণপ্রজাতন্ত্রী বাংলাদেশ সরকারের প্রতিরক্ষা মন্ত্রণালয়ের অধীন বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ)-এর স্থায়ী রাজস্ব খাতভুক্ত শূন্য পদে সরাসরি জনবল নিয়োগের লক্ষ্যে এই বিজ্ঞপ্তি প্রকাশ করা হয়েছে। বিজ্ঞপ্তি অনুযায়ী ১৮টি ক্যাটাগরির পদে মোট ১৪২ জন কর্মকর্তা-কর্মচারী নিয়োগ দেওয়া হবে। উপ সহকারী কেমিস্ট, সিনিয়র টেকনিশিয়ান, গেইট ইন্সপেক্টর, সুপারভাইজার, অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক, ড্রাইভার, জুনিয়র টেকনিশিয়ান, টেকনিক্যাল হেলপার, নিরাপত্তা প্রহরীসহ বিভিন্ন পদ রয়েছে। আবেদন প্রক্রিয়া ০৮ সেপ্টেম্বর ২০২৬ সকাল ১০:০০টা থেকে শুরু হবে এবং ০৬ অক্টোবর ২০২৬ বিকাল ০৫:০০টা পর্যন্ত চলবে। আগ্রহী প্রার্থীদের bof.teletalk.com.bd ওয়েবসাইটের মাধ্যমে অনলাইনে আবেদন করতে হবে। ## BOF Job Circular 2026 এক নজরে | বিষয় | তথ্য | | --- | --- | | প্রতিষ্ঠানের নাম | বাংলাদেশ সমরাস্ত্র কারখানা (BOF) | | সংশ্লিষ্ট মন্ত্রণালয় | প্রতিরক্ষা মন্ত্রণালয় | | পদের ক্যাটাগরি | ১৮টি | | মোট শূন্যপদ | ১৪২ জন | | জব লোকেশন | গাজীপুর সেনানিবাস, গাজীপুর | | চাকরির ধরন | সরকারি চাকরি | | বয়সসীমা | ০৬ অক্টোবর ২০২৬ তারিখে ১৮ থেকে ৩২ বছর | | শিক্ষাগত যোগ্যতা | ৮ম শ্রেণি / এসএসসি / এইচএসসি / স্নাতক | | জেলা | বাংলাদেশের সকল জেলার প্রার্থী | | বেতন স্কেল | ৮,২৫০ – ৩০,২৩০ টাকা | | গ্রেড | ১১তম থেকে ২০তম গ্রেড | | আবেদন ফি | ৫৬ / ১১২ / ১৬৮ টাকা | | আবেদন পদ্ধতি | অনলাইন | | আবেদন শুরু | ০৮ সেপ্টেম্বর ২০২৬, সকাল ১০:০০টা | | আবেদনের শেষ তারিখ | ০৬ অক্টোবর ২০২৬, বিকাল ০৫:০০টা | ## বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ) প্রতিরক্ষা মন্ত্রণালয়ের অধীন একটি গুরুত্বপূর্ণ সরকারি প্রতিষ্ঠান। প্রকাশিত নিয়োগ বিজ্ঞপ্তিতে বিভিন্ন শিক্ষাগত যোগ্যতার প্রার্থীদের জন্য একাধিক পদ রাখা হয়েছে। ৮ম শ্রেণি, এসএসসি, এইচএসসি এবং স্নাতক পাস প্রার্থীরা পদভেদে আবেদন করার সুযোগ পাবেন। বিজ্ঞপ্তি অনুযায়ী বাংলাদেশের সকল জেলার যোগ্য প্রার্থীরা আবেদন করতে পারবেন। তবে প্রতিটি পদের জন্য নির্ধারিত শিক্ষাগত যোগ্যতা, অভিজ্ঞতা ও অন্যান্য শর্ত আলাদা হতে পারে। তাই আবেদন করার আগে মূল সার্কুলারটি অবশ্যই দেখে নিতে হবে। ## বাংলাদেশ সমরাস্ত্র কারখানার পদসমূহ ও বেতন স্কেল | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতন স্কেল | | --- | --- | --- | --- | | ১ | উপ সহকারী কেমিস্ট | ১ | ১২,৫০০-৩০,২৩০ টাকা | | ২ | সিনিয়র টেকনিশিয়ান | ৯ | ১০,২০০-২৪,৬৮০ টাকা | | ৩ | গেইট ইন্সপেক্টর | ১ | ১০,২০০-২৪,৬৮০ টাকা | | ৪ | সুপারভাইজার | ১ | ১০,২০০-২৪,৬৮০ টাকা | | ৫ | অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক | ৮ | ৯,৩০০-২২,৪৯০ টাকা | | ৬ | মেটল্যাব এ্যাসিস্ট্যান্ট | ৪ | ৯,৩০০-২২,৪৯০ টাকা | | ৭ | গোডাউন কিপার | ৪ | ৯,৩০০-২২,৪৯০ টাকা | | ৮ | ড্রাইভার | ৭ | ৯,৩০০-২২,৪৯০ টাকা | | ৯ | স্কীল্ড টেকনিশিয়ান | ৩ | ৯,০০০-২১,৮০০ টাকা | | ১০ | টেকনিশিয়ান | ১১ | ৮,৮০০-২১,৩১০ টাকা | | ১১ | নিরাপত্তা কর্মী | ১ | ৮,৫০০-২০,৫৭০ টাকা | | ১২ | জুনিয়র টেকনিশিয়ান | ২২ | ৮,৫০০-২০,৫৭০ টাকা | | ১৩ | ফায়ারম্যান | ১ | ৮,৫০০-২০,৫৭০ টাকা | | ১৪ | টেকনিক্যাল হেলপার | ৫৩ | ৮,২৫০-২০,০১০ টাকা | | ১৫ | আর্দালী | ৭ | ৮,২৫০-২০,০১০ টাকা | | ১৬ | নিরাপত্তা প্রহরী | ৪ | ৮,২৫০-২০,০১০ টাকা | | ১৭ | লেবার | ৩ | ৮,২৫০-২০,০১০ টাকা | | ১৮ | পরিচ্ছন্নতা কর্মী | ২ | ৮,২৫০-২০,০১০ টাকা | ## বাংলাদেশ সমরাস্ত্র কারখানা পদভিত্তিক শিক্ষাগত যোগ্যতা BOF Job Circular 2026-এ পদভেদে শিক্ষাগত যোগ্যতা ও অভিজ্ঞতার শর্ত আলাদা। নিচে গুরুত্বপূর্ণ যোগ্যতাগুলো সংক্ষেপে দেওয়া হলো। - উপ সহকারী কেমিস্ট: স্বীকৃত বিশ্ববিদ্যালয় হতে রসায়নসহ ২য় বিভাগ বা সমমানের ডিগ্রি। - সিনিয়র টেকনিশিয়ান: এইচএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে ১০ বছরের চাকরির অভিজ্ঞতা। - গেইট ইন্সপেক্টর: স্নাতক বা সমমান; অবসরপ্রাপ্ত JCO প্রার্থীদের জন্য এসএসসি বা সমমানের যোগ্যতার শর্ত রয়েছে। - সুপারভাইজার: ২য় বিভাগে স্নাতক বা সমমানের পরীক্ষা উত্তীর্ণ। - অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক: এইচএসসি বা সমমান এবং কম্পিউটার ব্যবহারে দক্ষতা ও টাইপিংয়ের নির্ধারিত গতি। - মেটল্যাব এ্যাসিস্ট্যান্ট: রসায়ন ও পদার্থবিদ্যাসহ এইচএসসি বা সমমান। - গোডাউন কিপার: এইচএসসি বা সমমানের দ্বিতীয় বিভাগ। - ড্রাইভার: এসএসসি বা সমমান, ভারী যানবাহন চালনার লাইসেন্স এবং সংশ্লিষ্ট শর্ত পূরণ করতে হবে। - স্কীল্ড টেকনিশিয়ান: এসএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে ৮ বছরের অভিজ্ঞতা। - টেকনিশিয়ান: এসএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে কমপক্ষে ৬ বছরের অভিজ্ঞতা। - নিরাপত্তা কর্মী: এসএসসি বা সমমান। - জুনিয়র টেকনিশিয়ান: এসএসসি বা সমমানসহ কারিগরি বিষয়ে সার্টিফিকেট। - ফায়ারম্যান: এসএসসি বা সমমান এবং নির্ধারিত শারীরিক যোগ্যতা। - টেকনিক্যাল হেলপার: এসএসসি বা সমমান; কারিগরি সার্টিফিকেটধারীকে অগ্রাধিকার দেওয়া হবে। - আর্দালী: এসএসসি বা সমমান। - নিরাপত্তা প্রহরী: এসএসসি বা সমমান এবং নির্ধারিত শারীরিক যোগ্যতা। - লেবার: অষ্টম শ্রেণি উত্তীর্ণ। - পরিচ্ছন্নতা কর্মী: অষ্টম শ্রেণি উত্তীর্ণ। ## BOF Job Circular 2026 বয়সসীমা বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ অনুযায়ী আবেদনকারীর বয়স ০৬ অক্টোবর ২০২৬ তারিখে সর্বনিম্ন ১৮ বছর এবং সর্বোচ্চ ৩২ বছর হতে হবে। বীর মুক্তিযোদ্ধা/শহীদ মুক্তিযোদ্ধার সন্তান এবং শারীরিক প্রতিবন্ধী প্রার্থীদের ক্ষেত্রে সরকারি নিয়ম অনুযায়ী বয়সসীমা শিথিলযোগ্য। বয়স গণনার ক্ষেত্রে কোনো এফিডেভিট গ্রহণযোগ্য হবে না। তাই আবেদন করার আগে নিজের বয়স বিজ",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "normalized": {
+          "company": "",
+          "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা bof নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+          "location": "",
+          "deadline": "2026-10-06",
+          "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "শূন্যপদ 142",
+          "salary": "বেতন স্কেল 8 250 30 230"
+        },
+        "fingerprint": "job_752ac20d9764b4bee23d",
+        "identity_fingerprint": "identity_64bc49b48a3404a440dc",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.460390+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.460562+00:00"
+        },
+        "quality_score": 60,
+        "base_importance": 42,
+        "importance_score": 54
+      },
+      "normalized": {
+        "company": "",
+        "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা bof নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+        "location": "",
+        "deadline": "2026-10-06",
+        "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "শূন্যপদ 142",
+        "salary": "বেতন স্কেল 8 250 30 230"
+      },
+      "fingerprint": "job_752ac20d9764b4bee23d",
+      "identity_fingerprint": "identity_64bc49b48a3404a440dc",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Exa Discovery",
+          "source_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+          "seen_at": "2026-09-14T09:35:45.461076+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.460390+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.460562+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 54,
+      "first_seen": "2026-09-14T09:35:45.461078+00:00",
+      "last_seen": "2026-09-14T09:35:45.461079+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 53,
+        "published_at": "2026-09-14T09:36:08.284584+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_752ac20d9764b4bee23d"
+    },
+    "evt_244ccf7a958b4878": {
+      "event_id": "evt_244ccf7a958b4878",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Intertek Bangladesh",
+        "title": "Intern - Analytical Lab, Dhaka",
+        "organization_type": null,
+        "sector": "Garments/Textile",
+        "job_function": null,
+        "job_level": "Internship",
+        "job_type": "Internship",
+        "employment_type": null,
+        "location": "Dhaka",
+        "vacancy": "3",
+        "salary": "Negotiable",
+        "education": [
+          "Bachelor of Science (BSc) in Chemistry",
+          "Applied Chemistry",
+          "Biochemistry",
+          "Biology",
+          "Zoology"
+        ],
+        "experience": null,
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-10",
+        "application_start": null,
+        "deadline": "2026-09-25",
+        "application_method": null,
+        "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "requirements": [
+          "Teamwork",
+          "Working under pressure",
+          "Age 22 to 28 years"
+        ],
+        "responsibilities": [
+          "Assist Laboratory Technical people in testing.",
+          "Ensure all prescribe PPE in lab premises.",
+          "Keeping in and around the test area clean and maintaining impeccable housekeeping all around.",
+          "Bringing to the notice of the Group Leader or above any discrepancy in test material, method or equipment."
+        ],
+        "summary": "",
+        "confidence": 1.0,
+        "source_id": "exa_discovery",
+        "source_name": "Exa Discovery",
+        "source_priority": "P3",
+        "official_source": false,
+        "source_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "discovery": "exa",
+        "meta": {},
+        "text": "Intern - Analytical Lab, Dhaka at Intertek Bangladesh ... ### Job Description Title: Intern - Analytical Lab, Dhaka Company Name: Intertek Bangladesh Vacancy: 3 Age: 22 to 28 years Job Location: Dhaka Salary: Negotiable Experience: Published: 2026-09-10 Application Deadline: 2026-09-25 Education: - Bachelor of Science (BSc) in Chemistry, Applied Chemistry, Biochemistry, Biology, Zoology Requirements: Skills Required: Teamwork,Working under pressure Additional Requirements: - Age 22 to 28 years Responsibilities & Context: Internship will be paid and for 6 months ... Internship Job Work Place ... Work at office Company ... : Both Male and Female can apply Read ... only who are fulfilling all the requirements ... ments/Textile ... - Category ##### Garments/Textile - Location ##### Dhaka - Vacancy ##### 3 - Job Type ##### Internship - Salary ##### Negotiable - Published ##### 10 Sep 2026 - Deadline ##### 25 Sep 2026 - About Intertek Bangladesh Intern - Analytical Lab, Dhaka at Intertek Bangladesh #### একা লাগছে? কথা বলার কেউ নেই? 💬 ১ ক্লিকে চ্যাট শুরু করুন — এখনই কোনো রেজিস্ট্রেশন লাগবে না · সম্পূর্ণ ফ্রি · সম্পূর্ণ নিরাপদ ### Job Description Title: Intern - Analytical Lab, Dhaka Company Name: Intertek Bangladesh Vacancy: 3 Age: 22 to 28 years Job Location: Dhaka Salary: Negotiable Experience: Published: 2026-09-10 Application Deadline: 2026-09-25 Education: - Bachelor of Science (BSc) in Chemistry, Applied Chemistry, Biochemistry, Biology, Zoology Requirements: Skills Required: Teamwork,Working under pressure Additional Requirements: - Age 22 to 28 years Responsibilities & Context: Internship will be paid and for 6 months Responsibilities: - Assist Laboratory Technical people in testing. - Ensure all prescribe PPE in lab premises. - Keeping in and around the test area clean and maintaining impeccable housekeeping all around. - Bringing to the notice of the Group Leader or above any discrepancy in test material, method or equipment. Job Other Benifits: Employment Status: Internship Job Work Place: Work at office Company Information: Gender: Both Male and Female can apply Read Before Apply: Please apply only who are fulfilling all the requirements of this job Category: Garments/Textile Job Summary - Category ##### Garments/Textile - Location ##### Dhaka - Vacancy ##### 3 - Job Type ##### Internship - Salary ##### Negotiable - Published ##### 10 Sep 2026 - Deadline ##### 25 Sep 2026 - About Intertek Bangladesh",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_extracted": true,
+        "normalized": {
+          "company": "intertek bangladesh",
+          "title": "intern analytical lab dhaka",
+          "location": "dhaka",
+          "deadline": "2026-09-25",
+          "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+          "sector": "garments textile",
+          "job_function": "",
+          "job_level": "internship",
+          "job_type": "internship",
+          "vacancy": "3",
+          "salary": "negotiable"
+        },
+        "fingerprint": "job_0dd8a06943079dc7c0c6",
+        "identity_fingerprint": "identity_448b8a59876c19179a2e",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.465132+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.465229+00:00"
+        },
+        "quality_score": 87,
+        "base_importance": 53,
+        "importance_score": 70
+      },
+      "normalized": {
+        "company": "intertek bangladesh",
+        "title": "intern analytical lab dhaka",
+        "location": "dhaka",
+        "deadline": "2026-09-25",
+        "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "sector": "garments textile",
+        "job_function": "",
+        "job_level": "internship",
+        "job_type": "internship",
+        "vacancy": "3",
+        "salary": "negotiable"
+      },
+      "fingerprint": "job_0dd8a06943079dc7c0c6",
+      "identity_fingerprint": "identity_448b8a59876c19179a2e",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Exa Discovery",
+          "source_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+          "seen_at": "2026-09-14T09:35:45.465476+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.465132+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.465229+00:00"
+      },
+      "quality_score": 87,
+      "importance_score": 70,
+      "first_seen": "2026-09-14T09:35:45.465478+00:00",
+      "last_seen": "2026-09-14T09:35:45.465479+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 51,
+        "published_at": "2026-09-14T09:36:02.250172+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_0dd8a06943079dc7c0c6"
+    },
+    "evt_dde51bc104501cff": {
+      "event_id": "evt_dde51bc104501cff",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": null,
+        "title": "BD Govt Job Circular 2026: সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": null,
+        "vacancy": null,
+        "salary": null,
+        "education": [],
+        "experience": null,
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-08-29T05:17:21.000Z",
+        "application_start": null,
+        "deadline": "26 September 2026",
+        "application_method": null,
+        "application_url": "https://bdgovtjob.net/",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.52,
+        "source_id": "exa_discovery",
+        "source_name": "Exa Discovery",
+        "source_priority": "P3",
+        "official_source": false,
+        "source_url": "https://bdgovtjob.net/",
+        "discovery": "exa",
+        "meta": {},
+        "text": "সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ - BD Govt Job Circular 2026 ... ## ৪২ পদে বাংলাদেশ হাই-টেক পার্ক কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬ BHTPA Job Circular 2026 29 August, 2026 29 August, 2026 by Admin পদের ক্যাটাগরি: ... ## ২৬ পদে কারিগরি ও মাদ্রাসা শিক্ষা বিভাগ নিয়োগ বিজ্ঞপ্তি ২০২৬ TMED Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ২৬ আবেদনের শেষ তারিখ: ... ## টেলিটক বাংলাদেশ লিমিটেড নিয়োগ বিজ্ঞপ্তি ২০২৬ Teletalk Bangladesh Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ০১ ... ২০২৬ NIPORT Job Circular 2026 ... August, 2026 ... 27 August, সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ - BD Govt Job Circular 2026 ## ৪২ পদে বাংলাদেশ হাই-টেক পার্ক কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬ BHTPA Job Circular 2026 29 August, 2026 29 August, 2026 by Admin পদের ক্যাটাগরি: ১৪ পদের সংখ্যা: ৪২ আবেদনের শেষ তারিখ: ২৬ সেপ্টেম্বর ২০২৬ বিকাল ৫:০০ টা … বিস্তারিত পড়ুন ## ২৬ পদে কারিগরি ও মাদ্রাসা শিক্ষা বিভাগ নিয়োগ বিজ্ঞপ্তি ২০২৬ TMED Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ২৬ আবেদনের শেষ তারিখ: ২৭ সেপ্টেম্বর ২০২৬ বিকাল ০৪:০০ টা … বিস্তারিত পড়ুন ## ২০ পদে বিভাগীয় কমিশনারের কার্যালয় ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬ 27 August, 2026 27 August, 2026 by Admin ২০ ২৭ সেপ্টেম্বর ২০২৬ বিকাল ০৪:০০ টা … বিস্তারিত পড়ুন ## টেলিটক বাংলাদেশ লিমিটেড নিয়োগ বিজ্ঞপ্তি ২০২৬ Teletalk Bangladesh Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ০১ ১৫ সেপ্টেম্বর ২০২৬ তারিখ বিকাল ৫:০০ টা ## ৮৫ পদে নিপোর্ট নিয়োগ বিজ্ঞপ্তি ২০২৬ NIPORT Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ৮৫ ০৮ সেপ্টেম্বর ২০২৬ ## ৪২ পদে কর অঞ্চল-২ চট্টগ্রাম নিয়োগ বিজ্ঞপ্তি ২০২৬ CTAX2 Job Circular 2026 29 August, 2026 26 August, 2026 by Admin ১৮ সেপ্টেম্বর ২০২৬ বিকাল ০৫:০০ টা ## নর্থ-ওয়েস্ট পাওয়ার জেনারেশন কোম্পানি নিয়োগ ২০২৬ NWPGCL Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ০২ ও ১৪ সেপ্টেম্বর ২০২৬ ## জগন্নাথ বিশ্ববিদ্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬ 26 August, 2026 26 August, 2026 by Admin ০৯+২৮+১৩ ২৭ আগস্ট ও ১৬ সেপ্টেম্বর এবং ১০ অক্টোবর ২০২৬ ## সকল জেলা প্রশাসকের কার্যালয়ে নিয়োগ ২০২৬ – DC Office Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ১৪+৫৮+০৭+০৯+৪৮+৩৭+৬৮+১৭+৩৭+০৯+০৬+১৫+০৩+১১৩+০৮ ৩০, ৩১ আগস্ট ও ০২, ০৭, ১৪, ২০ ৩০ সেপ্টেম্বর ২০২৬ ## নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬ NSTU Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ০২+০১ ২৯+০২ আবেদনের শেষ তারিখ: ১৭ সেপ্টেম্বর ২০২৬ … বিস্তারিত পড়ুন",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "normalized": {
+          "company": "",
+          "title": "bd govt 2026 সরকারি চাকরির খবর ২০২৬ সকল নিয়োগ",
+          "location": "",
+          "deadline": "2026-09-26",
+          "application_url": "https://bdgovtjob.net/",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_3f8d7bb5d4aa9c327f5a",
+        "identity_fingerprint": "identity_d7f5ecebf61a1aef4614",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-14T09:35:45.465620+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-14T09:35:45.465711+00:00"
+        },
+        "quality_score": 60,
+        "base_importance": 26,
+        "importance_score": 38
+      },
+      "normalized": {
+        "company": "",
+        "title": "bd govt 2026 সরকারি চাকরির খবর ২০২৬ সকল নিয়োগ",
+        "location": "",
+        "deadline": "2026-09-26",
+        "application_url": "https://bdgovtjob.net/",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_3f8d7bb5d4aa9c327f5a",
+      "identity_fingerprint": "identity_d7f5ecebf61a1aef4614",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Exa Discovery",
+          "source_url": "https://bdgovtjob.net/",
+          "seen_at": "2026-09-14T09:35:45.466144+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-14T09:35:45.465620+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-14T09:35:45.465711+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 38,
+      "first_seen": "2026-09-14T09:35:45.466145+00:00",
+      "last_seen": "2026-09-14T09:35:45.466146+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 54,
+        "published_at": "2026-09-14T09:36:11.671124+00:00",
+        "last_event_type": "NEW"
+      },
+      "last_published_fingerprint": "job_3f8d7bb5d4aa9c327f5a"
     }
   },
   "sources": {
     "bangladesh_national_portal_jobs": {
-      "last_crawl_epoch": 1789376905.3424668,
-      "last_failure": "2026-09-14T09:08:25.342469+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377989.8260949,
+      "last_failure": "2026-09-14T09:26:29.826099+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bkkb_teletalk": {
-      "last_crawl_epoch": 1789376906.574614,
-      "last_failure": "2026-09-14T09:08:26.574618+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377990.8967173,
+      "last_failure": "2026-09-14T09:26:30.896721+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "btrc_teletalk": {
-      "last_crawl_epoch": 1789376906.638276,
-      "last_failure": "2026-09-14T09:08:26.638278+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377990.9553857,
+      "last_failure": "2026-09-14T09:26:30.955388+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "alljobs_teletalk": {
-      "last_crawl_epoch": 1789376906.7109194,
-      "last_success": "2026-09-14T09:08:26.710921+00:00",
+      "last_crawl_epoch": 1789377990.9680393,
+      "last_success": "2026-09-14T09:26:30.968042+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "bpi_teletalk": {
-      "last_crawl_epoch": 1789376906.7964532,
-      "last_failure": "2026-09-14T09:08:26.796455+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377991.1328542,
+      "last_failure": "2026-09-14T09:26:31.132856+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bteab_teletalk": {
-      "last_crawl_epoch": 1789376906.8461823,
-      "last_failure": "2026-09-14T09:08:26.846183+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377993.0986114,
+      "last_failure": "2026-09-14T09:26:33.098614+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bscplc_teletalk": {
-      "last_crawl_epoch": 1789376906.8753657,
-      "last_failure": "2026-09-14T09:08:26.875367+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377993.358439,
+      "last_failure": "2026-09-14T09:26:33.358441+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bpsc": {
-      "last_crawl_epoch": 1789376906.8844311,
-      "last_success": "2026-09-14T09:08:26.884432+00:00",
+      "last_crawl_epoch": 1789377991.13396,
+      "last_success": "2026-09-14T09:26:31.133960+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 4
     },
     "bscl_teletalk": {
-      "last_crawl_epoch": 1789376906.8852882,
-      "last_failure": "2026-09-14T09:08:26.885289+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377991.1230812,
+      "last_failure": "2026-09-14T09:26:31.123084+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "ictd_teletalk": {
-      "last_crawl_epoch": 1789376908.1606233,
-      "last_failure": "2026-09-14T09:08:28.160626+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377992.4212906,
+      "last_failure": "2026-09-14T09:26:32.421294+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "dss_teletalk": {
-      "last_crawl_epoch": 1789376908.1750546,
-      "last_failure": "2026-09-14T09:08:28.175056+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377994.2633922,
+      "last_failure": "2026-09-14T09:26:34.263395+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mopme_teletalk": {
-      "last_crawl_epoch": 1789376908.4524066,
-      "last_failure": "2026-09-14T09:08:28.452408+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377993.5638328,
+      "last_failure": "2026-09-14T09:26:33.563835+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "caab_jobs": {
-      "last_crawl_epoch": 1789376908.4881785,
-      "last_failure": "2026-09-14T09:08:28.488179+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377992.205643,
+      "last_failure": "2026-09-14T09:26:32.205645+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mocat_jobs": {
-      "last_crawl_epoch": 1789376908.4992943,
-      "last_failure": "2026-09-14T09:08:28.499295+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377992.4584978,
+      "last_failure": "2026-09-14T09:26:32.458501+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "moha_jobs": {
-      "last_crawl_epoch": 1789376908.5404546,
-      "last_success": "2026-09-14T09:08:28.540457+00:00",
+      "last_crawl_epoch": 1789377993.6108341,
+      "last_success": "2026-09-14T09:26:33.610836+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 3
     },
     "ictd_jobs": {
-      "last_crawl_epoch": 1789376908.6381197,
-      "last_success": "2026-09-14T09:08:28.638121+00:00",
+      "last_crawl_epoch": 1789377992.6680381,
+      "last_success": "2026-09-14T09:26:32.668040+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 35
     },
     "national_job_portal": {
-      "last_crawl_epoch": 1789376909.730832,
-      "last_success": "2026-09-14T09:08:29.730834+00:00",
+      "last_crawl_epoch": 1789377993.7825012,
+      "last_success": "2026-09-14T09:26:33.782505+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "a2i_jobs": {
-      "last_crawl_epoch": 1789376909.8668146,
-      "last_failure": "2026-09-14T09:08:29.866816+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377993.8543522,
+      "last_failure": "2026-09-14T09:26:33.854353+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "rdcd_teletalk": {
-      "last_crawl_epoch": 1789376910.0713203,
-      "last_failure": "2026-09-14T09:08:30.071322+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377994.6659887,
+      "last_failure": "2026-09-14T09:26:34.665990+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "telecomdept_teletalk": {
-      "last_crawl_epoch": 1789376910.082532,
-      "last_failure": "2026-09-14T09:08:30.082533+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377992.254589,
+      "last_failure": "2026-09-14T09:26:32.254592+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "rhd_jobs": {
-      "last_crawl_epoch": 1789376910.087565,
-      "last_failure": "2026-09-14T09:08:30.087566+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377994.4396882,
+      "last_failure": "2026-09-14T09:26:34.439691+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "jobs_teletalk_tbl": {
-      "last_crawl_epoch": 1789376910.2013884,
-      "last_failure": "2026-09-14T09:08:30.201391+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377994.8023968,
+      "last_failure": "2026-09-14T09:26:34.802399+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mopa_jobs": {
-      "last_crawl_epoch": 1789376910.2968745,
-      "last_success": "2026-09-14T09:08:30.296876+00:00",
+      "last_crawl_epoch": 1789377994.1743186,
+      "last_success": "2026-09-14T09:26:34.174321+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 21
     },
     "rthd_jobs": {
-      "last_crawl_epoch": 1789376910.4067028,
-      "last_success": "2026-09-14T09:08:30.406704+00:00",
+      "last_crawl_epoch": 1789377994.220564,
+      "last_success": "2026-09-14T09:26:34.220566+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 22
     },
     "brac_bank": {
-      "last_crawl_epoch": 1789376910.963041,
-      "last_success": "2026-09-14T09:08:30.963042+00:00",
+      "last_crawl_epoch": 1789377994.8024561,
+      "last_success": "2026-09-14T09:26:34.802456+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 7
     },
     "brac_bank_taleo": {
-      "last_crawl_epoch": 1789376911.0003204,
-      "last_success": "2026-09-14T09:08:31.000322+00:00",
+      "last_crawl_epoch": 1789377995.0686605,
+      "last_success": "2026-09-14T09:26:35.068662+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "actionaid_bd": {
-      "last_crawl_epoch": 1789376911.1636803,
-      "last_success": "2026-09-14T09:08:31.163683+00:00",
+      "last_crawl_epoch": 1789377995.042384,
+      "last_success": "2026-09-14T09:26:35.042385+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "buet_jobs": {
-      "last_crawl_epoch": 1789376911.3574114,
-      "last_success": "2026-09-14T09:08:31.357413+00:00",
+      "last_crawl_epoch": 1789377995.4561987,
+      "last_success": "2026-09-14T09:26:35.456201+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "buet_registrar_jobs": {
-      "last_crawl_epoch": 1789376911.8975427,
-      "last_success": "2026-09-14T09:08:31.897546+00:00",
+      "last_crawl_epoch": 1789377998.2083068,
+      "last_success": "2026-09-14T09:26:38.208308+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 160
     },
     "care_career": {
-      "last_crawl_epoch": 1789376911.9410765,
-      "last_success": "2026-09-14T09:08:31.941078+00:00",
+      "last_crawl_epoch": 1789377996.231727,
+      "last_success": "2026-09-14T09:26:36.231728+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 8
     },
     "evercare_bdjobs": {
-      "last_crawl_epoch": 1789376912.2191014,
-      "last_success": "2026-09-14T09:08:32.219104+00:00",
+      "last_crawl_epoch": 1789377995.8912969,
+      "last_success": "2026-09-14T09:26:35.891298+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "evercare": {
-      "last_crawl_epoch": 1789376912.4236434,
-      "last_success": "2026-09-14T09:08:32.423645+00:00",
+      "last_crawl_epoch": 1789377996.0012224,
+      "last_success": "2026-09-14T09:26:36.001224+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 6
     },
     "renata": {
-      "last_crawl_epoch": 1789376912.5352464,
-      "last_success": "2026-09-14T09:08:32.535249+00:00",
+      "last_crawl_epoch": 1789377996.3873017,
+      "last_success": "2026-09-14T09:26:36.387303+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "gp_career": {
-      "last_crawl_epoch": 1789376912.6350052,
-      "last_success": "2026-09-14T09:08:32.635007+00:00",
+      "last_crawl_epoch": 1789377996.2024288,
+      "last_success": "2026-09-14T09:26:36.202431+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "daraz": {
-      "last_crawl_epoch": 1789376912.998156,
-      "last_success": "2026-09-14T09:08:32.998158+00:00",
+      "last_crawl_epoch": 1789377997.5418115,
+      "last_success": "2026-09-14T09:26:37.541814+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "robi_career": {
-      "last_crawl_epoch": 1789376913.1144016,
-      "last_success": "2026-09-14T09:08:33.114404+00:00",
+      "last_crawl_epoch": 1789377996.8491764,
+      "last_success": "2026-09-14T09:26:36.849178+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "unicef_bd": {
-      "last_crawl_epoch": 1789376913.2792454,
-      "last_success": "2026-09-14T09:08:33.279247+00:00",
+      "last_crawl_epoch": 1789377997.6752667,
+      "last_success": "2026-09-14T09:26:37.675270+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 24
     },
     "niyog": {
-      "last_crawl_epoch": 1789376913.3144503,
-      "last_failure": "2026-09-14T09:08:33.314451+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377997.675327,
+      "last_failure": "2026-09-14T09:26:37.675327+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "skill_jobs": {
-      "last_crawl_epoch": 1789376913.3769293,
-      "last_failure": "2026-09-14T09:08:33.376930+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377998.0731611,
+      "last_failure": "2026-09-14T09:26:38.073163+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "square_hospital": {
-      "last_crawl_epoch": 1789376913.7566187,
-      "last_success": "2026-09-14T09:08:33.756621+00:00",
+      "last_crawl_epoch": 1789377997.4520693,
+      "last_success": "2026-09-14T09:26:37.452072+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 3
     },
     "bdjobs": {
-      "last_crawl_epoch": 1789376914.1059976,
-      "last_success": "2026-09-14T09:08:34.105999+00:00",
+      "last_crawl_epoch": 1789377997.913726,
+      "last_success": "2026-09-14T09:26:37.913730+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "walton": {
-      "last_crawl_epoch": 1789376914.6730564,
-      "last_failure": "2026-09-14T09:08:34.673058+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789377998.5442858,
+      "last_failure": "2026-09-14T09:26:38.544288+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bdjobs_live": {
-      "last_crawl_epoch": 1789376914.78655,
-      "last_success": "2026-09-14T09:08:34.786552+00:00",
+      "last_crawl_epoch": 1789377999.1063254,
+      "last_success": "2026-09-14T09:26:39.106328+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 216
     },
     "square_pharma": {
-      "last_crawl_epoch": 1789376915.3254943,
-      "last_success": "2026-09-14T09:08:35.325496+00:00",
+      "last_crawl_epoch": 1789377999.2040646,
+      "last_success": "2026-09-14T09:26:39.204066+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 6
     },
     "smart_job": {
-      "last_crawl_epoch": 1789376918.8278897,
-      "last_failure": "2026-09-14T09:08:38.827893+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789378008.5442717,
+      "last_failure": "2026-09-14T09:26:48.544275+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     }
@@ -5937,6 +7159,15 @@
       "events": 39,
       "published": 38,
       "rejected_deadline": 166
+    },
+    {
+      "timestamp": "2026-09-14T09:36:13.171472+00:00",
+      "sources": 45,
+      "candidates": 613,
+      "eligible_jobs": 44,
+      "events": 42,
+      "published": 8,
+      "rejected_deadline": 160
     }
   ]
 }
