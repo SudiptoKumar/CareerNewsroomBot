@@ -1,62 +1,88 @@
-# Career Newsroom Bot
+# CareerNewsroomBot V2
 
-Bangladesh Job Listing Aggregation, Extraction, Verification, Ranking and Telegram Publishing Bot.
+Bangladesh job aggregation, ranking, deduplication, verification and Telegram publishing bot.
 
-## Core services
+Built from the proven operational patterns of TheTechNewsroomBot, with career-specific discovery and Job Event logic.
 
-- Exa API: broad job/source discovery and content fallback
-- Cerebras API: structured extraction and semantic classification
+## Services
+
+- Exa API: discovery and page-content fallback
+- Cerebras API: limited batch enrichment and ranking
 - Telegram Bot API: publishing to `@CareerNewsroom`
 - GitHub Actions: scheduled execution
 
 No external database is used.
 
-## Required GitHub Secrets
+## Required Secrets
 
 - `EXA_API_KEY`
 - `CEREBRAS_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 
-## Optional GitHub Variables
+## Optional Variables
 
-- `CEREBRAS_MODEL` (defaults to `gpt-oss-120b`)
-- `TELEGRAM_CHANNEL` (defaults to `@CareerNewsroom`)
+- `CEREBRAS_MODEL` - defaults to `gpt-oss-120b`
 - `TELEGRAM_ADMIN_CHAT_ID`
 
-`gpt-oss-120b` is a current Cerebras production model. The bot defaults to it when `CEREBRAS_MODEL` is empty.
+The channel is intentionally fixed by the workflow to `@CareerNewsroom`.
 
 ## State
 
-- `source_registry.json`: source definitions
-- `job_state.json`: job/event state, scores, verification, Telegram state
-- `posted_urls.txt`: URLs successfully published to Telegram
-
-A URL is written to `posted_urls.txt` only after Telegram confirms successful publication.
+- `job_state.json` - Job Event state, scores, verification, source health and Telegram state
+- `posted_urls.txt` - canonical source URLs successfully published
+- `source_registry.json` - audited Bangladesh source universe
 
 ## Discovery
 
-The bot combines:
-
-1. Registered direct sources
+1. Direct registered sources
 2. Google News RSS
-3. Exa search
+3. Exa Search with page contents/highlights
 
-Direct fetch failures do not automatically discard an Exa result. Exa-returned text is used as a content fallback.
+Direct fetch failures do not automatically discard Exa evidence.
 
-## Telegram image fallback
+## AI usage
 
-1. Source page image
-2. Employer logo
-3. Generated Career Newsroom fallback card
-4. Text-only Telegram post
+The bot does NOT make a Cerebras call for every job.
 
-Telegram inline `APPLY NOW` button uses the normalized application URL.
+1. Deterministic extraction first
+2. One bounded batch enrichment call for ambiguous jobs
+3. One bounded ranking call for the strongest event pool
 
-## Local checks
+This reduces rate-limit pressure while retaining AI-based classification/ranking.
+
+## Verification
+
+Official government and official employer sources have the highest trust. Suspicious recruitment/payment signals are rejected.
+
+## Telegram
+
+Preflight checks:
+
+- bot identity
+- target channel existence
+- bot membership/admin status
+
+Publication:
+
+- 1200x675 image
+- image fallback card
+- `APPLY NOW` button
+- photo -> text fallback
+- state is marked published only after Telegram confirms success
+
+## Workflow
+
+Runs hourly from 07:00 to 23:00 Asia/Dhaka using the same timezone-explicit GitHub Actions pattern as the proven Tech bot.
+
+## Local validation
 
 ```bash
 python main.py --self-test
-python main.py --dry-run
 ```
 
-The GitHub workflow runs the self-test before the live run.
+
+## Processing Pipeline
+
+Normalized jobs → Job fingerprinting → Same-job detection → NEW / UPDATE / REPOST → Verification → Scam filtering → Quality score → Importance score → Publish threshold → Telegram publishing → Image/logo fallback → State update.
+
+A stable Job Event ID is retained across genuine updates. Mutable changes such as deadline, salary or vacancy are tracked instead of creating duplicate Job Events.

@@ -1,8 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "updated_at": "2026-09-13T23:48:42.422978+00:00",
-  "registry_status": "seed_v0.1",
-  "notes": "Initial 45-source seed. Sources explicitly verified in current web audit include National Job Portal, AllJobs/Teletalk recruitment endpoints, selected government jobs pages, CARE Bangladesh, UNICEF Bangladesh, ActionAid Bangladesh, Square Pharma, Renata, BRAC Bank, Walton, Grameenphone, Robi, Evercare, Square Hospital and BUET. Remaining seed entries are carry-forward candidates from the prior source audit and must pass live health checks before production activation.",
+  "registry_status": "production_seed",
+  "notes": "Seed registry for CareerNewsroom. Direct crawling is best-effort; Exa and Google News are discovery fallbacks. Source health is stored in job_state.json.",
   "sources": [
     {
       "id": "national_job_portal",
@@ -18,7 +18,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bangladesh_national_portal_jobs",
@@ -33,7 +34,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "alljobs_teletalk",
@@ -49,7 +51,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "smart_job",
@@ -65,7 +68,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bpsc",
@@ -80,7 +84,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "mopa_jobs",
@@ -95,7 +100,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "moha_jobs",
@@ -110,7 +116,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "rthd_jobs",
@@ -125,7 +132,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "rhd_jobs",
@@ -141,7 +149,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "mocat_jobs",
@@ -158,7 +167,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "caab_jobs",
@@ -174,7 +184,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "ictd_jobs",
@@ -190,7 +201,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "a2i_jobs",
@@ -206,7 +218,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "jobs_teletalk_tbl",
@@ -222,7 +235,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bkkb_teletalk",
@@ -237,7 +251,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bteab_teletalk",
@@ -253,7 +268,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bpi_teletalk",
@@ -269,7 +285,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "btrc_teletalk",
@@ -285,7 +302,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "dss_teletalk",
@@ -301,7 +319,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "ictd_teletalk",
@@ -317,7 +336,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "telecomdept_teletalk",
@@ -333,7 +353,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bscplc_teletalk",
@@ -349,7 +370,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "mopme_teletalk",
@@ -365,7 +387,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "rdcd_teletalk",
@@ -380,7 +403,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bscl_teletalk",
@@ -396,7 +420,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 60,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bdjobs",
@@ -410,8 +435,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": false,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 180,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "skill_jobs",
@@ -425,8 +451,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": false,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 180,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "niyog",
@@ -440,8 +467,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": false,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 180,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "bdjobs_live",
@@ -455,8 +483,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": false,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 180,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "care_career",
@@ -471,8 +500,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "unicef_bd",
@@ -487,8 +517,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "actionaid_bd",
@@ -503,8 +534,9 @@
       "parser": "html",
       "supports_pdf": true,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "square_pharma",
@@ -518,8 +550,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "renata",
@@ -533,8 +566,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "brac_bank",
@@ -549,8 +583,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "brac_bank_taleo",
@@ -565,8 +600,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "walton",
@@ -581,8 +617,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "gp_career",
@@ -597,8 +634,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "robi_career",
@@ -613,8 +651,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "evercare",
@@ -628,8 +667,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "evercare_bdjobs",
@@ -643,8 +683,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "square_hospital",
@@ -658,8 +699,9 @@
       "parser": "html",
       "supports_pdf": false,
       "official": true,
-      "crawl_minutes": 60,
-      "status": "active"
+      "crawl_minutes": 120,
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "buet_jobs",
@@ -675,7 +717,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 120,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "buet_registrar_jobs",
@@ -691,7 +734,8 @@
       "supports_pdf": true,
       "official": true,
       "crawl_minutes": 120,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     },
     {
       "id": "daraz",
@@ -708,7 +752,8 @@
       "supports_pdf": false,
       "official": true,
       "crawl_minutes": 120,
-      "status": "active"
+      "status": "active",
+      "enabled": true
     }
   ]
 }

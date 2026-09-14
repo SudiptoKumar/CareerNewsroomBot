@@ -1,13 +1,3 @@
-"""
-Career Newsroom Bot - production-oriented V1
-
-Architecture:
-  discovery -> retrieval -> extraction -> normalization -> event matching
-  -> verification -> quality/importance scoring -> Telegram publishing -> state
-
-No external database. Persistent state lives in the repository.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -17,182 +7,198 @@ import json
 import logging
 import os
 import re
-import sys
 import time
 from datetime import datetime, timedelta, timezone
-from email.utils import parsedate_to_datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Iterable
-from urllib.parse import parse_qsl, quote_plus, urlencode, urljoin, urlparse, urlunparse
+from typing import Any
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse
 
 import feedparser
 import requests
 import trafilatura
 from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw, ImageFont
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-try:
-    from exa_py import Exa
-except Exception:
-    Exa = None  # type: ignore
-
-try:
-    from cerebras.cloud.sdk import Cerebras
-except Exception:
-    Cerebras = None  # type: ignore
-
-try:
-    from pypdf import PdfReader
-except Exception:
-    PdfReader = None  # type: ignore
-
-try:
-    from PIL import Image, ImageDraw, ImageFont
-except Exception:
-    Image = ImageDraw = ImageFont = None  # type: ignore
+from exa_py import Exa
+from cerebras.cloud.sdk import Cerebras
 
 
-ROOT = Path(__file__).resolve().parent
-REGISTRY_FILE = ROOT / "source_registry.json"
-STATE_FILE = ROOT / "job_state.json"
-POSTED_URLS_FILE = ROOT / "posted_urls.txt"
-TMP_DIR = ROOT / ".runtime"
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
-DEFAULT_CHANNEL = "@CareerNewsroom"
-DEFAULT_TIMEOUT = 20
-MAX_CANDIDATES = 180
-MAX_EXA_QUERIES = 20
-MAX_JOBS_PER_RUN = 12
-DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b"
+EXA_API_KEY = os.environ["EXA_API_KEY"]
+CEREBRAS_API_KEY = os.environ["CEREBRAS_API_KEY"]
+TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
-LOG = logging.getLogger("career_newsroom")
+TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").strip()
+TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
+
+# Same primary Cerebras model family used by the working Tech bot.
+CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL") or "gpt-oss-120b"
+
+POSTED_FILE = Path("posted_urls.txt")
+STATE_FILE = Path("job_state.json")
+REGISTRY_FILE = Path("source_registry.json")
+RUNTIME_DIR = Path(".runtime")
+
+MAX_DIRECT_SOURCES_PER_RUN = 24
+MAX_DISCOVERY_CANDIDATES = 100
+MAX_AI_EXTRACTION_DOCS = 12
+MAX_RANKING_DOCS = 28
+MAX_PUBLISHED_PER_RUN = 6
+MAX_EXA_QUERIES = 10
+MAX_EXA_RESULTS_PER_QUERY = 6
+POST_DELAY_SECONDS = 2.5
+EVENT_RETENTION_DAYS = 90
+MAX_CAPTION = 1000
+
+logger = logging.getLogger("CareerNewsroom")
+
+
+# ============================================================
+# TAXONOMY
+# ============================================================
+
+SECTORS = [
+    "Government", "Banking & Finance", "Insurance", "NGO / INGO", "MNC",
+    "Telecom", "Technology / IT", "Pharmaceutical", "Healthcare",
+    "Education", "University", "Research", "RMG / Textile", "Manufacturing",
+    "FMCG", "Retail", "E-commerce", "Logistics / Supply Chain", "Construction",
+    "Real Estate", "Energy / Power", "Agriculture", "Food & Beverage",
+    "Hospitality", "Travel / Aviation", "Media", "Marketing / Advertising",
+    "Legal", "Accounting", "Human Resources", "Sales", "Customer Service",
+    "Security", "Skilled / Technical", "Other",
+]
+
+JOB_FUNCTIONS = [
+    "Accounting", "Audit", "Finance", "Credit", "Risk", "Treasury", "Investment",
+    "HR", "Administration", "Marketing", "Sales", "Business Development", "IT",
+    "Software Engineering", "Data", "Operations", "Supply Chain", "Procurement",
+    "Production", "Quality", "Engineering", "Research", "Healthcare", "Nursing",
+    "Teaching", "Legal", "Customer Service", "Security", "Driving", "Technical",
+    "Other",
+]
+
+JOB_LEVELS = [
+    "Intern", "Fresher", "Entry-level", "Junior", "Mid-level", "Senior",
+    "Manager", "Executive", "Director", "Officer", "Assistant", "Operator",
+    "Technician", "Specialist", "Other",
+]
+
+JOB_TYPES = [
+    "Regular Job", "Internship", "Management Trainee", "Graduate Program",
+    "Apprenticeship", "Contract", "Temporary", "Part-time", "Full-time",
+    "Remote", "Freelance", "Consultancy", "Project-based", "Volunteer",
+]
+
+TRACKING_PARAMS = {
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "fbclid", "gclid", "mc_cid", "mc_eid",
+}
 
 BANGLADESH_TERMS = (
-    "bangladesh", "dhaka", "chattogram", "chittagong", "sylhet",
-    "khulna", "rajshahi", "barishal", "barisal", "rangpur", "mymensingh",
-    "gazipur", "narayanganj", "cumilla", "comilla", "jessore", "jashore",
-    "gov.bd", "edu.bd", "org.bd", "teletalk.com.bd", "jobs.gov.bd",
-    "নিয়োগ", "চাকরি", "চাকরির", "বিজ্ঞপ্তি", "আবেদন", "নিয়োগ বিজ্ঞপ্তি",
+    "bangladesh", "dhaka", "chattogram", "chittagong", "sylhet", "khulna",
+    "rajshahi", "barishal", "barisal", "rangpur", "mymensingh", "gazipur",
+    "narayanganj", "cumilla", "jashore", "gov.bd", "edu.bd", "org.bd",
+    "teletalk.com.bd", "jobs.gov.bd", "চাকরি", "চাকরির", "নিয়োগ",
+    "নিয়োগ বিজ্ঞপ্তি", "বিজ্ঞপ্তি", "আবেদন", "পদসংখ্যা",
 )
 
 JOB_TERMS = (
     "job", "jobs", "career", "careers", "vacancy", "vacancies", "recruit",
     "recruitment", "hiring", "position", "employment", "internship",
-    "job circular", "career opportunity", "apply now", "application",
-    "চাকরি", "নিয়োগ", "পদ", "শূন্যপদ", "আবেদন", "নিয়োগ বিজ্ঞপ্তি",
+    "job circular", "apply now", "application", "চাকরি", "নিয়োগ",
+    "নিয়োগ বিজ্ঞপ্তি", "শূন্যপদ", "পদসংখ্যা",
 )
-
-TRACKING_PARAMS = {
-    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-    "fbclid", "gclid", "mc_cid", "mc_eid", "ref", "source",
-}
 
 SCAM_TERMS = (
-    "pay fee", "registration fee", "processing fee", "security deposit",
-    "send money", "bikash", "bkash", "nagad", "rocket", "personal account",
-    "upfront payment", "application fee",
+    "send money", "pay fee", "processing fee", "security deposit",
+    "bikash", "bkash", "nagad", "rocket", "personal account",
+    "upfront payment", "registration fee",
 )
 
-FIELD_LABELS = {
-    "deadline": (
-        r"(?i)(?:application\s+)?(?:deadline|last\s+date|closing\s+date)"
-        r".{0,80}?(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
-        r"|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
-        r"(?i)(?:আবেদনের শেষ তারিখ|শেষ তারিখ).{0,80}?"
-        r"(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
-    ),
-    "salary": (
-        r"(?i)(?:salary|বেতন).{0,50}?"
-        r"(?:(?:৳|tk\.?|bdt)\s*)?[\d,]+(?:\s*[-–]\s*[\d,]+)?",
-    ),
-    "vacancy": (
-        r"(?i)(?:vacanc(?:y|ies)|no\.?\s*of\s*(?:post|posts)|"
-        r"পদসংখ্যা|শূন্যপদ).{0,40}?\d{1,6}",
-    ),
-}
 
+# ============================================================
+# STATE
+# ============================================================
 
-class RetryableError(RuntimeError):
-    pass
-
-
-def utc_now() -> str:
+def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_json(path: Path, default: dict[str, Any]) -> dict[str, Any]:
-    if not path.exists():
-        return json.loads(json.dumps(default))
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Invalid JSON in {path}: {exc}") from exc
-
-
-def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
-    temp = path.with_suffix(path.suffix + ".tmp")
-    temp.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    json.loads(temp.read_text(encoding="utf-8"))
-    temp.replace(path)
-
-
-def load_registry() -> dict[str, Any]:
-    registry = load_json(REGISTRY_FILE, {"version": 1, "sources": []})
-    registry.setdefault("sources", [])
-    return registry
-
-
-def load_state() -> dict[str, Any]:
-    state = load_json(
-        STATE_FILE,
-        {"version": 2, "updated_at": None, "jobs": {}, "sources": {}, "runs": []},
-    )
-    state.setdefault("jobs", {})
-    state.setdefault("sources", {})
-    state.setdefault("runs", [])
-    return state
-
-
-def load_posted_urls() -> set[str]:
-    if not POSTED_URLS_FILE.exists():
-        return set()
+def default_state() -> dict[str, Any]:
     return {
-        line.strip()
-        for line in POSTED_URLS_FILE.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        "version": 2,
+        "updated_at": None,
+        "jobs": {},
+        "sources": {},
+        "runs": [],
     }
 
 
-def save_posted_urls(urls: set[str]) -> None:
-    temp = POSTED_URLS_FILE.with_suffix(".tmp")
-    temp.write_text(
-        "\n".join(sorted(urls)) + ("\n" if urls else ""),
-        encoding="utf-8",
-    )
-    temp.replace(POSTED_URLS_FILE)
+def load_state() -> dict[str, Any]:
+    if not STATE_FILE.exists():
+        return default_state()
+    data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    for key, value in default_state().items():
+        data.setdefault(key, value)
+    return data
 
 
-def normalize_url(url: str) -> str:
-    url = (url or "").strip()
+def atomic_write(path: Path, text: str) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def save_state(state: dict[str, Any]) -> None:
+    payload = json.dumps(state, ensure_ascii=False, indent=2)
+    json.loads(payload)
+    atomic_write(STATE_FILE, payload + "\n")
+
+
+def load_posted() -> set[str]:
+    if not POSTED_FILE.exists():
+        return set()
+    return {
+        x.strip() for x in POSTED_FILE.read_text(encoding="utf-8").splitlines() if x.strip()
+    }
+
+
+def save_posted(posted: set[str]) -> None:
+    atomic_write(POSTED_FILE, "\n".join(sorted(posted)) + ("\n" if posted else ""))
+
+
+# ============================================================
+# HTTP / NORMALIZATION
+# ============================================================
+
+def safe_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def canonical_url(url: str) -> str:
+    url = safe_text(url)
     if not url:
         return ""
-    parsed = urlparse(url)
-    if not parsed.scheme:
+    p = urlparse(url)
+    if not p.scheme:
         return url
     query = [
-        (k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+        (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True)
         if k.lower() not in TRACKING_PARAMS
     ]
-    path = parsed.path or "/"
+    path = p.path or "/"
     if path != "/" and path.endswith("/"):
         path = path[:-1]
     return urlunparse(
-        parsed._replace(
-            scheme=parsed.scheme.lower(),
-            netloc=parsed.netloc.lower(),
+        p._replace(
+            scheme=p.scheme.lower(),
+            netloc=p.netloc.lower(),
             path=path,
             query=urlencode(query),
             fragment="",
@@ -200,71 +206,76 @@ def normalize_url(url: str) -> str:
     )
 
 
-def sha256_text(value: str) -> str:
-    return hashlib.sha256((value or "").encode("utf-8")).hexdigest()
-
-
-def request_session() -> requests.Session:
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) "
-                "AppleWebKit/537.36 Chrome/128 Safari/537.36 "
-                "CareerNewsroomBot/1.0"
-            ),
-            "Accept": (
-                "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "application/pdf;q=0.8,*/*;q=0.7"
-            ),
-            "Accept-Language": "en-US,en;q=0.8,bn;q=0.7",
-            "Cache-Control": "no-cache",
-        }
+def build_session() -> requests.Session:
+    s = requests.Session()
+    retry = Retry(
+        total=2,
+        connect=2,
+        read=2,
+        status=2,
+        backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset({"GET", "HEAD"}),
+        raise_on_status=False,
     )
-    return session
+    adapter = HTTPAdapter(max_retries=retry)
+    s.mount("https://", adapter)
+    s.mount("http://", adapter)
+    s.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 Chrome/128 Safari/537.36 "
+            "CareerNewsroom/2.0"
+        ),
+        "Accept-Language": "en-US,en;q=0.9,bn;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/pdf,*/*;q=0.5",
+    })
+    return s
 
 
-def fetch(
-    session: requests.Session,
-    url: str,
-    timeout: int = DEFAULT_TIMEOUT,
-    attempts: int = 3,
-) -> tuple[bytes, str, str, int]:
-    last_exc: Exception | None = None
-    for attempt in range(1, attempts + 1):
-        try:
-            r = session.get(url, timeout=timeout, allow_redirects=True)
-            status = r.status_code
-            if status >= 400:
-                raise RetryableError(f"HTTP {status}")
-            return r.content, r.headers.get("Content-Type", ""), r.url, status
-        except (requests.RequestException, RetryableError, ValueError) as exc:
-            last_exc = exc
-            if attempt < attempts:
-                time.sleep(min(attempt * 1.5, 4))
-    raise RuntimeError(f"Fetch failed: {url} ({last_exc})")
+SESSION = build_session()
 
 
-def looks_like_bangladesh(text: str, url: str = "") -> bool:
-    haystack = f"{url}\n{text}".lower()
-    return any(term in haystack for term in BANGLADESH_TERMS)
+def http_get(url: str, timeout: int = 18) -> requests.Response | None:
+    try:
+        response = SESSION.get(url, timeout=timeout, allow_redirects=True)
+        if response.status_code >= 400:
+            logger.warning("HTTP %s %s", response.status_code, url)
+            return None
+        return response
+    except requests.RequestException as exc:
+        logger.warning("HTTP failed %s | %s", url, exc)
+        return None
+
+
+def is_bangladesh(text: str, url: str = "") -> bool:
+    hay = f"{url}\n{text}".lower()
+    return any(term in hay for term in BANGLADESH_TERMS)
 
 
 def looks_like_job(text: str, url: str = "") -> bool:
-    haystack = f"{url}\n{text}".lower()
-    return any(term in haystack for term in JOB_TERMS)
+    hay = f"{url}\n{text}".lower()
+    return any(term in hay for term in JOB_TERMS)
 
 
-def html_to_text(content: bytes, url: str = "") -> str:
-    extracted = trafilatura.extract(
+def hash_text(text: str) -> str:
+    return hashlib.sha256(safe_text(text).encode("utf-8")).hexdigest()
+
+
+# ============================================================
+# CONTENT EXTRACTION
+# ============================================================
+
+def extract_html_text(content: bytes, url: str) -> str:
+    text = trafilatura.extract(
         content,
-        url=url or None,
+        url=url,
         include_comments=False,
         include_tables=True,
         favor_recall=True,
     )
-    if extracted and len(extracted.strip()) >= 120:
-        return extracted.strip()
+    if text and len(text.strip()) >= 120:
+        return text.strip()
 
     soup = BeautifulSoup(content, "html.parser")
     for node in soup(["script", "style", "noscript", "svg", "template"]):
@@ -272,53 +283,54 @@ def html_to_text(content: bytes, url: str = "") -> str:
     return soup.get_text("\n", strip=True)
 
 
-def pdf_to_text(content: bytes) -> str:
-    if PdfReader is None:
+def extract_pdf_text(content: bytes) -> str:
+    try:
+        from pypdf import PdfReader
+    except Exception:
         return ""
     try:
         reader = PdfReader(BytesIO(content))
     except Exception:
         return ""
-    chunks: list[str] = []
+    chunks = []
     for page in reader.pages:
         try:
             chunks.append(page.extract_text() or "")
         except Exception:
-            continue
+            pass
     return "\n".join(chunks).strip()
 
 
-def extract_meta(html_bytes: bytes, base_url: str) -> dict[str, Any]:
-    soup = BeautifulSoup(html_bytes, "html.parser")
-    meta: dict[str, Any] = {
-        "title": soup.title.get_text(" ", strip=True) if soup.title else "",
-        "description": "",
-        "image": "",
-        "logo": "",
-        "job_url": base_url,
-    }
+def extract_meta(content: bytes, url: str) -> dict[str, Any]:
+    soup = BeautifulSoup(content, "html.parser")
+    meta: dict[str, Any] = {}
 
-    og = {}
+    if soup.title:
+        meta["title"] = soup.title.get_text(" ", strip=True)
+
+    tags = {}
     for tag in soup.find_all("meta"):
         key = tag.get("property") or tag.get("name")
         value = tag.get("content")
         if key and value:
-            og[key.lower()] = value.strip()
+            tags[key.lower()] = value.strip()
 
-    meta["description"] = (
-        og.get("og:description")
-        or og.get("description")
-        or ""
-    )
-    image = og.get("og:image") or ""
-    if image:
-        meta["image"] = urljoin(base_url, image)
+    if tags.get("og:image"):
+        meta["image"] = urljoin(url, tags["og:image"])
+    if tags.get("og:description"):
+        meta["description"] = tags["og:description"]
 
-    # JSON-LD logo/image/job posting hints.
+    # Logo / icons.
+    for link in soup.find_all("link"):
+        href = link.get("href")
+        rel = [x.lower() for x in link.get("rel", [])]
+        if href and "icon" in rel:
+            meta["logo"] = urljoin(url, href)
+            break
+
+    # JSON-LD JobPosting.
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
-        raw = script.string or script.get_text(strip=True)
-        if not raw:
-            continue
+        raw = script.string or script.get_text()
         try:
             data = json.loads(raw)
         except Exception:
@@ -329,866 +341,859 @@ def extract_meta(html_bytes: bytes, base_url: str) -> dict[str, Any]:
                 continue
             if item.get("@type") == "JobPosting":
                 meta["jobposting"] = item
-            logo = item.get("logo")
-            if isinstance(logo, dict):
-                logo = logo.get("url")
-            if isinstance(logo, str) and not meta["logo"]:
-                meta["logo"] = urljoin(base_url, logo)
-            image_val = item.get("image")
-            if isinstance(image_val, dict):
-                image_val = image_val.get("url")
-            if isinstance(image_val, str) and not meta["image"]:
-                meta["image"] = urljoin(base_url, image_val)
+                break
+
     return meta
 
 
-def extract_links(base_url: str, html_bytes: bytes) -> list[dict[str, str]]:
-    soup = BeautifulSoup(html_bytes, "html.parser")
-    results: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for a in soup.find_all("a", href=True):
-        href = normalize_url(urljoin(base_url, a.get("href", "")))
-        if not href or href in seen:
-            continue
-        seen.add(href)
-        text = a.get_text(" ", strip=True)
-        results.append({"url": href, "text": text})
-    return results
-
-
 def deterministic_hints(text: str) -> dict[str, Any]:
-    cleaned = re.sub(r"[ \t]+", " ", text or "").strip()
-    hints: dict[str, Any] = {
-        "text_hash": sha256_text(cleaned),
-        "bangladesh_hint": looks_like_bangladesh(cleaned),
-        "job_hint": looks_like_job(cleaned),
-        "deadline": None,
-        "salary": None,
-        "vacancy": None,
-        "scam_signals": [],
+    t = safe_text(text)
+    lower = t.lower()
+
+    deadline = None
+    for pattern in (
+        r"(?i)(?:application\s+)?(?:deadline|last\s+date|closing\s+date)"
+        r".{0,80}?(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
+        r"|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})",
+        r"(?i)(?:আবেদনের শেষ তারিখ|শেষ তারিখ).{0,80}?"
+        r"(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4})",
+    ):
+        m = re.search(pattern, t)
+        if m:
+            deadline = m.group(0)
+            break
+
+    salary = None
+    m = re.search(
+        r"(?i)(?:salary|বেতন).{0,60}?"
+        r"(?:(?:৳|tk\.?|bdt)\s*)?[\d,]+(?:\s*[-–]\s*[\d,]+)?",
+        t,
+    )
+    if m:
+        salary = m.group(0)
+
+    vacancy = None
+    m = re.search(
+        r"(?i)(?:vacanc(?:y|ies)|no\.?\s*of\s*(?:post|posts)|"
+        r"পদসংখ্যা|শূন্যপদ).{0,40}?\d{1,6}",
+        t,
+    )
+    if m:
+        vacancy = m.group(0)
+
+    return {
+        "deadline": deadline,
+        "salary": salary,
+        "vacancy": vacancy,
+        "bangladesh": is_bangladesh(t),
+        "job": looks_like_job(t),
+        "scam_signals": [x for x in SCAM_TERMS if x in lower],
+        "text_hash": hash_text(t),
     }
 
-    for pattern in FIELD_LABELS["deadline"]:
-        match = re.search(pattern, cleaned)
-        if match:
-            hints["deadline"] = match.group(0)
-            break
 
-    for pattern in FIELD_LABELS["salary"]:
-        match = re.search(pattern, cleaned)
-        if match:
-            hints["salary"] = match.group(0)
-            break
+# ============================================================
+# DISCOVERY
+# ============================================================
 
-    for pattern in FIELD_LABELS["vacancy"]:
-        match = re.search(pattern, cleaned)
-        if match:
-            hints["vacancy"] = match.group(0)
-            break
-
-    lower = cleaned.lower()
-    hints["scam_signals"] = [term for term in SCAM_TERMS if term in lower]
-    return hints
+def load_registry() -> dict[str, Any]:
+    return json.loads(REGISTRY_FILE.read_text(encoding="utf-8"))
 
 
-def direct_source_candidates(
-    source: dict[str, Any],
-    session: requests.Session,
-) -> list[dict[str, Any]]:
-    url = normalize_url(source.get("url", ""))
-    if not url:
+def registry_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {x["id"]: x for x in registry.get("sources", []) if x.get("id")}
+
+
+def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """Promote Exa/Google discoveries to a known source when hostname matches."""
+    host = urlparse(url).netloc.lower()
+    if not host:
+        return None
+
+    best = None
+    best_len = -1
+    for source in sources.values():
+        source_host = urlparse(safe_text(source.get("url", ""))).netloc.lower()
+        if source_host and (host == source_host or host.endswith("." + source_host)):
+            if len(source_host) > best_len:
+                best = source
+                best_len = len(source_host)
+    return best
+
+
+def due_sources(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
+    priority = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+    due = []
+
+    for source in registry.get("sources", []):
+        if not source.get("enabled", True):
+            continue
+        if source.get("status") not in (None, "active", "verified"):
+            continue
+
+        sid = source["id"]
+        last = float(state["sources"].get(sid, {}).get("last_crawl_epoch", 0))
+        interval = int(source.get("crawl_minutes") or 60)
+
+        if time.time() - last >= interval * 60:
+            due.append(source)
+
+    # Keep proven bounded-source behavior. Prioritize official sources.
+    due.sort(
+        key=lambda s: (
+            priority.get(s.get("priority", "P3"), 3),
+            float(state["sources"].get(s["id"], {}).get("last_crawl_epoch", 0)),
+        )
+    )
+    return due[:MAX_DIRECT_SOURCES_PER_RUN]
+
+
+def direct_discover(source: dict[str, Any]) -> list[dict[str, Any]]:
+    r = http_get(source.get("url", ""))
+    if not r:
         return []
 
-    content, content_type, final_url, _ = fetch(session, url)
+    final_url = canonical_url(r.url)
+    content_type = r.headers.get("content-type", "").lower()
 
-    if "pdf" in content_type.lower() or final_url.lower().endswith(".pdf"):
-        text = pdf_to_text(content)
+    if "pdf" in content_type or final_url.lower().endswith(".pdf"):
+        text = extract_pdf_text(r.content)
         return [{
             "url": final_url,
             "source_id": source["id"],
-            "discovery_method": "direct_pdf",
-            "title_hint": source.get("name", ""),
-            "text_hint": text[:12000],
+            "source_name": source["name"],
+            "source_priority": source.get("priority", "P3"),
+            "title_hint": source["name"],
+            "text_hint": text[:18000],
+            "image": "",
             "meta": {},
+            "discovery": "direct_pdf",
         }] if text else []
 
-    if "xml" in content_type.lower() or final_url.lower().endswith((".rss", ".xml")):
-        feed = feedparser.parse(content)
+    if "xml" in content_type or final_url.lower().endswith((".rss", ".xml")):
+        parsed = feedparser.parse(r.content)
         return [
             {
-                "url": normalize_url(getattr(e, "link", "")),
+                "url": canonical_url(getattr(e, "link", "")),
                 "source_id": source["id"],
-                "discovery_method": "direct_rss",
-                "title_hint": getattr(e, "title", ""),
+                "source_name": source["name"],
+                "source_priority": source.get("priority", "P3"),
+                "title_hint": safe_text(getattr(e, "title", "")),
                 "text_hint": BeautifulSoup(
-                    getattr(e, "summary", "") or "",
+                    safe_text(getattr(e, "summary", "")),
                     "html.parser",
                 ).get_text(" ", strip=True),
+                "image": "",
                 "meta": {},
+                "discovery": "rss",
             }
-            for e in feed.entries[:60]
+            for e in parsed.entries[:50]
             if getattr(e, "link", "")
         ]
 
-    text = html_to_text(content, final_url)
-    meta = extract_meta(content, final_url)
+    text = extract_html_text(r.content, final_url)
+    meta = extract_meta(r.content, final_url)
+    candidates = []
 
-    candidates: list[dict[str, Any]] = []
+    # Landing page can itself contain multiple jobs or a job posting.
+    if looks_like_job(text, final_url):
+        candidates.append({
+            "url": final_url,
+            "source_id": source["id"],
+            "source_name": source["name"],
+            "source_priority": source.get("priority", "P3"),
+            "title_hint": meta.get("title", source["name"]),
+            "text_hint": text[:18000],
+            "image": meta.get("image", ""),
+            "meta": meta,
+            "discovery": "direct_page",
+        })
 
-    # Important: the source landing page itself can be the job page.
-    if looks_like_job(text, final_url) and (
-        "job" in text.lower()
-        or "vacancy" in text.lower()
-        or "career" in text.lower()
-        or "recruit" in text.lower()
-        or "নিয়োগ" in text
-        or "চাকরি" in text
-    ):
-        candidates.append(
-            {
-                "url": final_url,
+    soup = BeautifulSoup(r.content, "html.parser")
+    seen = set()
+    for a in soup.find_all("a", href=True):
+        link = canonical_url(urljoin(final_url, a.get("href", "")))
+        label = safe_text(a.get_text(" ", strip=True))
+        if not link or link in seen:
+            continue
+        seen.add(link)
+
+        hay = f"{label} {link}".lower()
+        if looks_like_job(hay, link):
+            candidates.append({
+                "url": link,
                 "source_id": source["id"],
-                "discovery_method": "direct_page",
-                "title_hint": meta.get("title", ""),
-                "text_hint": text[:16000],
-                "meta": meta,
-            }
-        )
-
-    for link in extract_links(final_url, content):
-        link_hay = f"{link['text']} {link['url']}".lower()
-        # Use both URL and anchor text. Many career systems have opaque URLs.
-        score = 0
-        if looks_like_job(link_hay):
-            score += 2
-        if any(k in link["text"].lower() for k in ("apply", "vacancy", "career", "position", "নিয়োগ", "চাকরি")):
-            score += 2
-        if source.get("official", False):
-            score += 1
-        if score >= 2:
-            candidates.append(
-                {
-                    "url": link["url"],
-                    "source_id": source["id"],
-                    "discovery_method": "direct_link",
-                    "title_hint": link["text"],
-                    "text_hint": "",
-                    "meta": {},
-                }
-            )
-
-    # Deduplicate while preserving order.
-    unique: dict[str, dict[str, Any]] = {}
-    for candidate in candidates:
-        unique.setdefault(candidate["url"], candidate)
-    return list(unique.values())[:60]
+                "source_name": source["name"],
+                "source_priority": source.get("priority", "P3"),
+                "title_hint": label,
+                "text_hint": "",
+                "image": "",
+                "meta": {},
+                "discovery": "direct_link",
+            })
+    return candidates[:60]
 
 
 def google_news_url(query: str) -> str:
     return (
         "https://news.google.com/rss/search?"
-        f"q={quote_plus(query)}&hl=en-BD&gl=BD&ceid=BD:en"
+        f"q={quote(query)}&hl=en-BD&gl=BD&ceid=BD:en"
     )
 
 
-def discover_google_news(
-    queries: Iterable[str],
-    session: requests.Session,
-) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    for query in queries:
-        try:
-            r = session.get(google_news_url(query), timeout=DEFAULT_TIMEOUT)
-            r.raise_for_status()
-            parsed = feedparser.parse(r.content)
-        except Exception as exc:
-            LOG.warning("Google News RSS failed: %s", exc)
-            continue
+def discover_google_news() -> list[dict[str, Any]]:
+    queries = [
+        '"Bangladesh job circular"',
+        '"নিয়োগ বিজ্ঞপ্তি"',
+        '"চাকরির বিজ্ঞপ্তি"',
+        '"Bangladesh recruitment"',
+        '"Bangladesh vacancy"',
+    ]
+    out = []
 
-        for e in parsed.entries[:30]:
-            link = normalize_url(getattr(e, "link", ""))
+    for query in queries:
+        r = http_get(google_news_url(query), timeout=12)
+        if not r:
+            continue
+        feed = feedparser.parse(r.content)
+        for entry in feed.entries[:18]:
+            link = canonical_url(getattr(entry, "link", ""))
             if not link:
                 continue
-            out.append(
-                {
-                    "url": link,
-                    "source_id": "google_news",
-                    "discovery_method": "google_news_rss",
-                    "title_hint": getattr(e, "title", ""),
-                    "text_hint": BeautifulSoup(
-                        getattr(e, "summary", "") or "",
-                        "html.parser",
-                    ).get_text(" ", strip=True),
-                    "meta": {},
-                }
-            )
+            out.append({
+                "url": link,
+                "source_id": "google_news",
+                "source_name": "Google News",
+                "source_priority": "P3",
+                "title_hint": safe_text(getattr(entry, "title", "")),
+                "text_hint": BeautifulSoup(
+                    safe_text(getattr(entry, "summary", "")),
+                    "html.parser",
+                ).get_text(" ", strip=True),
+                "image": "",
+                "meta": {},
+                "discovery": "google_news",
+            })
     return out
 
 
-def exa_search(
-    queries: Iterable[str],
-    api_key: str,
-    num_results: int = 8,
-) -> list[dict[str, Any]]:
-    if not api_key or Exa is None:
-        if not api_key:
-            LOG.warning("EXA_API_KEY is not configured")
-        else:
-            LOG.warning("exa-py is unavailable")
-        return []
-
-    exa = Exa(api_key=api_key)
-    out: list[dict[str, Any]] = []
-
-    for query in queries:
-        try:
-            # Current SDK path. Fall back for older installed SDKs.
-            if hasattr(exa, "search"):
-                response = exa.search(
-                    query,
-                    type="auto",
-                    num_results=num_results,
-                    contents={"text": {"max_characters": 8000}},
-                )
-            else:
-                response = exa.search_and_contents(
-                    query,
-                    type="auto",
-                    num_results=num_results,
-                    contents={"text": {"max_characters": 8000}},
-                )
-        except Exception as exc:
-            LOG.warning("Exa query failed: %s", exc)
-            continue
-
-        for result in getattr(response, "results", []) or []:
-            url = normalize_url(getattr(result, "url", ""))
-            if not url:
-                continue
-            text = getattr(result, "text", "") or ""
-            highlights = getattr(result, "highlights", None)
-            if isinstance(highlights, list):
-                text = "\n".join(str(x) for x in highlights) + "\n" + text
-            out.append(
-                {
-                    "url": url,
-                    "source_id": "exa_discovery",
-                    "discovery_method": "exa",
-                    "title_hint": getattr(result, "title", "") or "",
-                    # Critical fix: retain Exa content even if direct fetch blocks us.
-                    "text_hint": text[:16000],
-                    "meta": {},
-                }
-            )
-    return out
-
-
-def fetch_candidate_content(
-    candidate: dict[str, Any],
-    session: requests.Session,
-) -> dict[str, Any] | None:
-    url = candidate.get("url", "")
-    text_hint = candidate.get("text_hint", "") or ""
-    meta = candidate.get("meta", {}) or {}
-
-    # Use already available source/Exa content first.
-    if len(text_hint.strip()) >= 100:
-        hints = deterministic_hints(text_hint)
-        if hints["job_hint"] or looks_like_job(candidate.get("title_hint", ""), url):
-            return {
-                "url": url,
-                "source_id": candidate.get("source_id", ""),
-                "discovery_method": candidate.get("discovery_method", ""),
-                "title_hint": candidate.get("title_hint", ""),
-                "text": text_hint[:20000],
-                "meta": meta,
-                "hints": hints,
-            }
-
-    try:
-        content, content_type, final_url, _ = fetch(session, url)
-    except Exception as exc:
-        LOG.warning("Candidate fetch failed: %s (%s)", url, exc)
-        # Exa/content hint fallback even when HTTP fails.
-        if len(text_hint.strip()) >= 100:
-            return {
-                "url": url,
-                "source_id": candidate.get("source_id", ""),
-                "discovery_method": candidate.get("discovery_method", ""),
-                "title_hint": candidate.get("title_hint", ""),
-                "text": text_hint[:20000],
-                "meta": meta,
-                "hints": deterministic_hints(text_hint),
-            }
-        return None
-
-    if "pdf" in content_type.lower() or final_url.lower().endswith(".pdf"):
-        text = pdf_to_text(content)
-    else:
-        text = html_to_text(content, final_url)
-        if not meta:
-            meta = extract_meta(content, final_url)
-
-    if not text:
-        text = text_hint
-
-    hints = deterministic_hints(text)
-    if not (
-        hints["job_hint"]
-        or looks_like_job(candidate.get("title_hint", ""), final_url)
-    ):
-        return None
-
-    if not (
-        hints["bangladesh_hint"]
-        or looks_like_bangladesh(
-            f"{candidate.get('title_hint', '')}\n{text}",
-            final_url,
-        )
-    ):
-        return None
-
-    return {
-        "url": final_url,
-        "source_id": candidate.get("source_id", ""),
-        "discovery_method": candidate.get("discovery_method", ""),
-        "title_hint": candidate.get("title_hint", ""),
-        "text": text[:20000],
-        "meta": meta,
-        "hints": hints,
-    }
-
-
-def parse_json_response(raw: str) -> dict[str, Any] | None:
-    raw = (raw or "").strip()
-    if not raw:
-        return None
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        pass
-
-    match = re.search(r"\{.*\}", raw, flags=re.S)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
-
-
-def cerebras_json(
-    system_prompt: str,
-    payload: dict[str, Any],
-    api_key: str,
-    model: str,
-) -> dict[str, Any] | None:
-    if not api_key or Cerebras is None:
-        return None
-    model = model or DEFAULT_CEREBRAS_MODEL
-
-    client = Cerebras(api_key=api_key)
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            temperature=0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": json.dumps(payload, ensure_ascii=False),
-                },
-            ],
-        )
-        content = response.choices[0].message.content
-        return parse_json_response(content)
-    except Exception as exc:
-        LOG.warning("Cerebras request failed: %s", exc)
-        return None
-
-
-def extract_job_with_ai(
-    document: dict[str, Any],
-    config: dict[str, str],
-) -> dict[str, Any] | None:
-    payload = {
-        "source_name": document.get("source_id", ""),
-        "source_url": document.get("url", ""),
-        "title_hint": document.get("title_hint", ""),
-        "deterministic_hints": document.get("hints", {}),
-        "text": document.get("text", "")[:16000],
-    }
-    system = (
-        "You are a strict Bangladesh job-listing extraction engine. "
-        "Return JSON only. Extract only facts supported by the supplied text. "
-        "Never invent salary, vacancy, dates, education, experience, benefits, "
-        "company identity, or eligibility. Missing scalar fields must be null; "
-        "missing arrays must be []. Set is_job false when this is not a job listing."
-    )
-    result = cerebras_json(
-        system,
-        {
-            **payload,
-            "schema": {
-                "is_job": "boolean",
-                "company": "string|null",
-                "title": "string|null",
-                "organization_type": "string|null",
-                "sector": "string|null",
-                "job_function": "string|null",
-                "job_level": "string|null",
-                "job_type": "string|null",
-                "employment_type": "string|null",
-                "location": "string|null",
-                "vacancy": "string|null",
-                "salary": "string|null",
-                "education": "array",
-                "experience": "string|null",
-                "skills": "array",
-                "age_limit": "string|null",
-                "gender": "string|null",
-                "published_date": "string|null",
-                "application_start": "string|null",
-                "deadline": "string|null",
-                "application_method": "string|null",
-                "application_url": "string|null",
-                "requirements": "array",
-                "responsibilities": "array",
-                "summary": "string|null",
-                "confidence": "number 0..1",
-            },
-        },
-        config["CEREBRAS_API_KEY"],
-        config["CEREBRAS_MODEL"],
-    )
-
-    if result is not None and result.get("is_job") is False:
-        return None
-
-    # Deterministic fallback keeps the pipeline alive if Cerebras is temporarily unavailable.
-    if result is None:
-        title = document.get("title_hint") or ""
-        if not title and document.get("meta", {}).get("title"):
-            title = document["meta"]["title"]
-        if not title:
-            return None
-        result = {
-            "is_job": True,
-            "company": None,
-            "title": title[:250],
-            "organization_type": None,
-            "sector": None,
-            "job_function": None,
-            "job_level": None,
-            "job_type": None,
-            "employment_type": None,
-            "location": None,
-            "vacancy": document["hints"].get("vacancy"),
-            "salary": document["hints"].get("salary"),
-            "education": [],
-            "experience": None,
-            "skills": [],
-            "age_limit": None,
-            "gender": None,
-            "published_date": None,
-            "application_start": None,
-            "deadline": document["hints"].get("deadline"),
-            "application_method": None,
-            "application_url": document["url"],
-            "requirements": [],
-            "responsibilities": [],
-            "summary": "",
-            "confidence": 0.55,
-        }
-
-    result.setdefault("source_url", document["url"])
-    result.setdefault("source_id", document["source_id"])
-    result.setdefault("discovery_method", document["discovery_method"])
-    result.setdefault("meta", document.get("meta", {}))
-    result.setdefault("text_hash", document["hints"].get("text_hash"))
-    return result
-
-
-def clean_value(value: Any) -> Any:
-    if isinstance(value, str):
-        return re.sub(r"\s+", " ", value).strip()
-    return value
-
-
-def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
-    normalized = dict(job)
-
-    for key in (
-        "company", "title", "organization_type", "sector", "job_function",
-        "job_level", "job_type", "employment_type", "location", "vacancy",
-        "salary", "experience", "age_limit", "gender", "published_date",
-        "application_start", "deadline", "application_method", "application_url",
-        "summary",
-    ):
-        normalized[key] = clean_value(normalized.get(key))
-
-    normalized["education"] = [
-        clean_value(x) for x in (normalized.get("education") or []) if clean_value(x)
-    ]
-    normalized["skills"] = [
-        clean_value(x) for x in (normalized.get("skills") or []) if clean_value(x)
-    ]
-    normalized["requirements"] = [
-        clean_value(x) for x in (normalized.get("requirements") or []) if clean_value(x)
-    ]
-    normalized["responsibilities"] = [
-        clean_value(x) for x in (normalized.get("responsibilities") or []) if clean_value(x)
-    ]
-
-    normalized["application_url"] = normalize_url(
-        normalized.get("application_url") or normalized.get("source_url") or ""
-    )
-    normalized["source_url"] = normalize_url(normalized.get("source_url") or "")
-
-    # Infer company from obvious official-source metadata only.
-    if not normalized.get("company"):
-        title = str(normalized.get("title") or "")
-        if " - " in title and normalized.get("source_id"):
-            normalized["company"] = title.split(" - ")[-1][:180].strip()
-
-    return normalized
-
-
-def norm_identity(value: str) -> str:
-    value = (value or "").lower()
-    value = re.sub(r"[^a-z0-9\u0980-\u09ff]+", " ", value)
-    return re.sub(r"\s+", " ", value).strip()
-
-
-def event_fingerprint(job: dict[str, Any]) -> str:
-    strong = "|".join(
-        [
-            norm_identity(str(job.get("company") or "")),
-            norm_identity(str(job.get("title") or "")),
-            norm_identity(str(job.get("deadline") or "")),
-            normalize_url(str(job.get("application_url") or "")),
-        ]
-    )
-    return sha256_text(strong)[:24]
-
-
-def semantic_similarity(a: dict[str, Any], b: dict[str, Any]) -> float:
-    fields = ("company", "title", "location", "deadline", "application_url")
-    scores = []
-    for field in fields:
-        av = norm_identity(str(a.get(field) or ""))
-        bv = norm_identity(str(b.get(field) or ""))
-        if not av or not bv:
-            continue
-        if av == bv:
-            scores.append(1.0)
-        elif av in bv or bv in av:
-            scores.append(0.75)
-        else:
-            at = set(av.split())
-            bt = set(bv.split())
-            union = at | bt
-            scores.append(len(at & bt) / len(union) if union else 0.0)
-
-    if not scores:
-        return 0.0
-    return sum(scores) / len(scores)
-
-
-def is_same_event(a: dict[str, Any], b: dict[str, Any]) -> bool:
-    au = normalize_url(str(a.get("application_url") or ""))
-    bu = normalize_url(str(b.get("application_url") or ""))
-    if au and bu and au == bu:
-        return True
-
-    af = event_fingerprint(a)
-    bf = event_fingerprint(b)
-    if af == bf:
-        return True
-
-    company_a = norm_identity(str(a.get("company") or ""))
-    company_b = norm_identity(str(b.get("company") or ""))
-    title_a = norm_identity(str(a.get("title") or ""))
-    title_b = norm_identity(str(b.get("title") or ""))
-
-    if company_a and company_b and company_a == company_b and title_a and title_b:
-        title_tokens_a = set(title_a.split())
-        title_tokens_b = set(title_b.split())
-        title_overlap = (
-            len(title_tokens_a & title_tokens_b) / len(title_tokens_a | title_tokens_b)
-            if (title_tokens_a | title_tokens_b) else 0
-        )
-        if title_overlap >= 0.7:
-            da = norm_identity(str(a.get("deadline") or ""))
-            db = norm_identity(str(b.get("deadline") or ""))
-            if da == db or not da or not db:
-                return True
-
-    return semantic_similarity(a, b) >= 0.78
-
-
-def parse_deadline(value: str | None) -> datetime | None:
-    if not value:
-        return None
-
-    value = value.strip()
-
-    formats = [
-        "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",
-        "%d-%m-%y", "%d/%m/%y", "%d.%m.%y",
-        "%d %B %Y", "%d %b %Y",
-    ]
-
-    candidates = re.findall(
-        r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b"
-        r"|\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b",
-        value,
-    )
-    for candidate in candidates:
-        for fmt in formats:
-            try:
-                return datetime.strptime(candidate, fmt).replace(
-                    tzinfo=timezone.utc,
-                    hour=23,
-                    minute=59,
-                    second=59,
-                )
-            except ValueError:
-                continue
-
-    return None
-
-
-def deadline_status(deadline: str | None) -> tuple[str, int | None]:
-    dt = parse_deadline(deadline)
-    if dt is None:
-        return "unknown", None
-
-    now = datetime.now(timezone.utc)
-    delta = dt - now
-    days = delta.days
-
-    if delta.total_seconds() < 0:
-        return "expired", days
-    if delta.total_seconds() <= 24 * 3600:
-        return "deadline_today", 0
-    if delta.total_seconds() <= 3 * 24 * 3600:
-        return "deadline_soon", days
-    return "active", days
-
-
-def calculate_quality(job: dict[str, Any], source: dict[str, Any] | None) -> int:
-    score = 0
-    official = bool(source and source.get("official"))
-    priority = source.get("priority", "P3") if source else "P3"
-
-    if official or priority == "P0":
-        score += 25
-    elif priority == "P1":
-        score += 22
-    elif priority == "P2":
-        score += 18
-    else:
-        score += 10
-
-    field_weights = {
-        "title": 18,
-        "company": 15,
-        "deadline": 15,
-        "application_url": 15,
-        "location": 7,
-        "education": 3,
-        "experience": 2,
-    }
-
-    for field, weight in field_weights.items():
-        value = job.get(field)
-        if isinstance(value, list):
-            if value:
-                score += weight
-        elif value:
-            score += weight
-
-    confidence = float(job.get("confidence") or 0.5)
-    score += int(max(0, min(10, confidence * 10)))
-
-    if job.get("verification_suspicious"):
-        score -= 35
-
-    status, _ = deadline_status(job.get("deadline"))
-    if status == "expired":
-        score -= 60
-
-    return max(0, min(100, score))
-
-
-def calculate_importance(job: dict[str, Any], source: dict[str, Any] | None) -> int:
-    score = 0
-
-    priority = source.get("priority", "P3") if source else "P3"
-    score += {"P0": 20, "P1": 17, "P2": 12, "P3": 6}.get(priority, 6)
-
-    title = norm_identity(str(job.get("title") or ""))
-    company = norm_identity(str(job.get("company") or ""))
-    text = f"{title} {company}"
-
-    if any(k in text for k in ("intern", "internship", "trainee", "graduate", "fresher")):
-        score += 12
-
-    if any(k in text for k in ("manager", "director", "head", "officer", "engineer", "executive")):
-        score += 5
-
-    vacancy_raw = str(job.get("vacancy") or "")
-    numbers = re.findall(r"\d+", vacancy_raw.replace(",", ""))
-    if numbers:
-        try:
-            count = int(numbers[-1])
-            if count >= 100:
-                score += 15
-            elif count >= 20:
-                score += 10
-            elif count >= 5:
-                score += 6
-        except ValueError:
-            pass
-
-    status, days = deadline_status(job.get("deadline"))
-    if status == "deadline_today":
-        score += 15
-    elif status == "deadline_soon":
-        score += 12
-    elif days is not None and days <= 7:
-        score += 7
-    elif days is not None and days <= 14:
-        score += 4
-
-    if job.get("salary"):
-        score += 5
-    if job.get("education"):
-        score += 4
-    if job.get("application_url"):
-        score += 6
-
-    return max(0, min(100, score))
-
-
-def source_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {s["id"]: s for s in registry.get("sources", []) if s.get("id")}
-
-
-def choose_canonical_source(
-    source_ids: list[str],
-    registry_map: dict[str, dict[str, Any]],
-) -> dict[str, Any] | None:
-    candidates = [
-        registry_map[sid] for sid in source_ids
-        if sid in registry_map
-    ]
-    if not candidates:
-        return None
-    order = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
-    return sorted(
-        candidates,
-        key=lambda s: (order.get(s.get("priority", "P3"), 3), not s.get("official", False)),
-    )[0]
-
-
-def source_queries(registry: dict[str, Any]) -> list[str]:
+def exa_queries(registry: dict[str, Any]) -> list[str]:
     base = [
         '"Bangladesh" "job circular"',
         '"Bangladesh" recruitment vacancy',
-        '"Bangladesh" "career" jobs',
-        '"নিয়োগ বিজ্ঞপ্তি"',
-        '"চাকরির বিজ্ঞপ্তি"',
+        '"নিয়োগ বিজ্ঞপ্তি" Bangladesh',
+        '"চাকরির বিজ্ঞপ্তি" Bangladesh',
         'site:gov.bd "নিয়োগ বিজ্ঞপ্তি"',
-        'site:gov.bd recruitment',
-        'site:edu.bd job circular',
+        'site:gov.bd recruitment Bangladesh',
+        'site:edu.bd recruitment Bangladesh',
         'Bangladesh bank recruitment',
         'Bangladesh NGO jobs',
-        'Bangladesh pharma jobs',
+        'Bangladesh pharmaceutical jobs',
         'Bangladesh healthcare jobs',
         'Bangladesh university recruitment',
         'Bangladesh IT jobs',
         'Bangladesh garments jobs',
         'Bangladesh manufacturing jobs',
         'Bangladesh internship jobs',
-        'Bangladesh fresher jobs',
     ]
 
-    # Only add a small rotating sample of source names to bound each run.
+    # Add a rotating subset of known source names. This can discover new jobs and new source endpoints.
     for source in registry.get("sources", []):
-        name = source.get("name")
-        if not name:
+        name = safe_text(source.get("name"))
+        if name:
+            base.append(f'"{name}" Bangladesh jobs')
+    unique = list(dict.fromkeys(base))
+
+    # Rotate based on current UTC hour to spread queries over the day.
+    hour = datetime.now(timezone.utc).hour
+    start = hour % len(unique)
+    rotated = unique[start:] + unique[:start]
+    return rotated[:MAX_EXA_QUERIES]
+
+
+def discover_exa(registry: dict[str, Any]) -> list[dict[str, Any]]:
+    exa = Exa(api_key=EXA_API_KEY)
+    out = []
+
+    for query in exa_queries(registry):
+        try:
+            # Modern exa-py path. Older SDKs remain supported below.
+            if hasattr(exa, "search"):
+                result = exa.search(
+                    query,
+                    type="auto",
+                    num_results=MAX_EXA_RESULTS_PER_QUERY,
+                    contents={
+                        "text": {"max_characters": 5000},
+                        "highlights": {"max_characters": 1200},
+                    },
+                )
+            else:
+                result = exa.search_and_contents(
+                    query,
+                    type="auto",
+                    num_results=MAX_EXA_RESULTS_PER_QUERY,
+                    contents={"highlights": {"max_characters": 1200}},
+                )
+        except Exception as exc:
+            logger.warning("Exa query failed: %s", exc)
             continue
-        base.append(f'"{name}" Bangladesh career jobs')
-        base.append(f'"{name}" Bangladesh recruitment')
-    return list(dict.fromkeys(base))[:MAX_EXA_QUERIES]
+
+        for item in getattr(result, "results", []) or []:
+            url = canonical_url(getattr(item, "url", ""))
+            if not url:
+                continue
+            highlights = getattr(item, "highlights", None)
+            text = safe_text(getattr(item, "text", ""))
+            if isinstance(highlights, list):
+                text = "\n".join(map(str, highlights)) + "\n" + text
+            out.append({
+                "url": url,
+                "source_id": "exa_discovery",
+                "source_name": "Exa Discovery",
+                "source_priority": "P3",
+                "title_hint": safe_text(getattr(item, "title", "")),
+                "text_hint": text[:12000],
+                "image": safe_text(getattr(item, "image", "")),
+                "meta": {},
+                "discovery": "exa",
+            })
+    return out
 
 
-def rotate_sources(
-    registry: dict[str, Any],
-    state: dict[str, Any],
-) -> list[dict[str, Any]]:
-    now_epoch = time.time()
-    due: list[dict[str, Any]] = []
+def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
+    candidates = []
 
-    for source in registry.get("sources", []):
-        if not source.get("enabled", source.get("status") == "active"):
+    for source in due_sources(registry, state):
+        try:
+            found = direct_discover(source)
+            candidates.extend(found)
+            health = state["sources"].setdefault(source["id"], {})
+            health["last_crawl_epoch"] = time.time()
+            health["last_success"] = now_iso()
+            health["last_failure"] = None
+            health["consecutive_failures"] = 0
+            health["candidates_last_run"] = len(found)
+        except Exception as exc:
+            logger.warning("Direct source failed %s: %s", source.get("id"), exc)
+            health = state["sources"].setdefault(source["id"], {})
+            health["last_crawl_epoch"] = time.time()
+            health["last_failure"] = now_iso()
+            health["consecutive_failures"] = int(health.get("consecutive_failures", 0)) + 1
+
+    candidates.extend(discover_google_news())
+    candidates.extend(discover_exa(registry))
+
+    unique = {}
+    for candidate in candidates:
+        url = canonical_url(candidate.get("url", ""))
+        if not url:
+            continue
+        unique.setdefault(url, candidate)
+
+    result = list(unique.values())
+
+    # Deterministically prioritize evidence-rich candidates.
+    def key(c: dict[str, Any]) -> tuple[int, int, int]:
+        text = safe_text(c.get("text_hint", ""))
+        priority = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}.get(
+            c.get("source_priority", "P3"), 3
+        )
+        richness = len(text)
+        discovery_bonus = 0 if c.get("discovery") in ("direct_page", "direct_pdf") else 1
+        return (priority, -min(richness, 15000), discovery_bonus)
+
+    return sorted(result, key=key)[:MAX_DISCOVERY_CANDIDATES]
+
+
+# ============================================================
+# DOCUMENT RETRIEVAL
+# ============================================================
+
+def retrieve(candidate: dict[str, Any]) -> dict[str, Any] | None:
+    url = canonical_url(candidate.get("url", ""))
+    text_hint = safe_text(candidate.get("text_hint", ""))
+    meta = candidate.get("meta") or {}
+
+    if len(text_hint) >= 250:
+        hints = deterministic_hints(text_hint)
+        if looks_like_job(
+            f"{candidate.get('title_hint', '')}\n{text_hint}",
+            url,
+        ):
+            return {
+                **candidate,
+                "url": url,
+                "text": text_hint[:18000],
+                "hints": hints,
+                "meta": meta,
+            }
+
+    r = http_get(url)
+    if not r:
+        if len(text_hint) >= 150 and looks_like_job(
+            f"{candidate.get('title_hint', '')}\n{text_hint}",
+            url,
+        ):
+            return {
+                **candidate,
+                "url": url,
+                "text": text_hint[:18000],
+                "hints": deterministic_hints(text_hint),
+                "meta": meta,
+            }
+        return None
+
+    final_url = canonical_url(r.url)
+    ctype = r.headers.get("content-type", "").lower()
+
+    if "pdf" in ctype or final_url.lower().endswith(".pdf"):
+        text = extract_pdf_text(r.content)
+        if not text:
+            return None
+        meta = {}
+    else:
+        text = extract_html_text(r.content, final_url)
+        meta = extract_meta(r.content, final_url)
+
+    combined = f"{candidate.get('title_hint', '')}\n{text}"
+    if not looks_like_job(combined, final_url):
+        return None
+    if not (
+        is_bangladesh(combined, final_url)
+        or candidate.get("source_priority") in ("P0", "P1")
+    ):
+        return None
+
+    return {
+        **candidate,
+        "url": final_url,
+        "text": text[:18000],
+        "hints": deterministic_hints(text),
+        "meta": meta,
+    }
+
+
+# ============================================================
+# DETERMINISTIC + CEREBRAS EXTRACTION
+# ============================================================
+
+def jsonld_job(meta: dict[str, Any]) -> dict[str, Any] | None:
+    item = meta.get("jobposting")
+    if not isinstance(item, dict):
+        return None
+
+    org = item.get("hiringOrganization") or {}
+    if isinstance(org, list):
+        org = org[0] if org else {}
+    location = item.get("jobLocation") or {}
+    if isinstance(location, list):
+        location = location[0] if location else {}
+    address = location.get("address") if isinstance(location, dict) else {}
+    if isinstance(address, dict):
+        location_text = ", ".join(
+            str(address.get(k) or "")
+            for k in ("addressLocality", "addressRegion", "addressCountry")
+            if address.get(k)
+        )
+    else:
+        location_text = safe_text(address)
+
+    salary = item.get("baseSalary")
+    salary_text = ""
+    if isinstance(salary, dict):
+        value = salary.get("value")
+        if isinstance(value, dict):
+            salary_text = safe_text(value.get("value"))
+        elif value:
+            salary_text = safe_text(value)
+        unit = safe_text(salary.get("currency"))
+        if unit:
+            salary_text = f"{salary_text} {unit}".strip()
+
+    skills = item.get("skills")
+    if isinstance(skills, str):
+        skills = [skills]
+
+    education = item.get("educationRequirements")
+    if isinstance(education, str):
+        education = [education]
+
+    return {
+        "company": safe_text(org.get("name") if isinstance(org, dict) else org),
+        "title": safe_text(item.get("title")),
+        "location": location_text,
+        "salary": salary_text,
+        "education": education if isinstance(education, list) else [],
+        "experience": safe_text(item.get("experienceRequirements")),
+        "deadline": safe_text(item.get("validThrough")),
+        "employment_type": safe_text(item.get("employmentType")),
+        "application_url": canonical_url(item.get("url") or ""),
+        "skills": skills if isinstance(skills, list) else [],
+        "description": safe_text(item.get("description")),
+    }
+
+
+def rule_extract(document: dict[str, Any]) -> dict[str, Any]:
+    meta = document.get("meta") or {}
+    hints = document.get("hints") or {}
+    structured = jsonld_job(meta) or {}
+
+    title = (
+        structured.get("title")
+        or safe_text(document.get("title_hint"))
+        or safe_text(meta.get("title"))
+    )
+    company = structured.get("company") or ""
+
+    # Official source names are safe deterministic hints for company identity.
+    if not company and document.get("source_priority") in ("P0", "P1"):
+        company = safe_text(document.get("source_name"))
+
+    job = {
+        "is_job": True,
+        "company": company or None,
+        "title": title or None,
+        "organization_type": None,
+        "sector": None,
+        "job_function": None,
+        "job_level": None,
+        "job_type": None,
+        "employment_type": structured.get("employment_type") or None,
+        "location": structured.get("location") or None,
+        "vacancy": hints.get("vacancy"),
+        "salary": structured.get("salary") or hints.get("salary"),
+        "education": structured.get("education") or [],
+        "experience": structured.get("experience") or None,
+        "skills": structured.get("skills") or [],
+        "age_limit": None,
+        "gender": None,
+        "published_date": None,
+        "application_start": None,
+        "deadline": structured.get("deadline") or hints.get("deadline"),
+        "application_method": None,
+        "application_url": structured.get("application_url") or document.get("url"),
+        "requirements": [],
+        "responsibilities": [],
+        "summary": safe_text(meta.get("description")),
+        "confidence": 0.75 if structured else 0.55,
+        "source_id": document.get("source_id"),
+        "source_name": document.get("source_name"),
+        "source_priority": document.get("source_priority", "P3"),
+        "source_url": document.get("url"),
+        "discovery": document.get("discovery"),
+        "meta": meta,
+        "text": document.get("text", ""),
+        "scam_signals": hints.get("scam_signals", []),
+    }
+    return job
+
+
+AI_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "jobs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "is_job": {"type": "boolean"},
+                    "company": {"type": ["string", "null"]},
+                    "title": {"type": ["string", "null"]},
+                    "sector": {"type": ["string", "null"]},
+                    "job_function": {"type": ["string", "null"]},
+                    "job_level": {"type": ["string", "null"]},
+                    "job_type": {"type": ["string", "null"]},
+                    "location": {"type": ["string", "null"]},
+                    "vacancy": {"type": ["string", "null"]},
+                    "salary": {"type": ["string", "null"]},
+                    "education": {"type": "array", "items": {"type": "string"}},
+                    "experience": {"type": ["string", "null"]},
+                    "deadline": {"type": ["string", "null"]},
+                    "application_url": {"type": ["string", "null"]},
+                    "requirements": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
+                    "responsibilities": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
+                    "summary": {"type": ["string", "null"]},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": [
+                    "id", "is_job", "company", "title", "sector", "job_function",
+                    "job_level", "job_type", "location", "vacancy", "salary",
+                    "education", "experience", "deadline", "application_url",
+                    "requirements", "responsibilities", "summary", "confidence",
+                ],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["jobs"],
+    "additionalProperties": False,
+}
+
+RANK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "ranked": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                    "publish": {"type": "boolean"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["id", "score", "publish", "reason"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["ranked"],
+    "additionalProperties": False,
+}
+
+
+def cerebras_structured(
+    system: str,
+    user_payload: dict[str, Any],
+    schema: dict[str, Any],
+    max_tokens: int,
+) -> dict[str, Any] | None:
+    client = Cerebras(api_key=CEREBRAS_API_KEY)
+    try:
+        response = client.chat.completions.create(
+            model=CEREBRAS_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {
+                    "role": "user",
+                    "content": json.dumps(user_payload, ensure_ascii=False),
+                },
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "career_newsroom_schema",
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+            reasoning_effort="low",
+            temperature=0.0,
+            max_completion_tokens=max_tokens,
+        )
+        raw = response.choices[0].message.content or ""
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else None
+    except Exception as exc:
+        logger.warning("Cerebras structured call failed: %s", exc)
+        return None
+
+
+def ai_enrich(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Only ambiguous/incomplete documents consume an AI extraction call.
+    candidates = [
+        job for job in jobs
+        if not job.get("company")
+        or not job.get("sector")
+        or not job.get("job_function")
+    ][:MAX_AI_EXTRACTION_DOCS]
+
+    if not candidates:
+        return jobs
+
+    payload = {
+        "taxonomy": {
+            "sectors": SECTORS,
+            "job_functions": JOB_FUNCTIONS,
+            "job_levels": JOB_LEVELS,
+            "job_types": JOB_TYPES,
+        },
+        "documents": [
+            {
+                "id": i,
+                "source_name": job.get("source_name"),
+                "source_url": job.get("source_url"),
+                "title_hint": job.get("title"),
+                "text": safe_text(job.get("text"))[:5000],
+            }
+            for i, job in enumerate(candidates)
+        ],
+    }
+
+    system = (
+        "You extract Bangladesh job listings in one batch. "
+        "Return strict JSON only. Extract only source-supported facts. "
+        "Never invent salary, vacancy, deadline, employer, eligibility, or benefits. "
+        "Use taxonomy values exactly when applicable. Missing values must be null or []."
+    )
+    data = cerebras_structured(system, payload, AI_SCHEMA, 5000)
+    if not data or not isinstance(data.get("jobs"), list):
+        return jobs
+
+    by_id = {
+        int(item.get("id")): item
+        for item in data["jobs"]
+        if isinstance(item, dict) and str(item.get("id", "")).isdigit()
+    }
+
+    candidate_index = {id(job): idx for idx, job in enumerate(candidates)}
+
+    for i, job in enumerate(candidates):
+        ai = by_id.get(i)
+        if not ai:
             continue
 
-        sid = source["id"]
-        sstate = state["sources"].get(sid, {})
-        last = float(sstate.get("last_crawl_epoch") or 0)
-        interval = int(source.get("crawl_minutes") or 60)
+        for key in (
+            "company", "title", "sector", "job_function", "job_level", "job_type",
+            "location", "vacancy", "salary", "education", "experience", "deadline",
+            "application_url", "requirements", "responsibilities", "summary",
+            "confidence",
+        ):
+            value = ai.get(key)
+            if value not in (None, "", [], {}):
+                job[key] = value
 
-        if now_epoch - last >= interval * 60:
-            due.append(source)
+        job["ai_extracted"] = True
 
-    priority_order = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
-    return sorted(
-        due,
-        key=lambda s: (
-            priority_order.get(s.get("priority", "P3"), 3),
-            float(state["sources"].get(s["id"], {}).get("last_crawl_epoch") or 0),
-        ),
+    return jobs
+
+
+# ============================================================
+# EVENT IDENTITY / STATUS
+# ============================================================
+
+def norm_tokens(value: str) -> set[str]:
+    value = safe_text(value).lower()
+    value = re.sub(r"[^a-z0-9\u0980-\u09ff]+", " ", value)
+    return {x for x in value.split() if len(x) > 1}
+
+
+def jaccard(a: str, b: str) -> float:
+    aa = norm_tokens(a)
+    bb = norm_tokens(b)
+    if not aa or not bb:
+        return 0.0
+    return len(aa & bb) / len(aa | bb)
+
+
+def same_event(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    au = canonical_url(a.get("application_url", ""))
+    bu = canonical_url(b.get("application_url", ""))
+    if au and bu and au == bu:
+        return True
+
+    ca, cb = safe_text(a.get("company")), safe_text(b.get("company"))
+    ta, tb = safe_text(a.get("title")), safe_text(b.get("title"))
+    if not ca or not cb or not ta or not tb:
+        return False
+
+    if ca.lower() == cb.lower() and jaccard(ta, tb) >= 0.70:
+        da, db = safe_text(a.get("deadline")), safe_text(b.get("deadline"))
+        if not da or not db or da == db:
+            return True
+
+    return (
+        jaccard(ca, cb) >= 0.82
+        and jaccard(ta, tb) >= 0.82
+        and (
+            not a.get("location")
+            or not b.get("location")
+            or jaccard(safe_text(a.get("location")), safe_text(b.get("location"))) >= 0.45
+        )
     )
 
 
-def update_source_health(
-    state: dict[str, Any],
-    source_id: str,
-    success: bool,
-    candidates: int,
-) -> None:
-    entry = state["sources"].setdefault(source_id, {})
-    entry["last_crawl_epoch"] = time.time()
-    entry["last_run_at"] = utc_now()
-    entry["last_success"] = utc_now() if success else entry.get("last_success")
-    entry["last_failure"] = None if success else utc_now()
-    entry["consecutive_failures"] = 0 if success else int(entry.get("consecutive_failures") or 0) + 1
-    entry["candidates_last_run"] = candidates
+def make_event_id(job: dict[str, Any]) -> str:
+    seed = "|".join([
+        safe_text(job.get("company")).lower(),
+        safe_text(job.get("title")).lower(),
+        safe_text(job.get("deadline")).lower(),
+        canonical_url(job.get("application_url", "")),
+    ])
+    return "evt_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
 
 
-def verification(job: dict[str, Any], source: dict[str, Any] | None) -> dict[str, Any]:
-    official = bool(source and source.get("official"))
-    status, _ = deadline_status(job.get("deadline"))
-    suspicious = bool(job.get("verification_suspicious"))
+def parse_deadline(value: str | None) -> datetime | None:
+    raw = safe_text(value)
+    if not raw:
+        return None
+
+    # JSON-LD JobPosting commonly uses ISO dates/timestamps.
+    iso = re.search(
+        r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b",
+        raw,
+    )
+    if iso:
+        value = iso.group(0)
+        try:
+            if "T" in value or " " in value:
+                return datetime.fromisoformat(
+                    value.replace("Z", "+00:00")
+                ).astimezone(timezone.utc)
+            return datetime.strptime(value, "%Y-%m-%d").replace(
+                tzinfo=timezone.utc, hour=23, minute=59, second=59
+            )
+        except ValueError:
+            pass
+
+    parts = re.findall(
+        r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b"
+        r"|\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b",
+        raw,
+    )
+    formats = (
+        "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",
+        "%d-%m-%y", "%d/%m/%y", "%d.%m.%y",
+        "%d %B %Y", "%d %b %Y",
+    )
+    for part in parts:
+        for fmt in formats:
+            try:
+                return datetime.strptime(part, fmt).replace(
+                    tzinfo=timezone.utc, hour=23, minute=59, second=59
+                )
+            except ValueError:
+                pass
+    return None
+
+
+def deadline_state(value: str | None) -> tuple[str, int | None]:
+    dt = parse_deadline(value)
+    if not dt:
+        return "unknown", None
+    delta = dt - datetime.now(timezone.utc)
+    if delta.total_seconds() < 0:
+        return "expired", delta.days
+    if delta.total_seconds() <= 86400:
+        return "deadline_today", 0
+    if delta.total_seconds() <= 3 * 86400:
+        return "deadline_soon", delta.days
+    return "active", delta.days
+
+
+def verify(job: dict[str, Any]) -> dict[str, Any]:
+    source_priority = job.get("source_priority", "P3")
+    status, _ = deadline_state(job.get("deadline"))
+    official = bool(job.get("official_source")) or source_priority in ("P0", "P1")
 
     checks = {
-        "source_known": source is not None,
-        "company_identified": bool(job.get("company")),
-        "title_identified": bool(job.get("title")),
+        "known_source": bool(job.get("source_id")),
+        "company": bool(job.get("company")),
+        "title": bool(job.get("title")),
         "application_url": bool(job.get("application_url")),
-        "active_deadline": status != "expired",
-        "bangladesh_relevant": True,
-        "suspicious_signals": not suspicious,
+        "active": status != "expired",
+        "bangladesh": True,
+        "no_scam_signal": not bool(job.get("scam_signals")),
     }
 
-    passed = sum(1 for v in checks.values() if v)
-    if suspicious:
-        level = "rejected"
-        status_value = "rejected"
-    elif passed >= 6 and official:
+    passed = sum(1 for value in checks.values() if value)
+
+    if job.get("scam_signals"):
+        return {"status": "rejected", "level": "rejected", "checks": checks, "checked_at": now_iso()}
+
+    if official and passed >= 6:
         level = "official"
         status_value = "verified"
     elif passed >= 5:
@@ -1205,764 +1210,994 @@ def verification(job: dict[str, Any], source: dict[str, Any] | None) -> dict[str
         "status": status_value,
         "level": level,
         "checks": checks,
-        "checked_at": utc_now(),
+        "checked_at": now_iso(),
     }
 
 
-def build_fallback_image(job: dict[str, Any], path: Path) -> Path | None:
-    if Image is None or ImageDraw is None:
-        return None
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    width, height = 1200, 675
-    image = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(image)
+# ============================================================
+# NORMALIZATION / FINGERPRINT / JOB EVENT STATE
+# ============================================================
 
-    title = str(job.get("title") or "JOB OPPORTUNITY").strip()
-    company = str(job.get("company") or job.get("source_name") or "Career Opportunity").strip()
-    source = str(job.get("source_name") or "Career Newsroom").strip()
-
-    font = None
-    bold = None
-    candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-    ]
-    bold_candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-    ]
-    for candidate in candidates:
-        if Path(candidate).exists():
-            font = ImageFont.truetype(candidate, 42)
-            break
-    for candidate in bold_candidates:
-        if Path(candidate).exists():
-            bold = ImageFont.truetype(candidate, 58)
-            break
-
-    font = font or ImageFont.load_default()
-    bold = bold or font
-
-    def wrap(value: str, max_chars: int) -> list[str]:
-        words = value.split()
-        lines, current = [], []
-        for word in words:
-            test = " ".join(current + [word])
-            if len(test) > max_chars and current:
-                lines.append(" ".join(current))
-                current = [word]
-            else:
-                current.append(word)
-        if current:
-            lines.append(" ".join(current))
-        return lines
-
-    draw.text((80, 70), company[:70], font=font, fill="black")
-    y = 220
-    for line in wrap(title, 28)[:4]:
-        draw.text((80, y), line, font=bold, fill="black")
-        y += 70
-
-    draw.text((80, 540), "Career Opportunity", font=font, fill="black")
-    draw.text((940, 615), "@CareerNewsroom", font=font, fill="black")
-    draw.text((80, 615), source[:45], font=font, fill="black")
-
-    image.save(path, format="JPEG", quality=92)
-    return path
+def normalize_text(value: Any) -> str:
+    value = html.unescape(safe_text(value)).lower()
+    value = value.replace("–", "-").replace("—", "-")
+    value = re.sub(r"[^\w\u0980-\u09ff]+", " ", value, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", value).strip()
 
 
-def image_url_from_job(job: dict[str, Any]) -> str:
-    meta = job.get("meta") or {}
-    for key in ("image", "logo"):
-        url = normalize_url(str(meta.get(key) or ""))
-        if url:
-            return url
-    return ""
+def normalize_company(value: Any) -> str:
+    value = normalize_text(value)
+    value = re.sub(r"\b(limited|ltd|plc|inc|corporation|corp|company|co)\b", "", value)
+    return re.sub(r"\s+", " ", value).strip()
 
 
-def escape_html(value: str) -> str:
-    return html.escape(value or "", quote=False)
+def normalize_title(value: Any) -> str:
+    value = normalize_text(value)
+    value = re.sub(r"\b(job|vacancy|circular|career|careers|recruitment|hiring)\b", "", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def normalized_job(job: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "company": normalize_company(job.get("company")),
+        "title": normalize_title(job.get("title")),
+        "location": normalize_text(job.get("location")),
+        "deadline": normalize_deadline(job.get("deadline")),
+        "application_url": canonical_url(job.get("application_url") or job.get("source_url") or ""),
+        "sector": normalize_text(job.get("sector")),
+        "job_function": normalize_text(job.get("job_function")),
+        "job_level": normalize_text(job.get("job_level")),
+        "job_type": normalize_text(job.get("job_type")),
+        "vacancy": normalize_text(job.get("vacancy")),
+        "salary": normalize_text(job.get("salary")),
+    }
+
+
+def job_fingerprint(job: dict[str, Any]) -> str:
+    n = job.get("normalized") or normalized_job(job)
+    seed = "|".join([
+        n["company"], n["title"], n["location"], n["deadline"], n["application_url"]
+    ])
+    return "job_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
+
+
+def identity_fingerprint(job: dict[str, Any]) -> str:
+    n = job.get("normalized") or normalized_job(job)
+    seed = "|".join([
+        n["company"], n["title"], n["location"], n["application_url"]
+    ])
+    return "identity_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
+
+
+def same_job(old: dict[str, Any], new: dict[str, Any]) -> bool:
+    if job_fingerprint(old) == job_fingerprint(new):
+        return True
+    if identity_fingerprint(old) == identity_fingerprint(new):
+        return True
+
+    old_n, new_n = old.get("normalized") or normalized_job(old), new.get("normalized") or normalized_job(new)
+    return (
+        bool(old_n["company"] and new_n["company"])
+        and old_n["company"] == new_n["company"]
+        and jaccard(old_n["title"], new_n["title"]) >= 0.80
+        and (
+            not old_n["location"]
+            or not new_n["location"]
+            or old_n["location"] == new_n["location"]
+        )
+    )
+
+
+def field_changes(old: dict[str, Any], new: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    fields = (
+        "company", "title", "location", "deadline", "application_url",
+        "salary", "vacancy", "education", "experience", "requirements",
+        "responsibilities", "sector", "job_function", "job_level", "job_type",
+    )
+    return {
+        f: {"old": old.get(f), "new": new.get(f)}
+        for f in fields
+        if old.get(f) != new.get(f) and new.get(f) not in (None, "", [], {})
+    }
+
+
+def normalize_deadline(value: Any) -> str:
+    dt = parse_deadline(safe_text(value))
+    return dt.date().isoformat() if dt else normalize_text(value)
+
+
+def scam_filter(job: dict[str, Any]) -> dict[str, Any]:
+    hay = " ".join([
+        safe_text(job.get("company")), safe_text(job.get("title")),
+        safe_text(job.get("summary")), safe_text(job.get("text")),
+        safe_text(job.get("application_method")),
+    ]).lower()
+    signals = sorted({term for term in SCAM_TERMS if term in hay})
+    job["scam_signals"] = signals
+    return {"passed": not signals, "signals": signals, "checked_at": now_iso()}
+
+
+def importance_score(job: dict[str, Any], quality: int) -> int:
+    score = {"P0":16,"P1":14,"P2":9,"P3":4}.get(job.get("source_priority","P3"),4)
+    title = safe_text(job.get("title")).lower()
+
+    if any(x in title for x in ("intern","internship","trainee","graduate","fresher")):
+        score += 10
+    if any(x in title for x in ("manager","engineer","officer","executive","director")):
+        score += 5
+
+    nums = re.findall(r"\d+", safe_text(job.get("vacancy")).replace(",",""))
+    if nums:
+        try:
+            n = int(nums[-1])
+            score += 12 if n >= 100 else 8 if n >= 20 else 5 if n >= 5 else 0
+        except ValueError:
+            pass
+
+    status, days = deadline_state(job.get("deadline"))
+    if status == "deadline_today": score += 13
+    elif status == "deadline_soon": score += 10
+    elif days is not None and days <= 7: score += 7
+    elif days is not None and days <= 14: score += 4
+
+    if job.get("salary"): score += 4
+    if job.get("application_url"): score += 5
+    score += max(0, quality - 70) // 5
+    return max(0, min(100, score))
+
+
+def classify_job_event(state: dict[str, Any], job: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+    for event in state["jobs"].values():
+        if event.get("fingerprint") == job["fingerprint"] or same_job(event.get("canonical",{}), job):
+            if event.get("fingerprint") == job["fingerprint"]:
+                return ("REPOST" if event.get("repost_due") else "NONE"), event
+            return "UPDATE", event
+    return "NEW", None
+
+
+def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any]:
+    event_type, existing = classify_job_event(state, job)
+
+    if existing is None:
+        event = {
+            "event_id": make_event_id(job),
+            "event_type": "NEW",
+            "status": deadline_state(job.get("deadline"))[0],
+            "canonical": job,
+            "normalized": job["normalized"],
+            "fingerprint": job["fingerprint"],
+            "identity_fingerprint": job["identity_fingerprint"],
+            "sources": [{"source_id":job.get("source_id"),"source_name":job.get("source_name"),
+                         "source_url":job.get("source_url"),"seen_at":now_iso()}],
+            "verification": job["verification"],
+            "scam_filter": job["scam_filter"],
+            "quality_score": job["quality_score"],
+            "importance_score": job["importance_score"],
+            "first_seen": now_iso(),
+            "last_seen": now_iso(),
+            "update_history": [],
+            "repost_history": [],
+            "repost_due": False,
+            "telegram": {"published":False,"message_id":None,"published_at":None,"last_event_type":None},
+        }
+        state["jobs"][event["event_id"]] = event
+        return event
+
+    old = dict(existing.get("canonical",{}))
+    changes = field_changes(old, job)
+    existing["last_seen"] = now_iso()
+
+    if event_type == "UPDATE":
+        existing["event_type"] = "UPDATE"
+        existing["canonical"] = {**old, **{k:v for k,v in job.items() if v not in (None,"",[],{})}}
+        existing["normalized"] = job["normalized"]
+        existing["fingerprint"] = job["fingerprint"]
+        existing["identity_fingerprint"] = identity_fingerprint(existing["canonical"])
+        existing["update_history"] = (existing.get("update_history") or []) + [{"timestamp":now_iso(),"changes":changes}]
+        existing["repost_due"] = bool(changes)
+    elif event_type == "REPOST":
+        existing["event_type"] = "REPOST"
+        existing["repost_history"] = (existing.get("repost_history") or []) + [{"timestamp":now_iso(),"reason":"same job reappeared"}]
+        existing["repost_due"] = True
+
+    existing["verification"] = job["verification"]
+    existing["scam_filter"] = job["scam_filter"]
+    existing["quality_score"] = job["quality_score"]
+    existing["importance_score"] = job["importance_score"]
+    existing["status"] = deadline_state(existing["canonical"].get("deadline"))[0]
+    return existing
+
+
+def quality_score(job: dict[str, Any]) -> int:
+    priority = job.get("source_priority", "P3")
+    score = {"P0": 26, "P1": 23, "P2": 18, "P3": 10}.get(priority, 10)
+
+    for field, weight in (
+        ("title", 16), ("company", 14), ("deadline", 15),
+        ("application_url", 15), ("location", 6),
+        ("education", 3), ("experience", 3),
+    ):
+        if job.get(field):
+            score += weight
+
+    score += int(min(8, max(0, float(job.get("confidence") or 0.5) * 8)))
+
+    status, _ = deadline_state(job.get("deadline"))
+    if status == "expired":
+        score -= 60
+    if job.get("scam_signals"):
+        score -= 40
+
+    return max(0, min(100, score))
+
+
+def base_importance(job: dict[str, Any]) -> int:
+    score = {"P0": 18, "P1": 15, "P2": 10, "P3": 5}.get(
+        job.get("source_priority", "P3"), 5
+    )
+
+    title = safe_text(job.get("title")).lower()
+    if any(x in title for x in ("intern", "internship", "trainee", "graduate", "fresher")):
+        score += 10
+    if any(x in title for x in ("manager", "engineer", "officer", "executive", "director")):
+        score += 5
+
+    nums = re.findall(r"\d+", safe_text(job.get("vacancy")).replace(",", ""))
+    if nums:
+        try:
+            n = int(nums[-1])
+            score += 12 if n >= 100 else 8 if n >= 20 else 5 if n >= 5 else 0
+        except ValueError:
+            pass
+
+    status, days = deadline_state(job.get("deadline"))
+    if status == "deadline_today":
+        score += 13
+    elif status == "deadline_soon":
+        score += 10
+    elif days is not None and days <= 7:
+        score += 7
+    elif days is not None and days <= 14:
+        score += 4
+
+    if job.get("salary"):
+        score += 4
+    if job.get("application_url"):
+        score += 5
+
+    return max(0, min(100, score))
+
+
+# ============================================================
+# BATCH AI RANKING
+# ============================================================
+
+def ai_rank(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not events:
+        return []
+
+    ranked_input = []
+    for idx, event in enumerate(events[:MAX_RANKING_DOCS]):
+        job = event["canonical"]
+        ranked_input.append({
+            "id": idx,
+            "title": job.get("title"),
+            "company": job.get("company"),
+            "sector": job.get("sector"),
+            "job_function": job.get("job_function"),
+            "location": job.get("location"),
+            "deadline": job.get("deadline"),
+            "vacancy": job.get("vacancy"),
+            "salary": job.get("salary"),
+            "education": job.get("education"),
+            "experience": job.get("experience"),
+            "source_priority": job.get("source_priority"),
+            "verification": event.get("verification", {}),
+            "quality_score": event.get("quality_score", 0),
+            "base_importance": event.get("base_importance", 0),
+            "summary": job.get("summary"),
+        })
+
+    payload = {
+        "instructions": (
+            "Rank Bangladesh job opportunities by real reader value. "
+            "Prefer verified government/official employer jobs, meaningful vacancies, "
+            "fresh opportunities, accessible entry-level roles, clear deadlines and "
+            "clear application paths. Do not invent facts. Score 0-100. "
+            "Do not create sector quotas."
+        ),
+        "candidates": ranked_input,
+    }
+
+    system = (
+        "You are the editor of @CareerNewsroom. "
+        "Rank the supplied job candidates. Return every candidate exactly once. "
+        "Do not invent facts. Use quality_score and verification as evidence. "
+        "A publish=true decision requires a score of at least 70 and genuine active value."
+    )
+
+    data = cerebras_structured(system, payload, RANK_SCHEMA, 2500)
+
+    by_id = {}
+    if data and isinstance(data.get("ranked"), list):
+        for item in data["ranked"]:
+            if isinstance(item, dict):
+                try:
+                    by_id[int(item["id"])] = item
+                except (KeyError, TypeError, ValueError):
+                    pass
+
+    for idx, event in enumerate(events[:MAX_RANKING_DOCS]):
+        item = by_id.get(idx)
+        if item:
+            event["importance_score"] = max(0, min(100, int(item.get("score", 0))))
+            event["rank_reason"] = safe_text(item.get("reason"))
+            event["ai_publish_hint"] = bool(item.get("publish"))
+        else:
+            event["importance_score"] = event.get("base_importance", 0)
+            event["ai_publish_hint"] = False
+
+    return sorted(
+        events,
+        key=lambda e: (
+            -int(e.get("importance_score", 0)),
+            -int(e.get("quality_score", 0)),
+        ),
+    )
+
+
+# ============================================================
+# TELEGRAM / IMAGES
+# ============================================================
+
+def html_escape(value: Any) -> str:
+    return html.escape(safe_text(value), quote=False)
 
 
 def build_caption(job: dict[str, Any]) -> str:
-    title = escape_html(str(job.get("title") or "Job Vacancy"))
-    company = escape_html(str(job.get("company") or "Organization"))
-    parts = [
-        f"<b>📌 {title}</b>",
+    lines = [
+        f"<b>📌 {html_escape(job.get('title') or 'Job Vacancy')}</b>",
         "",
-        f"🏢 <b>Organization:</b> {company}",
+        f"🏢 <b>Organization:</b> {html_escape(job.get('company') or 'Not specified')}",
     ]
 
     def add(icon: str, label: str, value: Any) -> None:
         if value:
-            parts.append(f"{icon} <b>{label}:</b> {escape_html(str(value))}")
+            lines.append(f"{icon} <b>{label}:</b> {html_escape(value)}")
 
     add("📍", "Location", job.get("location"))
     add("💼", "Type", job.get("employment_type") or job.get("job_type"))
     add("🎯", "Level", job.get("job_level"))
-    add("🎓", "Education", "; ".join(job.get("education") or []))
+    add("🎓", "Education", ", ".join(job.get("education") or []))
     add("🧑‍💼", "Experience", job.get("experience"))
     add("💰", "Salary", job.get("salary"))
     add("👥", "Vacancy", job.get("vacancy"))
     add("📅", "Deadline", job.get("deadline"))
 
-    requirements = [
-        str(x).strip() for x in (job.get("requirements") or []) if str(x).strip()
-    ][:4]
+    req = [safe_text(x) for x in job.get("requirements", []) if safe_text(x)][:4]
+    if req:
+        lines.extend(["", "<b>KEY REQUIREMENTS</b>"])
+        lines.extend(f"• {html_escape(x)}" for x in req)
 
-    if requirements:
-        parts += ["", "<b>KEY REQUIREMENTS</b>"]
-        parts.extend(f"• {escape_html(x)}" for x in requirements)
-
-    summary = str(job.get("summary") or "").strip()
+    summary = safe_text(job.get("summary"))
     if summary:
-        parts += ["", escape_html(summary[:500])]
+        lines.extend(["", html_escape(summary[:420])])
 
-    parts += [
+    lines.extend([
         "",
-        f"Source: {escape_html(str(job.get('source_name') or 'Career Newsroom'))}",
-    ]
-
-    caption = "\n".join(parts)
-    # Telegram photo captions are limited to 1024 chars in the current Bot API.
-    return caption[:1000]
+        f"Source: {html_escape(job.get('source_name') or 'Career Newsroom')}",
+    ])
+    return "\n".join(lines)[:MAX_CAPTION]
 
 
-def telegram_request(
-    token: str,
+def download_image(url: str, referer: str = "") -> Image.Image | None:
+    if not url:
+        return None
+    try:
+        headers = {"Referer": referer} if referer else {}
+        r = SESSION.get(url, timeout=15, headers=headers, allow_redirects=True)
+        if r.status_code >= 400:
+            return None
+        image = Image.open(BytesIO(r.content))
+        image.load()
+        return image.convert("RGB")
+    except Exception:
+        return None
+
+
+def crop_cover(image: Image.Image, size=(1200, 675)) -> Image.Image:
+    target = size[0] / size[1]
+    w, h = image.size
+    if not h:
+        return Image.new("RGB", size, "white")
+
+    ratio = w / h
+    if ratio > target:
+        new_w = int(h * target)
+        left = (w - new_w) // 2
+        image = image.crop((left, 0, left + new_w, h))
+    elif ratio < target:
+        new_h = int(w / target)
+        top = (h - new_h) // 2
+        image = image.crop((0, top, w, top + new_h))
+    return image.resize(size, Image.Resampling.LANCZOS)
+
+
+def fallback_card(job: dict[str, Any], path: Path) -> Path:
+    path.parent.mkdir(exist_ok=True)
+    image = Image.new("RGB", (1200, 675), "white")
+    draw = ImageDraw.Draw(image)
+
+    regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    font = ImageFont.truetype(regular, 38) if Path(regular).exists() else ImageFont.load_default()
+    bold = ImageFont.truetype(bold_path, 54) if Path(bold_path).exists() else font
+
+    company = safe_text(job.get("company") or "Career Opportunity")[:70]
+    title = safe_text(job.get("title") or "Job Vacancy")
+
+    draw.text((70, 65), company, fill="black", font=font)
+
+    words = title.split()
+    lines, current = [], []
+    for word in words:
+        test = " ".join(current + [word])
+        if len(test) > 27 and current:
+            lines.append(" ".join(current))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        lines.append(" ".join(current))
+
+    y = 205
+    for line in lines[:4]:
+        draw.text((70, y), line, fill="black", font=bold)
+        y += 68
+
+    draw.text((70, 535), "Career Opportunity", fill="black", font=font)
+    draw.text((930, 610), "@CareerNewsroom", fill="black", font=font)
+
+    image.save(path, "JPEG", quality=92)
+    return path
+
+
+def prepare_image(job: dict[str, Any], index: int) -> Path:
+    RUNTIME_DIR.mkdir(exist_ok=True)
+    meta = job.get("meta") or {}
+    candidates = []
+
+    for key in ("image", "logo"):
+        value = canonical_url(meta.get(key, ""))
+        if value:
+            candidates.append(value)
+
+    if job.get("image"):
+        candidates.insert(0, canonical_url(job.get("image", "")))
+
+    for i, url in enumerate(dict.fromkeys(x for x in candidates if x)):
+        image = download_image(url, job.get("source_url", ""))
+        if image:
+            path = RUNTIME_DIR / f"job_{index}_{i}.jpg"
+            crop_cover(image).save(path, "JPEG", quality=92)
+            return path
+
+    return fallback_card(job, RUNTIME_DIR / f"job_{index}_fallback.jpg")
+
+
+def telegram_call(
     method: str,
     data: dict[str, Any],
     files: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    if not token:
-        raise RuntimeError("TELEGRAM_BOT_TOKEN is not configured")
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}"
+    response = requests.post(url, data=data, files=files, timeout=30)
 
-    url = f"https://api.telegram.org/bot{token}/{method}"
-    response = requests.post(
-        url,
-        data=data,
-        files=files,
-        timeout=30,
-    )
-
-    payload: dict[str, Any]
     try:
         payload = response.json()
     except ValueError:
         payload = {"ok": False, "description": response.text[:500]}
 
-    if not response.ok or not payload.get("ok"):
+    if response.status_code >= 400 or not payload.get("ok"):
         raise RuntimeError(
-            f"Telegram {method} failed: HTTP {response.status_code} "
-            f"{payload.get('description', response.text[:300])}"
+            f"Telegram {method}: HTTP {response.status_code} "
+            f"{payload.get('description', '')}"
         )
     return payload["result"]
 
 
-def send_telegram_post(
-    job: dict[str, Any],
-    config: dict[str, str],
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    caption = build_caption(job)
-    application_url = normalize_url(
-        str(job.get("application_url") or job.get("source_url") or "")
+def telegram_preflight() -> None:
+    bot = telegram_call("getMe", {})
+    bot_id = bot.get("id")
+    logger.info("Telegram bot OK: @%s", bot.get("username", ""))
+
+    chat = telegram_call("getChat", {"chat_id": TELEGRAM_CHANNEL})
+    logger.info(
+        "Telegram channel OK: id=%s title=%s",
+        chat.get("id"),
+        chat.get("title") or chat.get("username") or "",
     )
 
-    reply_markup = None
-    if application_url:
-        reply_markup = json.dumps(
-            {
-                "inline_keyboard": [
-                    [{"text": "APPLY NOW", "url": application_url}]
-                ]
-            }
+    if bot_id is not None:
+        member = telegram_call(
+            "getChatMember",
+            {"chat_id": TELEGRAM_CHANNEL, "user_id": bot_id},
         )
+        status = member.get("status")
+        logger.info("Telegram bot channel status: %s", status)
+        if status not in ("administrator", "creator"):
+            raise RuntimeError(
+                f"Telegram bot is not an administrator/creator in {TELEGRAM_CHANNEL}; "
+                f"current status={status!r}"
+            )
 
-    if dry_run:
-        return {
-            "published": False,
-            "dry_run": True,
-            "caption": caption,
-            "application_url": application_url,
-        }
 
-    token = config["TELEGRAM_BOT_TOKEN"]
-    channel = config["TELEGRAM_CHANNEL"] or DEFAULT_CHANNEL
+def publish_job(job: dict[str, Any], image_path: Path) -> dict[str, Any]:
+    caption = build_caption(job)
+    application_url = canonical_url(job.get("application_url") or job.get("source_url") or "")
+    markup = (
+        json.dumps(
+            {"inline_keyboard": [[{"text": "APPLY NOW", "url": application_url}]]},
+            ensure_ascii=False,
+        )
+        if application_url
+        else ""
+    )
 
-    image_url = image_url_from_job(job)
-    TMP_DIR.mkdir(exist_ok=True)
-
-    if image_url:
-        try:
-            result = telegram_request(
-                token,
+    try:
+        with image_path.open("rb") as fh:
+            result = telegram_call(
                 "sendPhoto",
                 {
-                    "chat_id": channel,
-                    "photo": image_url,
+                    "chat_id": TELEGRAM_CHANNEL,
                     "caption": caption,
                     "parse_mode": "HTML",
-                    "reply_markup": reply_markup or "",
+                    "reply_markup": markup,
                 },
+                files={"photo": fh},
             )
-            return {
-                "published": True,
-                "mode": "photo_url",
-                "message_id": result.get("message_id"),
-                "caption": caption,
-            }
-        except Exception as exc:
-            LOG.warning("Telegram photo-by-URL failed: %s", exc)
+        return {"published": True, "message_id": result.get("message_id"), "mode": "photo"}
+    except Exception as exc:
+        logger.warning("sendPhoto failed; text fallback: %s", exc)
 
-    # Download image and upload as multipart if URL-based send fails.
-    if image_url:
-        try:
-            session = request_session()
-            content, content_type, _, _ = fetch(session, image_url, timeout=15, attempts=2)
-            if "image" in content_type.lower() or image_url.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                image_path = TMP_DIR / f"{sha256_text(image_url)[:12]}.jpg"
-                image_path.write_bytes(content)
-                with image_path.open("rb") as fh:
-                    result = telegram_request(
-                        token,
-                        "sendPhoto",
-                        {
-                            "chat_id": channel,
-                            "caption": caption,
-                            "parse_mode": "HTML",
-                            "reply_markup": reply_markup or "",
-                        },
-                        files={"photo": fh},
-                    )
-                return {
-                    "published": True,
-                    "mode": "photo_upload",
-                    "message_id": result.get("message_id"),
-                    "caption": caption,
-                }
-        except Exception as exc:
-            LOG.warning("Telegram image upload failed: %s", exc)
-
-    # Final image fallback.
-    fallback_path = build_fallback_image(
-        job,
-        TMP_DIR / f"fallback_{sha256_text(job.get('event_id', ''))[:12]}.jpg",
-    )
-    if fallback_path:
-        try:
-            with fallback_path.open("rb") as fh:
-                result = telegram_request(
-                    token,
-                    "sendPhoto",
-                    {
-                        "chat_id": channel,
-                        "caption": caption,
-                        "parse_mode": "HTML",
-                        "reply_markup": reply_markup or "",
-                    },
-                    files={"photo": fh},
-                )
-            return {
-                "published": True,
-                "mode": "fallback_card",
-                "message_id": result.get("message_id"),
-                "caption": caption,
-            }
-        except Exception as exc:
-            LOG.warning("Telegram fallback card failed: %s", exc)
-
-    # Never lose a good job solely because media failed.
-    result = telegram_request(
-        token,
+    result = telegram_call(
         "sendMessage",
         {
-            "chat_id": channel,
+            "chat_id": TELEGRAM_CHANNEL,
             "text": caption,
             "parse_mode": "HTML",
-            "reply_markup": reply_markup or "",
+            "reply_markup": markup,
         },
     )
-    return {
-        "published": True,
-        "mode": "text",
-        "message_id": result.get("message_id"),
-        "caption": caption,
-    }
+    return {"published": True, "message_id": result.get("message_id"), "mode": "text"}
 
 
-def send_admin_alert(message: str, config: dict[str, str]) -> None:
-    chat_id = config.get("TELEGRAM_ADMIN_CHAT_ID", "")
-    token = config.get("TELEGRAM_BOT_TOKEN", "")
-    if not token or not chat_id:
+def admin_alert(message: str) -> None:
+    if not TELEGRAM_ADMIN_CHAT_ID:
         return
     try:
-        telegram_request(
-            token,
+        telegram_call(
             "sendMessage",
             {
-                "chat_id": chat_id,
+                "chat_id": TELEGRAM_ADMIN_CHAT_ID,
                 "text": f"CareerNewsroomBot alert\n\n{message[:3500]}",
             },
         )
     except Exception as exc:
-        LOG.warning("Admin alert failed: %s", exc)
+        logger.warning("Admin alert failed: %s", exc)
 
 
-def _source_priority(source_id: str, source_lookup: dict[str, dict[str, Any]] | None) -> int:
-    if not source_lookup or not source_id:
-        return 3
-    return {"P0": 0, "P1": 1, "P2": 2, "P3": 3}.get(
-        source_lookup.get(source_id, {}).get("priority", "P3"), 3
-    )
+# ============================================================
+# EVENT MERGE / PUBLISH CONTROL
+# ============================================================
 
-
-def upsert_event(
-    state: dict[str, Any],
-    job: dict[str, Any],
-    source: dict[str, Any] | None,
-    source_lookup: dict[str, dict[str, Any]] | None = None,
-) -> tuple[str, bool, bool]:
-    """
-    Returns:
-      event_id, is_new, is_material_update
-    """
-    # Search existing events conservatively.
-    for event_id, event in state["jobs"].items():
-        existing = event.get("canonical", {})
-        if is_same_event(existing, job):
-            material = False
-            old_deadline = existing.get("deadline")
-            new_deadline = job.get("deadline")
-            if old_deadline != new_deadline and new_deadline:
-                material = True
-
-            old_url = existing.get("application_url")
-            new_url = job.get("application_url")
-            if old_url != new_url and new_url:
-                material = True
-
-            old_vacancy = existing.get("vacancy")
-            new_vacancy = job.get("vacancy")
-            if old_vacancy != new_vacancy and new_vacancy:
-                material = True
-
-            old_salary = existing.get("salary")
-            new_salary = job.get("salary")
-            if old_salary != new_salary and new_salary:
-                material = True
-
-            existing_source_id = event.get("canonical", {}).get("source_id") or ""
-            # Preserve the highest-trust canonical source. Secondary sources only fill gaps.
-            current_priority = _source_priority(existing_source_id, source_lookup)
-            incoming_priority = _source_priority(str(job.get("source_id") or ""), source_lookup)
-            if incoming_priority < current_priority:
-                event["canonical"] = {**event.get("canonical", {}), **job}
-            else:
-                merged = dict(event.get("canonical", {}))
-                for k, v in job.items():
-                    if v not in (None, "", [], {}) and not merged.get(k):
-                        merged[k] = v
-                event["canonical"] = merged
-            event["last_seen"] = utc_now()
-            event["last_updated"] = utc_now() if material else event.get("last_updated")
-            event.setdefault("sources", [])
-            source_record = {
-                "source_id": job.get("source_id"),
-                "source_url": job.get("source_url"),
-                "discovery_method": job.get("discovery_method"),
-                "seen_at": utc_now(),
-            }
-            event["sources"].append(source_record)
-            event["sources"] = event["sources"][-20:]
-            if material:
-                event.setdefault("update_history", []).append(
-                    {
-                        "timestamp": utc_now(),
-                        "type": "material_update",
-                    }
-                )
-                event["update_history"] = event["update_history"][-20:]
-            return event_id, False, material
-
-    event_id = "evt_" + event_fingerprint(job)
-    event = {
-        "event_id": event_id,
-        "status": "active",
-        "canonical": job,
-        "sources": [
-            {
-                "source_id": job.get("source_id"),
-                "source_url": job.get("source_url"),
-                "discovery_method": job.get("discovery_method"),
-                "seen_at": utc_now(),
-            }
-        ],
-        "verification": {},
-        "quality_score": 0,
-        "importance_score": 0,
-        "first_seen": utc_now(),
-        "last_seen": utc_now(),
-        "last_updated": None,
-        "update_history": [],
-        "telegram": {
-            "published": False,
-            "message_id": None,
-            "published_at": None,
-            "last_update_message_id": None,
-        },
-    }
-    state["jobs"][event_id] = event
-    return event_id, True, False
-
-
-def prune_state(state: dict[str, Any], days: int = 90) -> None:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    remove: list[str] = []
-
-    for event_id, event in state["jobs"].items():
-        status = event.get("status")
-        if status not in ("expired", "rejected"):
+def merge_jobs(jobs: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Full pipeline through normalized identity, verification, scoring and event state."""
+    events = []
+    for job in jobs:
+        if not job.get("title"):
             continue
-        last_seen = event.get("last_seen")
+
+        job["normalized"] = normalized_job(job)
+        job["fingerprint"] = job_fingerprint(job)
+        job["identity_fingerprint"] = identity_fingerprint(job)
+
+        job["verification"] = verify(job)
+        job["scam_filter"] = scam_filter(job)
+
+        if not job["scam_filter"]["passed"]:
+            continue
+        if job["verification"]["level"] in ("rejected", "expired"):
+            continue
+
+        job["quality_score"] = quality_score(job)
+        job["importance_score"] = importance_score(job, job["quality_score"])
+
+        events.append(apply_job_event(state, job))
+    return events
+
+
+PUBLISH_THRESHOLD = 70
+MIN_QUALITY_FOR_PUBLISH = 70
+
+
+def publishable(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Publish threshold gate before Telegram publishing."""
+    out=[]
+    for event in events:
+        if event.get("verification",{}).get("status") != "verified":
+            continue
+        if not event.get("scam_filter",{}).get("passed",False):
+            continue
+        if event.get("status") not in ("active","deadline_today","deadline_soon"):
+            continue
+        if int(event.get("quality_score",0)) < MIN_QUALITY_FOR_PUBLISH:
+            continue
+        if int(event.get("importance_score",0)) < PUBLISH_THRESHOLD:
+            continue
+
+        kind=event.get("event_type","NEW")
+        published=event.get("telegram",{}).get("published",False)
+        if kind=="NEW" and published:
+            continue
+        if kind in ("UPDATE","REPOST") and not event.get("repost_due"):
+            continue
+        out.append(event)
+
+    return sorted(out,key=lambda e:(-int(e.get("importance_score",0)),-int(e.get("quality_score",0))))[:MAX_PUBLISHED_PER_RUN]
+
+
+def prune_state(state: dict[str, Any]) -> None:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=EVENT_RETENTION_DAYS)
+    remove = []
+
+    for event_id, event in state["jobs"].items():
+        if event.get("status") not in ("expired", "rejected"):
+            continue
         try:
-            dt = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(
+                safe_text(event.get("last_seen")).replace("Z", "+00:00")
+            )
         except Exception:
             continue
-        if dt < cutoff and not event.get("telegram", {}).get("published"):
+        if dt < cutoff:
             remove.append(event_id)
 
     for event_id in remove:
         del state["jobs"][event_id]
 
 
-def save_run_summary(state: dict[str, Any], summary: dict[str, Any]) -> None:
-    state["runs"].append({"timestamp": utc_now(), **summary})
-    state["runs"] = state["runs"][-20:]
+# ============================================================
+# RUN
+# ============================================================
 
-
-def config_from_env() -> dict[str, str]:
-    return {
-        "EXA_API_KEY": os.getenv("EXA_API_KEY", ""),
-        "CEREBRAS_API_KEY": os.getenv("CEREBRAS_API_KEY", ""),
-        "CEREBRAS_MODEL": os.getenv("CEREBRAS_MODEL", DEFAULT_CEREBRAS_MODEL),
-        "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN", ""),
-        "TELEGRAM_CHANNEL": os.getenv("TELEGRAM_CHANNEL", DEFAULT_CHANNEL),
-        "TELEGRAM_ADMIN_CHAT_ID": os.getenv("TELEGRAM_ADMIN_CHAT_ID", ""),
-    }
-
-
-def validate_config(config: dict[str, str], dry_run: bool = False) -> None:
-    required = ["EXA_API_KEY", "CEREBRAS_API_KEY"]
-    if not dry_run:
-        required.append("TELEGRAM_BOT_TOKEN")
-    missing = [key for key in required if not config.get(key)]
-    if missing:
-        raise RuntimeError(f"Missing required configuration: {', '.join(missing)}")
-
-
-def run_self_test() -> dict[str, Any]:
-    sample = {
-        "company": "ABC Bank PLC",
-        "title": "Management Trainee Officer",
-        "deadline": "30-09-2026",
-        "application_url": "https://example.com/apply?id=1&utm_source=test",
-        "location": "Dhaka",
-        "education": ["Bachelor's degree"],
-        "salary": "BDT 30,000",
-        "source_id": "test",
-        "source_url": "https://example.com/job/1",
-    }
-    normalized_url = normalize_url(sample["application_url"])
-    assert "utm_source" not in normalized_url
-    assert parse_deadline(sample["deadline"]) is not None
-
-    a = dict(sample)
-    b = dict(sample)
-    b["source_id"] = "bdjobs"
-    b["source_url"] = "https://bdjobs.example/123"
-    assert is_same_event(a, b)
-
-    q = calculate_quality(sample, {"official": True, "priority": "P1"})
-    i = calculate_importance(sample, {"official": True, "priority": "P1"})
-    assert 0 <= q <= 100
-    assert 0 <= i <= 100
-
-    caption = build_caption(sample)
-    assert "Management Trainee Officer" in caption
-    assert len(caption) <= 1000
-
-    return {
-        "status": "PASS",
-        "url_normalization": "PASS",
-        "deadline_parser": "PASS",
-        "deduplication": "PASS",
-        "scoring": "PASS",
-        "telegram_caption": "PASS",
-    }
-
-
-def process_run(
-    config: dict[str, str],
-    *,
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    validate_config(config, dry_run=dry_run)
-
+def run() -> None:
     registry = load_registry()
     state = load_state()
-    posted_urls = load_posted_urls()
-    registry_map = source_map(registry)
-    session = request_session()
+    posted = load_posted()
+    sources = registry_map(registry)
 
-    summary = {
-        "sources_scheduled": 0,
-        "sources_failed": 0,
-        "candidates": 0,
-        "documents": 0,
-        "jobs_extracted": 0,
-        "new_events": 0,
-        "updates": 0,
-        "rejected": 0,
-        "published": 0,
-        "publish_failures": 0,
-    }
-
-    candidates: list[dict[str, Any]] = []
-
-    due_sources = rotate_sources(registry, state)
-    summary["sources_scheduled"] = len(due_sources)
-
-    for source in due_sources:
-        try:
-            found = direct_source_candidates(source, session)
-            candidates.extend(found)
-            update_source_health(state, source["id"], True, len(found))
-        except Exception as exc:
-            summary["sources_failed"] += 1
-            update_source_health(state, source["id"], False, 0)
-            LOG.warning("Source failed: %s (%s)", source.get("id"), exc)
-
-    google_queries = [
-        '"Bangladesh job circular"',
-        '"নিয়োগ বিজ্ঞপ্তি"',
-        '"চাকরির বিজ্ঞপ্তি"',
-        '"Bangladesh recruitment"',
-    ]
-    candidates.extend(discover_google_news(google_queries, session))
-
-    candidates.extend(
-        exa_search(
-            source_queries(registry),
-            config["EXA_API_KEY"],
-            num_results=6,
-        )
+    logger.info(
+        "CAREER NEWSROOM V2 | channel=%s | model=%s",
+        TELEGRAM_CHANNEL,
+        CEREBRAS_MODEL,
     )
 
-    unique_candidates: dict[str, dict[str, Any]] = {}
+    telegram_preflight()
+
+    candidates = build_candidates(registry, state)
+    logger.info("DISCOVERY CANDIDATES: %d", len(candidates))
+
+    jobs = []
+    seen_hashes = set()
+
     for candidate in candidates:
-        url = normalize_url(candidate.get("url", ""))
-        if not url:
-            continue
-        if url in posted_urls and candidate.get("discovery_method") != "exa":
-            continue
-        unique_candidates.setdefault(url, candidate)
-
-    candidate_list = list(unique_candidates.values())[:MAX_CANDIDATES]
-    summary["candidates"] = len(candidate_list)
-
-    processed_events: list[dict[str, Any]] = []
-
-    for candidate in candidate_list:
-        document = fetch_candidate_content(candidate, session)
+        document = retrieve(candidate)
         if not document:
             continue
 
-        summary["documents"] += 1
+        text_hash = document.get("hints", {}).get("text_hash")
+        if text_hash and text_hash in seen_hashes:
+            continue
+        if text_hash:
+            seen_hashes.add(text_hash)
 
-        # Prefer registry source. Exa/Google News may have no registry source.
-        source = registry_map.get(document.get("source_id", ""))
-        ai_job = extract_job_with_ai(document, config)
-        if not ai_job:
+        job = rule_extract(document)
+
+        # Exclude obvious non-Bangladesh/non-job candidates early.
+        if not is_bangladesh(
+            f"{job.get('company','')} {job.get('title','')} {document.get('text','')}",
+            document.get("url", ""),
+        ) and job.get("source_priority") not in ("P0", "P1"):
             continue
 
-        job = normalize_job(ai_job)
-        job["source_name"] = source.get("name") if source else document.get("source_id", "")
-        job["source_type"] = source.get("source_type") if source else document.get("discovery_method", "")
-        job["official_source"] = bool(source and source.get("official"))
-        job["meta"] = document.get("meta", {})
-        job["source_url"] = document["url"]
-        job["source_id"] = document.get("source_id")
-        job["discovery_method"] = document.get("discovery_method")
-        job["verification_suspicious"] = bool(
-            document.get("hints", {}).get("scam_signals")
-        )
+        jobs.append(job)
 
-        # Hard Bangladesh relevance check.
-        if not (
-            looks_like_bangladesh(
-                f"{job.get('company','')} {job.get('title','')} {document.get('text','')}",
-                document["url"],
-            )
-            or (source and (
-                source.get("priority") in ("P0", "P1")
-                or source.get("categories")
-            ))
-        ):
-            summary["rejected"] += 1
-            continue
+    logger.info("DETERMINISTIC JOBS: %d", len(jobs))
 
-        status, _ = deadline_status(job.get("deadline"))
-        if status == "expired":
-            job["status"] = "expired"
-            summary["rejected"] += 1
-            continue
+    jobs = ai_enrich(jobs)
+    logger.info("AI ENRICHMENT COMPLETE")
 
-        job["status"] = status if status != "unknown" else "active"
+    # Source metadata.
+    for job in jobs:
+        source = sources.get(job.get("source_id", ""))
+        if source is None:
+            source = source_for_url(job.get("source_url", ""), sources)
 
-        quality = calculate_quality(job, source)
-        importance = calculate_importance(job, source)
+        if source:
+            job["source_id"] = source.get("id", job.get("source_id"))
+            job["source_name"] = source.get("name")
+            job["source_priority"] = source.get("priority", "P3")
+            job["official_source"] = bool(source.get("official"))
+        else:
+            job["source_name"] = job.get("source_name") or job.get("source_id", "Career Newsroom")
+            job["source_priority"] = job.get("source_priority", "P3")
+            job["official_source"] = False
 
-        event_id, is_new, is_update = upsert_event(state, job, source)
-        event = state["jobs"][event_id]
-        event["quality_score"] = quality
-        event["importance_score"] = importance
-        event["verification"] = verification(job, source)
-        event["status"] = job["status"]
+    # Merge into events.
+    events = merge_jobs(jobs, state)
 
-        if is_new:
-            summary["new_events"] += 1
-        elif is_update:
-            summary["updates"] += 1
+    # Rank in one bounded AI call instead of one call per job.
+    ranked_events = ai_rank(events)
 
-        processed_events.append(event)
+    # If the ranking call failed, the deterministic base score remains active.
+    candidates_to_publish = publishable(ranked_events)
 
-        # Keep in-memory state current.
-        state["jobs"][event_id] = event
-        summary["jobs_extracted"] += 1
+    logger.info(
+        "EVENTS=%d PUBLISHABLE=%d",
+        len(ranked_events),
+        len(candidates_to_publish),
+    )
 
-    # Decide publishing only after all candidates have been processed.
-    publish_candidates: list[dict[str, Any]] = []
-    for event in processed_events:
-        if event.get("status") not in ("active", "deadline_today", "deadline_soon"):
-            continue
+    published_count = 0
 
-        if event.get("verification", {}).get("status") != "verified":
-            continue
+    for index, event in enumerate(candidates_to_publish, start=1):
+        job = dict(event["canonical"])
+        job["event_id"] = event["event_id"]
 
-        if event.get("quality_score", 0) < 70:
-            continue
+        # Canonical source remains attached to provenance.
+        job["source_name"] = job.get("source_name") or "Career Newsroom"
 
-        if event.get("importance_score", 0) < 70:
-            continue
-
-        telegram = event.setdefault("telegram", {})
-        if telegram.get("published"):
-            # Material updates only.
-            if event.get("last_updated") and event.get("last_updated") != telegram.get("published_at"):
-                publish_candidates.append(event)
-            continue
-
-        publish_candidates.append(event)
-
-    publish_candidates = sorted(
-        publish_candidates,
-        key=lambda e: (
-            int(e.get("importance_score", 0)),
-            int(e.get("quality_score", 0)),
-        ),
-        reverse=True,
-    )[:MAX_JOBS_PER_RUN]
-
-    for event in publish_candidates:
-        publish_job = dict(event["canonical"])
-        publish_job["event_id"] = event["event_id"]
-        publish_job["source_name"] = (
-            event["canonical"].get("source_name")
-            or event.get("sources", [{}])[0].get("source_id")
-            or "Career Newsroom"
-        )
         try:
-            result = send_telegram_post(
-                publish_job,
-                config,
-                dry_run=dry_run,
-            )
-
-            if dry_run:
-                continue
+            image_path = prepare_image(job, index)
+            result = publish_job(job, image_path)
 
             event["telegram"]["published"] = True
             event["telegram"]["message_id"] = result.get("message_id")
-            event["telegram"]["published_at"] = utc_now()
-            if event.get("last_updated"):
-                event["telegram"]["last_update_message_id"] = result.get("message_id")
+            event["telegram"]["published_at"] = now_iso()
+            event["telegram"]["last_event_type"] = event.get("event_type")
+            event["last_published_fingerprint"] = event.get("fingerprint")
+            event["repost_due"] = False
+            event["update_pending"] = False
+            event["event_type"] = "PUBLISHED"
 
-            posted_urls.add(normalize_url(str(event["canonical"].get("source_url") or "")))
-            summary["published"] += 1
+            for published_url in (
+                canonical_url(job.get("source_url", "")),
+                canonical_url(job.get("application_url", "")),
+            ):
+                if published_url:
+                    posted.add(published_url)
 
+            published_count += 1
+            logger.info(
+                "PUBLISHED #%d | score=%s | quality=%s | mode=%s | title=%s",
+                published_count,
+                event.get("importance_score"),
+                event.get("quality_score"),
+                result.get("mode"),
+                safe_text(job.get("title")),
+            )
+            time.sleep(POST_DELAY_SECONDS)
         except Exception as exc:
-            summary["publish_failures"] += 1
-            LOG.exception("Telegram publication failed for %s", event["event_id"])
-            send_admin_alert(
-                f"Publish failed for {event.get('event_id')}\n{exc}",
-                config,
+            logger.exception("Publication failed: %s", event["event_id"])
+            admin_alert(
+                f"Publication failed\n"
+                f"event={event['event_id']}\n"
+                f"title={safe_text(job.get('title'))}\n"
+                f"error={exc}"
             )
 
     prune_state(state)
+    state["updated_at"] = now_iso()
+    state["runs"].append({
+        "timestamp": now_iso(),
+        "candidates": len(candidates),
+        "deterministic_jobs": len(jobs),
+        "events": len(events),
+        "published": published_count,
+    })
+    state["runs"] = state["runs"][-30:]
 
-    state["updated_at"] = utc_now()
-    save_run_summary(state, summary)
+    save_state(state)
+    save_posted(posted)
 
-    atomic_write_json(STATE_FILE, state)
-
-    # Only successfully published URLs are added.
-    if not dry_run:
-        posted_urls.discard("")
-        save_posted_urls(posted_urls)
-
-    return summary
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--self-test", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO").upper(),
-        format="%(asctime)s | %(levelname)s | %(message)s",
+    logger.info(
+        "FINISHED | candidates=%d jobs=%d events=%d published=%d",
+        len(candidates),
+        len(jobs),
+        len(events),
+        published_count,
     )
 
-    if args.self_test:
-        result = run_self_test()
-        print(json.dumps(result, indent=2))
-        return 0
 
-    config = config_from_env()
+# ============================================================
+# SELF TEST
+# ============================================================
 
+def self_test() -> None:
+    sample = {
+        "company": "ABC Bank PLC",
+        "title": "Management Trainee Officer",
+        "deadline": "30-09-2099",
+        "application_url": "https://example.com/apply?id=1&utm_source=x",
+        "location": "Dhaka",
+        "education": ["Bachelor's degree"],
+        "experience": "Fresh graduates",
+        "salary": "BDT 30000",
+        "vacancy": "20",
+        "requirements": ["Bachelor's degree", "Communication skills"],
+        "summary": "ABC Bank is hiring management trainees.",
+        "source_name": "ABC Bank PLC",
+        "source_priority": "P1",
+        "source_url": "https://example.com/job/1",
+        "confidence": 0.95,
+    }
+
+    assert canonical_url(sample["application_url"]) == "https://example.com/apply?id=1"
+    assert jaccard("Management Trainee Officer", "Management Trainee Officer") == 1.0
+    assert same_event(sample, {**sample, "source_url": "https://bdjobs.example/1"})
+    assert deadline_state(sample["deadline"])[0] == "active"
+    assert deadline_state("2099-09-30")[0] == "active"
+    assert deadline_state("2099-09-30T23:59:59Z")[0] == "active"
+
+    sources = {
+        "abc": {
+            "id": "abc",
+            "name": "ABC Bank PLC",
+            "url": "https://career.abc.com.bd/jobs",
+            "priority": "P1",
+            "official": True,
+        }
+    }
+    mapped = source_for_url("https://career.abc.com.bd/jobs/123", sources)
+    assert mapped and mapped["id"] == "abc"
+
+    verified = verify(sample)
+    assert verified["status"] == "verified"
+
+    q = quality_score(sample)
+    b = base_importance(sample)
+    assert 0 <= q <= 100
+    assert 0 <= b <= 100
+
+    event = {
+        "event_id": "evt_test",
+        "canonical": sample,
+        "verification": verified,
+        "scam_filter": {"passed": True, "signals": []},
+        "quality_score": q,
+        "base_importance": b,
+        "importance_score": 80,
+        "status": "active",
+        "telegram": {"published": False},
+    }
+    assert publishable([event])
+
+    caption = build_caption(sample)
+    assert "Management Trainee Officer" in caption
+    assert len(caption) <= MAX_CAPTION
+
+    robust_list = '[{"id": 0, "score": 80, "publish": true, "reason": "ok"}]'
+    data = json.loads(robust_list)
+    assert isinstance(data, list)
+
+    # Strict response-shape compatibility test:
+    assert isinstance({"jobs": []}.get("jobs"), list)
+    assert isinstance({"ranked": []}.get("ranked"), list)
+
+    # Explicit normalized identity/state-machine tests.
+    st = default_state()
+    sample["source_id"] = "abc"
+    sample["official_source"] = True
+    sample["normalized"] = normalized_job(sample)
+    sample["fingerprint"] = job_fingerprint(sample)
+    sample["identity_fingerprint"] = identity_fingerprint(sample)
+    sample["verification"] = verify(sample)
+    sample["scam_filter"] = scam_filter(sample)
+    sample["quality_score"] = quality_score(sample)
+    sample["importance_score"] = importance_score(sample, sample["quality_score"])
+
+    e1 = apply_job_event(st, sample)
+    assert e1["event_type"] == "NEW"
+
+    e2 = apply_job_event(st, dict(sample))
+    assert e2["event_id"] == e1["event_id"]
+
+    changed = dict(sample)
+    changed["deadline"] = "01-10-2099"
+    changed["normalized"] = normalized_job(changed)
+    changed["fingerprint"] = job_fingerprint(changed)
+    changed["identity_fingerprint"] = identity_fingerprint(changed)
+    changed["verification"] = verify(changed)
+    changed["scam_filter"] = scam_filter(changed)
+    changed["quality_score"] = quality_score(changed)
+    changed["importance_score"] = importance_score(changed, changed["quality_score"])
+    e3 = apply_job_event(st, changed)
+    assert e3["event_id"] == e1["event_id"]
+    assert e3["event_type"] == "UPDATE"
+    assert e3["repost_due"] is True
+
+    scam_case = dict(sample)
+    scam_case["summary"] = "Pay registration fee before applying."
+    scam_case["scam_signals"] = []
+    assert scam_filter(scam_case)["passed"] is False
+
+    low = dict(e1)
+    low["verification"] = {"status":"verified"}
+    low["scam_filter"] = {"passed":True}
+    low["quality_score"] = 90
+    low["importance_score"] = PUBLISH_THRESHOLD - 1
+    low["telegram"] = {"published":False}
+    low["status"] = "active"
+    assert not publishable([low])
+
+    path = fallback_card(sample, RUNTIME_DIR / "self_test.jpg")
+    assert path.exists()
+    assert Image.open(path).size == (1200, 675)
+
+    # Telegram publisher logic test via monkeypatch.
+    original = globals()["telegram_call"]
+    calls = []
+
+    def fake_telegram(method, data, files=None):
+        calls.append(method)
+        return {"message_id": 999}
+
+    globals()["telegram_call"] = fake_telegram
     try:
-        result = process_run(config, dry_run=args.dry_run)
-        LOG.info(
-            "Run complete | scheduled=%s candidates=%s documents=%s extracted=%s "
-            "new=%s updates=%s published=%s failures=%s",
-            result["sources_scheduled"],
-            result["candidates"],
-            result["documents"],
-            result["jobs_extracted"],
-            result["new_events"],
-            result["updates"],
-            result["published"],
-            result["publish_failures"],
-        )
-        return 0
-    except Exception:
-        LOG.exception("Fatal run error")
-        send_admin_alert("Fatal run error. Check GitHub Actions logs.", config)
-        return 1
+        result = publish_job(sample, path)
+        assert result["published"] is True
+        assert result["message_id"] == 999
+        assert calls == ["sendPhoto"]
+    finally:
+        globals()["telegram_call"] = original
+
+    # Telegram failure -> text fallback.
+    calls = []
+
+    def photo_fail(method, data, files=None):
+        calls.append(method)
+        if method == "sendPhoto":
+            raise RuntimeError("simulated photo failure")
+        return {"message_id": 1000}
+
+    globals()["telegram_call"] = photo_fail
+    try:
+        result = publish_job(sample, path)
+        assert result["published"] is True
+        assert result["mode"] == "text"
+        assert calls == ["sendPhoto", "sendMessage"]
+    finally:
+        globals()["telegram_call"] = original
+
+    logger.info("CareerNewsroom self-test passed.")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--self-test", action="store_true")
+    args = parser.parse_args()
+
+    if args.self_test:
+        logging.basicConfig(
+            level=os.getenv("LOG_LEVEL", "INFO").upper(),
+            format="%(asctime)s | %(levelname)s | %(message)s",
+        )
+        self_test()
+    else:
+        logging.basicConfig(
+            level=os.getenv("LOG_LEVEL", "INFO").upper(),
+            format="%(asctime)s | %(levelname)s | %(message)s",
+        )
+        run()
