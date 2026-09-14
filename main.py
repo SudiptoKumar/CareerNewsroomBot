@@ -904,7 +904,15 @@ def rule_extract(document: dict[str, Any]) -> dict[str, Any]:
         "skills": structured.get("skills") or [],
         "age_limit": None,
         "gender": None,
-        "published_date": None,
+        "published_date": (
+            structured.get("date_posted")
+            or structured.get("published_date")
+            or hints.get("published_date")
+            or document.get("published_date")
+            or safe_text(meta.get("datePublished"))
+            or safe_text(meta.get("datePosted"))
+            or None
+        ),
         "application_start": None,
         "deadline": structured.get("deadline") or hints.get("deadline"),
         "application_method": None,
@@ -947,6 +955,7 @@ AI_SCHEMA = {
                     "education": {"type": "array", "items": {"type": "string"}},
                     "experience": {"type": ["string", "null"]},
                     "deadline": {"type": ["string", "null"]},
+                    "published_date": {"type": ["string", "null"]},
                     "application_url": {"type": ["string", "null"]},
                     "requirements": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
                     "responsibilities": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
@@ -1034,6 +1043,8 @@ def ai_enrich(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not job.get("company")
         or not job.get("sector")
         or not job.get("job_function")
+        or not job.get("deadline")
+        or not job.get("published_date")
     ][:MAX_AI_EXTRACTION_DOCS]
 
     if not candidates:
@@ -1084,7 +1095,7 @@ def ai_enrich(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for key in (
             "company", "title", "sector", "job_function", "job_level", "job_type",
             "location", "vacancy", "salary", "education", "experience", "deadline",
-            "application_url", "requirements", "responsibilities", "summary",
+            "published_date", "application_url", "requirements", "responsibilities", "summary",
             "confidence",
         ):
             value = ai.get(key)
@@ -1212,9 +1223,44 @@ def deadline_state(value: str | None) -> tuple[str, int | None]:
     return "active", delta.days
 
 
+def listing_freshness_days(job: dict[str, Any]) -> float | None:
+    raw = safe_text(job.get("published_date"))
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() / 86400)
+    except ValueError:
+        return None
+
+
+def current_listing_status(job: dict[str, Any]) -> tuple[str, str]:
+    deadline_status, _ = deadline_state(job.get("deadline"))
+    if deadline_status != "unknown":
+        return deadline_status, "deadline"
+
+    age = listing_freshness_days(job)
+    priority = safe_text(job.get("source_priority", "P3")).upper()
+    official = bool(job.get("official_source")) or priority in ("P0", "P1")
+
+    if age is not None:
+        if age <= 7:
+            return "active", "fresh_listing"
+        if age <= 30 and priority in ("P0", "P1", "P2"):
+            return "active", "trusted_recent_listing"
+        return "unknown", "stale_or_undated"
+
+    if official:
+        return "unknown", "official_undated"
+    return "unknown", "undated"
+
+
 def verify(job: dict[str, Any]) -> dict[str, Any]:
+
     source_priority = job.get("source_priority", "P3")
-    status, _ = deadline_state(job.get("deadline"))
+    status, _basis = current_listing_status(job)
     official = bool(job.get("official_source")) or source_priority in ("P0", "P1")
 
     checks = {
@@ -1381,7 +1427,7 @@ def classify_job_event(state: dict[str, Any], job: dict[str, Any]) -> tuple[str,
 
         same_fingerprint = event.get("fingerprint") == job.get("fingerprint")
         old_status = safe_text(event.get("status"))
-        new_status = deadline_state(job.get("deadline"))[0]
+        new_status = current_listing_status(job)[0]
         previously_published = bool(event.get("telegram", {}).get("published"))
 
         # Exact same listing: normally no-op. If an expired, previously published listing
@@ -1411,7 +1457,8 @@ def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any
         event = {
             "event_id": make_event_id(job),
             "event_type": "NEW",
-            "status": deadline_state(job.get("deadline"))[0],
+            "status": current_listing_status(job)[0],
+            "status_basis": current_listing_status(job)[1],
             "canonical": job,
             "normalized": job["normalized"],
             "fingerprint": job["fingerprint"],
@@ -1463,7 +1510,7 @@ def apply_job_event(state: dict[str, Any], job: dict[str, Any]) -> dict[str, Any
     existing["scam_filter"] = job["scam_filter"]
     existing["quality_score"] = job["quality_score"]
     existing["importance_score"] = job["importance_score"]
-    existing["status"] = deadline_state(existing["canonical"].get("deadline"))[0]
+    existing["status"] = current_listing_status(existing["canonical"])[0]
     return existing
 
 def quality_score(job: dict[str, Any]) -> int:
@@ -1933,25 +1980,16 @@ def publishable(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not scam.get("passed", False):
             rejects["scam"] += 1
             continue
-        status = event.get("status")
-        if status not in ("active", "deadline_today", "deadline_soon"):
-            # A job without a parsed deadline may still be publishable when the source is
-            # official and the listing itself is demonstrably fresh. Never allow unknown
-            # or stale third-party listings through this exception.
-            canonical = event.get("canonical", {})
-            published = safe_text(canonical.get("published_date"))
-            fresh_official = False
-            if published and (canonical.get("official_source") or canonical.get("source_priority") in ("P0", "P1")):
-                try:
-                    dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    fresh_official = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).total_seconds() <= 14 * 86400
-                except ValueError:
-                    pass
-            if not (status == "unknown" and fresh_official):
-                rejects["inactive"] += 1
-                continue
+        canonical = event.get("canonical", {})
+        status, status_basis = current_listing_status(canonical)
+        event["status"] = status
+        event["status_basis"] = status_basis
+        if status == "expired":
+            rejects["inactive"] += 1
+            continue
+        if status == "unknown" and status_basis != "official_undated":
+            rejects["inactive"] += 1
+            continue
         if int(event.get("quality_score", 0)) < MIN_QUALITY_FOR_PUBLISH:
             rejects["quality"] += 1
             continue
@@ -2027,7 +2065,7 @@ def run() -> None:
     sources = registry_map(registry)
 
     logger.info(
-        "CAREER NEWSROOM V2 | channel=%s | model=%s",
+        "CAREER NEWSROOM V1 | channel=%s | model=%s",
         TELEGRAM_CHANNEL,
         CEREBRAS_MODEL,
     )

@@ -86,3 +86,7 @@ python main.py --self-test
 Normalized jobs → Job fingerprinting → Same-job detection → NEW / UPDATE / REPOST → Verification → Scam filtering → Quality score → Importance score → Publish threshold → Telegram publishing → Image/logo fallback → State update.
 
 A stable Job Event ID is retained across genuine updates. Mutable changes such as deadline, salary or vacancy are tracked instead of creating duplicate Job Events.
+
+
+## V1 Activity Gate
+Jobs are not considered inactive merely because a deadline could not be parsed. Known expired deadlines are blocked; recent listings with unknown deadlines use publication-date and source-trust evidence and still pass through verification, scam, quality, importance, and publish gates.
