@@ -1,4 +1,4 @@
-name: Career Newsroom V2 Company Identity
+name: Career Newsroom V1
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-newsroom-v2-2
+  group: career-newsroom-v1
   cancel-in-progress: false
 
 jobs:
