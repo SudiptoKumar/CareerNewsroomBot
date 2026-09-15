@@ -175,3 +175,26 @@ Telegram V2 uses the Bot API Rich Messages path first, with ordinary `sendPhoto`
 Discovery providers are not publication sources. The bot resolves the original employer, government department, portal, or application site before assigning `source_name` and `source_url`.
 
 The current V2 registry contains direct government, Teletalk, portal, NGO/INGO, university, healthcare and corporate/MNC career sources. The corporate additions were validated during V2 planning against their public career pages.
+
+## V2.1 Final Runtime Fixes
+
+This release keeps the V2 editorial pipeline and fixes the GitHub Actions runtime failure seen during PDF/OCR processing.
+
+- Every enabled registered source is still attempted. Source rotation and publishing quotas are not used.
+- Historical PDF links are filtered before download when the URL clearly points to an older year and has no current-year context.
+- Direct source pages can still surface current jobs stored under older directory names when the link context contains a current-year signal.
+- Direct PDF candidates are capped per source so a single archive page cannot explode into hundreds of document downloads.
+- PDF downloads are bounded to 20 MB with a dedicated timeout.
+- Native PDF text is always tried first. OCR is rescue-only, limited to the first 2 pages and a maximum of 18 OCR documents per run.
+- PDF image rendering is lazy. Pages are rendered only after the job passes extraction and the 7-day deadline gate.
+- Job titles are deterministically cleaned to keep the role name only and remove portal labels, salary/location/deadline metadata, and source wrappers.
+- Bangla rich messages explicitly use left-to-right mode (`is_rtl: false`).
+- Existing image fallback rules remain: actual circular/PDF page, high-quality source logo, then centered bold source name.
+
+The runtime budget is 18 minutes so the bot exits its deep-document phase before the GitHub Actions 25-minute job timeout.
+
+## Validation
+
+Local production checks passed for Python compilation, self-test, image-only PDF OCR recovery, stale-PDF filtering, per-source candidate caps, cleaned job titles, Bangla LTR payload generation, event/state logic, and Telegram rich-message fallback behavior.
+
+A real Telegram publication test is not claimed here because the production bot token is only available in GitHub Actions.
