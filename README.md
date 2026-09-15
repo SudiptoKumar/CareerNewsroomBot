@@ -1,128 +1,94 @@
-# CareerNewsroomBot V2 FINAL
+# CareerNewsroomBot V1
 
-Production-grade Bangladesh job aggregation and Telegram publishing for `@CareerNewsroom`.
+Production Bangladesh job newsroom bot for `@CareerNewsroom`.
 
-## Editorial source policy
+## Core publishing model
 
-The bot uses a **registered-source publishing policy**. Official government/employer/ATS sources are publishable, and the channel explicitly approves **BDJobs** and **BDJobs Live** as trusted job-board publishers. **Dohaj and other unapproved republishers remain discovery-only and can never become the displayed source.**
+1. Crawl every enabled registered source on each scheduled run.
+2. Extract and validate Bangladesh job vacancies.
+3. Resolve the real publisher.
+4. Keep approved publishers: official government/employer/ATS sources plus the explicitly approved job boards **BDJobs** and **BDJobs Live**.
+5. Third-party republishers such as **Dohaj** are never allowed to become the displayed source.
+6. Active deadline means `deadline > now`; there is no arbitrary 7-day rejection.
+7. Deduplicate the underlying job event across mirrors.
+8. Rank with BBA/MBA/business relevance as a priority signal, but do not discard other valid jobs merely because they are less relevant.
+9. Fairly interleave sources and cap any one employer at two posts per run.
+10. Finalize the jobs first. Only then run the company-logo image step independently for each selected job. A logo failure for one job never stops the other jobs.
 
-Authoritative sources are limited to the registry: official Bangladesh government portals, official government agencies, official universities/organizations, official employer career pages, and official ATS/career systems operated on behalf of an employer.
+## Company-logo image system
 
-## Publishing architecture
+The image is **not** a source-logo card, job-board card, building photo, generated corporate background, or small logo inside a white box.
 
-```text
-Official registry sources ───────┐
-                                ├─> current job candidate filter
-Exa / discovery services ───────┘
-                                      │
-                                      v
-                           authoritative URL resolution
-                                      │
-                                      v
-                         job title + deadline validation
-                                      │
-                                      v
-                         government Grade 1–10 gate
-                                      │
-                                      v
-                           duplicate/event detection
-                                      │
-                                      v
-                      BBA/MBA relevance + fair ordering
-                                      │
-                                      v
-                             image intelligence
-                                      │
-                                      v
-                        Telegram Rich Message API
-                                      │
-                                      v
-                             @CareerNewsroom
-```
+For each finalized job the bot searches independently using:
 
-## Telegram post design
+- official employer/career/ATS pages
+- official social profiles when discoverable
+- Google/Bing image search
+- Exa as complementary web/logo discovery
 
-Rich Message is the primary publisher. The new mobile-first layout uses a compact hierarchy rather than repeating the title inside a generic `Post:` field:
+The highest-quality verified logo candidate is selected using employer-name matching, provenance, dimensions, content ratio, and asset-quality scoring. SVG is rendered at high resolution. Outer blank/white margins are trimmed while internal logo details remain intact.
+
+The final photo is a **1200×675 transparent PNG** containing only:
+
+- the large original company/organization logo
+- verified company name
+- `@CareerNewsroom` at bottom-right
+
+No synthetic background is added.
+
+## Telegram post structure
+
+The Rich Message remains mobile-first:
 
 ```text
-# JOB TITLE
+# Job Title
+
 🏢 Company
+
 Short verified summary
+────────────────────
 
 JOB SNAPSHOT
-┌───────────────┬────────────────┐
-│ Location      │ Dhaka          │
-│ Vacancy       │ 4              │
-│ Education     │ ...            │
-│ Experience    │ ...            │
-│ Salary        │ ...            │
-│ Employment    │ Full-time      │
-│ Deadline      │ 24 Sep 2026    │
-└───────────────┴────────────────┘
 
-✅ REQUIREMENTS      (collapsed)
-📝 RESPONSIBILITIES (collapsed)
+FIELD | DETAILS
+...
+
+✅ REQUIREMENTS [expand]
+📝 RESPONSIBILITIES [expand]
 
 ⏰ Check the deadline before applying.
 
 [ APPLY NOW ]
-🏛️ OFFICIAL SOURCE: Employer
+
+🏛️ OFFICIAL SOURCE: Source
+
 @CareerNewsroom
 ```
 
-Bangla content is explicitly sent **left-to-right** with `is_rtl: false`.
+Bangla messages are explicitly sent left-to-right (`is_rtl=false`).
 
-## Company Identity Image Engine
+## Environment
 
-Every published job uses a company/organization identity image rather than a job-board/source logo or a source-name fallback.
+Required secrets:
 
-Priority: official circular/PDF logo -> employer official career/homepage logo -> official ATS-hosted logo with employer provenance -> verified public company social profile (Facebook/X/Instagram/LinkedIn) -> public Google/Bing image discovery as a last-resort search layer.
+- `EXA_API_KEY`
+- `CEREBRAS_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
 
-Logo selection is scored by employer-name match, provenance, original pixel dimensions, content area, asset type, and anti-placeholder rules. SVG logos are rasterized at high resolution. External white margins are trimmed without destroying internal white logo details. The selected logo is displayed large on a 1200 x 675 full-bleed company card with the verified company name and only `@CareerNewsroom` in the bottom-right.
+Optional variables:
 
-BDJobs and BDJobs Live may remain job sources, but their logos are never used as company identity images.
-If no sufficiently confident employer logo can be found, the vacancy is held rather than publishing a misleading image.
+- `TELEGRAM_CHANNEL`
+- `TELEGRAM_ADMIN_CHAT_ID`
+- `CEREBRAS_MODEL`
 
-## Runtime protection
+## Workflow
 
-- Every enabled authoritative registry source is still attempted.
-- Direct discovery is bounded per source to reduce link explosions.
-- Obviously historical PDFs are rejected before download/OCR.
-- PDF size is capped at 20 MB.
-- Native PDF text extraction runs before OCR.
-- OCR is limited to the first two pages and a per-run document budget.
-- PDF rendering is delayed until after publication gates pass.
-- An 18-minute internal runtime budget prevents the GitHub job from spending the whole 25-minute timeout on low-value documents.
+`.github/workflows/careerbot.yml` runs hourly from 07:00 through 23:00 Asia/Dhaka and supports `workflow_dispatch`.
 
-## Environment variables
-
-Required:
-
-```text
-EXA_API_KEY
-CEREBRAS_API_KEY
-TELEGRAM_BOT_TOKEN
-```
-
-Optional:
-
-```text
-TELEGRAM_CHANNEL=@CareerNewsroom
-CEREBRAS_MODEL=gpt-oss-120b
-TELEGRAM_ADMIN_CHAT_ID=<chat id>
-```
-
-## Local checks
+## Local validation
 
 ```bash
-python -m py_compile main.py
-EXA_API_KEY=dummy CEREBRAS_API_KEY=dummy TELEGRAM_BOT_TOKEN=dummy python main.py --self-test
+PYTHONPATH=/path/to/stubs EXA_API_KEY=dummy CEREBRAS_API_KEY=dummy TELEGRAM_BOT_TOKEN=dummy python main.py --self-test
 ```
 
-## Important
-
-A locally mocked Telegram test is not a live Telegram test. The workflow log is the source of truth for the real Bot API run.
-
-### Deadline policy
-
-An active job is eligible while its application deadline is still in the future. The previous hard 7-day minimum has been removed. Deadline proximity affects urgency/ranking instead of eligibility.
+The self-test covers syntax-level imports, source policy, deadline logic, title/company cleanup, event handling, transparent image generation, Telegram Rich Message payloads, source/employer fairness, and isolated logo selection.
