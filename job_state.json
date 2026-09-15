@@ -1,7 +1,3458 @@
 {
-  "version": 3,
-  "updated_at": null,
-  "jobs": {},
-  "sources": {},
-  "runs": []
+  "version": 5,
+  "updated_at": "2026-09-15T08:20:09.279753+00:00",
+  "jobs": {
+    "evt_3b2ef7b0456a43fd": {
+      "event_id": "evt_3b2ef7b0456a43fd",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Square Pharmaceuticals eRecruitment",
+        "title": "Associate Scientist (Formulation Development), R&D",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "September 27, 2026",
+        "application_method": null,
+        "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.75,
+        "source_id": "square_pharma",
+        "source_name": "Square Pharmaceuticals eRecruitment",
+        "source_priority": "P1",
+        "source_type": "official_employer",
+        "source_categories": [
+          "pharma"
+        ],
+        "official_source": true,
+        "source_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "discovery": "direct_link",
+        "meta": {
+          "job_image_candidates": [
+            "http://career.squarepharma.com.bd/spl001/images/thumb4fb.jpg"
+          ],
+          "source_logo_candidates": [
+            "http://career.squarepharma.com.bd/favicon.ico"
+          ],
+          "title": "Associate Scientist (Formulation Development), R&D,  ~ eRecruitment System of SPL"
+        },
+        "text": "Join The Leader\nSQUARE Pharmaceuticals PLC.,  the flagship company of SQUARE Group and certified  by major international pharmaceutical regulatory authorities, is holding  the 1st position in the pharmaceutical industry among all  national and multinational companies of Bangladesh since 1985. SQUARE  Pharmaceuticals PLC. has become a global player starting its operation in  Kenya. Right now we are looking for smart, energetic and result oriented  team members, who will share with us our pride and support our continuous  growth. If you think you have what it takes to be a member of SQUARE,  do not wait to apply as:\n     \n  Associate Scientist (Formulation Development), R&D    \n    \nApplication Deadline: Sunday, September 27, 2026\n  \n  Application Deadline: Sunday, September 27, 2026\n| Job Status | : | Full Time | \n| Work Station | : | Kaliakoir, Gazipur | \nMajor Duties and responsibilities:\n   \n- Conduct pre-formula & development studies to optimize the formula and process for solid, opthalmic, injectable, liquid & lyophilized products\n- Perform reformulation activities for improving quality, manufacturing process and minimizing cost\n- Review of DMF, COAs, MSDS of APIs and excipients\n- Participate in IQ, OQ, PQ activities of lab equipments\n- Explore to develop the alternate vendor for existing products\n- Design the finished products specification\n- Conduct stability study of new & existing products\nPre-requisite to apply:\n- Minimum B. Pharm (from reputed Universities)\n- Minimum 2 years of relevant experience is mandatory (experience in sterile/injectables will be preferred)\n- Excellent planning & execution skills as well as strong quantitative & qualitative analytical skills\n- Good interpersonal and communication skills\n- Willingness to work under shift operations\n- Well conversant with MS-Office\n- Within 32 years of age\n| Salary Range | : | Attractive remuneration package will be offered | \nOnly short-listed candidates will be called for further selection process. Hard copy of CV will not be entertained. \n  SQUARE NEVER ASKS FOR MONEY FROM ANY CANDIDATE AT ANY PHASE OF RECRUITMENT\n \nSQUARE STRONGLY DISCOURAGES SMOKERS TO APPLY\nInstruction to Apply\n  Applicants meeting the requirements of the position are requested to apply through the following link",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://career.squarepharma.com.bd/",
+        "language": "en",
+        "_dedupe_rank": [
+          1,
+          1,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "square pharmaceuticals erecruitment",
+          "title": "associate scientist formulation development r d",
+          "location": "",
+          "deadline": "2026-09-27",
+          "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_34011a9bddba2978fe83",
+        "identity_fingerprint": "identity_1d35530ee3d15ddcc8b6",
+        "verification": {
+          "status": "verified",
+          "level": "official",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.683682+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.683811+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 89,
+        "base_importance": 39,
+        "importance_score": 57
+      },
+      "normalized": {
+        "company": "square pharmaceuticals erecruitment",
+        "title": "associate scientist formulation development r d",
+        "location": "",
+        "deadline": "2026-09-27",
+        "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_34011a9bddba2978fe83",
+      "identity_fingerprint": "identity_1d35530ee3d15ddcc8b6",
+      "sources": [
+        {
+          "source_id": "square_pharma",
+          "source_name": "Square Pharmaceuticals eRecruitment",
+          "source_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+          "seen_at": "2026-09-15T08:18:57.684645+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "official",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.683682+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.683811+00:00"
+      },
+      "quality_score": 89,
+      "importance_score": 57,
+      "first_seen": "2026-09-15T08:18:57.684651+00:00",
+      "last_seen": "2026-09-15T08:18:57.684653+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 147,
+        "published_at": "2026-09-15T08:19:13.114443+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_34011a9bddba2978fe83"
+    },
+    "evt_49fdbe7f32326b3f": {
+      "event_id": "evt_49fdbe7f32326b3f",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "Regional Head of Sales (AGM/DGM - Showroom Channel) Minister Hi-Tech Park Ltd Dhaka Negotiable",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "4",
+        "salary": "Negotiable Experience:-1",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "29 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/regional-head-of-sales-agmdgm-showroom-channel-13274",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "source_type": "job_aggregator",
+        "source_categories": [
+          "job_portal"
+        ],
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/regional-head-of-sales-agmdgm-showroom-channel-13274",
+        "discovery": "direct_link",
+        "meta": {
+          "job_image_candidates": [],
+          "source_logo_candidates": [
+            "https://www.bdjobslive.com/favicon.ico",
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico="
+          ],
+          "title": "Regional Head of Sales (AGM/DGM - Showroom Channel) | Minister Hi-Tech Park Ltd - BDJobs Live",
+          "description": "Minister Hi-Tech Park Ltd is looking for a Regional Head of Sales (AGM/DGM - Showroom Channel) on BDJobs Live. Category in Marketing/ Sales. Job Location Anyw..",
+          "page_social_image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "media_sizes": {
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico=": "48x48"
+          }
+        },
+        "text": "Minister Hi-Tech Park Ltd\nElectronics/ Consumer Durables\nRegional Head of Sales (AGM/DGM - Showroom Channel)\nApplication Deadline : 29 Oct 2026\nVacancy:4\nAge:36 to 52 Years\nLocation:Anywhere in Bangladesh\nSalary:Negotiable\nExperience:-1 Year\nGender:Male\nJob Type:Full Time/Permanent\nIndustry:Electronics/ Consumer Durables\nPublished:14 Sept 2026\nEducation\n- Bachelor/Honors\nExperience\n- -1 Year\nSkills\n- Electrical\n- Marketing\n- Retail Sales\n- Sales Marketing\n- Showroom Manager\nResponsibilities & Context\n- Supervise showroom teams and ensure daily sales targets are achieved in line with company policies and procedures.\n- Provide strong leadership, strategic direction, and analytical support to drive business growth.\n- Lead and manage the Showroom Sales & Marketing team effectively.\n- Develop and execute strategies to expand the company’s business and market presence.\n- Oversee Business Development, Sales, Customer Service, and Relationship Management activities.\n- Identify new market opportunities and monitor competitor activities to support business decisions.\n- Ensure achievement of monthly and annual sales targets through effective team management.\n- Handle Direct Sales and Corporate Sales initiatives as required.\n- Drive annual sales growth, turnover improvement, and market promotion activities.\n- Guide the field sales team to achieve individual and organizational targets.\n- Evaluate team performance, identify skill gaps, and arrange necessary training and development.\n- Identify and develop potential markets based on assigned targets and business priorities.\n- Maintain strong relationships with channel partners across the assigned region.\n- Ensure timely reporting of operational issues and take appropriate corrective actions.\n- Perform other duties and responsibilities assigned by management.\nCompensation & Other Benefits\n- Festival Bonus: 2 (Yearly)\n- Salary Review: Yearly\n- T/A\n- Mobile bill\n- Provident fund\nOther Benefits\nAs per company policy\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nAnywhere in Bangladesh\nCompany Information\nMinister Hi-Tech Park Ltd\nElectronics/ Consumer Durables\nAddress:\nMinister Headquarters- House: 47, Road: 35/A Gulshan-2, Dhaka-1212\nWebsite:\nhttps://ministerbd.com/\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।\n01894974043support@bdjobslive.com",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://www.bdjobslive.com/",
+        "language": "en",
+        "_dedupe_rank": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "regional head of sales agm dgm showroom channel minister hi tech park ltd dhaka negotiable",
+          "location": "",
+          "deadline": "2026-10-29",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/regional-head-of-sales-agmdgm-showroom-channel-13274",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "4",
+          "salary": "negotiable experience 1"
+        },
+        "fingerprint": "job_d48ff651082c316cd00a",
+        "identity_fingerprint": "identity_17a37d09996fef5488fc",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.684983+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.685138+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 68,
+        "base_importance": 36,
+        "importance_score": 50
+      },
+      "normalized": {
+        "company": "",
+        "title": "regional head of sales agm dgm showroom channel minister hi tech park ltd dhaka negotiable",
+        "location": "",
+        "deadline": "2026-10-29",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/regional-head-of-sales-agmdgm-showroom-channel-13274",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "4",
+        "salary": "negotiable experience 1"
+      },
+      "fingerprint": "job_d48ff651082c316cd00a",
+      "identity_fingerprint": "identity_17a37d09996fef5488fc",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/regional-head-of-sales-agmdgm-showroom-channel-13274",
+          "seen_at": "2026-09-15T08:18:57.685842+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.684983+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.685138+00:00"
+      },
+      "quality_score": 68,
+      "importance_score": 50,
+      "first_seen": "2026-09-15T08:18:57.685847+00:00",
+      "last_seen": "2026-09-15T08:18:57.685849+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 150,
+        "published_at": "2026-09-15T08:19:26.683298+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_d48ff651082c316cd00a"
+    },
+    "evt_6e16695552110f74": {
+      "event_id": "evt_6e16695552110f74",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "Field Facilitator - Child Protection Bangladesh Labour Foundation (BLF) Dhaka Negotiable",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "14 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/field-facilitator-child-protection-13291",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "source_type": "job_aggregator",
+        "source_categories": [
+          "job_portal"
+        ],
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/field-facilitator-child-protection-13291",
+        "discovery": "direct_link",
+        "meta": {
+          "job_image_candidates": [],
+          "source_logo_candidates": [
+            "https://www.bdjobslive.com/favicon.ico",
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico="
+          ],
+          "title": "Field Facilitator - Child Protection | Bangladesh Labour Foundation (BLF) - BDJobs Live",
+          "description": "Bangladesh Labour Foundation (BLF) is looking for a Field Facilitator - Child Protection on BDJobs Live. Category in NGO/Development. Job Location Anywhere in..",
+          "page_social_image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "media_sizes": {
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico=": "48x48"
+          }
+        },
+        "text": "Application Deadline : 14 Oct 2026\nEducation\n- Bachelor/Honors\nExperience\n- 1-2 Year\nSkills\n- Client Management\n- Reporting and Documentation\nAdditional Requirements\nRequired Qualifications & Experience\n- \nMinimum 1–2 years of field-level experience working with children, preferably in NGO/INGO or community-based programs.\n- \nPrevious experience in child protection, education, or community mobilization will be an advantage.\n- \nWillingness and flexibility to work extensively in field and community settings.\n- \nBasic knowledge of child rights and child protection principles.\nSkills & Competencies\n- \nStrong facilitation, interpersonal, and community engagement skills, particularly when working with children.\n- \nEffective communication skills in both Bangla and English.\n- \nAbility to develop positive relationships and build trust with children, families, and community members.\n- \nStrong organizational skills with careful attention to documentation and record-keeping.\n- \nDemonstrates patience, empathy, and a strong commitment to children's wellbeing.\n- \nCapable of working independently in field environments with minimal supervision.\nResponsibilities & Context\nResponsibilities\nSupervision of Non-Formal Education (NFE) Centres\n- \nOversee NFE teachers and ensure smooth day-to-day operation of assigned learning centres.\n- \nMonitor student attendance, identify children at risk of dropping out, and coordinate with teachers and families to support retention.\n- \nAssist in organizing teacher coordination meetings and refresher training programs.\nAwareness Campaigns & Community Mobilization\n- \nFacilitate awareness campaigns for factory owners, supervisors and workers on child rights, child labour and employer responsibilities.\n- \nConduct sensitization sessions on legal working hours and safe working conditions for adolescent workers aged 14–18.\n- \nDistribute IEC materials and support community-level awareness and mobilization activities.\n- \nConduct age-appropriate sessions for children on hazardous work, Occupational Safety & Health (OSH), and legally compliant workplaces.\n- \nEngage parents, community leaders and local stakeholders in child protection initiatives.\n- \nSupport birth registration and other activities promoting child rights.\nChild Labour Elimination Committee (CLEC) Support\n- \nCoordinate with tower management to facilitate the formation and effective operation of Tower-Based CLECs.\n- \nSupport monthly CLEC meetings and assist in monitoring child labour-related activities at the tower level.\nMonitoring & Reporting\n- \nMaintain accurate records of field activities, attendance and project documentation.\n- \nPrepare and submit regular activity and progress reports to the Project Officer.\n- \nAssist with field-level data collection for monitoring and evaluation purposes\nCompensation & Other Benefits\nOther Benefits\nBenefits & Compensation\n- \nCompetitive monthly salary based on qualifications and relevant experience.\n- \nFestival bonuses, travel allowance, and communication support as per BLF HR policy.\n- \nOpportunities for professional growth through training, conferences, and networking.\n- \nInclusive and dynamic work environment focused on social impact, innovation, and social justice.\nWorkplace\nfrom office\nEmployment Status\nFull Time/Permanent\nJob Location\nAnywhere in Bangladesh\nApplication Process\n- \nSubmit a detailed CV of no more than 4 pages.\n- \nInclude a cover letter (maximum 1 page) highlighting your suitability and motivation for the position.\n- \nProvide the names and contact details of two professional referees.\n- \nBoth internal and external candidates are welcome to apply.\n- \nSend your application to career@blfbd.com with the subject: Application for Field Facilitator - Child Protection - [Your Name]\n- \nBLF will never request application fees through mobile banking or send unsolicited payment requests via email.\n- \nOnly shortlisted candidates will be contacted for further assessment.\n- \nAny attempt to influence the recruitment process may result in disqualification.\n- \nFor more information about Bangladesh Labour Foundation, visit www.blfbd.com.\nCompany Information\nNGO/Development\nAddress:\nBangladesh Labour Foundation (BLF) F Haque Tower; Level – 7 107 Bir Uttam C.R. Datta Road Dhaka – 1205 Bangladesh\nWebsite:\nhttps://www.blfbd.com/\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://www.bdjobslive.com/",
+        "language": "en",
+        "_dedupe_rank": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "field facilitator child protection bangladesh labour foundation blf dhaka negotiable",
+          "location": "",
+          "deadline": "2026-10-14",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/field-facilitator-child-protection-13291",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_79403fd6e2dcd144bb11",
+        "identity_fingerprint": "identity_329ee823a50ff182cf0d",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.686153+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.686431+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 68,
+        "base_importance": 27,
+        "importance_score": 41
+      },
+      "normalized": {
+        "company": "",
+        "title": "field facilitator child protection bangladesh labour foundation blf dhaka negotiable",
+        "location": "",
+        "deadline": "2026-10-14",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/field-facilitator-child-protection-13291",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_79403fd6e2dcd144bb11",
+      "identity_fingerprint": "identity_329ee823a50ff182cf0d",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/field-facilitator-child-protection-13291",
+          "seen_at": "2026-09-15T08:18:57.687109+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.686153+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.686431+00:00"
+      },
+      "quality_score": 68,
+      "importance_score": 41,
+      "first_seen": "2026-09-15T08:18:57.687114+00:00",
+      "last_seen": "2026-09-15T08:18:57.687116+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 153,
+        "published_at": "2026-09-15T08:19:38.481500+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_79403fd6e2dcd144bb11"
+    },
+    "evt_57564a765b3bb295": {
+      "event_id": "evt_57564a765b3bb295",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "sales follow-ups with customers after machinery purchases. - Coordinate with mechanics to ensure prompt resolution of machine-related issues",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "14 Oct 2026",
+        "application_method": null,
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/territory-sales-manager-agri-machinery-13293",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "bdjobs_live",
+        "source_name": "BDJobs Live",
+        "source_priority": "P2",
+        "source_type": "job_aggregator",
+        "source_categories": [
+          "job_portal"
+        ],
+        "official_source": false,
+        "source_url": "https://www.bdjobslive.com/bdjobs-details/territory-sales-manager-agri-machinery-13293",
+        "discovery": "direct_link",
+        "meta": {
+          "job_image_candidates": [],
+          "source_logo_candidates": [
+            "https://www.bdjobslive.com/favicon.ico",
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico="
+          ],
+          "title": "Territory Sales Manager (Agri Machinery) | iFarmer Limited - BDJobs Live",
+          "description": "iFarmer Limited is looking for a Territory Sales Manager (Agri Machinery) on BDJobs Live. Category in Marketing/ Sales. Job Location Rangpur, Bangladesh. Job ..",
+          "page_social_image": "https://www.bdjobslive.com/bdjobsliveogimage.png",
+          "media_sizes": {
+            "https://www.bdjobslive.com/favicon.ico?favicon.0qnd43yjj1bje.ico=": "48x48"
+          }
+        },
+        "text": "Application Deadline : 14 Oct 2026\nEducation\n- Bachelor/Honors, Bachelor of Business Administration (BBA), in Agriculture\nExperience\n- 3-5 Year\nSkills\n- After Sales Service\n- Agriculture\n- Automobile\n- Sales Marketing\n- Sales Target Achievement\nAdditional Requirements\n- Bachelor’s degree in Agricultural Engineering, Agribusiness, Business Administration, Marketing, or a related discipline.\n- Minimum 3–5 years of field sales experience, preferably in agricultural machinery.\n- Proven ability to achieve or exceed sales targets in field-based positions.\n- Strong capability to independently develop and maintain customer relationships across assigned territories.\n- Comfortable conducting product demonstrations, training sessions, and technical discussions related to agricultural machinery.\n- Must be based in Rangpur or willing to relocate, with a valid motorcycle driving license and willingness to travel extensively.\n- Previous experience in agricultural machinery sales, servicing, or dealership operations will be preferred.\nResponsibilities & Context\nRole Summary\nThe Territory Sales Manager (TSM) will be responsible for driving iFarmer Bangladesh’s agricultural machinery business within the assigned territory. Based at the Machinery Sales & Service Centre (MSC), Rangpur, the role will oversee the complete sales cycle, spare parts business, and after-sales service to ensure a strong customer experience.\nThis is a field-focused, target-driven role requiring regular territory visits, product demonstrations, customer engagement, sales conversion, after-sales follow-up, and market development.\nKey Responsibilities\nA. Machinery Sales\n- \nAchieve monthly sales targets across various agricultural machinery categories.\n- \nIdentify, engage, and convert potential customers through proactive field visits.\n- \nConduct machinery demonstrations at farms and suitable customer locations.\n- \nPresent product quality, after-sales support, and financing options to customers.\n- \nMaintain an updated sales pipeline and provide regular sales progress reports.\nB. Spare Parts Sales\n- \nDrive spare parts sales among machinery service providers and mechanics.\n- \nMonitor spare parts inventory and communicate replenishment requirements.\n- \nPromote genuine iFarmer-verified spare parts and educate customers on their benefits.\n- \nAnalyze seasonal and machine-wise demand to support procurement planning.\nC. After-Sales Service & Technical Support\n- \nConduct timely post-sales follow-ups with customers after machinery purchases.\n- \nCoordinate with mechanics to ensure prompt resolution of machine-related issues.\n- \nEnsure repairs are carried out using genuine spare parts from MSC inventory.\n- \nMaintain accurate service records, including machine history, issues, repairs, and parts replaced.\nD. MSC Operations & Reporting\n- \nEnsure the Machinery Sales & Service Centre remains organized, presentable, and fully operational.\n- \nMaintain accurate records of sales, spare parts movement, credit-sales facilitation, and service activities.\n- \nPrepare and submit regular territory sales, service, and activity reports.\nCompensation & Other Benefits\n- Festival Bonus: 2 (Yearly)\n- Salary Review: Yearly\n- T/A\n- Mobile bill\n- Medical allowance\nWorkplace\nfrom home\nEmployment Status\nFull Time/Permanent\nJob Location\nRangpur\nCompany Information\nAgro Based Industry\nAddress:\n8E, Road - 81, Gulshan-2, Dhaka-1212\nWebsite:\nhttps://www.ifarmer.asia/\nসতর্কীকরণ-বিজ্ঞপ্তি\nএই চাকরির বিজ্ঞাপনে প্রদত্ত তথ্যের ভিত্তিতে যদি বিজ্ঞাপন দাতা প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ দাবি করে, অথবা কোন ধরনের ভুল বা বিভ্রান্তিকর তথ্য প্রদান করে, তবে অনুগ্রহ করে অবিলম্বে আমাদেরকে জানান অথবা সংশ্লিষ্ট জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য BDJobs Live কাউকে কোন ব্যক্তিগত বা প্রতিষ্ঠানকে অর্থ প্রদান করতে উৎসাহিত করে না। কোন ধরনের অর্থ লেনদেনের দায় BDJobs Live বহন করবে না।",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://www.bdjobslive.com/",
+        "language": "en",
+        "_dedupe_rank": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "sales follow ups with customers after machinery purchases coordinate with mechanics to ensure prompt resolution of machine related issues",
+          "location": "",
+          "deadline": "2026-10-14",
+          "application_url": "https://www.bdjobslive.com/bdjobs-details/territory-sales-manager-agri-machinery-13293",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_0bae6dec7645c8488746",
+        "identity_fingerprint": "identity_839e6639281fa1abfdd4",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.687454+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.687659+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 68,
+        "base_importance": 27,
+        "importance_score": 41
+      },
+      "normalized": {
+        "company": "",
+        "title": "sales follow ups with customers after machinery purchases coordinate with mechanics to ensure prompt resolution of machine related issues",
+        "location": "",
+        "deadline": "2026-10-14",
+        "application_url": "https://www.bdjobslive.com/bdjobs-details/territory-sales-manager-agri-machinery-13293",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_0bae6dec7645c8488746",
+      "identity_fingerprint": "identity_839e6639281fa1abfdd4",
+      "sources": [
+        {
+          "source_id": "bdjobs_live",
+          "source_name": "BDJobs Live",
+          "source_url": "https://www.bdjobslive.com/bdjobs-details/territory-sales-manager-agri-machinery-13293",
+          "seen_at": "2026-09-15T08:18:57.688329+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.687454+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.687659+00:00"
+      },
+      "quality_score": 68,
+      "importance_score": 41,
+      "first_seen": "2026-09-15T08:18:57.688334+00:00",
+      "last_seen": "2026-09-15T08:18:57.688336+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 156,
+        "published_at": "2026-09-15T08:19:49.556235+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_0bae6dec7645c8488746"
+    },
+    "evt_7316e8cc55ecc56c": {
+      "event_id": "evt_7316e8cc55ecc56c",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "Graduate degree",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "| 13",
+        "salary": "Salary/Grade: | 22,000-53,060",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-10T05:48:12.000Z",
+        "application_start": null,
+        "deadline": "08 October 2026",
+        "application_method": null,
+        "application_url": "https://dcd.teletalk.com.bd/",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Dcd",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovtjobs.com/ministry-of-defense-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "Ministry of Defense MOD Job Circular 2026 has been published on 10 September 2026. The published sources are https://mod.gov.bd/ & The Daily Ittefaq E-Paper. The Ministry of Defense will accept their application only online through the mod.teletalk.com.bd website. The MOD job online application will start on 13 September 2026 at 10:00 AM and will end on 08 October 2026 at 5:00 PM. ... 2026. | | Ongoing Circular: | 01+01. | | Total Post Category: | 01+06. | | Total Post Vacancy: | 13+15. | | Location: | Dhaka. | | Gender: | Male & female. | | Age Limitation: | As of 08 October 2026, candidates aged between 18 & 32 years. | | Academic Qualifications: | Post-Graduate degree. | | Professional Experience: | Freshers can apply for this job post. | | Salary/Grade: | 22,000-53,060/- taka. | | Job Category: | Govt Job. | | Official Publication Source: | The Daily Ittefaq . | | How to Apply: | Online. | | Application Fee: | 223/- taka. | | Application Start Date: | 13 September 2026 at 09:00 AM Ministry of Defence MOD Job Circular 2026 - mod.teletalk.com.bd Apply # Ministry of Defence MOD Job Circular 2026 – mod.teletalk.com.bd Apply September 10, 2026 September 10, 2026 by BD Govt Jobs.com The Ministry of Defense (MOD) has published Job Circular 2026 to add 09 people for 02 post categories. Both men and women are eligible to apply for these prestigious positions at the Ministry of Defense. Don’t miss this MOD Job chance! Read the full MOD Job Circular 2026 article and choose the right post to apply for a govt job in 2026. ## MOD Job Circular 2026 Ministry of Defense MOD Job Circular 2026 has been published on 10 September 2026. The published sources are https://mod.gov.bd/ & The Daily Ittefaq E-Paper. The Ministry of Defense will accept their application only online through the mod.teletalk.com.bd website. The MOD job online application will start on 13 September 2026 at 10:00 AM and will end on 08 October 2026 at 5:00 PM. ## 📋Let’s see the MOD Circular key points - Publish Date: 10 September 2026. - Publish Source: The Daily Ittefaq. - Total Post Categories: 02. - Total Vacancies: 09. - Application Date: 13 September 2026 at 10:00 AM. - Application Close Date: 08 October 2026 at 5:00 PM. ## 🔗Important Website Publish Website: The Daily Ittefaq & https://mod.gov.bd/. Application-Related Website: mod.teletalk.com.bd. ## Ministry of Defense Job Circular 2026 The Ministry of Defense has published a circular adding 09 people to 02 post categories. Bangladeshi citizens are eligible to apply for Ministry of Defense jobs in 2026. Only educated job seekers aged between 18 and 32 years are eligible to apply for the MOD job circular. Age verification will be based on your birth certificate and National ID card. To complete the online job application for the MOD Job Circular 2026, you must make a payment through the Teletalk SIM using two SMS messages. ### 💵 MOD Application Fee: - 200 BDT + Teletalk charge of 23 BDT = 223 BDT. ⚠️ Important: Your application will not be completed without submitting the required fee for the MOD job application. | MOD Circular 2026 | | | --- | --- | | Organization Name: | Ministry of Defense. | | Circular Publication Date: | 09 December 2025 & 08 January 2026. | | Ongoing Circular: | 01+01. | | Total Post Category: | 01+06. | | Total Post Vacancy: | 13+15. | | Location: | Dhaka. | | Gender: | Male & female. | | Age Limitation: | As of 08 October 2026, candidates aged between 18 & 32 years. | | Academic Qualifications: | Post-Graduate degree. | | Professional Experience: | Freshers can apply for this job post. | | Salary/Grade: | 22,000-53,060/- taka. | | Job Category: | Govt Job. | | Official Publication Source: | The Daily Ittefaq . | | How to Apply: | Online. | | Application Fee: | 223/- taka. | | Application Start Date: | 13 September 2026 at 09:00 AM | | Deadline for Application: | 08 October 2026 at 5:00 PM. | | Company’s Official Website: | https://mod.gov.bd/ | ## MOD Job Circular 2026 Image/PDF Please review the MOD Job Circular 2026 image to see available positions, qualifications, and deadlines. You can also download and zoom in on this image for a clearer view. Click the image to view the official circular and see all the important information. Source: The Daily Ittefaq, 10 September 2026. How to Apply? Online. Application Start Date: 13 September 2026 at 10:00 AM When will the application Start? 08 October 2026 at 5:00 PM. Application Website: https://dcd.teletalk.com.bd/ ### What Documents Are Required for the Application? Some documents are essential to apply for the MOD Job Circular 2026. We have fully explained them below. - Passport-sized Photo. - Educational Certificates. - Mark Sheets. - National ID Card. - Experience Certificates. (If the authority wants) - NID (National Identification Number) and Birth Registration. - Other Relevant Documents. ## Ready to apply for the job at MOD? The Ministry of Defence MOD has mentioned that the application process must be completed at http://mod.teletalk.com.bd/. Please follow the steps below to submit your job application at the MOD. ### Mod Teletalk Application Step-by-Step Guide - Step 01: Go to http://mod.teletalk.com.bd. - Step 02: Click on the “ Application Form.” - Step 03: Choose the job post you want to apply for. - Step 04: Press the “ Next” button to continue. - Step 05: Are you a premium member of alljobs.teletalk.com.bd? If yes, select “ Yes”; if not, select “ No” - Step 06: Provide the necessary details in the application form and move on to the next step. - Step 07: Upload your recent color photo and signature photo (Image: 300×300 pixels, Signature: 30×60 pixels). - Step 08: After completing the application form, click the “ Submit Application” button. - Step 09: “ Download” the applicant’s copy and pay the fee to complete your application. ### mod teletalk Application Fee Payment Method To complete the MOD job application, you must pay the application fee using",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "graduate degree",
+          "location": "",
+          "deadline": "2026-10-08",
+          "application_url": "https://dcd.teletalk.com.bd/",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "13",
+          "salary": "salary grade 22 000 53 060"
+        },
+        "fingerprint": "job_f1f1f06138691054e3ce",
+        "identity_fingerprint": "identity_74127e8c12c47693e1c9",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.688647+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.689007+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 44,
+        "importance_score": 56
+      },
+      "normalized": {
+        "company": "",
+        "title": "graduate degree",
+        "location": "",
+        "deadline": "2026-10-08",
+        "application_url": "https://dcd.teletalk.com.bd/",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "13",
+        "salary": "salary grade 22 000 53 060"
+      },
+      "fingerprint": "job_f1f1f06138691054e3ce",
+      "identity_fingerprint": "identity_74127e8c12c47693e1c9",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Dcd",
+          "source_url": "https://bdgovtjobs.com/ministry-of-defense-job-circular",
+          "seen_at": "2026-09-15T08:18:57.689666+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.688647+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.689007+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 56,
+      "first_seen": "2026-09-15T08:18:57.689671+00:00",
+      "last_seen": "2026-09-15T08:18:57.689674+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 149,
+        "published_at": "2026-09-15T08:19:23.111448+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 15,
+      "corporate_priority_score": 14,
+      "last_published_fingerprint": "job_f1f1f06138691054e3ce"
+    },
+    "evt_ab5752291b52526f": {
+      "event_id": "evt_ab5752291b52526f",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "Bangladesh Bank Job Circular 2026 - Jobs Test bd",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "1",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-08-24T11:40:26.000Z",
+        "application_start": null,
+        "deadline": "27 September 2026",
+        "application_method": null,
+        "application_url": "https://jobstestbd.com/bb-job-circular-2026",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Jobstestbd",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://jobstestbd.com/bb-job-circular-2026",
+        "discovery": "exa",
+        "meta": {},
+        "text": "# Bangladesh Bank Job Circular 2026 August 24, 2026 September 8, 2026 - by Abd Mamin ... Bangladesh Bank Job Circular 2026 has been published. The authority has published the BB Job Circular 2026. Bangladesh Bank Assistant Director Job Circular 2026 is good news for job seekers in Bangladesh. All information on the Bangladesh Bank Medical Officer Job Circular 2026 is available below. Bangladesh Bank is the Central Bank of Bangladesh. ... #### Online Application Last Date: 27 September 2026 ##### Online Application Start Date: 20 August 2026 ##### Payment Verification Last Date: 30 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice ... 1. Assistant Director (Ex-Cadre Law) – 05 ... #### Online Application Last Date: 20 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice ... Notice Link: Click here ... see the Official Payment Notice ... #### Application Last Date: 17 September 2026 Bangladesh Bank Job Circular 2026 - Jobs Test bd # Bangladesh Bank Job Circular 2026 August 24, 2026 September 8, 2026 - by Abd Mamin Bangladesh Bank Job Circular 2026 has been published. The authority has published the BB Job Circular 2026. Bangladesh Bank Assistant Director Job Circular 2026 is good news for job seekers in Bangladesh. All information on the Bangladesh Bank Medical Officer Job Circular 2026 is available below. Bangladesh Bank is the Central Bank of Bangladesh. #### Bangladesh Bank Job Circular 2026: Bank Name: Bangladesh Bank - ##### Bangladesh Bank Assistant Director MCQ Exam Question Solution 2026 - ##### Bangladesh Bank AD Exam Date and Admit Card Download 2026 - ##### Bangladesh Bank Assistant Director Exam Syllabus and Marks Distribution 2026 - ##### Bangladesh Bank Assistant Director Exam Question Solution 2023 - ##### Bangladesh Bank AD Exam Question Solution 2022 - ##### Bangladesh Bank AD Written Exam Question Solution 2021 - ##### Bangladesh Bank AD MCQ Question Full Solution - ##### Bangladesh Bank Exam Syllabus and Marks Distribution 2022 Bank Name: Bangladesh Bank, the Central Bank of Bangladesh. JOB ID: 331 ##### Post Name and Vacancy: 1. Medical Officer – 06 ##### Total Vacancies: 06 #### Online Application Last Date: 27 September 2026 ##### Online Application Start Date: 20 August 2026 ##### Payment Verification Last Date: 30 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice Official Payment Process PDF Notice Link: Click here to see the Official Payment Notice ##### See/download the Bangladesh Bank Job Circular 2026 and follow the instructions in the images below: ##### Bangla QR Payment Process: ##### Job Circular Notice: 02 JOB ID: 330 ##### Post Name and Vacancy: 1. Assistant Director (Ex-Cadre Law) – 05 #### Online Application Last Date: 20 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice Official Payment Process PDF Notice Link: Click here to see the Official Payment Notice ##### See/download the Bangladesh Bank Assistant Director (AD) Job Circular 2026 and follow the instructions in the images below: ##### Bangla QR Payment Process: ##### Job Circular Notice: 03 Bank Name: Bangladesh Bank ##### Post Name and Vacancy: 1. Doctor (Contractual) – 01 #### Application Last Date: 17 September 2026 আগ্রহী প্রার্থীদেরকে পাসপোর্ট সাইজের ০২ কপি ছবি, জীবন বৃত্তান্ত এবং প্রমাণক দলিলাদিসহ (শিক্ষাগত যোগ্যতার সনদপত্র, জাতীয় পরিচয়পত্র, সম্প্রতি ইস্যুকৃত নাগরিকত্ব সনদ ইত্যাদির সত্যায়িত কপি) আবেদনপত্র পরিচালক (এইচআরডি-১), হিউম্যান রিসোর্সেস ডিপার্টমেন্ট-১, বাংলাদেশ ব্যাংক, প্রধান কার্যালয়, ঢাকা-১০০০ এর বরাবরে সরাসরি/ডাকযোগে/ই-মেইলে (gm.hrd@bb.org.bd) নিম্নবর্ণিত ফরম্যাট অনুযায়ী আগামী ১৭/০৯/২০২৬ তারিখের মধ্যে প্রেরণ করতে হবে: Official Circular PDF Notice Link: Click here to see the Official Circular Notice ##### See/download the Bangladesh Bank Assistant Director (AD) Job Circular 2026 and follow the instructions in the images below: ##### Previous Job Circular of the Year: 2026 Bank Name: Bangladesh Bank, the Central Bank of Bangladesh. JOB ID: 329 ##### Post Name and Vacancy: 1. Assistant Director (Statistics) – 33 (More or Less) Official Circular PDF Notice Link: Click Here to see the Official Circular Notice ##### Bangla QR Payment Process: ##### Previous Job Circular of the Year: 2026 Bank Name: Bangladesh Bank, the Central Bank of Bangladesh. 1. Assistant Director (ICT) – 69 (More or Less) Official Circular PDF Notice Link: Click Here to see the Official Circular Notice ##### Bangla QR Payment Process: Bank Name: Bangladesh Bank (BB) 1. Data Entry/Control Operator (IT) – 26 (More or Less) Official Circular PDF Notice Link: Click here to see the Official Circular Notice Bank Name: Bangladesh Bank 1. Assistant Director (General) – 108 (More or Less) Official Circular PDF Notice Link: Click here to see the Official Circular Notice ##### Bangla QR Payment Process: Courtesy: To all authorities from whom documents are collected. ##### N.B: Generally, we try to update any news. For any changes, reforms, or republishing of any news, we are not responsible. For more updates, stay with our website jobstestbd.com #### Bangladesh Bank (BB) Job Circular 2026: Bangladesh Bank Job Circular 2026 has been published. Bangladesh Bank is the central bank of Bangladesh. Bangladesh Bank has published a huge job circular by the Authority. All information regarding the appointment at Bangladesh Bank is given on our website, jobstestbd.com. We publish all job circulars daily, including government jobs in Bangladesh, Bank Jobs in Bangladesh, Private Jobs in Bangladesh, International NGOs in Bangladesh, Private companies in Bangladesh, and Private University Jobs in Bangladesh. Bank Jobs Results, Government Jobs Results, Government University Jobs Results in Bangladesh, and all P",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "bangladesh bank 2026 jobs test bd",
+          "location": "",
+          "deadline": "2026-09-27",
+          "application_url": "https://jobstestbd.com/bb-job-circular-2026",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "1",
+          "salary": ""
+        },
+        "fingerprint": "job_857f075872a85da92667",
+        "identity_fingerprint": "identity_caa2295e7c19fae1c6d0",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.690626+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.690930+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 29,
+        "importance_score": 41
+      },
+      "normalized": {
+        "company": "",
+        "title": "bangladesh bank 2026 jobs test bd",
+        "location": "",
+        "deadline": "2026-09-27",
+        "application_url": "https://jobstestbd.com/bb-job-circular-2026",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "1",
+        "salary": ""
+      },
+      "fingerprint": "job_857f075872a85da92667",
+      "identity_fingerprint": "identity_caa2295e7c19fae1c6d0",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Jobstestbd",
+          "source_url": "https://jobstestbd.com/bb-job-circular-2026",
+          "seen_at": "2026-09-15T08:18:57.691590+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.690626+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.690930+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 41,
+      "first_seen": "2026-09-15T08:18:57.691595+00:00",
+      "last_seen": "2026-09-15T08:18:57.691597+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 159,
+        "published_at": "2026-09-15T08:20:02.125102+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_857f075872a85da92667"
+    },
+    "evt_2f1ca0d36d8cb607": {
+      "event_id": "evt_2f1ca0d36d8cb607",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ - BGB Job Circular 2026",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "বেতন গ্রেড | গ্রেড-17",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-12T06:10:52.000Z",
+        "application_start": null,
+        "deadline": "24 September 2026",
+        "application_method": null,
+        "application_url": "https://bdgovt.info/bgb-job-circular",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Bdgovt",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovt.info/bgb-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "# ১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ – BGB Job Circular 2026 September 12, 2026 September 12, 2026 by bdgovt.info ... জানুয়ারি ২০০৯-এর মধ্যে হতে হবে। | | বেতন গ্রেড | গ্রেড-১৭ (৯,০০০ – ২১,৮০০/-) | | আবেদন ফি | ৫৬/- টাকা (অনলাইন পেমেন্ট) | | আবেদন পদ্ধতি | অনলাইন | | আবেদন শুরু | ১৫ সেপ্টেম্বর ২০২৬, সকাল ১০:০০টা | | আবেদনের শেষ তারিখ | ২৪ সেপ্টেম্বর ২০২৬, রাত ১২:০০টা | | অফিসিয়াল আবেদন সাইট | joinborderguard.bgb.gov.bd | | বিজ্ঞপ্তি প্রকাশ | দৈনিক যুগান্তর | | ১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ - BGB Job Circular 2026 # ১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ – BGB Job Circular 2026 September 12, 2026 September 12, 2026 by bdgovt.info ☰ মোট পদের ক্যাটাগরি 👥 মোট শূন্যপদ নিদিষ্ট নয় 🎓 যোগ্যতা এসএসসি ও এইচএসসি পাস 🎂 বয়সসীমা ১৮-২৩ বছর 💰 বেতন ৯,০০০ - ২১,৮০০/- আবেদনের শেষ দিন ২৪ সেপ্টেম্বর ২০২৬ ইং, রাত ১২:০০টা ⏰ ১১ দিন বাকি সরকারি চাকরির প্রস্তুতি নিচ্ছেন? তাহলে বর্ডার গার্ড বাংলাদেশ (বিজিবি)-এর এই নতুন বিজ্ঞপ্তিটি আপনার কাজে লাগতে পারে। বর্ডার গার্ড বাংলাদেশ (বিজিবি) নিয়োগ বিজ্ঞপ্তি ২০২৬ (Border Guard Bangladesh BGB Job Circular 2026) ডিজিটাল পদ্ধতিতে ১০৬তম ব্যাচে সিপাহী (জিডি) পদে পুরুষ ও মহিলা প্রার্থী নিয়োগের জন্য প্রকাশিত হয়েছে। বিজিবি নিয়োগ ২০২৬-এ ন্যূনতম এসএসসি ও এইচএসসি সমমান পাস যোগ্যতায় বাংলাদেশের সকল জেলার প্রার্থীরা এতে অংশ নিতে পারবেন। অনলাইনে রেজিস্ট্রেশন শুরু ১৫ সেপ্টেম্বর ২০২৬ থেকে, যা চলবে ২৪ সেপ্টেম্বর ২০২৬ পর্যন্ত। সীমান্তে দেশ সেবায় যুক্ত হওয়ার এই সুযোগটি নিতে আবেদন করতে পারেন নির্ধারিত সময়ে। নিচে আমরা প্রতিটি ধাপ সহজভাবে তুলে ধরেছি, পদের বিবরণ, শারীরিক মাপ, বয়সসীমা, অনলাইন আবেদন ও ফি পরিশোধের বিস্তারিত নিয়মকানুন। ## বর্ডার গার্ড বাংলাদেশ (বিজিবি) নিয়োগ বিজ্ঞপ্তি ২০২৬ | প্রতিষ্ঠানের নাম | বর্ডার গার্ড বাংলাদেশ (বিজিবি) | | --- | --- | | চাকরির ধরন | সরকারি চাকরি | | পদের ক্যাটাগরি | ১টি (১০৬তম ব্যাচ) | | আবেদনযোগ্য জেলা | সকল জেলা | | আবেদনকারীর লিঙ্গ | নারী ও পুরুষ (অবিবাহিত) | | শিক্ষাগত যোগ্যতা | এসএসসি ও এইচএসসি পাস | | বয়সসীমা | ১৭ জানুয়ারি ২০২৭ (১৭-০১-২০২৭) তারিখে বয়স হতে হবে ১৮ থেকে ২৩ বছর। | | জন্ম তারিখের সময়সীমা | প্রার্থীর জন্ম তারিখ ১৮ জানুয়ারি ২০০৪ থেকে ১৭ জানুয়ারি ২০০৯-এর মধ্যে হতে হবে। | | বেতন গ্রেড | গ্রেড-১৭ (৯,০০০ – ২১,৮০০/-) | | আবেদন ফি | ৫৬/- টাকা (অনলাইন পেমেন্ট) | | আবেদন পদ্ধতি | অনলাইন | | আবেদন শুরু | ১৫ সেপ্টেম্বর ২০২৬, সকাল ১০:০০টা | | আবেদনের শেষ তারিখ | ২৪ সেপ্টেম্বর ২০২৬, রাত ১২:০০টা | | অফিসিয়াল আবেদন সাইট | joinborderguard.bgb.gov.bd | | বিজ্ঞপ্তি প্রকাশ | দৈনিক যুগান্তর | | নিয়োগকারী সংস্থা | বর্ডার গার্ড বাংলাদেশ (বিজিবি) | | আবেদনকারীর জাতীয়তা | বাংলাদেশের জন্মসূত্রে নাগরিক | ## বিজিবি পরিচিতি বর্ডার গার্ড বাংলাদেশ (বিজিবি) স্বরাষ্ট্র মন্ত্রণালয়ের অধীন একটি অনুশাসিত সীমান্ত রক্ষী বাহিনী, যা মূলত বাংলাদেশের সীমানা রক্ষা, সীমান্ত অপরাধ প্রতিরোধ এবং অভ্যন্তরীণ আইনশৃঙ্খলা রক্ষায় দায়িত্ব পালন করে। বাহিনীর ঐতিহাসিক ভিত্তি বেশ সুদৃঢ় এবং “সীমান্তের অতন্দ্র প্রহরী” হিসেবে দেশের সুরক্ষায় এ বাহিনীর অবস্থান অত্যন্ত গুরুত্বপূর্ণ। সীমানা প্রহরা ও শৃঙ্খলাভিত্তিক পেশা হওয়ায় বিজিবিতে চাকরির সুযোগ শারীরিক ও মানসিকভাবে চটপটে তরুণদের জন্য বেশ মর্যাদাপূর্ণ। | ফোন / হেল্পডেস্ক | ০১৭৬৯৬০০৮০০, ০১৭৬৯৬০০৮৮৮ | | --- | --- | | ই-মেইল | [email protected] | | ঠিকানা | বর্ডার গার্ড বাংলাদেশ, সদর দপ্তর, পিলখানা, ঢাকা-১২০৫ | | ওয়েবসাইট | bgb.gov.bd | ## বিজিবি-তে পদের বিবরণ ও শিক্ষাগত যোগ্যতা এই ১০৬তম ব্যাচে সিপাহী (জিডি) নিয়োগ বিজ্ঞপ্তির পদে সাধারণ পুরুষ ও মহিলা উভয় প্রার্থীর জন্য নির্দিষ্ট শারীরিক ও শিক্ষাগত শর্ত রয়েছে। নিচের বিবরণ থেকে নিজের যোগ্যতা মিলিয়ে আবেদন প্রক্রিয়া শুরু করতে পারেন। সিপাহী (জিডি) – পুরুষ ও মহিলা ১০৬তম ব্যাচ 💰 বেতন: ৯,০০০–২১,৮০০/- (গ্রেড-১৭) 🎓 যোগ্যতা: এসএসসি/সমমান পরীক্ষায় জিপিএ ৩.০০ এবং এইচএসসি/সমমান পরীক্ষায় জিপিএ ২.৫০ পেয়ে উত্তীর্ণ হতে হবে। ⭐ অতিরিক্ত যোগ্যতা: অবিবাহিত (তালাকপ্রাপ্ত নয়)। ## শারীরিক যোগ্যতা বিজিবি ১০৬তম ব্যাচে সিপাহী (জিডি) পদে আবেদনের জন্য পুরুষ ও মহিলা প্রার্থীদের প্রয়োজনীয় শারীরিক যোগ্যতার বিবরণ নিচে সারণীতে তুলে ধরা হলো: | বিবরণ | পুরুষ প্রার্থীদের ক্ষেত্রে | মহিলা প্রার্থীদের ক্ষেত্রে | | --- | --- | --- | | উচ্চতা (সাধারণ) | ১.৬৮ মিটার (৫ ফুট ৬ ইঞ্চি) | ১.৫৭৪ মিটার (৫ ফুট ২ ইঞ্চি) | | উচ্চতা (ক্ষুদ্র নৃ-গোষ্ঠী) | ১.৬৩ মিটার (৫ ফুট ৪ ইঞ্চি) | ১.৫২৪ মিটার (৫ ফুট ০ ইঞ্চি) | | ওজন (সাধারণ) | ৪৯.৯০ কেজি (১১০ পাউন্ড) | ৪৭.১৭৩ কেজি (১০৪ পাউন্ড) | | ওজন (ক্ষুদ্র নৃ-গোষ্ঠী) | ৪৭.১৭৩ কেজি (১০৪ পাউন্ড) | ৪৩.৫৪৪ কেজি (৯৬ পাউন্ড) | | বুকের মাপ (স্বাভাবিক) | ০.৭৬ মিটার (৩০ ইঞ্চি) | ০.৭১ মিটার (২৮ ইঞ্চি) | | বুকের মাপ (স্ফীত) | ০.৮১ মিটার (৩২ ইঞ্চি) | ০.৭৬ মিটার (৩০ ইঞ্চি) | | দৃষ্টিশক্তি | ৬/৬ | ৬/৬ | ## বেতন ও সুযোগ-সুবিধা বর্ডার গার্ড বাংলাদেশ (বিজিবি)-এর এই নিয়োগে জাতীয় বেতন স্কেল ২০১৫ অনুযায়ী গ্রেড-১৭ (৯,০০০ – ২১,৮০০/-) স্কেলে বেতন প্রদান করা হবে। তবে মূল স্কেলের পাশাপাশি সরকারি অন্যান্য ভাতা ও বাহিনীর নিজস্ব সুবিধা মিলে মোট প্রাপ্তি বৃদ্ধি পায়। 💰 মূল বেতনের সাথে যেসব ভাতা যোগ হয়: সরকারি নিয়ম অনুযায়ী মূল বেতনের পাশাপাশি বিনামূল্যে বাসস্থান, চিকিৎসা ভাতা, রেশন সুবিধা এবং উৎসব ভাতা প্রদান করা হয়। উল্লেখ্য, এলাকাভেদে বাড়িভাড়া ভাতার হার কিছুটা পার্থক্য হয়, যেমন ঢাকায় ভাতা সর্বোচ্চ, বিভাগীয় ও জেলা পর্যায়ে তার চেয়ে কিছুটা কম হতে পারে। এছাড়াও চাকরি স্থায়ীকরণ শেষে পেনশন ও ভবিষ্যৎ তহবিলের সুযোগ থাকে। সুশৃঙ্খল বাহিনীতে চাকরির সামাজিক সম্মান ও দেশের সীমান্তে দায়িত্ব পালনের আত্মতৃপ্তিই এ পদের মূল আকর্ষণ। ## আবেদন করবেন যেভাবে (ধাপভিত্তিক গাইড) বর্ডার গার্ড বাংলাদেশ (বিজিবি)-এ সিপাহী (জিডি) পদে আবেদনের প্রক্রিয়াটি ডিজিটাল পদ্ধতিতে সম্পূর্ণ অনলাইনে সম্পন্ন করতে হবে। নিচে ধাপগুলো ধারাবাহিকভাবে তুলে ধরা হলো: ### ধাপ-১: ইউজার আইডি ও পাসওয়ার্ড তৈরি ১. প্রথমে বিজিবি ই-রিক্রুটমেন্ট ওয়েবসাইট joinbordergua",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ bgb 2026",
+          "location": "",
+          "deadline": "2026-09-24",
+          "application_url": "https://bdgovt.info/bgb-job-circular",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": "বেতন গ্রেড গ্রেড 17"
+        },
+        "fingerprint": "job_1a39b876d2216dc5f207",
+        "identity_fingerprint": "identity_d6eada445c8f047a0961",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.691897+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.692213+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 34,
+        "importance_score": 46
+      },
+      "normalized": {
+        "company": "",
+        "title": "১০৬তম ব্যাচে বিজিবি নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশ bgb 2026",
+        "location": "",
+        "deadline": "2026-09-24",
+        "application_url": "https://bdgovt.info/bgb-job-circular",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": "বেতন গ্রেড গ্রেড 17"
+      },
+      "fingerprint": "job_1a39b876d2216dc5f207",
+      "identity_fingerprint": "identity_d6eada445c8f047a0961",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Bdgovt",
+          "source_url": "https://bdgovt.info/bgb-job-circular",
+          "seen_at": "2026-09-15T08:18:57.692900+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.691897+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.692213+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 46,
+      "first_seen": "2026-09-15T08:18:57.692905+00:00",
+      "last_seen": "2026-09-15T08:18:57.692907+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 158,
+        "published_at": "2026-09-15T08:19:57.749754+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_1a39b876d2216dc5f207"
+    },
+    "evt_c28d9d03ac4aa99c": {
+      "event_id": "evt_c28d9d03ac4aa99c",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ প্রকাশিত পিডিএফ সহ | BD Govt Job",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-12T00:51:46.000Z",
+        "application_start": null,
+        "deadline": "06 October 2026",
+        "application_method": null,
+        "application_url": "https://bdgovtjob.net/saptahik-chakrir-khobor",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Bdgovtjob",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovtjob.net/saptahik-chakrir-khobor",
+        "discovery": "exa",
+        "meta": {},
+        "text": "সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ (Saptahik Chakrir Khobor Potrika 11 September 2026) সংখ্যাটি আজ শুক্রবার সকালে প্রকাশিত হয়েছে। এই সংখ্যায় সরকারি, বেসরকারি, ব্যাংক, এনজিও ও ডিফেন্স সেক্টরের নতুন নিয়োগ বিজ্ঞপ্তিগুলো একসাথে ছাপা হয়েছে। ... (Saptahik Chakrir Khobor) | | --- | --- | | সংখ্যা | ৪৭ সংখ্যা | | তারিখ | ১১ সেপ্টেম্বর ২০২৬ (১১/০৯/২০২৬) | | প্রকাশের সময় | প্রতি শুক্রবার সকালে | | মোট পৃষ্ঠা | ০৪ পৃষ্ঠা (ছবি ও PDF দুই সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ প্রকাশিত পিডিএফ সহ | BD Govt Job # সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ প্রকাশিত পিডিএফ সহ 12 September, 2026 11 September, 2026 by Admin সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ (Saptahik Chakrir Khobor Potrika 11 September 2026) সংখ্যাটি আজ শুক্রবার সকালে প্রকাশিত হয়েছে। এই সংখ্যায় সরকারি, বেসরকারি, ব্যাংক, এনজিও ও ডিফেন্স সেক্টরের নতুন নিয়োগ বিজ্ঞপ্তিগুলো একসাথে ছাপা হয়েছে। নিচে এই সপ্তাহের সাপ্তাহিক চাকরির খবর পত্রিকার চার পৃষ্ঠার হাই-রেজোলিউশন ছবি এবং সম্পূর্ণ PDF ডাউনলোড লিংক যুক্ত করা হয়েছে। সেই সাথে গত সপ্তাহের (০৪ সেপ্টেম্বর ২০২৬) পত্রিকার PDF-ও দেওয়া আছে, কারণ আগের সপ্তাহের অনেক নিয়োগ বিজ্ঞপ্তির আবেদনের সময় এখনও শেষ হয়নি। এর পাশাপাশি এই সপ্তাহের বড় নিয়োগ বিজ্ঞপ্তির তালিকা, আবেদনের সঠিক নিয়ম, প্রয়োজনীয় কাগজপত্র ও ভুয়া সার্কুলার চেনার উপায়ও ধাপে ধাপে দেওয়া আছে। ### 💡 কেন এই পত্রিকাটি দেখবেন? - পুরো সপ্তাহের সরকারি ও বেসরকারি সব নিয়োগ বিজ্ঞপ্তি একটি পত্রিকাতেই পাবেন। - অষ্টম শ্রেণি পাস থেকে স্নাতকোত্তর — সব স্তরের প্রার্থীর জন্য পদ রয়েছে। - সম্পূর্ণ পত্রিকার ছবি ও PDF দুই ফরম্যাটেই বিনামূল্যে এই পেজ থেকে ডাউনলোড করা যাবে। | পত্রিকার নাম | সাপ্তাহিক চাকরির খবর (Saptahik Chakrir Khobor) | | --- | --- | | সংখ্যা | ৪৭ সংখ্যা | | তারিখ | ১১ সেপ্টেম্বর ২০২৬ (১১/০৯/২০২৬) | | প্রকাশের সময় | প্রতি শুক্রবার সকালে | | মোট পৃষ্ঠা | ০৪ পৃষ্ঠা (ছবি ও PDF দুই ফরম্যাটে) | | চাকরির ধরন | সরকারি চাকরি, ব্যাংক জব, প্রাইভেট, এনজিও, ডিফেন্স ও ফার্মা | | শিক্ষাগত যোগ্যতা | অষ্টম শ্রেণি, এসএসসি, এইচএসসি, স্নাতক ও স্নাতকোত্তর | | বয়সসীমা | সাধারণত ১৮ – ৩২ বছর (পদভেদে সর্বোচ্চ ৬২ বছর) | | আবেদনের মাধ্যম | অনলাইন, ডাকযোগ, কুরিয়ার, ইমেইল ও ওয়াক-ইন ইন্টারভিউ | | PDF ফাইল সাইজ | ০৭ মেগাবাইট | ## Saptahik Chakrir Khobor Potrika 11 September 2026 — ছবি ও PDF আপনি কি সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ সংখ্যার অফিশিয়াল ছবি বা PDF খুঁজছেন? আপনার সুবিধার্থে নিচে Saptahik Chakrir Khobor 11 September 2026 পত্রিকার চারটি পৃষ্ঠার হাই-রেজোলিউশন ইমেজ যুক্ত করা হয়েছে। মোবাইলে ছবির উপর দুইবার ট্যাপ করে জুম করলে ছোট লেখাগুলোও স্পষ্ট পড়া যাবে। সাপ্তাহিক চাকরির খবর ১১ সেপ্টেম্বর ২০২৬ — পৃষ্ঠা ১ সাপ্তাহিক চাকরির খবর ১১ সেপ্টেম্বর ২০২৬ — পৃষ্ঠা ২ সাপ্তাহিক চাকরির খবর ১১ সেপ্টেম্বর ২০২৬ — পৃষ্ঠা ৩ সাপ্তাহিক চাকরির খবর ১১ সেপ্টেম্বর ২০২৬ — পৃষ্ঠা ৪ ### সাপ্তাহিক চাকরির খবর পত্রিকা PDF Download ২০২৬ ছবিতে লেখা ছোট মনে হলে সম্পূর্ণ সাপ্তাহিক চাকরির খবর পিডিএফ ফরম্যাটে নামিয়ে নিন। PDF-এ যত খুশি জুম করলেও লেখা ঝাপসা হয় না এবং একবার ডাউনলোড করলে ইন্টারনেট ছাড়াই যেকোনো সময় পড়া যায়। পত্রিকার নামঃ Saptahik Chakrir Khobor 11 September 2026 প্রকাশের তারিখঃ ১১ সেপ্টেম্বর ২০২৬ (শুক্রবার) ফাইল ফরম্যাটঃ PDF (৪ পৃষ্ঠা, প্রায় ০৭ MB) - মোবাইলে: বাটনে ট্যাপ করে ব্রাউজারের ডাউনলোড আইকন চাপুন; ফাইলটি Files → Downloads ফোল্ডারে পাবেন। - কম্পিউটারে: বাটনে ডান-ক্লিক করে Save link as… নির্বাচন করুন; PDF খুলে Ctrl + F চেপে পছন্দের পদের নাম সরাসরি খুঁজে নিতে পারবেন। ### গত সপ্তাহের সাপ্তাহিক চাকরির খবর ০৪ সেপ্টেম্বর ২০২৬ PDF অনেকেই গত সপ্তাহের সংখ্যাটি দেখতে পারেননি, আবার আগের সপ্তাহে প্রকাশিত অনেক নিয়োগ বিজ্ঞপ্তির আবেদনের সময় এখনও শেষ হয়নি। তাই আপনাদের সুবিধার্থে নিচে সাপ্তাহিক চাকরির খবর পত্রিকা ০৪ সেপ্টেম্বর ২০২৬ (Saptahik Chakrir Khobor 04 September 2026) সংখ্যার PDF ফাইলটিও যুক্ত করা হলো। দুটি সংখ্যা একসাথে মিলিয়ে দেখলে চলতি ও আগের সপ্তাহের কোনো সুযোগই হাতছাড়া হবে না। পত্রিকার নামঃ Saptahik Chakrir Khobor 04 September 2026 প্রকাশের তারিখঃ ০৪ সেপ্টেম্বর ২০২৬ (শুক্রবার) ফাইল ফরম্যাটঃ PDF (৪ পৃষ্ঠা, প্রায় ০৬ MB) ## এই সপ্তাহের চাকরির খবর — উল্লেখযোগ্য সাপ্তাহিক নিয়োগ বিজ্ঞপ্তি ১১ সেপ্টেম্বর ২০২৬ পত্রিকার পাশাপাশি এই সপ্তাহে প্রকাশিত বড় নিয়োগ বিজ্ঞপ্তিগুলো নিচে উল্লেখ করা হলো। বিস্তারিত যোগ্যতা, বেতন স্কেল ও আবেদনের লিংক পেতে প্রতিষ্ঠানের নামে ক্লিক করুন। | ক্রমিক | প্রতিষ্ঠানের নাম | পদ সংখ্যা | আবেদনের শেষ তারিখ | | --- | --- | --- | --- | | ১ | বাংলাদেশ সমরাস্ত্র কারখানা (BOF) | ১৪২ | ০৬ অক্টোবর ২০২৬ | | ২ | বাংলাদেশ পল্লী উন্নয়ন বোর্ড (BRDB) | ৮৫ | ০৮ অক্টোবর ২০২৬ | | ৩ | বাংলাদেশ বনশিল্প উন্নয়ন কর্পোরেশন (BFIDC) | ১১২ | ২৯ সেপ্টেম্বর ২০২৬ | | ৪ | বাংলাদেশ হাই-টেক পার্ক কর্তৃপক্ষ (BHTPA) | ৪২ | ২৬ সেপ্টেম্বর ২০২৬ | | ৫ | কারিগরি ও মাদ্রাসা শিক্ষা বিভাগ (TMED) | ২৬ | ২৭ সেপ্টেম্বর ২০২৬ | | ৬ | বাংলাদেশ সেনাবাহিনী (Bangladesh Army) | বিজ্ঞপিতে দেখুন | ১৭ অক্টোবর ২০২৬ | | ৭ | বিভাগীয় কমিশনারের কার্যালয় ঢাকা | ২০ | ২৭ সেপ্টেম্বর ২০২৬ | | ৮ | মেঘনা পেট্রোলিয়াম পিএলসি | ১৫ | ৩০ সেপ্টেম্বর ২০২৬ | ## সাপ্তাহিক চাকরির খবর পত্রিকা কী? (Weekly Job Newspaper) সাপ্তাহিক চাকরির খবর বাংলাদেশের সবচেয়ে জনপ্রিয় সাপ্তাহিক চাকরির পত্রিকাগুলোর একটি। প্রতি শুক্রবার প্রকাশিত এই weekly job newspaper-এ সপ্তাহজুড়ে বিভিন্ন দৈনিক পত্রিকা ও প্রতিষ্ঠানের ওয়েবসাইটে ছড়িয়ে থাকা নিয়োগ বিজ্ঞপ্তিগুলো একসাথে সংকলিত হয়। ফলে দশটি আলাদা জায়গায় খোঁজার দরকার হয় না — চার পৃষ্ঠার একটি পত্রিকাতেই পুরো সপ্তাহের সুযোগগুলো চোখের সামনে চলে আসে। অষ্টম শ্রেণি পাস থেকে স্নাতকোত্তর পর্যন্ত সব স্তরের প্রার্থীর জন্যই এখানে বিজ্ঞপ্তি থাকে সাপ্তাহিক চাকরির খবর পত্রিকায়। অফিস সহায়ক, অফিস সহকারী ও ডাটা এন্ট্রি অপারেটরের মতো পদ যেমন নিয়মিত আসে, তেমনি ব্যাংক অফিসা",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ প্রকাশিত পিডিএফ সহ bd govt",
+          "location": "",
+          "deadline": "2026-10-06",
+          "application_url": "https://bdgovtjob.net/saptahik-chakrir-khobor",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_fe0aa64f6b51d4c19f05",
+        "identity_fingerprint": "identity_f957c35066c1319eafb6",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.693194+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.693540+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 24,
+        "importance_score": 36
+      },
+      "normalized": {
+        "company": "",
+        "title": "সাপ্তাহিক চাকরির খবর পত্রিকা ১১ সেপ্টেম্বর ২০২৬ প্রকাশিত পিডিএফ সহ bd govt",
+        "location": "",
+        "deadline": "2026-10-06",
+        "application_url": "https://bdgovtjob.net/saptahik-chakrir-khobor",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_fe0aa64f6b51d4c19f05",
+      "identity_fingerprint": "identity_f957c35066c1319eafb6",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Bdgovtjob",
+          "source_url": "https://bdgovtjob.net/saptahik-chakrir-khobor",
+          "seen_at": "2026-09-15T08:18:57.694214+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.693194+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.693540+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 36,
+      "first_seen": "2026-09-15T08:18:57.694219+00:00",
+      "last_seen": "2026-09-15T08:18:57.694221+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 161,
+        "published_at": "2026-09-15T08:20:07.779242+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_fe0aa64f6b51d4c19f05"
+    },
+    "evt_12f125eca226f12f": {
+      "event_id": "evt_12f125eca226f12f",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "শূন্যপদ | 142",
+        "salary": "বেতন স্কেল | 8,250 – 30,230",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-08T00:00:00.000Z",
+        "application_start": null,
+        "deadline": "06 October 2026",
+        "application_method": null,
+        "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Morejobsbd",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "সরকারি চাকরির প্রত্যাশীদের জন্য সুখবর। বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BOF Job Circular 2026) প্রকাশিত হয়েছে। গণপ্রজাতন্ত্রী বাংলাদেশ সরকারের প্রতিরক্ষা মন্ত্রণালয়ের অধীন বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ)-এর স্থায়ী রাজস্ব খাতভুক্ত শূন্য পদে সরাসরি জনবল নিয়োগের লক্ষ্যে এই বিজ্ঞপ্তি প্রকাশ করা হয়েছে। ... ২০২৬ বিকাল ০৫:০০টা পর্যন্ত চলবে। আগ্রহী প্রার্থীদের bof.teletalk.com.bd ১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত # ১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা (BOF) নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত 08 Sep 2026 সরকারি চাকরির প্রত্যাশীদের জন্য সুখবর। বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BOF Job Circular 2026) প্রকাশিত হয়েছে। গণপ্রজাতন্ত্রী বাংলাদেশ সরকারের প্রতিরক্ষা মন্ত্রণালয়ের অধীন বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ)-এর স্থায়ী রাজস্ব খাতভুক্ত শূন্য পদে সরাসরি জনবল নিয়োগের লক্ষ্যে এই বিজ্ঞপ্তি প্রকাশ করা হয়েছে। বিজ্ঞপ্তি অনুযায়ী ১৮টি ক্যাটাগরির পদে মোট ১৪২ জন কর্মকর্তা-কর্মচারী নিয়োগ দেওয়া হবে। উপ সহকারী কেমিস্ট, সিনিয়র টেকনিশিয়ান, গেইট ইন্সপেক্টর, সুপারভাইজার, অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক, ড্রাইভার, জুনিয়র টেকনিশিয়ান, টেকনিক্যাল হেলপার, নিরাপত্তা প্রহরীসহ বিভিন্ন পদ রয়েছে। আবেদন প্রক্রিয়া ০৮ সেপ্টেম্বর ২০২৬ সকাল ১০:০০টা থেকে শুরু হবে এবং ০৬ অক্টোবর ২০২৬ বিকাল ০৫:০০টা পর্যন্ত চলবে। আগ্রহী প্রার্থীদের bof.teletalk.com.bd ওয়েবসাইটের মাধ্যমে অনলাইনে আবেদন করতে হবে। ## BOF Job Circular 2026 এক নজরে | বিষয় | তথ্য | | --- | --- | | প্রতিষ্ঠানের নাম | বাংলাদেশ সমরাস্ত্র কারখানা (BOF) | | সংশ্লিষ্ট মন্ত্রণালয় | প্রতিরক্ষা মন্ত্রণালয় | | পদের ক্যাটাগরি | ১৮টি | | মোট শূন্যপদ | ১৪২ জন | | জব লোকেশন | গাজীপুর সেনানিবাস, গাজীপুর | | চাকরির ধরন | সরকারি চাকরি | | বয়সসীমা | ০৬ অক্টোবর ২০২৬ তারিখে ১৮ থেকে ৩২ বছর | | শিক্ষাগত যোগ্যতা | ৮ম শ্রেণি / এসএসসি / এইচএসসি / স্নাতক | | জেলা | বাংলাদেশের সকল জেলার প্রার্থী | | বেতন স্কেল | ৮,২৫০ – ৩০,২৩০ টাকা | | গ্রেড | ১১তম থেকে ২০তম গ্রেড | | আবেদন ফি | ৫৬ / ১১২ / ১৬৮ টাকা | | আবেদন পদ্ধতি | অনলাইন | | আবেদন শুরু | ০৮ সেপ্টেম্বর ২০২৬, সকাল ১০:০০টা | | আবেদনের শেষ তারিখ | ০৬ অক্টোবর ২০২৬, বিকাল ০৫:০০টা | ## বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ বাংলাদেশ সমরাস্ত্র কারখানা (বিওএফ) প্রতিরক্ষা মন্ত্রণালয়ের অধীন একটি গুরুত্বপূর্ণ সরকারি প্রতিষ্ঠান। প্রকাশিত নিয়োগ বিজ্ঞপ্তিতে বিভিন্ন শিক্ষাগত যোগ্যতার প্রার্থীদের জন্য একাধিক পদ রাখা হয়েছে। ৮ম শ্রেণি, এসএসসি, এইচএসসি এবং স্নাতক পাস প্রার্থীরা পদভেদে আবেদন করার সুযোগ পাবেন। বিজ্ঞপ্তি অনুযায়ী বাংলাদেশের সকল জেলার যোগ্য প্রার্থীরা আবেদন করতে পারবেন। তবে প্রতিটি পদের জন্য নির্ধারিত শিক্ষাগত যোগ্যতা, অভিজ্ঞতা ও অন্যান্য শর্ত আলাদা হতে পারে। তাই আবেদন করার আগে মূল সার্কুলারটি অবশ্যই দেখে নিতে হবে। ## বাংলাদেশ সমরাস্ত্র কারখানার পদসমূহ ও বেতন স্কেল | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতন স্কেল | | --- | --- | --- | --- | | ১ | উপ সহকারী কেমিস্ট | ১ | ১২,৫০০-৩০,২৩০ টাকা | | ২ | সিনিয়র টেকনিশিয়ান | ৯ | ১০,২০০-২৪,৬৮০ টাকা | | ৩ | গেইট ইন্সপেক্টর | ১ | ১০,২০০-২৪,৬৮০ টাকা | | ৪ | সুপারভাইজার | ১ | ১০,২০০-২৪,৬৮০ টাকা | | ৫ | অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক | ৮ | ৯,৩০০-২২,৪৯০ টাকা | | ৬ | মেটল্যাব এ্যাসিস্ট্যান্ট | ৪ | ৯,৩০০-২২,৪৯০ টাকা | | ৭ | গোডাউন কিপার | ৪ | ৯,৩০০-২২,৪৯০ টাকা | | ৮ | ড্রাইভার | ৭ | ৯,৩০০-২২,৪৯০ টাকা | | ৯ | স্কীল্ড টেকনিশিয়ান | ৩ | ৯,০০০-২১,৮০০ টাকা | | ১০ | টেকনিশিয়ান | ১১ | ৮,৮০০-২১,৩১০ টাকা | | ১১ | নিরাপত্তা কর্মী | ১ | ৮,৫০০-২০,৫৭০ টাকা | | ১২ | জুনিয়র টেকনিশিয়ান | ২২ | ৮,৫০০-২০,৫৭০ টাকা | | ১৩ | ফায়ারম্যান | ১ | ৮,৫০০-২০,৫৭০ টাকা | | ১৪ | টেকনিক্যাল হেলপার | ৫৩ | ৮,২৫০-২০,০১০ টাকা | | ১৫ | আর্দালী | ৭ | ৮,২৫০-২০,০১০ টাকা | | ১৬ | নিরাপত্তা প্রহরী | ৪ | ৮,২৫০-২০,০১০ টাকা | | ১৭ | লেবার | ৩ | ৮,২৫০-২০,০১০ টাকা | | ১৮ | পরিচ্ছন্নতা কর্মী | ২ | ৮,২৫০-২০,০১০ টাকা | ## বাংলাদেশ সমরাস্ত্র কারখানা পদভিত্তিক শিক্ষাগত যোগ্যতা BOF Job Circular 2026-এ পদভেদে শিক্ষাগত যোগ্যতা ও অভিজ্ঞতার শর্ত আলাদা। নিচে গুরুত্বপূর্ণ যোগ্যতাগুলো সংক্ষেপে দেওয়া হলো। - উপ সহকারী কেমিস্ট: স্বীকৃত বিশ্ববিদ্যালয় হতে রসায়নসহ ২য় বিভাগ বা সমমানের ডিগ্রি। - সিনিয়র টেকনিশিয়ান: এইচএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে ১০ বছরের চাকরির অভিজ্ঞতা। - গেইট ইন্সপেক্টর: স্নাতক বা সমমান; অবসরপ্রাপ্ত JCO প্রার্থীদের জন্য এসএসসি বা সমমানের যোগ্যতার শর্ত রয়েছে। - সুপারভাইজার: ২য় বিভাগে স্নাতক বা সমমানের পরীক্ষা উত্তীর্ণ। - অফিস সহকারী কাম কম্পিউটার মুদ্রাক্ষরিক: এইচএসসি বা সমমান এবং কম্পিউটার ব্যবহারে দক্ষতা ও টাইপিংয়ের নির্ধারিত গতি। - মেটল্যাব এ্যাসিস্ট্যান্ট: রসায়ন ও পদার্থবিদ্যাসহ এইচএসসি বা সমমান। - গোডাউন কিপার: এইচএসসি বা সমমানের দ্বিতীয় বিভাগ। - ড্রাইভার: এসএসসি বা সমমান, ভারী যানবাহন চালনার লাইসেন্স এবং সংশ্লিষ্ট শর্ত পূরণ করতে হবে। - স্কীল্ড টেকনিশিয়ান: এসএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে ৮ বছরের অভিজ্ঞতা। - টেকনিশিয়ান: এসএসসি বা সমমানসহ সংশ্লিষ্ট ট্রেডে কমপক্ষে ৬ বছরের অভিজ্ঞতা। - নিরাপত্তা কর্মী: এসএসসি বা সমমান। - জুনিয়র টেকনিশিয়ান: এসএসসি বা সমমানসহ কারিগরি বিষয়ে সার্টিফিকেট। - ফায়ারম্যান: এসএসসি বা সমমান এবং নির্ধারিত শারীরিক যোগ্যতা। - টেকনিক্যাল হেলপার: এসএসসি বা সমমান; কারিগরি সার্টিফিকেটধারীকে অগ্রাধিকার দেওয়া হবে। - আর্দালী: এসএসসি বা সমমান। - নিরাপত্তা প্রহরী: এসএসসি বা সমমান এবং নির্ধারিত শারীরিক যোগ্যতা। - লেবার: অষ্টম শ্রেণি উত্তীর্ণ। - পরিচ্ছন্নতা কর্মী: অষ্টম শ্রেণি উত্তীর্ণ। ## BOF Job Circular 2026 বয়সসীমা বাংলাদেশ সমরাস্ত্র কারখানা নিয়োগ বিজ্ঞপ্তি ২০২৬ অনুযায়ী আবেদনকারীর বয়স ০৬ অক্টোবর ২০২৬ তারিখে সর্বনিম্ন ১৮ বছর এবং সর্বোচ্চ ৩২ বছর হতে হবে। বীর মুক্তিযোদ্ধা/শহীদ মুক্তিযোদ্ধার সন্তান এবং শারীরিক প্রতিবন্ধী প্রার্থীদের ক্ষেত্রে সরকারি নিয়ম অনুযায়ী বয়সসীমা শিথিলযোগ্য। বয়স গণনার ক্ষেত্রে কোনো এফিডেভিট গ্রহণযোগ্য হবে না। তাই আবেদন করার আগে নিজের বয়স বিজ",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা bof নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+          "location": "",
+          "deadline": "2026-10-06",
+          "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "শূন্যপদ 142",
+          "salary": "বেতন স্কেল 8 250 30 230"
+        },
+        "fingerprint": "job_752ac20d9764b4bee23d",
+        "identity_fingerprint": "identity_64bc49b48a3404a440dc",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.694550+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.694842+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 40,
+        "importance_score": 52
+      },
+      "normalized": {
+        "company": "",
+        "title": "১৪২ পদে বাংলাদেশ সমরাস্ত্র কারখানা bof নিয়োগ বিজ্ঞপ্তি ২০২৬ প্রকাশিত",
+        "location": "",
+        "deadline": "2026-10-06",
+        "application_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "শূন্যপদ 142",
+        "salary": "বেতন স্কেল 8 250 30 230"
+      },
+      "fingerprint": "job_752ac20d9764b4bee23d",
+      "identity_fingerprint": "identity_64bc49b48a3404a440dc",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Morejobsbd",
+          "source_url": "https://morejobsbd.com/government-jobs/1909/bangladesh-ordnance-factories-bof-job-circular",
+          "seen_at": "2026-09-15T08:18:57.695545+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.694550+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.694842+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 52,
+      "first_seen": "2026-09-15T08:18:57.695549+00:00",
+      "last_seen": "2026-09-15T08:18:57.695551+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 155,
+        "published_at": "2026-09-15T08:19:46.421773+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_752ac20d9764b4bee23d"
+    },
+    "evt_58f1cbe2baddc65d": {
+      "event_id": "evt_58f1cbe2baddc65d",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "৩৩২ পদে বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি ২০২৬ Bangladesh Bank Job Circular 2026 | BD Govt Job",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "শূন্যপদ | 332",
+        "salary": "বেতনস্কেল,",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-12T07:44:32.000Z",
+        "application_start": null,
+        "deadline": "27 September 2026",
+        "application_method": null,
+        "application_url": "https://bdgovtjob.net/bangladesh-bank-job-circular",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Bdgovtjob",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovtjob.net/bangladesh-bank-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "ব্যাংক নিয়োগ বিজ্ঞপ্তি ২০২৬ (Bangladesh Bank Job Circular 2026) আনুষ্ঠানিকভাবে ২৯ জুলাই, ১৭ আগস্ট, ১৮ আগস্ট ও ২০ আগস্ট ২০২৬ তারিখে বাংলাদেশ ব্যাংক ই-রিক্রুটমেন্ট ওয়েবসাইট ও জাতীয় দৈনিকে প্রকাশিত হয়েছে। সেন্ট্রাল ব্যাংক অব বাংলাদেশ এবং ব্যাংকার্স সিলেকশন কমিটি সচিবালয় (বিএসসিএস)-এর আওতাধীন মোট ০৪টি পৃথক নিয়োগ বিজ্ঞপ্তিতে ১৩টি ক্যাটাগরির পদে সর্বমোট ৩৩২ জন দক্ষ ও যোগ্য প্রার্থী নিয়োগ দেওয়া হবে। ৩৩২ পদে বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি ২০২৬ Bangladesh Bank Job Circular 2026 | BD Govt Job # ৩৩২ পদে বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি ২০২৬ Bangladesh Bank Job Circular 2026 12 September, 2026 10 September, 2026 by Admin পদের ক্যাটাগরি ১৩ মোট পদের সংখ্যা ৩৩২ বাংলাদেশ ব্যাংক নিয়োগ বিজ্ঞপ্তি ২০২৬ (Bangladesh Bank Job Circular 2026) আনুষ্ঠানিকভাবে ২৯ জুলাই, ১৭ আগস্ট, ১৮ আগস্ট ও ২০ আগস্ট ২০২৬ তারিখে বাংলাদেশ ব্যাংক ই-রিক্রুটমেন্ট ওয়েবসাইট ও জাতীয় দৈনিকে প্রকাশিত হয়েছে। সেন্ট্রাল ব্যাংক অব বাংলাদেশ এবং ব্যাংকার্স সিলেকশন কমিটি সচিবালয় (বিএসসিএস)-এর আওতাধীন মোট ০৪টি পৃথক নিয়োগ বিজ্ঞপ্তিতে ১৩টি ক্যাটাগরির পদে সর্বমোট ৩৩২ জন দক্ষ ও যোগ্য প্রার্থী নিয়োগ দেওয়া হবে। উল্লিখিত নিয়োগের আওতায় বাংলাদেশ ব্যাংকের নিজস্ব মেডিকেল অফিসার ও সহকারী পরিচালক (আইন) এবং সদস্যভুক্ত রাষ্ট্রায়ত্ত সোনালী, অগ্রণী, রূপালী, বিডিবিএল, রাকাব, কর্মসংস্থান ব্যাংক, আইসিবি, কৃষি ব্যাংক ও আনসার ভিডিপি ব্যাংকের জন্য বিপুল সংখ্যক আইটি বিশেষজ্ঞ কর্মকর্তা নেওয়া হবে। আগ্রহী প্রার্থীরা অনলাইনে পদভেদে আগামী ০১, ১৭, ২০ ও ২৭ সেপ্টেম্বর ২০২৬ তারিখের মধ্যে আবেদন করতে পারবেন। আবেদনের শিক্ষাগত যোগ্যতা, বয়সসীমা, পদভিত্তিক বেতনস্কেল, ফি পরিশোধ পদ্ধতি ও অফিশিয়াল নোটিশের বিস্তারিত তথ্য নিচে তুলে ধরা হলো। ### 💡 কেন এই চাকরিতে আবেদন করবেন? - ১৩ টি ক্যাটাগরির পদে মোট ৩৩২ জনকে নিয়োগ দেওয়া হবে। - স্নাতক / স্নাতকোত্তর / এমবিবিএস / ইঞ্জিনিয়ারিং পাস পাসে আবেদন করা যাবে। - সকল জেলার যোগ্য প্রার্থী আবেদন করতে পারবেন। | প্রতিষ্ঠানের নাম | বাংলাদেশ ব্যাংক | | --- | --- | | সংশ্লিষ্ট মন্ত্রণালয় | বাংলাদেশ ব্যাংক (সেন্ট্রাল ব্যাংক অব বাংলাদেশ) | | জব লোকেশন | ঢাকা ও সারা বাংলাদেশ | | পদের ক্যাটাগরি | ১৩ টি | | মোট শূন্যপদ | ৩৩২ জন | | চাকরির ধরন | সরকারি চাকরি | | বয়সসীমা | ২১ থেকে ৩২ বছর (পদভেদে ৩৫ ও ৬২ বছর) | | শিক্ষাগত যোগ্যতা | স্নাতক / স্নাতকোত্তর / এমবিবিএস / ইঞ্জিনিয়ারিং পাস | | জেলা | সকল জেলার যোগ্য প্রার্থী | | বেতন/গ্রেড | ৬ষ্ঠ, ৯ম ও ১০ম গ্রেড | | আবেদনের ফি | ২০০ টাকা | | বিজ্ঞপ্তির সোর্স | বাংলাদেশ ব্যাংক ই-রিক্রুটমেন্ট ওয়েবসাইট, ২০ আগস্ট ২০২৬ | | স্মারক নম্বর | ৬৭/২০২৬, ৬৬/২০২৬, ৬৫/২০২৬ ও ২৬০/২০২৬ | | বিজ্ঞপ্তি জারির তারিখ | ২৯ জুলাই, ১৭ আগস্ট, ১৮ আগস্ট ও ২০ আগস্ট ২০২৬ | | বিজ্ঞপ্তি প্রকাশের তারিখ | ২৯ জুলাই, ১৭ আগস্ট, ১৮ আগস্ট ও ২০ আগস্ট ২০২৬ | | আবেদন শুরুর তারিখ | ২৯ জুলাই, ১৭ আগস্ট, ১৯ আগস্ট ও ২৩ আগস্ট ২০২৬ | | আবেদনের শেষ তারিখ | পদভেদে ০১, ১৭, ২০ ও ২৭ সেপ্টেম্বর ২০২৬ রাত ১১:৫৯ টা | | আবেদন পদ্ধতি | অনলাইন (erecruitment.bb.org.bd) | ## কোম্পানি বা প্রতিষ্ঠানের পরিচিতি বাংলাদেশ ব্যাংক (Bangladesh Bank) হলো গণপ্রজাতন্ত্রী বাংলাদেশের কেন্দ্রীয় ব্যাংক ও সর্বোচ্চ আর্থিক নিয়ন্ত্রণকারী সংস্থা। ১৯৭১ সালের বাংলাদেশ ব্যাংক আদেশবলে প্রতিষ্ঠিত এই প্রতিষ্ঠানটি দেশের মুদ্রানীতি প্রণয়ন, বৈদেশিক মুদ্রার রিজার্ভ পরিচালনা, ব্যাংক ও আর্থিক খাতের তদারকি এবং জাতীয় অর্থনৈতিক স্থিতিশীলতা বজায় রাখতে শীর্ষ ভূমিকা পালন করে। এছাড়া ব্যাংকার্স সিলেকশন কমিটি (বিএসসিএস)-এর মাধ্যমে রাষ্ট্রায়ত্ত ব্যাংকসমূহে মেধাভিত্তিক স্বচ্ছ নিয়োগ প্রক্রিয়া পরিচালিত হয়। বাংলাদেশ ব্যাংকে চাকরি যেকোনো প্রার্থীর জন্য সর্বোচ্চ সামাজিক মর্যাদা, আকর্ষণীয় আর্থিক সুবিধা এবং শীর্ষ নেতৃত্বমূলক ক্যারিয়ারের এক অনন্য সুযোগ। | অফিশিয়াল ওয়েবসাইট | erecruitment.bb.org.bd | | --- | --- | | হেড অফিসের ঠিকানা | বাংলাদেশ ব্যাংক, প্রধান কার্যালয়, মতিঝিল, ঢাকা-১০০০ | | ফোন নাম্বার | +880-2-9530420 | | ফ্যাক্স নাম্বার | +880-2-9530435 | ### নিয়োগ বিজ্ঞপ্তি ১ (মেডিকেল অফিসার – ৯ম গ্রেড) | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতনস্কেল/গ্রেড | | --- | --- | --- | --- | | ১ | মেডিকেল অফিসার | ০৬ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | ### নিয়োগ বিজ্ঞপ্তি ২ (সহকারী পরিচালক – এক্স ক্যাডার-আইন – ৯ম গ্রেড) | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতনস্কেল/গ্রেড | | --- | --- | --- | --- | | ১ | সহকারী পরিচালক (এক্স ক্যাডার-আইন) | ০৫ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | ### নিয়োগ বিজ্ঞপ্তি ৩ (খণ্ডকালীন চিকিৎসক – ট্রেনিং একাডেমি) | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতনস্কেল/গ্রেড | | --- | --- | --- | --- | | ১ | খণ্ডকালীন চিকিৎসক (মিরপুর একাডেমি) | ০১ | দৈনিক ২,৬০০/- টাকা হারে মাসান্তে সম্মানী | ### নিয়োগ বিজ্ঞপ্তি ৪ (ব্যাংকার্স সিলেকশন কমিটি – আইটি পদসমূহ – ৩২০ জন) | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতনস্কেল/গ্রেড | | --- | --- | --- | --- | | ১ | সিনিয়র অফিসার (IT) | ৩৬ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ২ | অফিসার (IT)/ এমআইএস এবং আইসিটি অফিসার | ২৩১ | জাতীয় বেতন স্কেল ২০১৫, ১০ম গ্রেড (১৬,০০০-৩৮,৬৪০/-) | | ৩ | এসিস্ট্যান্ট প্রোগ্রামার/ সহকারী প্রোগ্রামার | ২৮ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ৪ | এসিস্ট্যান্ট ইঞ্জিনিয়ার (IT)/ মেইনটেন্যান্স ইঞ্জিনিয়ার | ১৪ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ৫ | সহকারী সিস্টেম ইঞ্জিনিয়ার | ০৩ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ৬ | এসিস্ট্যান্ট ডাটাবেইজ এডমিনিস্ট্রেটর (গ্রেড-০৯) | ০২ | জাতীয় বেতন স্কেল ২০১৫, ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ৭ | এসিস্ট্যান্ট সিস্টেম এনালিস্ট | ০২ | জাতীয় বেতন স্কেল ২০১৫, ৬ষ্ঠ গ্রেড (৩৫,৫০০-৬৭,০১০/-) | | ৮ | এসিস্ট্যান্ট ডাটাবেইজ এডমিনিস্ট্রেটর (গ্রেড-০৬) | ০১ | জাতীয় বেতন স্কেল ২০১৫, ৬ষ্ঠ গ্রেড (৩৫,৫০০-৬৭,০১০/-) | | ৯ | প্রোগ্রামার | ০১ | জাতীয় বেতন স্কেল ২০১৫, ৬ষ্ঠ গ্রেড (৩৫,৫০০-৬৭,০১০/-) | | ১০ | ডাটাবেইজ এডমিনিস্ট্রেটর | ০২ | জাতীয় বেতন স্ক",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "৩৩২ পদে বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি ২০২৬ bangladesh bank 2026 bd govt",
+          "location": "",
+          "deadline": "2026-09-27",
+          "application_url": "https://bdgovtjob.net/bangladesh-bank-job-circular",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "শূন্যপদ 332",
+          "salary": "বেতনস্কেল"
+        },
+        "fingerprint": "job_45e6e4190fb962828322",
+        "identity_fingerprint": "identity_f80aa973a4895ff82f5a",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.695854+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.696159+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 46,
+        "importance_score": 58
+      },
+      "normalized": {
+        "company": "",
+        "title": "৩৩২ পদে বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি ২০২৬ bangladesh bank 2026 bd govt",
+        "location": "",
+        "deadline": "2026-09-27",
+        "application_url": "https://bdgovtjob.net/bangladesh-bank-job-circular",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "শূন্যপদ 332",
+        "salary": "বেতনস্কেল"
+      },
+      "fingerprint": "job_45e6e4190fb962828322",
+      "identity_fingerprint": "identity_f80aa973a4895ff82f5a",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Bdgovtjob",
+          "source_url": "https://bdgovtjob.net/bangladesh-bank-job-circular",
+          "seen_at": "2026-09-15T08:18:57.696883+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.695854+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.696159+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 58,
+      "first_seen": "2026-09-15T08:18:57.696888+00:00",
+      "last_seen": "2026-09-15T08:18:57.696890+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 154,
+        "published_at": "2026-09-15T08:19:42.402377+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_45e6e4190fb962828322"
+    },
+    "evt_e6bafcc38954b49e": {
+      "event_id": "evt_e6bafcc38954b49e",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "07টি বেতনস্কেল ও গ্রেড: 9ম গ্রেড (22,000-53,060/- টাকা) শিক্ষাগত যোগ্যতা: স্বীকৃত বিশ্ববিদ্যালয় হতে এম.বি.বি.এস. (MBBS) ডিগ্রীধারী হতে হবে।",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "শূন্যপদ | 20",
+        "salary": "বেতন/গ্রেড | জাতীয় বেতন স্কেল 2015",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-01T02:10:23.000Z",
+        "application_start": null,
+        "deadline": "30 September 2026",
+        "application_method": null,
+        "application_url": "https://bdgovtjob.net/bepza-job-circular",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Bdgovtjob",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovtjob.net/bepza-job-circular",
+        "discovery": "exa",
+        "meta": {},
+        "text": "বেপজা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BEPZA Job Circular 2026) আনুষ্ঠানিকভাবে ০১ সেপ্টেম্বর ২০২৬ তারিখে দৈনিক আমার দেশ পত্রিকা ও অফিশিয়াল ওয়েবসাইটে প্রকাশিত হয়েছে। প্রধান উপদেষ্টার কার্যালয়ের আওতাধীন বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (বেপজা)-এর চট্টগ্রাম ইপিজেড হাসপাতালের স্থায়ী শূন্য পদসমূহে সরাসরি জনবল নিয়োগের লক্ষ্যে ৫টি ক্যাটাগরিতে সর্বমোট ২০ জন কর্মকর্তা-কর্মচারী নিয়োগ ২০ পদে বাংলাদেশ রপ্তানি প্রক্রিয়াকরণ অঞ্চল কর্তৃপক্ষ বেপজা নিয়োগ বিজ্ঞপ্তি ২০২৬ | BD Govt Job # ২০ পদে বাংলাদেশ রপ্তানি প্রক্রিয়াকরণ অঞ্চল কর্তৃপক্ষ বেপজা নিয়োগ বিজ্ঞপ্তি ২০২৬ 1 September, 2026 by Admin পদের ক্যাটাগরি ০৫ মোট পদের সংখ্যা ২০ বেপজা নিয়োগ বিজ্ঞপ্তি ২০২৬ (BEPZA Job Circular 2026) আনুষ্ঠানিকভাবে ০১ সেপ্টেম্বর ২০২৬ তারিখে দৈনিক আমার দেশ পত্রিকা ও অফিশিয়াল ওয়েবসাইটে প্রকাশিত হয়েছে। প্রধান উপদেষ্টার কার্যালয়ের আওতাধীন বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (বেপজা)-এর চট্টগ্রাম ইপিজেড হাসপাতালের স্থায়ী শূন্য পদসমূহে সরাসরি জনবল নিয়োগের লক্ষ্যে ৫টি ক্যাটাগরিতে সর্বমোট ২০ জন কর্মকর্তা-কর্মচারী নিয়োগ দেওয়া হবে। বিজ্ঞপ্তি অনুযায়ী মেডিকেল অফিসার, মেডিকেল এসিস্ট্যান্ট, এসিস্ট্যান্ট ল্যাব টেকনোলজিস্ট (প্যাথলজি), এসিস্ট্যান্ট ফার্মাসিস্ট এবং ক্লিনার পদে বাংলাদেশের প্রকৃত পুরুষ ও মহিলা নাগরিকদের নিকট থেকে ডাকযোগে দরখাস্ত আহ্বান করা হয়েছে। বাংলাদেশের সকল জেলার প্রার্থীরা যোগ্যতা অনুযায়ী পদসমূহে আবেদনের সুযোগ পাবেন। আগ্রহী প্রার্থীদের আগামী ৩০ সেপ্টেম্বর ২০২৬ তারিখের মধ্যে নির্ধারিত চাকরির আবেদন ফরম পূরণ করে ডাকযোগে আবেদনপত্র পৌঁছাতে হবে। বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (BEPZA) চাকরির খবর ২০২৬-এর বিস্তারিত পদ সংখ্যা, শিক্ষাগত যোগ্যতা, পে-অর্ডার ফি ও ডাকযোগে আবেদন প্রক্রিয়া নিচে বিস্তারিত তুলে ধরা হলো। ✔ অফিশিয়াল সার্কুলার ও ওয়েবসাইট থেকে তথ্য যাচাইকৃত | সর্বশেষ আপডেট: ১ সেপ্টেম্বর ২০২৬ ### 💡 কেন এই চাকরিতে আবেদন করবেন? - ০৫ টি ক্যাটাগরির পদে মোট ২০ জনকে নিয়োগ দেওয়া হবে। - এমবিবিএস / ডিপ্লোমা ইন মেডিকেল টেকনোলজি / ফার্মেসি / ৮ম শ্রেণি পাস পাসে আবেদন করা যাবে। - বাংলাদেশের সকল জেলার প্রার্থী আবেদনযোগ্য আবেদন করতে পারবেন। | প্রতিষ্ঠানের নাম | বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (বেপজা) | | --- | --- | | জব লোকেশন | চট্টগ্রাম (চট্টগ্রাম ইপিজেড হাসপাতাল) | | পদের ক্যাটাগরি | ০৫ টি | | মোট শূন্যপদ | ২০ জন | | চাকরির ধরন | সরকারি চাকরি | | বয়সসীমা | অনূর্ধ্ব ৩২ বছর | | শিক্ষাগত যোগ্যতা | এমবিবিএস / ডিপ্লোমা ইন মেডিকেল টেকনোলজি / ফার্মেসি / ৮ম শ্রেণি পাস | | জেলা | বাংলাদেশের সকল জেলার প্রার্থী আবেদনযোগ্য | | বেতন/গ্রেড | জাতীয় বেতন স্কেল ২০১৫ অনুযায়ী ৯ম, ১২তম, ও ২০তম গ্রেড | | আবেদনের ফি | ৫০/- হতে ২০০/- টাকা (পে-অর্ডার) | | বিজ্ঞপ্তির সোর্স | দৈনিক আমার দেশ ও অফিশিয়াল ওয়েবসাইট | | স্মারক নম্বর | ০৩.০৬.১৫৩৫.৩৩৫.১১.০২৯.২৫-৫৯৯৩ | | বিজ্ঞপ্তি জারির তারিখ | ২৪ আগস্ট ২০২৬ | | বিজ্ঞপ্তি প্রকাশের তারিখ | ০১ সেপ্টেম্বর ২০২৬ | | আবেদনের শেষ তারিখ | ৩০ সেপ্টেম্বর ২০২৬ অফিস চলাকালীন সময় পর্যন্ত | | আবেদন পদ্ধতি | ডাকযোগে | ## কোম্পানি বা প্রতিষ্ঠানের পরিচিতি বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (BEPZA) প্রধান উপদেষ্টার কার্যালয়ের অধীনস্থ একটি স্বায়ত্তশাসিত সরকারি প্রতিষ্ঠান। দেশের বিভিন্ন অর্থনৈতিক অঞ্চলে শিল্পায়ন, বিদেশি বিনিয়োগ আকর্ষণ ও রপ্তানি বৃদ্ধির লক্ষ্যে বেপজা ইপিজেডসমূহ অত্যন্ত দক্ষতার সাথে পরিচালনা করছে। চট্টগ্রাম ইপিজেড হাসপাতাল ইপিজেডের কর্মকর্তা, কর্মচারী ও শ্রমিকদের আধুনিক চিকিৎসাসেবা প্রদানে নিয়োজিত। | অফিশিয়াল ওয়েবসাইট | bepza.gov.bd | | --- | --- | | হেড অফিসের ঠিকানা | বাংলাদেশ রপ্তানি প্রক্রিয়াকরণ অঞ্চল কর্তৃপক্ষ (বেপজা), বেপজা কমপ্লেক্স, বাড়ি: 19/ডি, রোড: 6, ধানমন্ডি আর/এ, ঢাকা, বাংলাদেশ | | ফোন নাম্বার | +৮৮০ ০২৪১০৬০৮৭০ | | ফ্যাক্স নাম্বার | +৮৮০ ০২২২৩৩৬১৮৪৯ | | ই-মেইল | [email protected] | ## বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (বেপজা) পদের সংক্ষিপ্ত বিবরণ | ক্রমিক | পদের নাম | পদ সংখ্যা | বেতনস্কেল ও গ্রেড | | --- | --- | --- | --- | | ১ | মেডিকেল অফিসার | ০৭ | ৯ম গ্রেড (২২,০০০-৫৩,০৬০/-) | | ২ | মেডিকেল এসিস্ট্যান্ট | ০৪ | ১২তম গ্রেড (১১,৩০০-২৭,৩০০/-) | | ৩ | এসিস্ট্যান্ট ল্যাব টেকনোলজিস্ট (প্যাথলজি) | ০২ | ১২,৫০০-৩০,২৩০/- বা ৯,৩০০-২২,৪৯০/- | | ৪ | এসিস্ট্যান্ট ফার্মাসিস্ট | ০১ | ১২তম গ্রেড (১১,৩০০-২৭,৩০০/-) | | ৫ | ক্লিনার | ০৬ | ২০তম গ্রেড (৮,২৫০-২০,০১০/-) | ## বাংলাদেশ রপ্তানী প্রক্রিয়াকরণ এলাকা কর্তৃপক্ষ (বেপজা) পদভিত্তিক শিক্ষাগত যোগ্যতা ও অভিজ্ঞতা ১. মেডিকেল অফিসার পদ: ০৭টি বেতনস্কেল ও গ্রেড: ৯ম গ্রেড (২২,০০০-৫৩,০৬০/- টাকা) শিক্ষাগত যোগ্যতা: স্বীকৃত বিশ্ববিদ্যালয় হতে এম.বি.বি.এস. (MBBS) ডিগ্রীধারী হতে হবে। অভিজ্ঞতা: বাংলাদেশ মেডিকেল অ্যান্ড ডেন্টাল কাউন্সিল (বিএমডিসি) কর্তৃক বৈধ রেজিস্ট্রেশন প্রাপ্ত হতে হবে। অন্যান্য যোগ্যতা / দক্ষতা: প্রার্থীর বয়স অনূর্ধ্ব ৩২ বৎসর। ২. মেডিকেল এসিস্ট্যান্ট পদ: ০৪টি বেতনস্কেল ও গ্রেড: ১২তম গ্রেড (১১,৩০০-২৭,৩০০/- টাকা) শিক্ষাগত যোগ্যতা: সরকারি স্বীকৃতিপ্রাপ্ত প্রতিষ্ঠান হতে ০৩ (তিন) বৎসর মেয়াদী মেডিকেল এসিস্ট্যান্ট কোর্স (MATS) উত্তীর্ণ হতে হবে। অভিজ্ঞতা: ক্লিনিক্যাল ও স্বাস্থ্যসেবায় বাস্তব অভিজ্ঞতা সম্পন্নদের অগ্রাধিকার দেওয়া হবে। অন্যান্য যোগ্যতা / দক্ষতা: প্রার্থীর বয়স অনূর্ধ্ব ৩২ বৎসর। ৩. এসিস্ট্যান্ট ল্যাব টেকনোলজিস্ট (প্যাথলজি) পদ: ০২টি বেতনস্কেল ও গ্রেড: ১২,৫০০-৩০,২৩০/- টাকা (ডিপ্লোমা) অথবা ৯,৩০০-২২,৪৯০/- টাকা (এইচএসসি) শিক্ষাগত যোগ্যতা: সরকারি স্বীকৃতিপ্রাপ্ত প্রতিষ্ঠান হতে ০৩ (তিন) বৎসর মেয়াদী ডিপ্লোমা ইন মেডিকেল টেকনোলজি (ল্যাব) অথবা এইচ.এস.সি. (বিজ্ঞান) পাস। অভিজ্ঞতা: এইচ.এস.সি. পাসের ক্ষেত্রে সু-প্রতিষ্ঠিত ডায়াগনস্টিক ল্যাবে অন্যূন ০৩ (তিন) বৎসরের বাস্তব কাজের অভিজ্ঞতা থাকতে হবে। অন্যান্য যোগ্যতা / দক্ষতা: প্রার্থীর বয়স অনূর্ধ্ব ৩২ বৎসর। ৪. এসিস্ট্যান্ট ফার্মাসিস্ট পদ: ০১টি বেতনস্কেল ও গ্রেড: ১২তম গ্রেড (১১,৩০০-২৭,৩০০/- টাকা) শিক্ষাগত যোগ্যতা: সরকার",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "07টি বেতনস্কেল ও গ্রেড 9ম গ্রেড 22 000 53 060 টাকা শিক্ষাগত যোগ্যতা স্বীকৃত বিশ্ববিদ্যালয় হতে এম বি বি এস mbbs ডিগ্রীধারী হতে হবে",
+          "location": "",
+          "deadline": "2026-09-30",
+          "application_url": "https://bdgovtjob.net/bepza-job-circular",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "শূন্যপদ 20",
+          "salary": "বেতন গ্রেড জাতীয় বেতন স্কেল 2015"
+        },
+        "fingerprint": "job_53def932bc2f60dad6b3",
+        "identity_fingerprint": "identity_0882c43da4348530fc57",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.697227+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.697549+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 37,
+        "importance_score": 49
+      },
+      "normalized": {
+        "company": "",
+        "title": "07টি বেতনস্কেল ও গ্রেড 9ম গ্রেড 22 000 53 060 টাকা শিক্ষাগত যোগ্যতা স্বীকৃত বিশ্ববিদ্যালয় হতে এম বি বি এস mbbs ডিগ্রীধারী হতে হবে",
+        "location": "",
+        "deadline": "2026-09-30",
+        "application_url": "https://bdgovtjob.net/bepza-job-circular",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "শূন্যপদ 20",
+        "salary": "বেতন গ্রেড জাতীয় বেতন স্কেল 2015"
+      },
+      "fingerprint": "job_53def932bc2f60dad6b3",
+      "identity_fingerprint": "identity_0882c43da4348530fc57",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Bdgovtjob",
+          "source_url": "https://bdgovtjob.net/bepza-job-circular",
+          "seen_at": "2026-09-15T08:18:57.698295+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.697227+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.697549+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 49,
+      "first_seen": "2026-09-15T08:18:57.698300+00:00",
+      "last_seen": "2026-09-15T08:18:57.698302+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 157,
+        "published_at": "2026-09-15T08:19:52.465177+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_53def932bc2f60dad6b3"
+    },
+    "evt_29a50f09264e427a": {
+      "event_id": "evt_29a50f09264e427a",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "ACI Motors Limited",
+        "title": "Management Trainee : ACI Motors Limited",
+        "organization_type": null,
+        "sector": "Automotive & Agri‑machinery",
+        "job_function": "Management Trainee",
+        "job_level": null,
+        "job_type": "Full Time",
+        "employment_type": null,
+        "location": "Dhaka",
+        "vacancy": "-- Age: 22",
+        "salary": "Negotiable",
+        "education": [
+          "Bachelor’s in Business Administration",
+          "B.Sc/Graduation in Engineering (with MBA)"
+        ],
+        "experience": "At most 1 year",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-13T00:00:00.000Z",
+        "application_start": null,
+        "deadline": "05 Oct 2026",
+        "application_method": null,
+        "application_url": "https://bdjobs.com/h/details/1532666?ln=1",
+        "requirements": [
+          "Age 22 to 30 years",
+          "Strong proficiency in using AI tools",
+          "Bachelor’s in Business Administration or Engineering (with MBA)"
+        ],
+        "responsibilities": [
+          "Rotate through Sales, Service, Marketing and other departments",
+          "Engage in leadership training programs",
+          "Submit Functional and Cross‑Functional Stint Reports",
+          "Identify areas for process improvement",
+          "Analyze business data and provide insights",
+          "Final defense before selection board"
+        ],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "bdjobs",
+        "source_name": "BDJobs",
+        "source_priority": "P2",
+        "source_type": "job_aggregator",
+        "source_categories": [
+          "job_portal"
+        ],
+        "official_source": false,
+        "source_url": "https://bdjobs.com/h/details/1532666?ln=1",
+        "discovery": "exa",
+        "meta": {},
+        "text": "Management Trainee : ACI Motors Limited || Bdjobs.com ... ## Management Trainee Application Deadline : 05 Oct 2026 All Requirements Responsibilities Skills & Expertise Salary & Benefits Company Information ... Published: 13 Sep 2026 Applicants are encouraged to submit Video CV. Application Insights Requirements ... Motors Limited is one of the leading automotive and Agri-machinery solution providers in Bangladesh, committed to delivering innovative, reliable, and high-quality products and services to customers across the country. With a diversified portfolio spanning automotive, agricultural machinery, commercial solutions, Medical equipment, Renewable energy and related services, ACI Motors continues to strengthen its market presence through trusted global partnerships, an extensive distribution and service network, and a highly capable workforce. For more information, please visit: www.acimotors-bd.com ... Employment Status Full Time Job Location Dhaka Management Trainee : ACI Motors Limited || Bdjobs.com ## Management Trainee Application Deadline : 05 Oct 2026 All Requirements Responsibilities Skills & Expertise Salary & Benefits Company Information Vacancy:-- Age: 22 to 30 years Location: Dhaka Salary: Negotiable Experience: - At most 1 year Published: 13 Sep 2026 Applicants are encouraged to submit Video CV. Application Insights Requirements Education - Bachelor’s is Business Administration from any reputed university. - B.Sc/ Graduation in Engineering (with MBA) from any reputed university . Experience - - At most 1 year - The applicants should have experience in the following business area(s): Automobile - Freshers are also encouraged to apply. Additional Requirements - Age 22 to 30 years - Candidates should have strong proficiency in using AI tools to enhance productivity, analysis, problem-solving, and business decision-making. Responsibilities & Context ACI Motors Limited is one of the leading automotive and Agri-machinery solution providers in Bangladesh, committed to delivering innovative, reliable, and high-quality products and services to customers across the country. With a diversified portfolio spanning automotive, agricultural machinery, commercial solutions, Medical equipment, Renewable energy and related services, ACI Motors continues to strengthen its market presence through trusted global partnerships, an extensive distribution and service network, and a highly capable workforce. For more information, please visit: www.acimotors-bd.com - Rotate through Sales, Service, Marketing, and other cross-functional departments to gain practical experience and activities of the respective functions/departments. - Engage in leadership training programs aimed at enhancing decision-making, communication, and team management skills. - Submit and present a Functional Stint Report after 3 months, summarizing key learnings and contributions. - Submit and present a Cross-Functional Stint Report of 1.5 months focusing on cross-departmental experiences after completion of the Functional Stint Report. - Identify areas for improvement in business processes, suggest actionable recommendations, and contribute to continuous improvement efforts. - Analyze business data and provide insights to support decision-making, strategy development, and operational efficiency. - Face a final defense at the end of the 6-month probation period before a selection board. - Collaborate with supervisors and teams to achieve departmental objectives throughout the stint program. - The Management Trainees will abide by all the rules and regulations of the Organization. - Selected Management Trainees after final evaluation will be consumed in specific roles and will be assigned with respective job descriptions to follow #### Skills & Expertise Communication and interpersonal skill Data analysis and presentation MS Office Positive mindset for fieldwork Other Relevant Skills Data analysis Process Improvement Compensation & Other Benefits Provident fund,Medical allowance,Mobile bill,Insurance,Profit share,Gratuity,Performance bonus Lunch Facilities: Partially Subsidize Salary Review: Yearly Festival Bonus: 2 Employment Status Full Time Job Location Dhaka ## ACI Motors Limited এই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না। 09638666444, 01897627858 complain@bdjobs.com Our Contact Centre is available from -9 am to 8 pm (Sat to Thurs). 16479 09638666444 01897627858",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://www.bdjobs.com/",
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "aci motors",
+          "title": "management trainee aci motors limited",
+          "location": "dhaka",
+          "deadline": "2026-10-05",
+          "application_url": "https://bdjobs.com/h/details/1532666?ln=1",
+          "sector": "automotive agri machinery",
+          "job_function": "management trainee",
+          "job_level": "",
+          "job_type": "full time",
+          "vacancy": "age 22",
+          "salary": "negotiable"
+        },
+        "fingerprint": "job_9ad1ca6b7c549b1b8d1c",
+        "identity_fingerprint": "identity_faed2bc27c5e3359bb04",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.698662+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.698923+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 94,
+        "base_importance": 62,
+        "importance_score": 81
+      },
+      "normalized": {
+        "company": "aci motors",
+        "title": "management trainee aci motors limited",
+        "location": "dhaka",
+        "deadline": "2026-10-05",
+        "application_url": "https://bdjobs.com/h/details/1532666?ln=1",
+        "sector": "automotive agri machinery",
+        "job_function": "management trainee",
+        "job_level": "",
+        "job_type": "full time",
+        "vacancy": "age 22",
+        "salary": "negotiable"
+      },
+      "fingerprint": "job_9ad1ca6b7c549b1b8d1c",
+      "identity_fingerprint": "identity_faed2bc27c5e3359bb04",
+      "sources": [
+        {
+          "source_id": "bdjobs",
+          "source_name": "BDJobs",
+          "source_url": "https://bdjobs.com/h/details/1532666?ln=1",
+          "seen_at": "2026-09-15T08:18:57.699685+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.698662+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.698923+00:00"
+      },
+      "quality_score": 94,
+      "importance_score": 81,
+      "first_seen": "2026-09-15T08:18:57.699690+00:00",
+      "last_seen": "2026-09-15T08:18:57.699692+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 144,
+        "published_at": "2026-09-15T08:19:00.207456+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 100,
+      "corporate_priority_score": 95,
+      "last_published_fingerprint": "job_9ad1ca6b7c549b1b8d1c"
+    },
+    "evt_8ba5ed1787fb02e7": {
+      "event_id": "evt_8ba5ed1787fb02e7",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "PKSF",
+        "title": "Senior Software Engineer (Full‑stack)",
+        "organization_type": null,
+        "sector": "IT & Telecommunication",
+        "job_function": "Software Engineering",
+        "job_level": null,
+        "job_type": "Full Time",
+        "employment_type": null,
+        "location": "Dhaka",
+        "vacancy": "4",
+        "salary": "Salary (BDT) : 1,60,000",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-14T12:39:47.000Z",
+        "application_start": null,
+        "deadline": "23 September 2026",
+        "application_method": null,
+        "application_url": "https://publisher.tbsnews.net/job/senior-software-engineer-full-stack-pksf-1542481",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Publisher",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://publisher.tbsnews.net/job/senior-software-engineer-full-stack-pksf-1542481",
+        "discovery": "exa",
+        "meta": {},
+        "text": "# Senior Software Engineer (Full Stack) | PKSF | The Business Standard ... Published: 2026-09-14T18:39:47+06:00 ... Source: publisher ... news.net ... tbsnews. ... # Senior Software Engineer (Full Stack) | PKSF ... | Job Type | Full Time | | --- | --- | | Job Sector | IT & Telecommunication | | Job Location | Dhaka | | Deadline | 23 September, 2026 | ... Name of the Post: Senior Software Engineer (Full-stack) ... Number of Posts: 04 (Four) ... Consolidated Monthly Salary (BDT) : 1,60,000/- ... Primary Job Tenure: 04 (Four) Years ... HOW TO APPLY ... Interested candidates meeting the requirements may apply online by 23 September 2026. Visit the PKSF website (www.pksf.org.bd) for the Terms of Reference (ToR) and application instructions. Only shortlisted candidates will be contacted. PKSF is an equal opportunity employer. Canvassing or persuasion will result in disqualification. PKSF reserves the right to cancel the recruitment process without assigning any reason. # Senior Software Engineer (Full Stack) | PKSF | The Business Standard Published: 2026-09-14T18:39:47+06:00 Source: publisher.tbsnews.net (publisher.tbsnews.net) Language: en ## Story # Senior Software Engineer (Full Stack) | PKSF | Job Type | Full Time | | --- | --- | | Job Sector | IT & Telecommunication | | Job Location | Dhaka | | Deadline | 23 September, 2026 | In 1990, the Government of Bangladesh established Palli Karma-Sahayak Foundation (PKSF) as the country's apex organization for poverty alleviation through employment generation. For over three decades since, PKSF has pursued that mandate through finance, enterprise development, climate resilience, and capacity building, delivered through a nationwide network of Partner Organizations. PKSF is now investing seriously in technology: a next-generation Decision Support System (DSS) that turns nationwide operations into real-time, actionable insight - powering sustainable employment across the country. This is your chance to build mission-critical software from the ground up. WHY JOIN DSS? Build What Matters. Your code won't sit in a sandbox - it will power real-world operations, data and decision-making across PKSF's nationwide ecosystem. Push the Boundaries of Technology. Work with modern, cloud-native architecture, AI-assisted development, complex systems integration, and large-scale data - with real say in technical decisions, not just tickets to close. Thrive with Visionary Leaders. Collaborate daily with experienced engineers, domain experts, and technology leaders in an environment built around learning and rigor. Work With Flexibility. Enjoy a professional, supportive workplace with flexible office timing, subject to organizational requirements. Make an Impact. Help build digital capabilities contributing to a more productive, connected and digitally enabled Bangladesh. Name of the Post: Senior Software Engineer (Full-stack) Number of Posts: 04 (Four) Consolidated Monthly Salary (BDT) : 1,60,000/- Primary Job Tenure: 04 (Four) Years If you want your engineering work to have a purpose beyond code, DSS is where you can make it count. The employees will be recruited initially for the mentioned tenure, subject to annual renewal based on performance and demonstrated dynamism. High-performing incumbents with proven deliverables will have strong prospects for further extension. WHAT WE'RE LOOKING FOR People who think in systems, take ownership without being asked, and want their engineering skill to solve problems that actually matter. Full role requirements, qualifications, and experience criteria are detailed in the Terms of Reference (ToR) on our website. HOW TO APPLY Interested candidates meeting the requirements may apply online by 23 September 2026. Visit the PKSF website (www.pksf.org.bd) for the Terms of Reference (ToR) and application instructions. Only shortlisted candidates will be contacted. PKSF is an equal opportunity employer. Canvassing or persuasion will result in disqualification. PKSF reserves the right to cancel the recruitment process without assigning any reason. ###### contact@tbsnews.net ###### +880 1847416158 #### Contact Us The Business Standard Main Office -4/A, Eskaton Garden, Dhaka- 1000 Phone: +8801847 416158 - 59 Send Opinion articles to - oped.tbs@gmail.com For advertisement- sales@tbsnews.net",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "pksf",
+          "title": "senior software engineer full stack",
+          "location": "dhaka",
+          "deadline": "2026-09-23",
+          "application_url": "https://publisher.tbsnews.net/job/senior-software-engineer-full-stack-pksf-1542481",
+          "sector": "it telecommunication",
+          "job_function": "software engineering",
+          "job_level": "",
+          "job_type": "full time",
+          "vacancy": "4",
+          "salary": "salary bdt 1 60 000"
+        },
+        "fingerprint": "job_2069902e5487fdcf6752",
+        "identity_fingerprint": "identity_1dfb8ab9637effaaebd8",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.699986+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.700205+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 80,
+        "base_importance": 54,
+        "importance_score": 70
+      },
+      "normalized": {
+        "company": "pksf",
+        "title": "senior software engineer full stack",
+        "location": "dhaka",
+        "deadline": "2026-09-23",
+        "application_url": "https://publisher.tbsnews.net/job/senior-software-engineer-full-stack-pksf-1542481",
+        "sector": "it telecommunication",
+        "job_function": "software engineering",
+        "job_level": "",
+        "job_type": "full time",
+        "vacancy": "4",
+        "salary": "salary bdt 1 60 000"
+      },
+      "fingerprint": "job_2069902e5487fdcf6752",
+      "identity_fingerprint": "identity_1dfb8ab9637effaaebd8",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Publisher",
+          "source_url": "https://publisher.tbsnews.net/job/senior-software-engineer-full-stack-pksf-1542481",
+          "seen_at": "2026-09-15T08:18:57.700920+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.699986+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.700205+00:00"
+      },
+      "quality_score": 80,
+      "importance_score": 70,
+      "first_seen": "2026-09-15T08:18:57.700925+00:00",
+      "last_seen": "2026-09-15T08:18:57.700928+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 151,
+        "published_at": "2026-09-15T08:19:31.091240+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_2069902e5487fdcf6752"
+    },
+    "evt_396bb40b05089a8e": {
+      "event_id": "evt_396bb40b05089a8e",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Taxes Zone‑16 Dhaka (Office of the Commissioner of Taxes)",
+        "title": "Taxes Zone-16 Dhaka Job Circular 2026 - Jobs Test bd",
+        "organization_type": null,
+        "sector": "Government",
+        "job_function": "Administrative",
+        "job_level": null,
+        "job_type": "Full Time",
+        "employment_type": null,
+        "location": "Dhaka",
+        "vacancy": "39",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-14T05:44:08.000Z",
+        "application_start": null,
+        "deadline": "10 October 2026",
+        "application_method": null,
+        "application_url": "https://jobstestbd.com/tax16-dhaka-job-circular-2026",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Jobstestbd",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://jobstestbd.com/tax16-dhaka-job-circular-2026",
+        "discovery": "exa",
+        "meta": {},
+        "text": "# Taxes Zone-16 Dhaka Job Circular 2026 September 14, 2026 September 14, 2026 - by Abd Mamin ... Taxes Zone-16 Dhaka Job Circular 2026 has been published. The authority has published the TAX16 Job Circular 2026. Tax Zone-16 Dhaka Job Circular 2026 is good news for the students. All information on Dhaka Tax Zone-16 Job Circular 2026 is available below. Taxes Zone-16 Dhaka is a government organization in Bangladesh. ... #### Taxes Zone-16 Dhaka Job Circular 2026: Organization Name: Taxes Zone-16 Dhaka under Office of The Commissioner of Taxes ... 1. Computer Operator – 01 ... 4. Steno Typist Cum Computer Operator – 10 ... 5. Office Assistant Cum Computer Typist – 05 ... 6. Office Support Staff (Office Sohayok) – 08 ... ##### Total Vacancy: 39 #### Online Application Last Date: 10 October 2026 ##### Online Application Start Date: 19 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice Taxes Zone-16 Dhaka Job Circular 2026 - Jobs Test bd # Taxes Zone-16 Dhaka Job Circular 2026 September 14, 2026 September 14, 2026 - by Abd Mamin Taxes Zone-16 Dhaka Job Circular 2026 has been published. The authority has published the TAX16 Job Circular 2026. Tax Zone-16 Dhaka Job Circular 2026 is good news for the students. All information on Dhaka Tax Zone-16 Job Circular 2026 is available below. Taxes Zone-16 Dhaka is a government organization in Bangladesh. #### Taxes Zone-16 Dhaka Job Circular 2026: Organization Name: Taxes Zone-16 Dhaka under Office of The Commissioner of Taxes ##### Post Name and Vacancy: 1. Computer Operator – 01 2. Head Assistant – 08 3. Upper Division Assistant – 07 4. Steno Typist Cum Computer Operator – 10 5. Office Assistant Cum Computer Typist – 05 6. Office Support Staff (Office Sohayok) – 08 ##### Total Vacancy: 39 #### Online Application Last Date: 10 October 2026 ##### Online Application Start Date: 19 September 2026 Official Circular PDF Notice Link: Click here to see the Official Circular Notice ##### See/download Taxes Zone-16 Dhaka Job Circular 2026, Job Application Instructions, Job Application Form, Application Fee, Payment Process, Salary, Age, and Other Information from the images below: Courtesy: To all authorities from where documents are collected. ### Taxes Zone-16 Dhaka Job Circular 2026: The authority has published the Taxes Zone-16 Job Circular 2026. Taxes Zone-16 Dhaka is one of the largest Government organizations in Bangladesh. The Taxes Zone-16 Dhaka Job Circular has been published a huge job circular by the Authority. All information regarding the Taxes Zone-16 Dhaka Job appointment is given on our website jobstestbd.com. We Publish all job circulars every day, Such as Government Jobs in Bangladesh, Bank Jobs in Bangladesh, Private Jobs in Bangladesh, International NGOs in Bangladesh, Private companies in Bangladesh, and Private University Jobs in Bangladesh. Bank Jobs Results, Government Jobs Results, Government University Jobs Results in Bangladesh, and all Part-time Jobs in Bangladesh and other educational support are available here on our website. We provide different types of job information, some effective information or resources, and job tips that help get a job easily. We trust that our distributing data helps the activity searchers who are looking for better employment. We likewise share slanting assets for learners who are expanding their insight. Our principle target turns into a trusty occupations round site in Bangladesh by distributing a genuine refresh that enables opportunities to individuals. All the jobs on this website are not only for unemployed people but also for employed people. All types of suggestions and question solutions for different competitive exams are available here. We provide all types of educational support on our website jobstestbd.com. So every day visit our website for all kinds of academic support. Please like our Facebook page jobstestbd.com. #### Contact Us: If you want to advertise on our website for any product of your organization don’t hesitate to get in touch with us at the following Address. Inbox to Facebook: jobstestbd.com Email at: jobstestbd.com@gmail.com Contact No.: 01720403750 Mirpur 1, Dhaka, Bangladesh.",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "taxes zone 16 dhaka office of the commissioner of taxes",
+          "title": "taxes zone 16 dhaka 2026 jobs test bd",
+          "location": "dhaka",
+          "deadline": "2026-10-10",
+          "application_url": "https://jobstestbd.com/tax16-dhaka-job-circular-2026",
+          "sector": "government",
+          "job_function": "administrative",
+          "job_level": "",
+          "job_type": "full time",
+          "vacancy": "39",
+          "salary": ""
+        },
+        "fingerprint": "job_5411805584cd2e4384fe",
+        "identity_fingerprint": "identity_fd434ea5a08019135b5a",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.701226+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.701480+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 80,
+        "base_importance": 43,
+        "importance_score": 59
+      },
+      "normalized": {
+        "company": "taxes zone 16 dhaka office of the commissioner of taxes",
+        "title": "taxes zone 16 dhaka 2026 jobs test bd",
+        "location": "dhaka",
+        "deadline": "2026-10-10",
+        "application_url": "https://jobstestbd.com/tax16-dhaka-job-circular-2026",
+        "sector": "government",
+        "job_function": "administrative",
+        "job_level": "",
+        "job_type": "full time",
+        "vacancy": "39",
+        "salary": ""
+      },
+      "fingerprint": "job_5411805584cd2e4384fe",
+      "identity_fingerprint": "identity_fd434ea5a08019135b5a",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Jobstestbd",
+          "source_url": "https://jobstestbd.com/tax16-dhaka-job-circular-2026",
+          "seen_at": "2026-09-15T08:18:57.702177+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.701226+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.701480+00:00"
+      },
+      "quality_score": 80,
+      "importance_score": 59,
+      "first_seen": "2026-09-15T08:18:57.702181+00:00",
+      "last_seen": "2026-09-15T08:18:57.702183+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 152,
+        "published_at": "2026-09-15T08:19:35.354649+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_5411805584cd2e4384fe"
+    },
+    "evt_f12940a6a12da354": {
+      "event_id": "evt_f12940a6a12da354",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Power Division (PD)",
+        "title": "Power Division (PD) Internship Circular 2026 - Jobs Test bd",
+        "organization_type": null,
+        "sector": "Government",
+        "job_function": "Internship",
+        "job_level": null,
+        "job_type": "Paid Internship",
+        "employment_type": null,
+        "location": "",
+        "vacancy": "17",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-09T17:47:33.000Z",
+        "application_start": null,
+        "deadline": "28 September 2026",
+        "application_method": null,
+        "application_url": "https://jobstestbd.com/pd-internship-circular-2026",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Jobstestbd",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://jobstestbd.com/pd-internship-circular-2026",
+        "discovery": "exa",
+        "meta": {},
+        "text": "# Power Division (PD) Internship Circular 2026 ... Power Division (PD) Internship Circular 2026 has been published. The Power Division has recently published the PD Internship Circular 2026. The authority has published the Power Division Paid Internship Circular 2026. The Statistics and Informatics Power Division Internship Circular 2026 is good news for job seekers in Bangladesh. The Power Division (PD) is a Government Organization in Bangladesh. All information on the Power Division Internship Application Form 2026 is available below. ... #### Power Division Paid Internship Circular 2026: ... Organization Name: Power Division (PD) ... 1. Intern – 17 ... ##### Total Vacancies: 17 Internship Type: Paid ... Internship Authority: Power Division (PD) ... #### Online Application Last Date: 28 September 2026 ##### Online Application Start Date: 08 September 2026 Official Internship Circular PDF Notice Link: Click here to see the Official Internship Circular Notice Power Division (PD) Internship Circular 2026 - Jobs Test bd # Power Division (PD) Internship Circular 2026 September 9, 2026 September 10, 2026 - by Abd Mamin Power Division (PD) Internship Circular 2026 has been published. The Power Division has recently published the PD Internship Circular 2026. The authority has published the Power Division Paid Internship Circular 2026. The Statistics and Informatics Power Division Internship Circular 2026 is good news for job seekers in Bangladesh. The Power Division (PD) is a Government Organization in Bangladesh. All information on the Power Division Internship Application Form 2026 is available below. #### Power Division Paid Internship Circular 2026: Organization Name: Power Division (PD) ##### Post Name and Vacancy: 1. Intern – 17 ##### Total Vacancies: 17 Internship Type: Paid Internship Authority: Power Division (PD) #### Online Application Last Date: 28 September 2026 ##### Online Application Start Date: 08 September 2026 Official Internship Circular PDF Notice Link: Click here to see the Official Internship Circular Notice ##### See/download the Power Division (PD) Internship Circular 2026, Internship Application Form, and Application instructions from the images below: Courtesy: To all authorities from which documents are collected. #### Power Division Internship Circular 2026: The authority has published the Power Division Paid Internship Circular 2026. Power Division Job Circular information is given above. The Power Division is one of the largest Government organizations in Bangladesh. The Power Division Job Circular is given on our website, jobstestbd.com. We publish all job circulars daily, Such as Government Jobs in Bangladesh, Bank Jobs in Bangladesh, Private Jobs in Bangladesh, International NGOs in Bangladesh, Private companies in Bangladesh, and Private University Jobs in Bangladesh. Bank Jobs Results, Government Jobs Results, Government University Jobs Results in Bangladesh, and all Part-time Jobs in Bangladesh and other educational support are available here on our website. We provide different types of job information, effective information or resources, and job tips that help you get a job easily. We trust that our job data helps job seekers who are looking for superior employment. We likewise share valuable assets for learners who are expanding their insight. Our prime target is to become a trustworthy job portal in Bangladesh by providing a genuine refresh that enables unemployed individuals to. All the jobs on this website are not only for unemployed people but also for employed people. Solutions to questions and suggestions for various competitive exams are available here. We provide all types of educational support on our website, jobstestbd.com. So every day, tune in to our website for all kinds of educational support. Please like our Facebook page, jobstestbd.com. #### Contact Us: If you want to place an advertisement on our website for any product of your organization, please contact us by following the Address. Inbox on Facebook: jobstestbd.com Email at: jobstestbd.com@gmail.com Contact No.: 01720403750 Mirpur 1, Dhaka, Bangladesh.",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "power division pd",
+          "title": "power division pd internship 2026 jobs test bd",
+          "location": "",
+          "deadline": "2026-09-28",
+          "application_url": "https://jobstestbd.com/pd-internship-circular-2026",
+          "sector": "government",
+          "job_function": "internship",
+          "job_level": "",
+          "job_type": "paid internship",
+          "vacancy": "17",
+          "salary": ""
+        },
+        "fingerprint": "job_1750b94709d0a4bd114d",
+        "identity_fingerprint": "identity_3fc6a03a05d238e8712e",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.702494+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.702715+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 74,
+        "base_importance": 46,
+        "importance_score": 61
+      },
+      "normalized": {
+        "company": "power division pd",
+        "title": "power division pd internship 2026 jobs test bd",
+        "location": "",
+        "deadline": "2026-09-28",
+        "application_url": "https://jobstestbd.com/pd-internship-circular-2026",
+        "sector": "government",
+        "job_function": "internship",
+        "job_level": "",
+        "job_type": "paid internship",
+        "vacancy": "17",
+        "salary": ""
+      },
+      "fingerprint": "job_1750b94709d0a4bd114d",
+      "identity_fingerprint": "identity_3fc6a03a05d238e8712e",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Jobstestbd",
+          "source_url": "https://jobstestbd.com/pd-internship-circular-2026",
+          "seen_at": "2026-09-15T08:18:57.703420+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.702494+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.702715+00:00"
+      },
+      "quality_score": 74,
+      "importance_score": 61,
+      "first_seen": "2026-09-15T08:18:57.703425+00:00",
+      "last_seen": "2026-09-15T08:18:57.703427+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 145,
+        "published_at": "2026-09-15T08:19:05.257195+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 36,
+      "corporate_priority_score": 16,
+      "last_published_fingerprint": "job_1750b94709d0a4bd114d"
+    },
+    "evt_c91640c567d2e9f9": {
+      "event_id": "evt_c91640c567d2e9f9",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Department of Livestock Services",
+        "title": "Intern - Developer at Bit Byte Lab",
+        "organization_type": null,
+        "sector": "Government – Livestock",
+        "job_function": "Livestock Services",
+        "job_level": null,
+        "job_type": "Full Time",
+        "employment_type": null,
+        "location": "",
+        "vacancy": "02",
+        "salary": "-- Experience: Published: 2026-09",
+        "education": [
+          "Passed Secondary School Certificate (SSC) or equivalent"
+        ],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-07T00:00:00.000Z",
+        "application_start": null,
+        "deadline": "2026-09-22",
+        "application_method": null,
+        "application_url": "https://dohaj.com/job-details/intern-developer-bit-byte-lab-406245",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Dohaj",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://dohaj.com/job-details/intern-developer-bit-byte-lab-406245",
+        "discovery": "exa",
+        "meta": {},
+        "text": "Intern - Developer at Bit Byte Lab ... Title: Intern - Developer Company Name: Bit Byte Lab Vacancy: 02 Age: 28 to 30 years Job Location: Dhaka Salary: -- Experience: Published: 2026-09-07 Application Deadline: 2026-09-22 Education: Requirements: Skills Required: Additional Requirements: ... Employment Status: Internship Job Work Place: Work at office Company Information: Gender: Both Male and Female can apply Read Before Apply: Please apply only who are fulfilling all the requirements of this job Category: IT & Telecommunication Job Summary ... - Category ##### IT & Telecommunication - Location ##### Dhaka - Vacancy ##### 02 - Job Type ##### Internship - Salary ##### -- - Published ##### 07 Sep 2026 - Deadline ##### 22 Sep 2026 Intern - Developer at Bit Byte Lab ### Job Description Title: Intern - Developer Company Name: Bit Byte Lab Vacancy: 02 Age: 28 to 30 years Job Location: Dhaka Salary: -- Experience: Published: 2026-09-07 Application Deadline: 2026-09-22 Education: Requirements: Skills Required: Additional Requirements: - Age 28 to 30 years Responsibilities & Context: - Assist in developing and maintaining web applications using ASP.NET MVC and ASP.NET Core. - Write clean, efficient, and well-structured code in C# following best practices and coding standards. - Support the implementation of business logic, APIs, and application features under senior supervision. - Debug, troubleshoot, and fix issues related to application functionality and performance. - Work with databases (e.g., SQL Server) for data storage, retrieval, and basic query optimization. - Assist in developing and consuming RESTful APIs. - Participate in code reviews and incorporate feedback to improve code quality. - Collaborate with front-end developers to integrate UI components with back-end logic. - Perform unit testing and support application testing and deployment activities. - Maintain proper documentation for code, features, and development processes. - Learn and adapt to new tools, frameworks, and updates within the .NET ecosystem. - Follow project timelines and report progress to senior developers or team leads. Job Other Benifits: - T/A,Weekly 2 holidays Employment Status: Internship Job Work Place: Work at office Company Information: Gender: Both Male and Female can apply Read Before Apply: Please apply only who are fulfilling all the requirements of this job Category: IT & Telecommunication Job Summary - Category ##### IT & Telecommunication - Location ##### Dhaka - Vacancy ##### 02 - Job Type ##### Internship - Salary ##### -- - Published ##### 07 Sep 2026 - Deadline ##### 22 Sep 2026",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "department of livestock services",
+          "title": "intern developer at bit byte lab",
+          "location": "",
+          "deadline": "2026-09-22",
+          "application_url": "https://dohaj.com/job-details/intern-developer-bit-byte-lab-406245",
+          "sector": "government livestock",
+          "job_function": "livestock services",
+          "job_level": "",
+          "job_type": "full time",
+          "vacancy": "02",
+          "salary": "experience published 2026 09"
+        },
+        "fingerprint": "job_3f549b2dd90c6c17e53f",
+        "identity_fingerprint": "identity_e5b71409c5ba2d8012e9",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.703586+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.703712+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 77,
+        "base_importance": 49,
+        "importance_score": 64
+      },
+      "normalized": {
+        "company": "department of livestock services",
+        "title": "intern developer at bit byte lab",
+        "location": "",
+        "deadline": "2026-09-22",
+        "application_url": "https://dohaj.com/job-details/intern-developer-bit-byte-lab-406245",
+        "sector": "government livestock",
+        "job_function": "livestock services",
+        "job_level": "",
+        "job_type": "full time",
+        "vacancy": "02",
+        "salary": "experience published 2026 09"
+      },
+      "fingerprint": "job_3f549b2dd90c6c17e53f",
+      "identity_fingerprint": "identity_e5b71409c5ba2d8012e9",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Dohaj",
+          "source_url": "https://dohaj.com/job-details/intern-developer-bit-byte-lab-406245",
+          "seen_at": "2026-09-15T08:18:57.704019+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.703586+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.703712+00:00"
+      },
+      "quality_score": 77,
+      "importance_score": 64,
+      "first_seen": "2026-09-15T08:18:57.704024+00:00",
+      "last_seen": "2026-09-15T08:18:57.704026+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 148,
+        "published_at": "2026-09-15T08:19:16.082535+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 18,
+      "corporate_priority_score": 16,
+      "last_published_fingerprint": "job_3f549b2dd90c6c17e53f"
+    },
+    "evt_96fa7c50e5f7ab13": {
+      "event_id": "evt_96fa7c50e5f7ab13",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Bangladesh Railway",
+        "title": "Intern",
+        "organization_type": null,
+        "sector": "Government – Railway",
+        "job_function": "Legal",
+        "job_level": null,
+        "job_type": "Contractual",
+        "employment_type": null,
+        "location": "Any location",
+        "vacancy": "3",
+        "salary": "Negotiable Experience: Published: 2026-09",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "12 Sep 2026",
+        "application_start": null,
+        "deadline": "2026-09-25",
+        "application_method": null,
+        "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "requirements": [
+          "Age up to 60 years (flexible for retired judges)"
+        ],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Dohaj",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "discovery": "exa",
+        "meta": {},
+        "text": "Intern - Analytical Lab, Dhaka at Intertek Bangladesh ... ### Job Description Title: Intern - Analytical Lab, Dhaka Company Name: Intertek Bangladesh Vacancy: 3 Age: 22 to 28 years Job Location: Dhaka Salary: Negotiable Experience: Published: 2026-09-10 Application Deadline: 2026-09-25 Education: - Bachelor of Science (BSc) in Chemistry, Applied Chemistry, Biochemistry, Biology, Zoology Requirements: Skills Required: Teamwork,Working under pressure Additional Requirements: - Age 22 to 28 years Responsibilities & Context: Internship will be paid and for 6 months ... Internship Job Work Place ... Work at office Company ... : Both Male and Female can apply Read ... only who are fulfilling all the requirements ... ments/Textile ... - Category ##### Garments/Textile - Location ##### Dhaka - Vacancy ##### 3 - Job Type ##### Internship - Salary ##### Negotiable - Published ##### 10 Sep 2026 - Deadline ##### 25 Sep 2026 - About Intertek Bangladesh Intern - Analytical Lab, Dhaka at Intertek Bangladesh #### একা লাগছে? কথা বলার কেউ নেই? 💬 ১ ক্লিকে চ্যাট শুরু করুন — এখনই কোনো রেজিস্ট্রেশন লাগবে না · সম্পূর্ণ ফ্রি · সম্পূর্ণ নিরাপদ ### Job Description Title: Intern - Analytical Lab, Dhaka Company Name: Intertek Bangladesh Vacancy: 3 Age: 22 to 28 years Job Location: Dhaka Salary: Negotiable Experience: Published: 2026-09-10 Application Deadline: 2026-09-25 Education: - Bachelor of Science (BSc) in Chemistry, Applied Chemistry, Biochemistry, Biology, Zoology Requirements: Skills Required: Teamwork,Working under pressure Additional Requirements: - Age 22 to 28 years Responsibilities & Context: Internship will be paid and for 6 months Responsibilities: - Assist Laboratory Technical people in testing. - Ensure all prescribe PPE in lab premises. - Keeping in and around the test area clean and maintaining impeccable housekeeping all around. - Bringing to the notice of the Group Leader or above any discrepancy in test material, method or equipment. Job Other Benifits: Employment Status: Internship Job Work Place: Work at office Company Information: Gender: Both Male and Female can apply Read Before Apply: Please apply only who are fulfilling all the requirements of this job Category: Garments/Textile Job Summary - Category ##### Garments/Textile - Location ##### Dhaka - Vacancy ##### 3 - Job Type ##### Internship - Salary ##### Negotiable - Published ##### 10 Sep 2026 - Deadline ##### 25 Sep 2026 - About Intertek Bangladesh",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "ai_confidence": 1.0,
+        "ai_extracted": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "bangladesh railway",
+          "title": "intern",
+          "location": "any location",
+          "deadline": "2026-09-25",
+          "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+          "sector": "government railway",
+          "job_function": "legal",
+          "job_level": "",
+          "job_type": "contractual",
+          "vacancy": "3",
+          "salary": "negotiable experience published 2026 09"
+        },
+        "fingerprint": "job_387b427aebcbca3fc20f",
+        "identity_fingerprint": "identity_7fd9b4c1e224e7731739",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.704156+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.704300+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 80,
+        "base_importance": 51,
+        "importance_score": 67
+      },
+      "normalized": {
+        "company": "bangladesh railway",
+        "title": "intern",
+        "location": "any location",
+        "deadline": "2026-09-25",
+        "application_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+        "sector": "government railway",
+        "job_function": "legal",
+        "job_level": "",
+        "job_type": "contractual",
+        "vacancy": "3",
+        "salary": "negotiable experience published 2026 09"
+      },
+      "fingerprint": "job_387b427aebcbca3fc20f",
+      "identity_fingerprint": "identity_7fd9b4c1e224e7731739",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Dohaj",
+          "source_url": "https://dohaj.com/job-details/intern-analytical-lab-dhaka-intertek-bangladesh-900445",
+          "seen_at": "2026-09-15T08:18:57.704632+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.704156+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.704300+00:00"
+      },
+      "quality_score": 80,
+      "importance_score": 67,
+      "first_seen": "2026-09-15T08:18:57.704636+00:00",
+      "last_seen": "2026-09-15T08:18:57.704638+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 146,
+        "published_at": "2026-09-15T08:19:08.241711+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 18,
+      "corporate_priority_score": 16,
+      "last_published_fingerprint": "job_387b427aebcbca3fc20f"
+    },
+    "evt_8455bf436e8b5fa8": {
+      "event_id": "evt_8455bf436e8b5fa8",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "BD Govt Job Circular 2026: সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-08-29T05:17:21.000Z",
+        "application_start": null,
+        "deadline": "26 September 2026",
+        "application_method": null,
+        "application_url": "https://bdgovtjob.net/",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Bdgovtjob",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://bdgovtjob.net/",
+        "discovery": "exa",
+        "meta": {},
+        "text": "সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ - BD Govt Job Circular 2026 ... ## ৪২ পদে বাংলাদেশ হাই-টেক পার্ক কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬ BHTPA Job Circular 2026 29 August, 2026 29 August, 2026 by Admin প ... ## ২৬ পদে কারিগরি ও মাদ্রাসা শিক্ষা বিভাগ নিয়োগ বিজ্ঞপ্তি ২০২৬ TMED Job Circular 2026 27 August, 2026 27 August, ... 2026 by Admin ২৬ ... আবেদনের শেষ তারিখ: ... সেপ্টেম্বর ২০২৬ বিকাল ... ## টেলিটক বাংলাদেশ লিমিটেড নিয়োগ বিজ্ঞপ্তি ২০২৬ Teletalk Bangladesh Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ০১ ... সেপ্টেম্বর ২০২৬ সরকারি চাকরির খবর ২০২৬ - সকল নিয়োগ - BD Govt Job Circular 2026 ## ৪২ পদে বাংলাদেশ হাই-টেক পার্ক কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬ BHTPA Job Circular 2026 29 August, 2026 29 August, 2026 by Admin পদের ক্যাটাগরি: ১৪ পদের সংখ্যা: ৪২ আবেদনের শেষ তারিখ: ২৬ সেপ্টেম্বর ২০২৬ বিকাল ৫:০০ টা … বিস্তারিত পড়ুন ## ২৬ পদে কারিগরি ও মাদ্রাসা শিক্ষা বিভাগ নিয়োগ বিজ্ঞপ্তি ২০২৬ TMED Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ২৬ আবেদনের শেষ তারিখ: ২৭ সেপ্টেম্বর ২০২৬ বিকাল ০৪:০০ টা … বিস্তারিত পড়ুন ## ২০ পদে বিভাগীয় কমিশনারের কার্যালয় ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬ 27 August, 2026 27 August, 2026 by Admin ২০ ২৭ সেপ্টেম্বর ২০২৬ বিকাল ০৪:০০ টা … বিস্তারিত পড়ুন ## টেলিটক বাংলাদেশ লিমিটেড নিয়োগ বিজ্ঞপ্তি ২০২৬ Teletalk Bangladesh Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ০১ ১৫ সেপ্টেম্বর ২০২৬ তারিখ বিকাল ৫:০০ টা ## ৮৫ পদে নিপোর্ট নিয়োগ বিজ্ঞপ্তি ২০২৬ NIPORT Job Circular 2026 27 August, 2026 27 August, 2026 by Admin ৮৫ ০৮ সেপ্টেম্বর ২০২৬ ## ৪২ পদে কর অঞ্চল-২ চট্টগ্রাম নিয়োগ বিজ্ঞপ্তি ২০২৬ CTAX2 Job Circular 2026 29 August, 2026 26 August, 2026 by Admin ১৮ সেপ্টেম্বর ২০২৬ বিকাল ০৫:০০ টা ## নর্থ-ওয়েস্ট পাওয়ার জেনারেশন কোম্পানি নিয়োগ ২০২৬ NWPGCL Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ০২ ও ১৪ সেপ্টেম্বর ২০২৬ ## জগন্নাথ বিশ্ববিদ্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬ 26 August, 2026 26 August, 2026 by Admin ০৯+২৮+১৩ ২৭ আগস্ট ও ১৬ সেপ্টেম্বর এবং ১০ অক্টোবর ২০২৬ ## সকল জেলা প্রশাসকের কার্যালয়ে নিয়োগ ২০২৬ – DC Office Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ১৪+৫৮+০৭+০৯+৪৮+৩৭+৬৮+১৭+৩৭+০৯+০৬+১৫+০৩+১১৩+০৮ ৩০, ৩১ আগস্ট ও ০২, ০৭, ১৪, ২০ ৩০ সেপ্টেম্বর ২০২৬ ## নোয়াখালী বিজ্ঞান ও প্রযুক্তি বিশ্ববিদ্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬ NSTU Job Circular 2026 26 August, 2026 26 August, 2026 by Admin ০২+০১ ২৯+০২ আবেদনের শেষ তারিখ: ১৭ সেপ্টেম্বর ২০২৬ … বিস্তারিত পড়ুন",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "bn",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "bd govt 2026 সরকারি চাকরির খবর ২০২৬ সকল নিয়োগ",
+          "location": "",
+          "deadline": "2026-09-26",
+          "application_url": "https://bdgovtjob.net/",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_3f8d7bb5d4aa9c327f5a",
+        "identity_fingerprint": "identity_d7f5ecebf61a1aef4614",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.704935+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.705076+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 60,
+        "base_importance": 26,
+        "importance_score": 38
+      },
+      "normalized": {
+        "company": "",
+        "title": "bd govt 2026 সরকারি চাকরির খবর ২০২৬ সকল নিয়োগ",
+        "location": "",
+        "deadline": "2026-09-26",
+        "application_url": "https://bdgovtjob.net/",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_3f8d7bb5d4aa9c327f5a",
+      "identity_fingerprint": "identity_d7f5ecebf61a1aef4614",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Bdgovtjob",
+          "source_url": "https://bdgovtjob.net/",
+          "seen_at": "2026-09-15T08:18:57.705828+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.704935+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.705076+00:00"
+      },
+      "quality_score": 60,
+      "importance_score": 38,
+      "first_seen": "2026-09-15T08:18:57.705833+00:00",
+      "last_seen": "2026-09-15T08:18:57.705835+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 160,
+        "published_at": "2026-09-15T08:20:04.871038+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_3f8d7bb5d4aa9c327f5a"
+    },
+    "evt_8a1743b59d9db83e": {
+      "event_id": "evt_8a1743b59d9db83e",
+      "event_type": "NEW",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "",
+        "title": "Semen Carrier Number of posts: 32 Educational qualification: Passed Secondary School Certificate (SSC) or equivalent examination",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "8,500–20,570",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": "2026-09-12T04:01:04.000Z",
+        "application_start": null,
+        "deadline": "October 6, 2026",
+        "application_method": null,
+        "application_url": "",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.55,
+        "source_id": "exa_discovery",
+        "source_name": "Agamirsomoy",
+        "source_priority": "P3",
+        "source_type": "",
+        "source_categories": [],
+        "official_source": false,
+        "source_url": "https://www.agamirsomoy.com/en/misc/ywxlg9q332h6",
+        "discovery": "exa",
+        "meta": {},
+        "text": "for 538 Posts at Department of Livestock Services, Applications Open September 15 ... A recruitment notice has been published for vacant posts under the revenue sector of the Department of Livestock Services. A total of 538 people will be recruited for two categories of posts. The recruitment notice was published on September 10, and the application process will begin on September 15. Post: Semen Carrier Number of posts: 32 Educational qualification: Passed Secondary School Certificate (SSC) or equivalent examination. Salary: Tk 8,500–20,570 (Grade 19). Post: Office Assistant Number of posts: 506 Educational qualification: Passed Secondary School Certificate (SSC) or equivalent examination. Salary: Tk 8,250–20,010 (Grade 20). Age limit: 18–32 years. Application fee: Tk 56 (non-refundable). Application process: Interested candidates can apply online. Application opening time: September 15, 2026, at 10am. Application deadline: October 6, 2026, at 5pm. Source: Recruitment notice. Recruitment for 538 Posts at Department of Livestock Services, Applications Open September 15 EDB Trade Centre (Level-6 &7) 93 Kazi Nazrul Islam Avenue Karwanbazar, Dhaka-1215. Contact: +880 9666 771010 Advertise: +880 1755 651164 [email protected] # Recruitment for 538 Posts at Department of Livestock Services, Applications Open September 15 Published: 12 September 2026, 10:01 A recruitment notice has been published for vacant posts under the revenue sector of the Department of Livestock Services. A total of 538 people will be recruited for two categories of posts. The recruitment notice was published on September 10, and the application process will begin on September 15. Post: Semen Carrier Number of posts: 32 Educational qualification: Passed Secondary School Certificate (SSC) or equivalent examination. Salary: Tk 8,500–20,570 (Grade 19). Post: Office Assistant Number of posts: 506 Educational qualification: Passed Secondary School Certificate (SSC) or equivalent examination. Salary: Tk 8,250–20,010 (Grade 20). Age limit: 18–32 years. Application fee: Tk 56 (non-refundable). Application process: Interested candidates can apply online. Application opening time: September 15, 2026, at 10am. Application deadline: October 6, 2026, at 5pm. Source: Recruitment notice.",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "language": "en",
+        "_dedupe_rank": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "",
+          "title": "semen carrier number of posts 32 educational qualification passed secondary school certificate ssc or equivalent examination",
+          "location": "",
+          "deadline": "2026-10-06",
+          "application_url": "https://www.agamirsomoy.com/en/misc/ywxlg9q332h6",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": "8 500 20 570"
+        },
+        "fingerprint": "job_e96ee3234600970a0fb2",
+        "identity_fingerprint": "identity_eab41fb3e98b00313570",
+        "verification": {
+          "status": "verified",
+          "level": "trusted",
+          "checks": {
+            "known_source": true,
+            "company": false,
+            "title": true,
+            "application_url": false,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T08:18:57.706204+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T08:18:57.706330+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 45,
+        "base_importance": 20,
+        "importance_score": 29
+      },
+      "normalized": {
+        "company": "",
+        "title": "semen carrier number of posts 32 educational qualification passed secondary school certificate ssc or equivalent examination",
+        "location": "",
+        "deadline": "2026-10-06",
+        "application_url": "https://www.agamirsomoy.com/en/misc/ywxlg9q332h6",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": "8 500 20 570"
+      },
+      "fingerprint": "job_e96ee3234600970a0fb2",
+      "identity_fingerprint": "identity_eab41fb3e98b00313570",
+      "sources": [
+        {
+          "source_id": "exa_discovery",
+          "source_name": "Agamirsomoy",
+          "source_url": "https://www.agamirsomoy.com/en/misc/ywxlg9q332h6",
+          "seen_at": "2026-09-15T08:18:57.707236+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "trusted",
+        "checks": {
+          "known_source": true,
+          "company": false,
+          "title": true,
+          "application_url": false,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T08:18:57.706204+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T08:18:57.706330+00:00"
+      },
+      "quality_score": 45,
+      "importance_score": 29,
+      "first_seen": "2026-09-15T08:18:57.707241+00:00",
+      "last_seen": "2026-09-15T08:18:57.707243+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": false,
+        "message_id": null,
+        "published_at": null,
+        "last_event_type": null
+      }
+    }
+  },
+  "sources": {
+    "bangladesh_national_portal_jobs": {
+      "last_crawl_epoch": 1789460080.535862,
+      "last_failure": "2026-09-15T08:14:40.535866+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bteab_teletalk": {
+      "last_crawl_epoch": 1789460081.8134992,
+      "last_failure": "2026-09-15T08:14:41.813503+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bpi_teletalk": {
+      "last_crawl_epoch": 1789460081.8608842,
+      "last_failure": "2026-09-15T08:14:41.860886+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bscl_teletalk": {
+      "last_crawl_epoch": 1789460081.860975,
+      "last_failure": "2026-09-15T08:14:41.860975+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "btrc_teletalk": {
+      "last_crawl_epoch": 1789460081.8610408,
+      "last_failure": "2026-09-15T08:14:41.861041+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bpsc": {
+      "last_crawl_epoch": 1789460081.8610945,
+      "last_success": "2026-09-15T08:14:41.861095+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "bscplc_teletalk": {
+      "last_crawl_epoch": 1789460081.9604235,
+      "last_failure": "2026-09-15T08:14:41.960426+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "alljobs_teletalk": {
+      "last_crawl_epoch": 1789460082.0504339,
+      "last_success": "2026-09-15T08:14:42.050437+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "bkkb_teletalk": {
+      "last_crawl_epoch": 1789460082.098996,
+      "last_failure": "2026-09-15T08:14:42.098999+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "dss_teletalk": {
+      "last_crawl_epoch": 1789460083.1229177,
+      "last_failure": "2026-09-15T08:14:43.122920+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "caab_jobs": {
+      "last_crawl_epoch": 1789460083.145248,
+      "last_failure": "2026-09-15T08:14:43.145249+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "telecomdept_teletalk": {
+      "last_crawl_epoch": 1789460083.1516466,
+      "last_failure": "2026-09-15T08:14:43.151648+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "ictd_teletalk": {
+      "last_crawl_epoch": 1789460083.1594908,
+      "last_failure": "2026-09-15T08:14:43.159492+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "mocat_jobs": {
+      "last_crawl_epoch": 1789460083.2607496,
+      "last_failure": "2026-09-15T08:14:43.260752+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "mopme_teletalk": {
+      "last_crawl_epoch": 1789460083.3950398,
+      "last_failure": "2026-09-15T08:14:43.395042+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "ictd_jobs": {
+      "last_crawl_epoch": 1789460083.4897542,
+      "last_success": "2026-09-15T08:14:43.489757+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 10
+    },
+    "moha_jobs": {
+      "last_crawl_epoch": 1789460083.62206,
+      "last_success": "2026-09-15T08:14:43.622062+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "a2i_jobs": {
+      "last_crawl_epoch": 1789460083.6931195,
+      "last_failure": "2026-09-15T08:14:43.693122+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "aci_career": {
+      "last_crawl_epoch": 1789460084.1973252,
+      "last_success": "2026-09-15T08:14:44.197328+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 13
+    },
+    "rhd_jobs": {
+      "last_crawl_epoch": 1789460084.267644,
+      "last_failure": "2026-09-15T08:14:44.267646+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "rdcd_teletalk": {
+      "last_crawl_epoch": 1789460084.5743842,
+      "last_failure": "2026-09-15T08:14:44.574386+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bat_career": {
+      "last_crawl_epoch": 1789460084.6362932,
+      "last_success": "2026-09-15T08:14:44.636295+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "jobs_teletalk_tbl": {
+      "last_crawl_epoch": 1789460084.830585,
+      "last_failure": "2026-09-15T08:14:44.830588+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "rthd_jobs": {
+      "last_crawl_epoch": 1789460084.8491783,
+      "last_success": "2026-09-15T08:14:44.849180+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 7
+    },
+    "mopa_jobs": {
+      "last_crawl_epoch": 1789460084.9508283,
+      "last_success": "2026-09-15T08:14:44.950830+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 10
+    },
+    "brac_bank": {
+      "last_crawl_epoch": 1789460085.3300977,
+      "last_success": "2026-09-15T08:14:45.330100+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 6
+    },
+    "brac_career": {
+      "last_crawl_epoch": 1789460085.3578107,
+      "last_success": "2026-09-15T08:14:45.357812+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "national_job_portal": {
+      "last_crawl_epoch": 1789460085.377913,
+      "last_success": "2026-09-15T08:14:45.377914+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "actionaid_bd": {
+      "last_crawl_epoch": 1789460085.3943238,
+      "last_success": "2026-09-15T08:14:45.394325+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "brac_bank_taleo": {
+      "last_crawl_epoch": 1789460085.5288434,
+      "last_success": "2026-09-15T08:14:45.528846+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "buet_jobs": {
+      "last_crawl_epoch": 1789460086.1870663,
+      "last_success": "2026-09-15T08:14:46.187068+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "citybank_careers": {
+      "last_crawl_epoch": 1789460086.405623,
+      "last_success": "2026-09-15T08:14:46.405625+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 8
+    },
+    "evercare_bdjobs": {
+      "last_crawl_epoch": 1789460086.4502718,
+      "last_success": "2026-09-15T08:14:46.450273+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "buet_registrar_jobs": {
+      "last_crawl_epoch": 1789460086.609708,
+      "last_success": "2026-09-15T08:14:46.609711+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 10
+    },
+    "evercare": {
+      "last_crawl_epoch": 1789460086.6825264,
+      "last_success": "2026-09-15T08:14:46.682529+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 6
+    },
+    "nestle_career": {
+      "last_crawl_epoch": 1789460086.742452,
+      "last_failure": "2026-09-15T08:14:46.742474+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "care_career": {
+      "last_crawl_epoch": 1789460086.9457302,
+      "last_success": "2026-09-15T08:14:46.945732+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 8
+    },
+    "marico_career": {
+      "last_crawl_epoch": 1789460087.3236191,
+      "last_failure": "2026-09-15T08:14:47.323621+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "gp_career": {
+      "last_crawl_epoch": 1789460087.3476923,
+      "last_success": "2026-09-15T08:14:47.347694+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "renata": {
+      "last_crawl_epoch": 1789460087.586609,
+      "last_success": "2026-09-15T08:14:47.586611+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "robi_career": {
+      "last_crawl_epoch": 1789460087.6254663,
+      "last_success": "2026-09-15T08:14:47.625468+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "unilever_bd": {
+      "last_crawl_epoch": 1789460088.1430414,
+      "last_success": "2026-09-15T08:14:48.143043+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 10
+    },
+    "unicef_bd": {
+      "last_crawl_epoch": 1789460088.2506404,
+      "last_success": "2026-09-15T08:14:48.250643+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 10
+    },
+    "bkash_career": {
+      "last_crawl_epoch": 1789460088.2771592,
+      "last_failure": "2026-09-15T08:14:48.277160+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "square_hospital": {
+      "last_crawl_epoch": 1789460088.376387,
+      "last_success": "2026-09-15T08:14:48.376389+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "standard_chartered_careers": {
+      "last_crawl_epoch": 1789460088.5511847,
+      "last_success": "2026-09-15T08:14:48.551187+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 12
+    },
+    "niyog": {
+      "last_crawl_epoch": 1789460088.5530148,
+      "last_failure": "2026-09-15T08:14:48.553016+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "daraz": {
+      "last_crawl_epoch": 1789460088.6939733,
+      "last_success": "2026-09-15T08:14:48.693975+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "skill_jobs": {
+      "last_crawl_epoch": 1789460088.6949134,
+      "last_failure": "2026-09-15T08:14:48.694914+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bdjobs": {
+      "last_crawl_epoch": 1789460089.3758483,
+      "last_success": "2026-09-15T08:14:49.375850+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "square_pharma": {
+      "last_crawl_epoch": 1789460089.4294195,
+      "last_success": "2026-09-15T08:14:49.429422+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "bdjobs_live": {
+      "last_crawl_epoch": 1789460090.1702242,
+      "last_success": "2026-09-15T08:14:50.170227+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "walton": {
+      "last_crawl_epoch": 1789460090.1951814,
+      "last_failure": "2026-09-15T08:14:50.195184+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "smart_job": {
+      "last_crawl_epoch": 1789460092.6317532,
+      "last_failure": "2026-09-15T08:14:52.631756+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    }
+  },
+  "runs": [
+    {
+      "timestamp": "2026-09-15T08:20:09.279786+00:00",
+      "sources_attempted": 54,
+      "candidates": 243,
+      "jobs": 100,
+      "eligible": 20,
+      "events": 19,
+      "published": 18
+    }
+  ]
 }
