@@ -1,8 +1,8 @@
 {
-  "version": 3,
-  "updated_at": "2026-09-13T23:48:42.422978+00:00",
-  "registry_status": "production_v2",
-  "notes": "V2 adds direct corporate/MNC career sources, source-domain aliases, government grade routing, PDF/OCR-ready acquisition, and unified source attribution. Discovery services remain non-authoritative.",
+  "version": 5,
+  "updated_at": "2026-09-15T08:45:52.820506+00:00",
+  "registry_status": "production_v2_authoritative_only",
+  "notes": "Only official government/employer/career/ATS sources are allowed as publishers. Third-party job boards and republishers are discovery-only and can never be displayed as the source or published.",
   "sources": [
     {
       "id": "national_job_portal",
@@ -19,7 +19,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bangladesh_national_portal_jobs",
@@ -35,7 +36,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "alljobs_teletalk",
@@ -52,7 +54,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "smart_job",
@@ -69,7 +72,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bpsc",
@@ -85,7 +89,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "mopa_jobs",
@@ -101,7 +106,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "moha_jobs",
@@ -117,7 +123,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "rthd_jobs",
@@ -133,7 +140,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "rhd_jobs",
@@ -150,7 +158,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "mocat_jobs",
@@ -168,7 +177,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "caab_jobs",
@@ -185,7 +195,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "ictd_jobs",
@@ -202,7 +213,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "a2i_jobs",
@@ -219,7 +231,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "jobs_teletalk_tbl",
@@ -236,7 +249,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bkkb_teletalk",
@@ -252,7 +266,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bteab_teletalk",
@@ -269,7 +284,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bpi_teletalk",
@@ -286,7 +302,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "btrc_teletalk",
@@ -303,7 +320,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "dss_teletalk",
@@ -320,7 +338,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "ictd_teletalk",
@@ -337,7 +356,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "telecomdept_teletalk",
@@ -354,7 +374,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bscplc_teletalk",
@@ -371,7 +392,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "mopme_teletalk",
@@ -388,7 +410,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "rdcd_teletalk",
@@ -404,7 +427,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bscl_teletalk",
@@ -421,71 +445,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
-    },
-    {
-      "id": "bdjobs",
-      "name": "BDJobs",
-      "categories": [
-        "job_portal"
-      ],
-      "source_type": "job_aggregator",
-      "priority": "P2",
-      "url": "https://www.bdjobs.com/",
-      "parser": "html",
-      "supports_pdf": true,
-      "official": false,
-      "crawl_minutes": 180,
-      "status": "active",
-      "enabled": true
-    },
-    {
-      "id": "skill_jobs",
-      "name": "Skill Jobs",
-      "categories": [
-        "job_portal"
-      ],
-      "source_type": "job_aggregator",
-      "priority": "P2",
-      "url": "https://skill.jobs/",
-      "parser": "html",
-      "supports_pdf": true,
-      "official": false,
-      "crawl_minutes": 180,
-      "status": "active",
-      "enabled": true
-    },
-    {
-      "id": "niyog",
-      "name": "Niyog",
-      "categories": [
-        "job_portal"
-      ],
-      "source_type": "job_aggregator",
-      "priority": "P2",
-      "url": "https://jobs.niyog.co/",
-      "parser": "html",
-      "supports_pdf": true,
-      "official": false,
-      "crawl_minutes": 180,
-      "status": "active",
-      "enabled": true
-    },
-    {
-      "id": "bdjobs_live",
-      "name": "BDJobs Live",
-      "categories": [
-        "job_portal"
-      ],
-      "source_type": "job_aggregator",
-      "priority": "P2",
-      "url": "https://www.bdjobslive.com/",
-      "parser": "html",
-      "supports_pdf": true,
-      "official": false,
-      "crawl_minutes": 180,
-      "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "care_career",
@@ -502,7 +463,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "unicef_bd",
@@ -519,7 +481,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "actionaid_bd",
@@ -536,7 +499,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "square_pharma",
@@ -552,7 +516,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "renata",
@@ -568,7 +533,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "brac_bank",
@@ -585,7 +551,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "brac_bank_taleo",
@@ -602,7 +569,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "walton",
@@ -619,7 +587,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "gp_career",
@@ -636,7 +605,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "robi_career",
@@ -653,7 +623,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "evercare",
@@ -669,23 +640,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
-    },
-    {
-      "id": "evercare_bdjobs",
-      "name": "Evercare Hospital Job Portal",
-      "categories": [
-        "healthcare"
-      ],
-      "source_type": "official_employer",
-      "priority": "P1",
-      "url": "https://evercare.bdjobs.com/",
-      "parser": "html",
-      "supports_pdf": false,
-      "official": true,
-      "crawl_minutes": 120,
-      "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "square_hospital",
@@ -701,7 +657,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "buet_jobs",
@@ -710,7 +667,7 @@
         "university",
         "education"
       ],
-      "source_type": "official_employer",
+      "source_type": "official_ats",
       "priority": "P1",
       "url": "https://recruitment.buet.ac.bd/dashboard",
       "parser": "html",
@@ -718,7 +675,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "buet_registrar_jobs",
@@ -735,7 +693,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "daraz",
@@ -753,7 +712,8 @@
       "official": true,
       "crawl_minutes": 120,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bkash_career",
@@ -775,7 +735,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "bat_career",
@@ -796,7 +757,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "nestle_career",
@@ -817,7 +779,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "unilever_bd",
@@ -838,7 +801,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "brac_career",
@@ -860,7 +824,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "aci_career",
@@ -882,7 +847,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "standard_chartered_careers",
@@ -903,7 +869,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "citybank_careers",
@@ -924,7 +891,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     },
     {
       "id": "marico_career",
@@ -945,7 +913,8 @@
       "official": true,
       "crawl_minutes": 60,
       "status": "active",
-      "enabled": true
+      "enabled": true,
+      "allow_as_publisher": true
     }
   ]
 }

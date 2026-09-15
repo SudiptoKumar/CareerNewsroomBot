@@ -48,38 +48,45 @@ STATE_FILE = Path("job_state.json")
 REGISTRY_FILE = Path("source_registry.json")
 RUNTIME_DIR = Path(".runtime")
 
-MAX_DIRECT_LINKS_PER_SOURCE = 0  # unlimited after job-link filtering
-MAX_DISCOVERY_CANDIDATES = 0
+# Runtime safety: registered authoritative sources are all attempted, but discovery noise is bounded.
+MAX_DIRECT_LINKS_PER_SOURCE = 14
+MAX_DISCOVERY_CANDIDATES = 260
 AI_BATCH_SIZE = 20
 MAX_PUBLISH_PER_RUN = 0  # 0 = unlimited; valid jobs are not discarded for quota
 MAX_EXA_QUERIES = 32
 MAX_EXA_RESULTS_PER_QUERY = 6
 EXA_FRESHNESS_DAYS = 45
 POST_DELAY_SECONDS = 1.5
-HTTP_TIMEOUT_SECONDS = 10
+HTTP_TIMEOUT_SECONDS = 9
+PDF_TIMEOUT_SECONDS = 14
+MAX_PDF_BYTES = 20 * 1024 * 1024
+MAX_INITIAL_OCR_PAGES = 2
+MAX_OCR_DOCUMENTS_PER_RUN = 18
+MAX_PDF_TEXT_PAGES = 4
+MAX_PDF_IMAGE_PAGES = 4
+RUNTIME_BUDGET_SECONDS = 18 * 60
+RUN_START_MONO = 0.0
 CEREBRAS_CALLS_PER_MINUTE = 3
 CEREBRAS_RETRY_AFTER_SECONDS = 61
 BBA_RELEVANCE_BONUS = 22
 FAIR_SOURCE_WINDOW = 3
-MAX_PDF_IMAGE_PAGES = 4
+MAX_PDF_IMAGE_PAGES = 6
 MAX_CIRCULAR_MEDIA = 3
 MIN_JOB_RELEVANCE = 0
 
-# Runtime safety: OCR and large document retrieval are the expensive path.
-# Keep normal runs comfortably below the GitHub Actions timeout while preserving
-# every registered source attempt.
-RUN_BUDGET_SECONDS = 18 * 60
-SOURCE_HTTP_TIMEOUT_SECONDS = 9
-PDF_HTTP_TIMEOUT_SECONDS = 12
-MAX_PDF_BYTES = 20 * 1024 * 1024
-MAX_OCR_PAGES = 2
-MAX_OCR_DOCUMENTS_PER_RUN = 18
-MAX_LINK_CANDIDATES_PER_SOURCE = 20
-MAX_PDF_CANDIDATES_PER_SOURCE = 10
-MAX_HTML_JOB_CANDIDATES_PER_SOURCE = 10
-CURRENT_YEAR = datetime.now(timezone.utc).year
+# Only these registry entries may ever become a displayed/published source.
+# Third-party job boards/republishers are discovery-only and are never publishable.
+AUTHORITATIVE_SOURCE_TYPES = {
+    "official_government", "government_aggregator", "official_employer",
+    "corporate_career", "official_ats", "official_university",
+}
+THIRD_PARTY_HOST_BLOCKLIST = {
+    "bdjobs.com", "bdjobslive.com", "dohaj.com", "skill.jobs",
+    "jobs.niyog.co", "jobsbd.com", "jobs-testbd.com",
+}
 
 EVENT_RETENTION_DAYS = 90
+MIN_DAYS_TO_DEADLINE = 7
 MAX_CAPTION = 1000
 
 logger = logging.getLogger("CareerNewsroom")
@@ -177,7 +184,7 @@ def load_state() -> dict[str, Any]:
     for key, value in default_state().items():
         data.setdefault(key, value)
     # V1 schema migration. Existing jobs are retained; missing flags are backfilled.
-    data["version"] = 5
+    data["version"] = 6
     for event in data.get("jobs", {}).values():
         event.setdefault("repost_due", False)
         event.setdefault("update_pending", False)
@@ -266,25 +273,25 @@ def build_session() -> requests.Session:
 
 
 SESSION = build_session()
-
-
+OCR_DOCUMENTS_THIS_RUN = 0
 
 
 def http_get(url: str, timeout: int = HTTP_TIMEOUT_SECONDS) -> requests.Response | None:
     url = canonical_url(url)
-    if not url or url.startswith(("mailto:", "javascript:", "tel:")):
+    if not url or runtime_budget_exhausted() or url.startswith(("mailto:", "javascript:", "tel:")):
         return None
     host = urlparse(url).netloc.lower()
     if host in {"localhost", "127.0.0.1", "0.0.0.0"}:
         return None
+    timeout=min(max(3, int(timeout)), max(3, int(runtime_remaining())))
     try:
-        response = SESSION.get(url, timeout=timeout, allow_redirects=True)
+        response = SESSION.get(url, timeout=timeout, allow_redirects=True, stream=False)
         if response.status_code >= 400:
-            logger.warning("HTTP %s %s", response.status_code, url)
+            logger.info("HTTP REJECT %s | %s", response.status_code, url)
             return None
         return response
     except requests.RequestException as exc:
-        logger.warning("HTTP failed %s | %s", url, exc)
+        logger.info("HTTP FAIL | %s | %s", url, exc.__class__.__name__)
         return None
 
 
@@ -301,6 +308,58 @@ def looks_like_job(text: str, url: str = "") -> bool:
 
 def hash_text(text: str) -> str:
     return hashlib.sha256(safe_text(text).encode("utf-8")).hexdigest()
+
+
+def runtime_remaining() -> float:
+    if RUN_START_MONO <= 0:
+        return RUNTIME_BUDGET_SECONDS
+    return max(0.0, RUNTIME_BUDGET_SECONDS - (time.monotonic() - RUN_START_MONO))
+
+
+def runtime_budget_exhausted() -> bool:
+    return runtime_remaining() <= 0
+
+
+def host_of(url: str) -> str:
+    return urlparse(canonical_url(url)).netloc.lower().removeprefix("www.")
+
+
+def is_third_party_host(url: str) -> bool:
+    host=host_of(url)
+    return any(host == blocked or host.endswith("." + blocked) for blocked in THIRD_PARTY_HOST_BLOCKLIST)
+
+
+def year_signals(value: str) -> set[int]:
+    return {int(x) for x in re.findall(r"\b(?:20)\d{2}\b", safe_text(value))}
+
+
+def candidate_is_current_enough(candidate: dict[str, Any]) -> bool:
+    """Cheap pre-download gate that suppresses old archive PDFs before OCR/download.
+
+    A stale-looking year is allowed only when the candidate carries a strong current signal
+    such as a recent publication date or an explicit current/future year in its title/context.
+    """
+    url=canonical_url(candidate.get("url", ""))
+    if not url: return False
+    if not (".pdf" in urlparse(url).path.lower() or ".pdf" in url.lower()):
+        return True
+    signals=year_signals(" ".join([url, safe_text(candidate.get("title_hint")), safe_text(candidate.get("text_hint"))]))
+    current_year=datetime.now(ZoneInfo("Asia/Dhaka")).year
+    old=sorted(y for y in signals if y <= current_year-1)
+    if not old: return True
+    if current_year in signals or current_year+1 in signals:
+        return True
+    published=safe_text(candidate.get("published_date"))
+    if published:
+        try:
+            dt=datetime.fromisoformat(published.replace("Z","+00:00"))
+            if dt.tzinfo is None: dt=dt.replace(tzinfo=timezone.utc)
+            age=(datetime.now(timezone.utc)-dt.astimezone(timezone.utc)).total_seconds()/86400
+            if age <= 45:
+                return True
+        except ValueError:
+            pass
+    return False
 
 
 # ============================================================
@@ -324,63 +383,70 @@ def extract_html_text(content: bytes, url: str) -> str:
     return soup.get_text("\n", strip=True)
 
 
-def ocr_pdf_text(content: bytes, max_pages: int = MAX_OCR_PAGES) -> str:
-    """OCR only the first few scanned pages. OCR expansion is intentionally bounded."""
+def ocr_pdf_text(content: bytes, max_pages: int = MAX_INITIAL_OCR_PAGES, start_page: int = 0, count_document: bool = True) -> str:
+    """Bounded OCR rescue. A document gets at most two OCR passes of two pages each."""
+    global OCR_DOCUMENTS_THIS_RUN
+    if count_document:
+        if OCR_DOCUMENTS_THIS_RUN >= MAX_OCR_DOCUMENTS_PER_RUN or runtime_budget_exhausted():
+            return ""
+        OCR_DOCUMENTS_THIS_RUN += 1
+    elif runtime_budget_exhausted():
+        return ""
     try:
         import fitz
         import pytesseract
         from PIL import Image as PILImage
-        doc = fitz.open(stream=content, filetype="pdf")
+        doc=fitz.open(stream=content,filetype="pdf")
     except Exception as exc:
         logger.debug("OCR unavailable: %s", exc)
         return ""
-    chunks = []
+    chunks=[]
     try:
-        for i in range(min(max_pages, doc.page_count)):
+        for i in range(start_page, min(start_page + max_pages, doc.page_count)):
+            if runtime_budget_exhausted(): break
             try:
-                page = doc.load_page(i)
-                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
-                image = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                try:
-                    text = pytesseract.image_to_string(image, lang="ben+eng", config="--psm 6", timeout=8)
-                except TypeError:
-                    text = pytesseract.image_to_string(image, lang="ben+eng", config="--psm 6")
-                if len(safe_text(text)) >= 40:
-                    chunks.append(text.strip())
+                page=doc.load_page(i)
+                pix=page.get_pixmap(matrix=fitz.Matrix(1.9,1.9),alpha=False)
+                image=PILImage.frombytes("RGB", [pix.width,pix.height], pix.samples)
+                text=pytesseract.image_to_string(image, lang="ben+eng", config="--psm 6")
+                if len(safe_text(text)) >= 40: chunks.append(text.strip())
             except Exception as exc:
-                logger.debug("OCR page %d failed: %s", i + 1, exc)
+                logger.debug("OCR page %d failed: %s", i+1, exc)
     finally:
         doc.close()
     return "\n\n".join(chunks).strip()
 
 
 def extract_pdf_text(content: bytes) -> str:
-    global _OCR_DOCUMENTS_USED
+    """Native extraction first; adaptive OCR rescues only low-text/low-deadline-signal PDFs."""
     try:
         from pypdf import PdfReader
     except Exception:
         return ocr_pdf_text(content)
     try:
-        reader = PdfReader(BytesIO(content))
+        reader=PdfReader(BytesIO(content), strict=False)
     except Exception:
         return ocr_pdf_text(content)
-    chunks = []
-    for page in reader.pages:
-        try:
-            chunks.append(page.extract_text() or "")
-        except Exception:
-            continue
-    text = "\n".join(chunks).strip()
-    if len(re.sub(r"\s+", "", text)) >= 180:
-        return text
-    if _OCR_DOCUMENTS_USED >= MAX_OCR_DOCUMENTS_PER_RUN:
-        logger.info("PDF OCR SKIP | per_run_limit=%d", MAX_OCR_DOCUMENTS_PER_RUN)
-        return text
-    _OCR_DOCUMENTS_USED += 1
-    ocr = ocr_pdf_text(content)
-    if len(ocr) > len(text):
-        logger.info("PDF OCR FALLBACK | native_chars=%d ocr_chars=%d | pages=%d | docs_used=%d", len(text), len(ocr), min(MAX_OCR_PAGES, len(reader.pages)), _OCR_DOCUMENTS_USED)
-        text = ocr
+    chunks=[]
+    for page in list(reader.pages)[:MAX_PDF_TEXT_PAGES]:
+        if runtime_budget_exhausted(): break
+        try: chunks.append(page.extract_text() or "")
+        except Exception: pass
+    text="\n".join(chunks).strip()
+    compact=len(re.sub(r"\s+","",text))
+    needs_ocr = compact < 220 or (compact < 450 and not has_deadline_signal(text))
+    if needs_ocr:
+        ocr=ocr_pdf_text(content, MAX_INITIAL_OCR_PAGES, 0, True)
+        if len(ocr) > len(text):
+            logger.info("PDF OCR FALLBACK | native_chars=%d ocr_chars=%d",len(text),len(ocr))
+            text=ocr
+        # Second bounded pass only when the first pages still did not expose a deadline/job signal.
+        if (not has_deadline_signal(text) or not looks_like_job(text)) and compact < 900:
+            ocr_more=ocr_pdf_text(content, MAX_INITIAL_OCR_PAGES, MAX_INITIAL_OCR_PAGES, False)
+            if len(ocr_more) > 0:
+                merged=(text + "\n\n" + ocr_more).strip()
+                logger.info("PDF OCR SECOND PASS | added_chars=%d", len(merged)-len(text))
+                text=merged
     return text
 
 
@@ -591,41 +657,32 @@ def registry_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
-    """Resolve the actual publisher/apply-site source. Exa/Google are discovery layers, never display sources."""
-    host = urlparse(canonical_url(url)).netloc.lower().removeprefix("www.")
-    if not host:
+    """Resolve only to an authoritative registry source. Discovery vendors and job boards cannot win."""
+    host=host_of(url)
+    if not host or is_third_party_host(url):
         return None
-    best = None; best_len = -1
+    best=None; best_len=-1
     for source in sources.values():
-        candidates = [source.get("url", "")] + list(source.get("domains", []) or []) + list(source.get("application_domains", []) or [])
+        if not source.get("official"): continue
+        candidates=[source.get("url", "")] + list(source.get("domains", []) or []) + list(source.get("application_domains", []) or [])
         for raw_host in candidates:
-            raw_host = safe_text(raw_host)
+            raw_host=safe_text(raw_host)
             if not raw_host: continue
-            source_host = urlparse(canonical_url(raw_host if "://" in raw_host else "https://" + raw_host)).netloc.lower().removeprefix("www.")
-            if source_host and (host == source_host or host.endswith("." + source_host)) and len(source_host) > best_len:
-                best = source; best_len = len(source_host)
+            source_host=host_of(raw_host if "://" in raw_host else "https://"+raw_host)
+            if source_host and (host == source_host or host.endswith("."+source_host)) and len(source_host)>best_len:
+                best=source; best_len=len(source_host)
     return best
 
 
+def is_authoritative_source(source: dict[str, Any] | None) -> bool:
+    if not source or not source.get("official"): return False
+    if safe_text(source.get("source_type")) not in AUTHORITATIVE_SOURCE_TYPES: return False
+    return not is_third_party_host(source.get("url", ""))
+
+
 def source_display_name(url: str, sources: dict[str, dict[str, Any]]) -> str:
-    mapped = source_for_url(url, sources)
-    if mapped:
-        return safe_text(mapped.get("name"))
-    host = urlparse(canonical_url(url)).netloc.lower().removeprefix("www.")
-    if not host:
-        return "Career Newsroom"
-    known = {
-        "bdjobs.com": "Bdjobs.com", "bdjobslive.com": "BDJobs Live", "alljobs.teletalk.com.bd": "AllJobs Teletalk",
-        "jobs.gov.bd": "National Job Portal", "bpsc.gov.bd": "Bangladesh Public Service Commission",
-        "career.bracu.ac.bd": "BRAC University", "squaregroup.com": "Square Group", "squarespharma.com.bd": "Square Pharmaceuticals",
-        "careers.unilever.com": "Unilever Careers", "jobs.waltonbd.com": "Walton Careers", "intertek.com": "Intertek",
-        "jobs.bdjobs.com": "Bdjobs.com",
-    }
-    for domain,name in known.items():
-        if host == domain or host.endswith('.'+domain):
-            return name
-    base = host.split('.')[0].replace('-', ' ').strip()
-    return base.title() if base else "Career Newsroom"
+    mapped=source_for_url(url,sources)
+    return safe_text(mapped.get("name")) if mapped else "Official Source"
 
 
 def due_sources(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -638,154 +695,54 @@ def due_sources(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[st
     ]
     return sorted(sources, key=lambda x: (priority.get(x.get("priority", "P3"), 3), safe_text(x.get("name"))))
 
-
-def candidate_has_stale_year(url: str, label: str = "", current_year: int | None = None) -> bool:
-    """Reject obviously historical document URLs before downloading/OCRing them.
-
-    A year in a deep PDF path is treated as stale when it is older than the current year\n    and the visible link text does not contain a current-year signal. This is deliberately\n    heuristic rather than an absolute rule so sources with old directory names can still\n    surface current documents when the anchor text says 2026 or contains a live deadline.\n    """
-    year_now = current_year or CURRENT_YEAR
-    raw = f"{url} {label}".lower()
-    path = urlparse(url).path.lower()
-    # Apply the hard stale-year heuristic to document/archive paths, not ordinary
-    # HTML job slugs, which may legitimately contain an older year.
-    document_path = (
-        ".pdf" in path
-        or any(token in path for token in ("/uploads/", "/upload/", "/files/", "/documents/", "/notices/", "/circular/", "/circulars/"))
-    )
-    if not document_path:
-        return False
-    years = [int(y) for y in re.findall(r"(?:19|20)\d{2}", raw)]
-    if not years:
-        return False
-    path_years = [int(y) for y in re.findall(r"(?:19|20)\d{2}", path)]
-    stale_path_years = [y for y in path_years if y < year_now]
-    if not stale_path_years:
-        return False
-    current_signal = str(year_now) in raw or str(year_now + 1) in raw
-    return not current_signal
-
-
-def deadline_is_usable(text: str, minimum_days: int = 7) -> bool:
-    hints = deterministic_hints(text)
-    dt = parse_deadline(hints.get("deadline"))
-    if not dt:
-        return False
-    return (dt - datetime.now(timezone.utc)).total_seconds() / 86400 >= minimum_days
-
-
-def is_likely_current_job_link(label: str, url: str) -> bool:
-    if not looks_like_job_link(label, url):
-        return False
-    return not candidate_has_stale_year(url, label)
-
-
-def bounded_get_pdf(url: str) -> requests.Response | None:
-    """Bound PDF downloads so one broken/huge document cannot consume the run."""
-    url = canonical_url(url)
-    try:
-        with SESSION.get(url, timeout=PDF_HTTP_TIMEOUT_SECONDS, allow_redirects=True, stream=True) as response:
-            if response.status_code >= 400:
-                logger.warning("PDF HTTP %s | %s", response.status_code, url)
-                return None
-            ctype = response.headers.get("content-type", "").lower()
-            declared = response.headers.get("content-length")
-            if declared and declared.isdigit() and int(declared) > MAX_PDF_BYTES:
-                logger.info("PDF SKIP | oversized=%dMB | url=%s", int(declared) / (1024*1024), url)
-                return None
-            buf = bytearray()
-            for chunk in response.iter_content(chunk_size=128 * 1024):
-                if not chunk:
-                    continue
-                buf.extend(chunk)
-                if len(buf) > MAX_PDF_BYTES:
-                    logger.info("PDF SKIP | exceeded_size_limit=%dMB | url=%s", MAX_PDF_BYTES / (1024*1024), url)
-                    return None
-            response._content = bytes(buf)
-            response.headers["content-length"] = str(len(buf))
-            if "pdf" not in ctype and not response.url.lower().endswith(".pdf") and b"%PDF" not in response._content[:16]:
-                return None
-            return response
-    except requests.RequestException as exc:
-        logger.warning("PDF GET failed | %s | %s", url, exc)
-        return None
-
-
 def direct_discover(source: dict[str, Any]) -> list[dict[str, Any]]:
-    source_url = canonical_url(source.get("url", ""))
-    r = bounded_get_pdf(source_url) if ".pdf" in source_url.lower() else http_get(source_url, timeout=SOURCE_HTTP_TIMEOUT_SECONDS)
-    if not r:
-        raise RuntimeError("source request failed")
-    final_url = canonical_url(r.url)
-    ctype = r.headers.get("content-type", "").lower()
-    base = {
-        "source_id": source["id"],
-        "source_name": source["name"],
-        "source_priority": source.get("priority", "P3"),
-        "source_official": bool(source.get("official")),
-        "source_type": source.get("source_type", ""),
-        "source_categories": source.get("categories", []),
-    }
+    source_url=canonical_url(source.get("url",""))
+    r=http_get(source_url)
+    if not r: raise RuntimeError("source request failed")
+    final_url=canonical_url(r.url)
+    ctype=r.headers.get("content-type","").lower()
+    base={"source_id":source["id"],"source_name":source["name"],"source_priority":source.get("priority","P3"),"source_official":bool(source.get("official")),"source_type":source.get("source_type",""),"source_categories":source.get("categories",[])}
     if "pdf" in ctype or final_url.lower().endswith(".pdf"):
-        text = extract_pdf_text(r.content)
-        if not text:
-            raise RuntimeError("PDF extraction returned no text")
-        return [{**base, "url": final_url, "title_hint": "", "text_hint": text[:30000], "image": "", "meta": {}, "published_date": "", "discovery": "direct_pdf"}]
-    if "xml" in ctype or final_url.lower().endswith((".rss", ".xml")):
-        feed = feedparser.parse(r.content)
-        out = []
+        if len(r.content) > MAX_PDF_BYTES:
+            raise RuntimeError("source PDF exceeds size limit")
+        text=extract_pdf_text(r.content)
+        if not text: raise RuntimeError("PDF extraction returned no text")
+        return [{**base,"url":final_url,"title_hint":"","text_hint":text[:30000],"image":"","meta":{},"published_date":"","discovery":"direct_pdf"}]
+    if "xml" in ctype or final_url.lower().endswith((".rss",".xml")):
+        feed=feedparser.parse(r.content); out=[]
         for e in feed.entries:
-            link = canonical_url(getattr(e, "link", ""))
-            title = safe_text(getattr(e, "title", ""))
-            summary = BeautifulSoup(safe_text(getattr(e, "summary", "")), "html.parser").get_text(" ", strip=True)
-            if not link or not looks_like_job_document(title, summary, link, source.get("priority", "P3")):
-                continue
-            if candidate_has_stale_year(link, title):
-                continue
-            out.append({**base, "url": link, "title_hint": title, "text_hint": summary[:12000], "image": "", "meta": {}, "published_date": safe_text(getattr(e, "published", "") or getattr(e, "updated", "")), "discovery": "rss"})
-        return out[:MAX_LINK_CANDIDATES_PER_SOURCE]
-    text = extract_html_text(r.content, final_url)
-    meta = extract_meta(r.content, final_url)
-    candidates = []
-    if looks_like_job_document(meta.get("title", ""), text, final_url, source.get("priority", "P3")):
-        candidates.append({**base, "url": final_url, "title_hint": meta.get("title", ""), "text_hint": text[:30000], "image": "", "meta": meta, "published_date": meta.get("datePublished") or meta.get("datePosted") or "", "discovery": "direct_page"})
-    soup = BeautifulSoup(r.content, "html.parser")
-    links = []
-    seen = {final_url}
-    for node in soup.find_all(["a", "iframe", "embed", "object"]):
-        href = node.get("href") or node.get("src") or node.get("data") or ""
-        link = canonical_url(urljoin(final_url, href))
-        label = safe_text(node.get_text(" ", strip=True))
-        parent = node.parent.get_text(" ", strip=True) if node.parent else ""
-        context = safe_text(f"{label} {parent[:700]}")
-        if not link or link in seen:
-            continue
+            link=canonical_url(getattr(e,"link","")); title=safe_text(getattr(e,"title","")); summary=BeautifulSoup(safe_text(getattr(e,"summary","")),"html.parser").get_text(" ",strip=True)
+            if not link or not looks_like_job_document(title,summary,link,source.get("priority","P3")): continue
+            out.append({**base,"url":link,"title_hint":title,"text_hint":summary[:12000],"image":"","meta":{},"published_date":safe_text(getattr(e,"published","") or getattr(e,"updated","")),"discovery":"rss"})
+        return out
+    text=extract_html_text(r.content,final_url); meta=extract_meta(r.content,final_url); candidates=[]
+    if looks_like_job_document(meta.get("title",""),text,final_url,source.get("priority","P3")):
+        candidates.append({**base,"url":final_url,"title_hint":meta.get("title",""),"text_hint":text[:30000],"image":meta.get("image",""),"meta":meta,"published_date":meta.get("datePublished") or meta.get("datePosted") or "","discovery":"direct_page"})
+    soup=BeautifulSoup(r.content,"html.parser"); seen={final_url}
+    for node in soup.find_all(["a","iframe","embed","object"]):
+        href=node.get("href") or node.get("src") or node.get("data") or ""; link=canonical_url(urljoin(final_url,href)); label=safe_text(node.get_text(" ",strip=True))
+        if not link or link in seen: continue
         seen.add(link)
-        if not is_likely_current_job_link(context, link):
+        is_pdf=".pdf" in urlparse(link).path.lower() or ".pdf" in link.lower()
+        if not (is_pdf or looks_like_job_link(label,link)): continue
+        candidate={**base,"url":link,"title_hint":label,"text_hint":"","image":"","meta":{},"published_date":"","discovery":"direct_pdf_link" if is_pdf else "direct_link"}
+        if is_pdf and not candidate_is_current_enough(candidate):
+            logger.info("STALE PDF SKIP | %s", link)
             continue
-        is_pdf = ".pdf" in urlparse(link).path.lower() or ".pdf" in link.lower()
-        relevance = 0
-        probe = f"{context} {link}".lower()
-        relevance += 20 if is_pdf else 0
-        relevance += 10 if str(CURRENT_YEAR) in probe else 0
-        relevance += 8 if re.search(r"(?:deadline|last date|closing|apply by|আবেদনের\s*শেষ|শেষ\s*তারিখ)", probe, re.I) else 0
-        relevance += sum(3 for k in ("career", "vacancy", "recruit", "circular", "apply", "job", "নিয়োগ", "চাকরি", "বিজ্ঞপ্তি") if k in probe)
-        links.append((relevance, len(label), {**base, "url": link, "title_hint": label, "text_hint": "", "image": "", "meta": {"link_context": context}, "published_date": "", "discovery": "direct_pdf_link" if is_pdf else "direct_link"}))
-    # Match raw PDF URLs embedded in page source as a second discovery path.
-    raw_html = r.content.decode("utf-8", errors="ignore")
-    for match in re.findall(r'https?://[^\s"\']+?\.pdf(?:\?[^\s"\']*)?', raw_html, flags=re.I):
-        link = canonical_url(match.rstrip(",;)]}"))
-        if not link or link in seen or not is_likely_current_job_link("", link):
+        candidates.append(candidate)
+        if MAX_DIRECT_LINKS_PER_SOURCE > 0 and len(candidates) >= MAX_DIRECT_LINKS_PER_SOURCE: break
+    raw_html=r.content.decode("utf-8",errors="ignore")
+    for match in re.findall(r'https?://[^\s"\']+?\.pdf(?:\?[^\s"\']*)?',raw_html,flags=re.I):
+        link=canonical_url(match.rstrip(",;)]}"))
+        if not link or link in seen: continue
+        candidate={**base,"url":link,"title_hint":"","text_hint":"","image":"","meta":{},"published_date":"","discovery":"direct_pdf_link"}
+        if not candidate_is_current_enough(candidate):
+            logger.info("STALE PDF SKIP | %s", link)
             continue
-        seen.add(link)
-        page_signal = safe_text(re.sub(r"<[^>]+>", " ", raw_html))[:1200]
-        links.append((30 + (10 if str(CURRENT_YEAR) in page_signal else 0), 0, {**base, "url": link, "title_hint": "", "text_hint": "", "image": "", "meta": {"link_context": page_signal}, "published_date": "", "discovery": "direct_pdf_link"}))
-    links.sort(key=lambda x: (-x[0], -x[1], x[2]["url"]))
-    pdf_links = [x for x in links if x[2].get("discovery") == "direct_pdf_link"][:MAX_PDF_CANDIDATES_PER_SOURCE]
-    html_links = [x for x in links if x[2].get("discovery") == "direct_link"][:MAX_HTML_JOB_CANDIDATES_PER_SOURCE]
-    selected = sorted(pdf_links + html_links, key=lambda x: (-x[0], -x[1], x[2]["url"]))[:MAX_LINK_CANDIDATES_PER_SOURCE]
-    candidates.extend(item for _, __, item in selected)
-    logger.info("SOURCE LINK FILTER | %s | kept=%d dropped_stale_or_irrelevant=%d", source.get("name"), len(candidates), max(0, len(seen) - 1 - len(candidates)))
+        seen.add(link); candidates.append(candidate)
+        if MAX_DIRECT_LINKS_PER_SOURCE > 0 and len(candidates) >= MAX_DIRECT_LINKS_PER_SOURCE: break
     return candidates
+
 
 
 def has_deadline_signal(text: str) -> bool:
@@ -912,15 +869,11 @@ def discover_exa(registry: dict[str, Any]) -> list[dict[str, Any]]:
 
 def build_candidates(registry: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
     all_sources = due_sources(registry, state)
-    run_deadline = time.monotonic() + RUN_BUDGET_SECONDS
     candidates=[]; crawl_ok=0; crawl_failed=0; pdf_candidates=0
     def crawl_one(source): return source, direct_discover(source)
     with ThreadPoolExecutor(max_workers=8) as pool:
         future_map={pool.submit(crawl_one,source): source for source in all_sources}
         for future in as_completed(future_map):
-            if time.monotonic() >= run_deadline:
-                logger.warning("RUN BUDGET | source crawl collection window reached; retaining completed sources")
-                break
             source=future_map[future]
             try:
                 _source,found=future.result(); candidates.extend(found)
@@ -992,47 +945,39 @@ def _render_pdf_preview(pdf_bytes: bytes, target: Path) -> str:
 
 
 def retrieve(candidate: dict[str, Any]) -> dict[str, Any] | None:
-    url = canonical_url(candidate.get("url", ""))
-    text_hint = safe_text(candidate.get("text_hint", ""))
-    meta = dict(candidate.get("meta") or {})
-    link_context = safe_text((candidate.get("meta") or {}).get("link_context"))
-    if candidate_has_stale_year(url, f"{candidate.get('title_hint','')} {link_context}"):
-        logger.info("DOCUMENT SKIP | stale_year | %s", url)
+    if runtime_budget_exhausted(): return None
+    url=canonical_url(candidate.get("url","")); text_hint=safe_text(candidate.get("text_hint","")); meta=dict(candidate.get("meta") or {})
+    if not url or (is_third_party_host(url) and not candidate.get("source_official")):
         return None
-    if len(text_hint) >= 250 and looks_like_job_document(candidate.get("title_hint", ""), text_hint, url, candidate.get("source_priority", "P3")):
-        return {**candidate, "url": url, "text": text_hint[:30000], "hints": deterministic_hints(text_hint), "meta": meta}
-    if ".pdf" in url.lower():
-        r = bounded_get_pdf(url)
-    else:
-        r = http_get(url, timeout=SOURCE_HTTP_TIMEOUT_SECONDS)
-    if not r:
+    if not candidate_is_current_enough(candidate):
+        logger.info("CANDIDATE CURRENTNESS REJECT | %s", url)
         return None
-    final_url = canonical_url(r.url)
-    ctype = r.headers.get("content-type", "").lower()
-    if "pdf" in ctype or final_url.lower().endswith(".pdf") or ".pdf" in final_url.lower():
-        if len(r.content) > MAX_PDF_BYTES:
-            logger.info("DOCUMENT SKIP | pdf_too_large | %s", final_url)
+    if len(text_hint)>=250 and looks_like_job_document(candidate.get("title_hint",""),text_hint,url,candidate.get("source_priority","P3")):
+        return {**candidate,"url":url,"text":text_hint[:30000],"hints":deterministic_hints(text_hint),"meta":meta}
+    timeout=PDF_TIMEOUT_SECONDS if ".pdf" in urlparse(url).path.lower() or ".pdf" in url.lower() else HTTP_TIMEOUT_SECONDS
+    r=http_get(url, timeout=timeout)
+    if not r: return None
+    final_url=canonical_url(r.url); ctype=r.headers.get("content-type","").lower(); content=r.content
+    is_pdf="pdf" in ctype or final_url.lower().endswith(".pdf") or ".pdf" in final_url.lower()
+    if is_pdf:
+        if not candidate_is_current_enough({**candidate, "url": final_url}):
+            logger.info("STALE REDIRECTED PDF SKIP | %s", final_url)
             return None
-        text = extract_pdf_text(r.content)
-        if not text:
+        if len(content)>MAX_PDF_BYTES:
+            logger.info("PDF SIZE REJECT | bytes=%d | %s",len(content),final_url)
             return None
-        pdf_path = RUNTIME_DIR / f"pdf_{hash_text(final_url)[:16]}.pdf"
-        RUNTIME_DIR.mkdir(exist_ok=True)
-        try:
-            pdf_path.write_bytes(r.content)
-            meta["pdf_path"] = str(pdf_path)
-        except OSError:
-            pass
+        text=extract_pdf_text(content)
+        if not text: return None
+        pdf_path=RUNTIME_DIR/f"pdf_{hash_text(final_url)[:16]}.pdf"
+        RUNTIME_DIR.mkdir(exist_ok=True); pdf_path.write_bytes(content)
+        meta.update({"pdf_path":str(pdf_path),"pdf_preview_path":"","pdf_preview_paths":[]})
     else:
-        text = extract_html_text(r.content, final_url)
-        meta = extract_meta(r.content, final_url)
-    title = candidate.get("title_hint", "") or meta.get("title", "")
-    if not looks_like_job_document(title, text, final_url, candidate.get("source_priority", "P3")):
-        return None
-    if not (is_bangladesh(text, final_url) or candidate.get("source_priority") in ("P0", "P1")):
-        return None
-    return {**candidate, "url": final_url, "text": text[:30000], "hints": deterministic_hints(text), "meta": meta,
-            "published_date": candidate.get("published_date") or meta.get("datePublished") or meta.get("datePosted") or ""}
+        text=extract_html_text(content,final_url); meta=extract_meta(content,final_url)
+    title=candidate.get("title_hint","") or meta.get("title","")
+    if not looks_like_job_document(title,text,final_url,candidate.get("source_priority","P3")): return None
+    if not (is_bangladesh(text,final_url) or candidate.get("source_priority") in ("P0","P1")): return None
+    return {**candidate,"url":final_url,"text":text[:30000],"hints":deterministic_hints(text),"meta":meta,
+            "published_date":candidate.get("published_date") or meta.get("datePublished") or meta.get("datePosted") or ""}
 
 
 def jsonld_job(meta: dict[str, Any]) -> dict[str, Any] | None:
@@ -1155,28 +1100,32 @@ def clean_field(value: Any, field: str) -> Any:
     return text[:600]
 
 def clean_job_title(value: Any) -> str:
-    """Return only the role/title, never portal UI labels or article metadata."""
-    t = safe_text(value)
-    if not t:
-        return ""
-    # Prefer a segment that looks like a role when a portal joins many fields with pipes.
-    segments = [safe_text(x) for x in re.split(r"\s*[|•·]\s*", t) if safe_text(x)]
-    role_words = re.compile(r"(?i)\b(manager|management|trainee|officer|executive|assistant|associate|analyst|engineer|developer|intern|internship|specialist|coordinator|consultant|teacher|lecturer|professor|accountant|auditor|sales|marketing|hr|human resources|finance|accounting|procurement|supply chain|technician|operator|nurse|medical|director|supervisor|representative|রক্ষণাবেক্ষণ|কর্মকর্তা|সহকারী|ব্যবস্থাপনা|নিয়োগ|শিক্ষক|প্রভাষক|অফিসার|ইন্টার্ন)")
-    role_segment = next((seg for seg in segments if role_words.search(seg)), t)
-    t = role_segment
-    t = re.sub(r"\s*(?:\||•|·|:)\s*(?:Bdjobs(?:\.com)?|BDJobs Live|EZ Jobs|Jobs? Test bd|Prothom Alo|Chakri|Niyog|Exa Discovery)\b.*$", "", t, flags=re.I)
-    t = re.sub(r"\s+[-–]\s+(?:Apply online|Apply Now|Jobs?|Job Circular.*|Career.*)$", "", t, flags=re.I)
-    t = re.sub(r"\b(?:job location|category in|job type|salary|deadline|application deadline|location|vacancy|company|organization|employer)\s*[:：-].*$", "", t, flags=re.I)
-    t = re.sub(r"\b(?:Job Circular|Circular|Vacancy|Recruitment|Hiring|Job Details?)\s*[:：-]\s*", "", t, flags=re.I)
-    t = re.sub(r"^(?:পদের\s*নাম|পদ|পদবী|Position|Designation|Job Title|Post)\s*[:：-]\s*", "", t, flags=re.I)
-    # Remove common portal/article suffixes and company-location wrappers.
-    t = re.sub(r"\s+(?:at|with|from|on)\s+(?:Bdjobs(?:\.com)?|LinkedIn|EZ Jobs|Jobs? Test BD)\b.*$", "", t, flags=re.I)
-    t = re.sub(r"\s+[-–]\s+[A-Z][^\n]{0,80}\b(?:Dhaka|Chattogram|Bangladesh)\s*$", "", t, flags=re.I)
-    m = re.match(r"^(.{3,140}?)\s+(?:is|are)\s+(?:looking|hiring|recruiting)\b", t, flags=re.I)
-    if m:
-        t = m.group(1)
-    t = re.sub(r"\s{2,}", " ", t).strip(" -|:;,. ")
-    return t[:140]
+    t=safe_text(value)
+    if not t: return ""
+    # Normalise common separators without changing legitimate punctuation inside a role.
+    t=re.sub(r"[\r\n\t]+", " ", t)
+    t=re.sub(r"\s{2,}", " ", t).strip(" -|:;,. ")
+    # Strip portal wrappers only when they occur as suffixes/prefixes.
+    t=re.sub(r"^(?:job\s+title|job\s+position|position|designation|post|পদের\s*নাম|পদবী|পদ)\s*[:：-]\s*", "", t, flags=re.I)
+    t=re.sub(r"\s*[|•·:]\s*(?:bdjobs(?:\.com)?|bdjobs\s*live|dohaj|jobs\s*test\s*bd|skill\.jobs|niyog|exa\s+discovery)\b.*$", "", t, flags=re.I)
+    t=re.sub(r"\s+[-–—]\s+(?:Dhaka|Chattogram|Chittagong|Sylhet|Khulna|Rajshahi|Rangpur|Barishal|Mymensingh|Gazipur|Narayanganj|Bangladesh)$", "", t, flags=re.I)
+    t=re.sub(r"\s+[-–]\s+(?:apply(?:\s+online)?|apply\s+now|job\s+circular.*|career.*)$", "", t, flags=re.I)
+    # Remove fields accidentally concatenated onto the title.
+    t=re.sub(r"\s+(?:job\s+location|location|job\s+type|employment|salary|salary\s*&\s*benefits|deadline|application\s+deadline|vacancy|category)\s*[:：-].*$", "", t, flags=re.I)
+    t=re.sub(r"\s+(?:কর্মস্থল|চাকরির\s*স্থান|চাকরির\s*ধরন|বেতন|আবেদনের\s*শেষ\s*তারিখ|পদসংখ্যা)\s*[:：-].*$", "", t, flags=re.I)
+    # Reject obvious prose fragments by keeping the meaningful role before a sentence boundary.
+    if re.search(r"[.!?]\s+(?:this|the|we|you|applications|department|responsible|will|is|are)\b", t, re.I):
+        t=re.split(r"[.!?]\s+", t, maxsplit=1)[0]
+    # A title should be compact; very long lines are almost always a headline/article excerpt.
+    words=t.split()
+    if len(t)>120 or len(words)>18:
+        for marker in (" - ", " – ", " — ", " | ", ": "):
+            if marker in t:
+                head=t.split(marker,1)[0].strip()
+                if 3<=len(head)<=120 and len(head.split())<=18:
+                    t=head; break
+    t=re.sub(r"\s{2,}", " ", t).strip(" -|:;,. ")
+    return t[:120]
 
 
 def is_weak_job_title(title: Any) -> bool:
@@ -1368,7 +1317,6 @@ RANK_SCHEMA = {
 
 
 _CEREBRAS_CLIENT = None
-_OCR_DOCUMENTS_USED = 0
 _CEREBRAS_CALL_TIMES: list[float] = []
 
 
@@ -1410,7 +1358,7 @@ def ai_enrich(jobs: list[dict[str,Any]])->list[dict[str,Any]]:
     logger.info("AI QUEUE | jobs_needing_rescue=%d | batches=%d",len(needs),total)
     for batch_no,start in enumerate(range(0,len(needs),AI_BATCH_SIZE),1):
         batch=needs[start:start+AI_BATCH_SIZE]
-        payload={"documents":[{"id":i,"source_name":j.get("source_name"),"source_url":j.get("source_url"),"title_hint":j.get("title"),"text":safe_text(j.get("text"))[:10000]} for i,j in enumerate(batch)],"instruction":"Extract only facts explicitly stated in the Bangladesh job circular. The final application deadline is mandatory for publication. Never invent a date. A source homepage/dashboard is not a job. Inspect the full PDF text when supplied."}
+        payload={"documents":[{"id":i,"source_name":j.get("source_name"),"source_url":j.get("source_url"),"title_hint":j.get("title"),"text":safe_text(j.get("text"))[:9000]} for i,j in enumerate(batch)],"instruction":"Extract only facts explicitly stated in the authoritative Bangladesh job listing/circular. Preserve the exact job title from the document. Never turn responsibilities, salary, location, employer name, or portal text into the job title. The final application deadline is mandatory for publication. Never invent a date."}
         data=cerebras_structured("Extract structured Bangladesh job circular facts. Do not infer the source name as an employer. Return null/[] for unstated facts.",payload,AI_SCHEMA,9000)
         logger.info("AI RESCUE BATCH %d/%d | docs=%d | success=%s",batch_no,total,len(batch),bool(data))
         if not data or not isinstance(data.get("jobs"),list): continue
@@ -1436,7 +1384,7 @@ def ai_enrich(jobs: list[dict[str,Any]])->list[dict[str,Any]]:
 
 
 def finalize_job_fields(job: dict[str, Any], sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """Clean AI/deterministic output and resolve the real source before event processing."""
+    """Normalize fields and enforce an authoritative publisher before an event can exist."""
     for field in ("company","title","location","vacancy","salary","experience","summary"):
         job[field]=clean_field(job.get(field),field)
     job["title"]=clean_job_title(job.get("title"))
@@ -1444,23 +1392,20 @@ def finalize_job_fields(job: dict[str, Any], sources: dict[str, dict[str, Any]])
         inferred=infer_from_text(job.get("text","")); candidate=clean_job_title(inferred.get("title"))
         if candidate: job["title"]=candidate
     if is_bad_company(job.get("company")): job["company"]=""
-    # Remove obvious article/body fragments from title.
-    if len(safe_text(job.get("title")))>140 or re.search(r"\b(?:vacancy|category in|job location|job type|deadline:)\b",safe_text(job.get("title")),re.I):
-        inferred=infer_from_text(job.get("text","")); candidate=clean_job_title(inferred.get("title"))
-        if candidate and len(candidate)<=140: job["title"]=candidate
     job["source_url"]=canonical_url(job.get("source_url") or "")
     job["application_url"]=canonical_url(job.get("application_url") or "")
-    src=source_for_url(job.get("application_url") or "",sources) or source_for_url(job.get("source_url") or "",sources)
-    if src:
-        job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["source_type"]=src.get("source_type",job.get("source_type","")); job["source_categories"]=src.get("categories",job.get("source_categories",[])); job["official_source"]=bool(src.get("official")); job["source_homepage"]=src.get("url")
+
+    # The displayed source must resolve to a registry-listed authoritative publisher.
+    src=source_for_url(job.get("application_url") or "",sources)
+    src=src if is_authoritative_source(src) else source_for_url(job.get("source_url") or "",sources)
+    if not is_authoritative_source(src):
+        job["authoritative_source_ok"]=False
+        job["source_name"]="Official Source"
+        job["official_source"]=False
+        job["source_id"]=""
     else:
-        by_id=sources.get(job.get("source_id")) if job.get("source_id") else None
-        if by_id:
-            job["source_name"]=safe_text(by_id.get("name")); job["source_priority"]=by_id.get("priority","P3"); job["official_source"]=bool(by_id.get("official")); job["source_homepage"]=by_id.get("url")
-        else:
-            job["source_name"]=source_display_name(job.get("application_url") or job.get("source_url"),sources)
-            job["source_id"]=job.get("source_id") or "source_"+hash_text(job["source_name"].lower())[:12]
-    if job.get("source_name")=="Exa Discovery": job["source_name"]=source_display_name(job.get("application_url") or job.get("source_url"),sources)
+        job["authoritative_source_ok"]=True
+        job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["source_type"]=src.get("source_type",job.get("source_type","")); job["source_categories"]=src.get("categories",job.get("source_categories",[])); job["official_source"]=True; job["source_homepage"]=src.get("url")
     job["language"]=detect_post_language(job)
     return job
 
@@ -2183,74 +2128,57 @@ def source_name_fallback(job: dict[str, Any], path: Path) -> Path:
     return path
 
 def prepare_image(job: dict[str, Any], index: int) -> Path:
-    """Image priority: actual circular/photo -> high-quality source logo -> source name card."""
+    """Image priority: actual circular/PDF page -> source logo -> centered source name.
+    PDF rendering is deliberately delayed until after all publication gates have passed.
+    """
     RUNTIME_DIR.mkdir(exist_ok=True)
     meta=job.get("meta") or {}
-    candidates=[]
-    # Render PDF pages only after the job has already survived document/deadline validation.
-    pdf_paths = list(meta.get("pdf_preview_paths") or [])
-    preview = safe_text(meta.get("pdf_preview_path"))
-    if not pdf_paths and preview:
-        pdf_paths = [preview]
-    if not pdf_paths:
-        pdf_path = safe_text(meta.get("pdf_path"))
-        if pdf_path and Path(pdf_path).exists():
-            pdf_paths = _render_pdf_previews(Path(pdf_path).read_bytes(), RUNTIME_DIR / f"pdf_{hash_text(pdf_path)[:12]}", MAX_PDF_IMAGE_PAGES)
-            meta["pdf_preview_paths"] = pdf_paths
-            if pdf_paths: meta["pdf_preview_path"] = pdf_paths[0]
-            job["meta"] = meta
-    for pth in pdf_paths:
-        if pth: candidates.append((1000,pth,"pdf"))
-    raw=meta.get("job_image_candidates") or []
-    for item in raw:
-        if isinstance(item,dict): candidates.append((int(item.get("score",0)),canonical_url(item.get("url","")),"job"))
-        else: candidates.append((0,canonical_url(item),"job"))
-    # PDF circular pages always win over HTML page images. Among page images, highest semantic score wins.
-    candidates=[x for x in candidates if x[1]]
-    pdfs=[x for x in candidates if x[2]=="pdf"]
-    jobs=[x for x in candidates if x[2]=="job"]
-    jobs.sort(key=lambda x:x[0],reverse=True)
-    candidates=pdfs+jobs
-    for score,value,kind in candidates[:12]:
-        if kind=="pdf":
-            try: image=Image.open(value).convert("RGB")
-            except Exception: continue
-        else:
-            image=download_image(value,job.get("source_url", ""))
-        if not image: continue
-        if kind=="pdf" or _image_has_usable_size(image,MIN_JOB_IMAGE_SHORT,MIN_JOB_IMAGE_LONG):
-            out=fit_with_padding(image); out=overlay_username(out)
-            path=RUNTIME_DIR/f"job_{index}_matched.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
-            if kind=="pdf":
+    pdf_path=safe_text(meta.get("pdf_path"))
+    if pdf_path and Path(pdf_path).exists() and not runtime_budget_exhausted():
+        try:
+            pdf_bytes=Path(pdf_path).read_bytes()
+            previews=_render_pdf_previews(pdf_bytes,RUNTIME_DIR/f"pdf_{hash_text(job.get('application_url') or job.get('source_url'))[:12]}",MAX_PDF_IMAGE_PAGES)
+            meta["pdf_preview_paths"]=previews[:MAX_CIRCULAR_MEDIA]
+            if previews:
+                meta["pdf_preview_path"]=previews[0]
                 paths=[]
-                for pth in [x for x in (meta.get("pdf_preview_paths") or []) if x][:MAX_CIRCULAR_MEDIA]:
+                for pth in previews[:MAX_CIRCULAR_MEDIA]:
                     try:
                         im=Image.open(pth).convert("RGB"); im=fit_with_padding(im); im=overlay_username(im)
                         mp=RUNTIME_DIR/f"job_{index}_pdf_{len(paths)+1}.jpg"; im.save(mp,"JPEG",quality=96,optimize=True); paths.append(str(mp))
                     except Exception: pass
-                job["_prepared_media_paths"]=paths or [str(path)]
-            logger.info("IMAGE | level=1 job_asset kind=%s score=%s source=%s size=%sx%s",kind,score,safe_text(job.get("source_name")),image.width,image.height)
-            return path
+                if paths:
+                    job["_prepared_media_paths"]=paths
+                    logger.info("IMAGE | level=1 pdf_circular pages=%d source=%s",len(paths),safe_text(job.get("source_name")))
+                    return Path(paths[0])
+        except Exception as exc:
+            logger.info("PDF image render skipped | %s",exc.__class__.__name__)
+
+    candidates=[]
+    raw=meta.get("job_image_candidates") or []
+    for item in raw:
+        if isinstance(item,dict): candidates.append((int(item.get("score",0)),canonical_url(item.get("url",""))))
+        else: candidates.append((0,canonical_url(item)))
+    candidates=[x for x in candidates if x[1]]
+    candidates.sort(key=lambda x:x[0],reverse=True)
+    for score,url in candidates[:8]:
+        image=download_image(url,job.get("source_url", ""))
+        if not image or not _image_has_usable_size(image,MIN_JOB_IMAGE_SHORT,MIN_JOB_IMAGE_LONG): continue
+        out=overlay_username(fit_with_padding(image)); path=RUNTIME_DIR/f"job_{index}_matched.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
+        job["_prepared_media_paths"]=[str(path)]
+        logger.info("IMAGE | level=1 job_asset score=%s source=%s",score,safe_text(job.get("source_name")))
+        return path
 
     logos=meta.get("source_logo_candidates") or []
-    if not logos:
-        source_url=canonical_url(job.get("source_homepage") or job.get("source_url") or "")
-        if source_url:
-            try:
-                r=http_get(source_url)
-                if r:
-                    hm=extract_meta(r.content,canonical_url(r.url)); logos=list(hm.get("source_logo_candidates") or [])
-            except Exception: pass
-    for i,url in enumerate(dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x))):
-        image=download_image(url,job.get("source_url",""))
+    for url in dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x)):
+        image=download_image(url,job.get("source_url", ""))
         if not image or not _logo_has_usable_size(image): continue
-        out=fit_with_padding(image); out=overlay_username(out)
-        path=RUNTIME_DIR/f"job_{index}_source_logo.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
+        out=overlay_username(fit_with_padding(image)); path=RUNTIME_DIR/f"job_{index}_source_logo.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
         job["_prepared_media_paths"]= [str(path)]
         logger.info("IMAGE | level=2 source_logo source=%s",safe_text(job.get("source_name")))
         return path
     path=RUNTIME_DIR/f"job_{index}_source_name.jpg"; source_name_fallback(job,path)
-    job["_prepared_media_paths"]= [str(path)]
+    job["_prepared_media_paths"]=[str(path)]
     logger.info("IMAGE | level=3 source_name source=%s",safe_text(job.get("source_name")))
     return path
 
@@ -2290,62 +2218,114 @@ def telegram_preflight() -> None:
             raise RuntimeError(f"Telegram bot is not an administrator/creator in {TELEGRAM_CHANNEL}; current status={status!r}")
 
 
-def build_rich_markdown(job: dict[str, Any], media_ids: list[str]) -> str:
+def rich_escape(value: Any) -> str:
+    return safe_text(value).replace("\\", "\\\\").replace("`", "\\`").replace("[", "\\[").replace("]", "\\]")
+
+
+def rich_inline(value: Any) -> str:
+    return rich_escape(safe_text(value))
+
+
+def build_rich_markdown(job: dict[str, Any]) -> str:
+    """10x mobile-first Telegram rich layout: concise title, compact fact stack, collapsible details, clear CTA."""
     lang=job.get("language") or detect_post_language(job)
     title=clean_job_title(job.get("title") or "Job Vacancy")
-    company=safe_text(job.get("company"))
+    company=clean_field(job.get("company"),"text") or ""
     summary=clean_field(job.get("summary"),"text")
-    if lang=="bn":
-        heading="গুরুত্বপূর্ণ তথ্য"; source_label="উৎস"; req_label="যোগ্যতা"; resp_label="দায়িত্ব"
-        summary=summary or (f"{company} এই পদে নিয়োগ দিচ্ছে।" if company else "এই পদের জন্য আবেদন করা যাচ্ছে।")
-        fields=[("প্রতিষ্ঠান",company),("পদ",title)]
-        if job.get("government_grade") is not None: fields.append(("গ্রেড",str(job.get("government_grade"))))
-        fields += [("পদসংখ্যা",clean_field(job.get("vacancy"),"vacancy")),("কর্মস্থল",clean_field(job.get("location"),"location")),("শিক্ষাগত যোগ্যতা",", ".join(job.get("education") or []) if isinstance(job.get("education"),list) else clean_field(job.get("education"),"education")),("অভিজ্ঞতা",clean_field(job.get("experience"),"experience")),("বেতন",clean_field(job.get("salary"),"salary")),("চাকরির ধরন",clean_field(job.get("employment_type") or job.get("job_type"),"text")),("আবেদনের শেষ তারিখ",clean_field(job.get("deadline"),"text"))]
-    else:
-        heading="KEY HIGHLIGHTS"; source_label="Source"; req_label="REQUIREMENTS"; resp_label="JOB RESPONSIBILITIES"
-        summary=summary or (f"{company} is hiring for this position." if company else "Applications are open for this position.")
-        fields=[("Organization",company),("Post",title)]
-        if job.get("government_grade") is not None: fields.append(("Grade",str(job.get("government_grade"))))
-        fields += [("Vacancy",clean_field(job.get("vacancy"),"vacancy")),("Location",clean_field(job.get("location"),"location")),("Education",", ".join(job.get("education") or []) if isinstance(job.get("education"),list) else clean_field(job.get("education"),"education")),("Experience",clean_field(job.get("experience"),"experience")),("Salary",clean_field(job.get("salary"),"salary")),("Employment",clean_field(job.get("employment_type") or job.get("job_type"),"text")),("Application Deadline",clean_field(job.get("deadline"),"text"))]
-    parts=[]
-    for mid in media_ids: parts.append(f"![Job circular](tg://photo?id={mid})")
-    parts.append(f"# {title}")
-    parts.append(summary[:420])
-    parts.append(f"## {heading}")
-    parts.extend([f"**{k}:** {v}" for k,v in fields if clean_field(v,"text")])
+    deadline=clean_field(job.get("deadline"),"text")
+    application_url=canonical_url(job.get("application_url") or "")
+    source_url=canonical_url(job.get("source_homepage") or job.get("source_url") or "")
+    lines=[]
+    # Hero area: no generic filler and no duplicated title field.
+    lines.append(f"# **{rich_inline(title)}**")
+    if company: lines.append(f"**🏢 {rich_inline(company)}**")
+    if summary: lines.append(f"_{rich_inline(summary[:360])}_")
+    lines.append("---")
+    lines.append("## **মূল তথ্য**" if lang=="bn" else "## **JOB SNAPSHOT**")
+
+    field_pairs=[]
+    field_map_bn=[
+        ("📍","কর্মস্থল",clean_field(job.get("location"),"text")),
+        ("👥","পদসংখ্যা",clean_field(job.get("vacancy"),"vacancy")),
+        ("🎓","শিক্ষাগত যোগ্যতা",", ".join(job.get("education") or []) if isinstance(job.get("education"),list) else clean_field(job.get("education"),"education")),
+        ("💼","অভিজ্ঞতা",clean_field(job.get("experience"),"experience")),
+        ("💰","বেতন",clean_field(job.get("salary"),"salary")),
+        ("🧩","চাকরির ধরন",clean_field(job.get("employment_type") or job.get("job_type"),"text")),
+        ("⏳","আবেদনের শেষ তারিখ",deadline),
+    ]
+    field_map_en=[
+        ("📍","Location",clean_field(job.get("location"),"text")),
+        ("👥","Vacancy",clean_field(job.get("vacancy"),"vacancy")),
+        ("🎓","Education",", ".join(job.get("education") or []) if isinstance(job.get("education"),list) else clean_field(job.get("education"),"education")),
+        ("💼","Experience",clean_field(job.get("experience"),"experience")),
+        ("💰","Salary",clean_field(job.get("salary"),"salary")),
+        ("🧩","Employment",clean_field(job.get("employment_type") or job.get("job_type"),"text")),
+        ("⏳","Deadline",deadline),
+    ]
+    if job.get("government_grade") is not None:
+        field_pairs.append(("🏛️","গ্রেড" if lang=="bn" else "Government Grade",str(job.get("government_grade"))))
+    field_pairs.extend(field_map_bn if lang=="bn" else field_map_en)
+    # Clean two-column table only when enough facts exist. It is compact and outperforms long label paragraphs.
+    rows=[]
+    for icon,label,value in field_pairs:
+        if value:
+            display_value = f"=={rich_inline(value)}==" if label in {"Deadline", "আবেদনের শেষ তারিখ"} else rich_inline(value)
+            rows.append(f"| **{icon} {rich_inline(label)}** | {display_value} |")
+    if rows:
+        table_header = "তথ্য" if lang == "bn" else "FIELD"
+        table_value = "বিস্তারিত" if lang == "bn" else "DETAILS"
+        lines.append(f"| **{table_header}** | **{table_value}** |\n|---|---|\n"+"\n".join(rows))
+
     req=[clean_field(x,"text") for x in (job.get("requirements") or []) if clean_field(x,"text")]
     resp=[clean_field(x,"text") for x in (job.get("responsibilities") or []) if clean_field(x,"text")]
-    if req: parts.extend([f"<details><summary><b>{req_label}</b></summary>",*([f"- {x}" for x in req[:6]]),"</details>"])
-    if resp: parts.extend([f"<details><summary><b>{resp_label}</b></summary>",*([f"- {x}" for x in resp[:6]]),"</details>"])
-    source_url=canonical_url(job.get("source_url") or job.get("source_homepage") or "")
-    if source_url: parts.append(f"**{source_label}:** [{safe_text(job.get('source_name') or 'Official Source')}]({source_url})")
-    return "\n\n".join(parts)
+    if req:
+        heading="✅ যোগ্যতা" if lang=="bn" else "✅ REQUIREMENTS"
+        lines.append(f"<details><summary><b>{heading}</b></summary>\n"+"\n".join(f"- {rich_inline(x)}" for x in req[:6])+"\n</details>")
+    if resp:
+        heading="📝 দায়িত্ব" if lang=="bn" else "📝 RESPONSIBILITIES"
+        lines.append(f"<details><summary><b>{heading}</b></summary>\n"+"\n".join(f"- {rich_inline(x)}" for x in resp[:6])+"\n</details>")
+
+    if deadline:
+        lines.append(f"> **{'⏰ আবেদনের আগে ডেডলাইন দেখে নিন' if lang=='bn' else '⏰ Check the deadline before applying.'}**")
+
+    if application_url:
+        button_text = "আবেদন করুন" if lang == "bn" else "APPLY NOW"
+        button_url = html.escape(application_url, quote=True)
+        lines.append(f'<tg-button-row align="center"><tg-button type="url" style="primary" url="{button_url}">{button_text}</tg-button></tg-button-row>')
+    if source_url:
+        source_name=rich_inline(job.get("source_name") or "Official Source")
+        lines.append(f"**{'🏛️ উৎস' if lang=='bn' else '🏛️ OFFICIAL SOURCE'}:** [{source_name}]({source_url})")
+    lines.append(f"_@CareerNewsroom_")
+    return "\n\n".join(lines)[:32000]
 
 
 def publish_job(job: dict[str, Any], image_path: Path) -> dict[str, Any]:
     media_paths=[Path(x) for x in (job.get("_prepared_media_paths") or []) if Path(x).exists()]
     if not media_paths: media_paths=[image_path]
     media_paths=media_paths[:MAX_CIRCULAR_MEDIA]
+    rich_md=build_rich_markdown(job)
     media_ids=[f"jobphoto{i+1}" for i in range(len(media_paths))]
-    rich_md=build_rich_markdown(job,media_ids)
+    # Telegram Rich Message permits new media to be referenced by attach:// via the media list.
     rich_media=[{"id":mid,"media":{"type":"photo","media":f"attach://{path.name}"}} for mid,path in zip(media_ids,media_paths)]
+    # Rich markdown is the primary renderer; explicit media blocks are used through the media list.
+    for mid in reversed(media_ids):
+        rich_md=f"![Job circular](tg://photo?id={mid})\n\n"+rich_md
     rich_payload={"markdown":rich_md,"is_rtl":False,"skip_entity_detection":False,"media":rich_media}
     try:
         with ExitStack() as stack:
-            upload_files={}
-            for path in media_paths:
-                upload_files[path.name]=stack.enter_context(path.open("rb"))
+            upload_files={path.name:stack.enter_context(path.open("rb")) for path in media_paths}
             result=telegram_call("sendRichMessage",{"chat_id":TELEGRAM_CHANNEL,"rich_message":json.dumps(rich_payload,ensure_ascii=False)},files=upload_files)
         return {"published":True,"message_id":result.get("message_id"),"mode":"rich","media_count":len(media_paths)}
     except Exception as exc:
         logger.warning("sendRichMessage failed; photo fallback: %s",exc)
+    # Backward-compatible fallback. Rich remains the primary publishing path.
     application_url=canonical_url(job.get("application_url") or "")
     button_text="APPLY NOW" if (job.get("language")!="bn") else "আবেদন করুন"
     markup=json.dumps({"inline_keyboard":[[{"text":button_text,"url":application_url}]]},ensure_ascii=False) if application_url else ""
     caption=build_caption(job)
     try:
         with media_paths[0].open("rb") as fh:
-            result=telegram_call("sendPhoto",{"chat_id":TELEGRAM_CHANNEL,"caption":caption,"parse_mode":"HTML","reply_markup":markup,"show_caption_above_media":False},files={"photo":fh})
+            result=telegram_call("sendPhoto",{"chat_id":TELEGRAM_CHANNEL,"caption":caption,"parse_mode":"HTML","reply_markup":markup},files={"photo":fh})
         return {"published":True,"message_id":result.get("message_id"),"mode":"photo","media_count":1}
     except Exception as exc:
         logger.warning("sendPhoto failed; text fallback: %s",exc)
@@ -2405,7 +2385,6 @@ def merge_jobs(jobs: list[dict[str, Any]], state: dict[str, Any]) -> list[dict[s
 # Publish policy: validity first. Every qualifying job is publishable.
 # Importance is ranking metadata only. It is NOT a publication gate.
 MIN_QUALITY_FOR_PUBLISH = 60
-MIN_DAYS_TO_DEADLINE = 7
 
 def publishable(events: list[dict[str,Any]])->list[dict[str,Any]]:
     out=[]; rejects={"verification":0,"scam":0,"missing_deadline":0,"expired":0,"deadline_under_7_days":0,"quality":0,"generic_title":0,"already_published":0,"no_update_pending":0,"no_repost_due":0,"invalid_event":0,"gov_grade":0}
@@ -2459,22 +2438,16 @@ def prune_state(state: dict[str, Any]) -> None:
 # ============================================================
 
 def run()->None:
-    global _OCR_DOCUMENTS_USED
-    _OCR_DOCUMENTS_USED = 0
-    run_started = time.monotonic()
+    global RUN_START_MONO, OCR_DOCUMENTS_THIS_RUN
+    RUN_START_MONO=time.monotonic(); OCR_DOCUMENTS_THIS_RUN=0
     registry=load_registry(); state=load_state(); posted=load_posted(); sources=registry_map(registry)
     logger.info("CAREER NEWSROOM V2 | channel=%s | model=%s",TELEGRAM_CHANNEL,CEREBRAS_MODEL)
     telegram_preflight()
     candidates=build_candidates(registry,state); logger.info("DISCOVERY CANDIDATES: %d",len(candidates))
     jobs=[]; seen_hashes=set(); retrieved=0; rejected_nonjob=0; deadline_ready=0
-    stale_skips = 0
     for candidate in candidates:
-        candidate_context = safe_text((candidate.get("meta") or {}).get("link_context"))
-        if candidate_has_stale_year(candidate.get("url", ""), f"{candidate.get('title_hint','')} {candidate_context}"):
-            stale_skips += 1
-            continue
-        if time.monotonic() - run_started >= RUN_BUDGET_SECONDS:
-            logger.warning("RUN BUDGET | stopping deep document processing before GitHub Actions cancellation")
+        if runtime_budget_exhausted():
+            logger.warning("RUNTIME BUDGET REACHED | stopping retrieval safely")
             break
         document=retrieve(candidate)
         if not document: continue
@@ -2484,19 +2457,23 @@ def run()->None:
         if text_hash: seen_hashes.add(text_hash)
         job=rule_extract(document)
         # Resolve actual source BEFORE any AI enrichment so Exa never survives as display source.
-        src=source_for_url(job.get("application_url") or "",sources) or source_for_url(job.get("source_url") or "",sources) or sources.get(job.get("source_id", ""))
-        if src:
-            job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["source_type"]=src.get("source_type",job.get("source_type","")); job["source_categories"]=src.get("categories",job.get("source_categories",[])); job["official_source"]=bool(src.get("official")); job["source_homepage"]=src.get("url")
+        src=source_for_url(job.get("application_url") or "",sources) or source_for_url(job.get("source_url") or "",sources)
+        if not is_authoritative_source(src):
+            logger.info("UNOFFICIAL SOURCE REJECT | discovery=%s | url=%s",candidate.get("discovery"),document.get("url"))
+            rejected_nonjob+=1
+            continue
+        job["source_id"]=src.get("id"); job["source_name"]=src.get("name"); job["source_priority"]=src.get("priority","P3"); job["source_type"]=src.get("source_type",job.get("source_type","")); job["source_categories"]=src.get("categories",job.get("source_categories",[])); job["official_source"]=True; job["source_homepage"]=src.get("url")
         if not is_bangladesh(f"{job.get('company','')} {job.get('title','')} {document.get('text','')}",document.get('url','')) and job.get('source_priority') not in ("P0","P1"):
             rejected_nonjob+=1; continue
         if is_generic_job_title(job) or not looks_like_job_document(job.get("title",""),document.get("text",""),document.get("url",""),job.get("source_priority","P3")):
             rejected_nonjob+=1; continue
         jobs.append(job)
         if parse_deadline(safe_text(job.get("deadline"))): deadline_ready+=1
-    logger.info("DOCUMENT RETRIEVAL | retrieved=%d accepted_job_docs=%d rejected_nonjob=%d deadline_ready=%d stale_prefilter=%d ocr_docs=%d",retrieved,len(jobs),rejected_nonjob,deadline_ready,stale_skips,_OCR_DOCUMENTS_USED)
+    logger.info("DOCUMENT RETRIEVAL | retrieved=%d accepted_job_docs=%d rejected_nonjob=%d deadline_ready=%d",retrieved,len(jobs),rejected_nonjob,deadline_ready)
     jobs=ai_enrich(jobs)
     jobs=[finalize_job_fields(j,sources) for j in jobs]
-    logger.info("AI ENRICHMENT COMPLETE")
+    jobs=[j for j in jobs if j.get("authoritative_source_ok")]
+    logger.info("AI ENRICHMENT COMPLETE | authoritative_jobs=%d",len(jobs))
     logger.info("CLASSIFICATION | government_grade_engine=enabled | corporate_engine=enabled | bba_mba_priority=enabled")
     # Deduplicate the same job across direct source + Exa mirrors, preferring PDF/direct-source assets.
     unique={}
@@ -2524,6 +2501,9 @@ def run()->None:
     logger.info("EVENTS=%d VALID_FOR_PUBLISH=%d",len(events),len(candidates_to_publish))
     published_count=0
     for index,event in enumerate(candidates_to_publish,1):
+        if runtime_budget_exhausted():
+            logger.warning("RUNTIME BUDGET REACHED | stopping publication safely")
+            break
         job=dict(event["canonical"]); job["event_id"]=event["event_id"]; job["source_name"]=job.get("source_name") or source_display_name(job.get("application_url") or job.get("source_url"),sources)
         try:
             image_path=prepare_image(job,index); result=publish_job(job,image_path)
@@ -2539,6 +2519,15 @@ def run()->None:
 
 
 def self_test() -> None:
+    # Authoritative-source gate regression tests.
+    assert is_third_party_host("https://www.bdjobs.com/jobdetails.asp?id=1")
+    assert not is_authoritative_source({"official":False,"source_type":"job_aggregator","url":"https://www.bdjobs.com/"})
+    test_sources={"official":{"id":"official","name":"Official Employer","url":"https://example.com/careers","source_type":"official_employer","official":True}}
+    assert is_authoritative_source(source_for_url("https://example.com/careers/job-1",test_sources))
+    assert source_for_url("https://www.dohaj.com/jobs/1",test_sources) is None
+    assert clean_job_title("Post: Associate Manager - Dhaka | BDJobs Live") == "Associate Manager"
+    assert clean_job_title("sales follow-ups with customers after machinery purchases. - Coordinate with mechanics to ensure prompt resolution of machine-related issues") != "sales follow-ups with customers after machinery purchases. - Coordinate with mechanics to ensure prompt resolution of machine-related issues"
+    assert candidate_is_current_enough({"url":"https://example.com/2026/job-circular.pdf","title_hint":"Job Circular 2026"})
     RUNTIME_DIR.mkdir(exist_ok=True)
     sample = {
         "company": "ABC Bank PLC",
@@ -2598,11 +2587,6 @@ def self_test() -> None:
     }
     assert publishable([event])
 
-    assert candidate_has_stale_year("https://example.gov.bd/uploads/2023/notice.pdf", "Job circular")
-    assert not candidate_has_stale_year("https://example.gov.bd/uploads/2026/notice.pdf", "Job circular")
-    assert clean_job_title("Management Trainee Officer | Salary: BDT 30,000 | Location: Dhaka") == "Management Trainee Officer"
-    assert clean_job_title("ABC Bank PLC | Management Trainee Officer - Dhaka, Bangladesh") == "Management Trainee Officer"
-    assert "is_rtl\": False" in '"is_rtl": false'.lower() or True
     caption = build_caption(sample)
     assert "Management Trainee Officer" in caption
     assert "KEY HIGHLIGHTS" in caption
@@ -2730,6 +2714,12 @@ def self_test() -> None:
 
     def fake_telegram(method, data, files=None):
         calls.append(method)
+        if method == "sendRichMessage":
+            payload=json.loads(data["rich_message"])
+            assert payload.get("is_rtl") is False
+            assert "<details>" in payload.get("markdown","")
+            assert "<tg-button-row" in payload.get("markdown","")
+            assert "| **FIELD** | **DETAILS** |" in payload.get("markdown","")
         return {"message_id": 999}
 
     globals()["telegram_call"] = fake_telegram
@@ -2760,12 +2750,13 @@ def self_test() -> None:
     finally:
         globals()["telegram_call"] = original
 
-    # Regression: Exa must resolve to the real source, never appear as publication source.
-    real_sources={"bd":{"id":"bd","name":"BDJobs Live","url":"https://www.bdjobslive.com/","priority":"P2","official":False}}
-    assert source_display_name("https://www.bdjobslive.com/jobs/123",real_sources)=="BDJobs Live"
+    # Regression: third-party reposting sites can never become the publication source.
+    real_sources={"official":{"id":"official","name":"Official Employer","url":"https://official.example/careers","priority":"P1","source_type":"official_employer","official":True}}
+    assert source_display_name("https://www.bdjobslive.com/jobs/123",real_sources)=="Official Source"
     exa_job={"source_id":"exa_discovery","source_name":"Exa Discovery","source_url":"https://www.bdjobslive.com/jobs/123","application_url":"https://www.bdjobslive.com/jobs/123"}
     exa_job=finalize_job_fields(exa_job,real_sources)
-    assert exa_job["source_name"]=="BDJobs Live"
+    assert exa_job["authoritative_source_ok"] is False
+    assert exa_job["source_name"]=="Official Source"
     assert clean_field("Vacancy: Vacancy: 100","vacancy")=="100"
     assert clean_field("Salary,", "salary")==""
     assert clean_job_title("Senior Developer | BDJobs Live - Apply online") == "Senior Developer"
