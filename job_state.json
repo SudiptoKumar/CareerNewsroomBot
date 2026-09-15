@@ -1,7 +1,556 @@
 {
-  "version": 3,
-  "updated_at": null,
-  "jobs": {},
-  "sources": {},
-  "runs": []
+  "version": 6,
+  "updated_at": "2026-09-15T10:44:26.183286+00:00",
+  "jobs": {
+    "evt_3b2ef7b0456a43fd": {
+      "event_id": "evt_3b2ef7b0456a43fd",
+      "event_type": "PUBLISHED",
+      "status": "active",
+      "status_basis": "deadline",
+      "canonical": {
+        "is_job": true,
+        "company": "Square Pharmaceuticals eRecruitment",
+        "title": "Associate Scientist (Formulation Development), R&D",
+        "organization_type": null,
+        "sector": null,
+        "job_function": null,
+        "job_level": null,
+        "job_type": null,
+        "employment_type": null,
+        "location": "",
+        "vacancy": "",
+        "salary": "",
+        "education": [],
+        "experience": "",
+        "skills": [],
+        "age_limit": null,
+        "gender": null,
+        "published_date": null,
+        "application_start": null,
+        "deadline": "September 27, 2026",
+        "application_method": null,
+        "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "requirements": [],
+        "responsibilities": [],
+        "summary": "",
+        "confidence": 0.75,
+        "source_id": "square_pharma",
+        "source_name": "Square Pharmaceuticals eRecruitment",
+        "source_priority": "P1",
+        "source_type": "official_employer",
+        "source_categories": [
+          "pharma"
+        ],
+        "official_source": true,
+        "source_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "discovery": "direct_link",
+        "meta": {
+          "job_image_candidates": [
+            "http://career.squarepharma.com.bd/spl001/images/thumb4fb.jpg"
+          ],
+          "source_logo_candidates": [
+            "http://career.squarepharma.com.bd/favicon.ico"
+          ],
+          "title": "Associate Scientist (Formulation Development), R&D,  ~ eRecruitment System of SPL"
+        },
+        "text": "Join The Leader\nSQUARE Pharmaceuticals PLC.,  the flagship company of SQUARE Group and certified  by major international pharmaceutical regulatory authorities, is holding  the 1st position in the pharmaceutical industry among all  national and multinational companies of Bangladesh since 1985. SQUARE  Pharmaceuticals PLC. has become a global player starting its operation in  Kenya. Right now we are looking for smart, energetic and result oriented  team members, who will share with us our pride and support our continuous  growth. If you think you have what it takes to be a member of SQUARE,  do not wait to apply as:\n     \n  Associate Scientist (Formulation Development), R&D    \n    \nApplication Deadline: Sunday, September 27, 2026\n  \n  Application Deadline: Sunday, September 27, 2026\n| Job Status | : | Full Time | \n| Work Station | : | Kaliakoir, Gazipur | \nMajor Duties and responsibilities:\n   \n- Conduct pre-formula & development studies to optimize the formula and process for solid, opthalmic, injectable, liquid & lyophilized products\n- Perform reformulation activities for improving quality, manufacturing process and minimizing cost\n- Review of DMF, COAs, MSDS of APIs and excipients\n- Participate in IQ, OQ, PQ activities of lab equipments\n- Explore to develop the alternate vendor for existing products\n- Design the finished products specification\n- Conduct stability study of new & existing products\nPre-requisite to apply:\n- Minimum B. Pharm (from reputed Universities)\n- Minimum 2 years of relevant experience is mandatory (experience in sterile/injectables will be preferred)\n- Excellent planning & execution skills as well as strong quantitative & qualitative analytical skills\n- Good interpersonal and communication skills\n- Willingness to work under shift operations\n- Well conversant with MS-Office\n- Within 32 years of age\n| Salary Range | : | Attractive remuneration package will be offered | \nOnly short-listed candidates will be called for further selection process. Hard copy of CV will not be entertained. \n  SQUARE NEVER ASKS FOR MONEY FROM ANY CANDIDATE AT ANY PHASE OF RECRUITMENT\n \nSQUARE STRONGLY DISCOURAGES SMOKERS TO APPLY\nInstruction to Apply\n  Applicants meeting the requirements of the position are requested to apply through the following link",
+        "scam_signals": [],
+        "deadline_signal": true,
+        "source_homepage": "https://career.squarepharma.com.bd/",
+        "authoritative_source_ok": true,
+        "language": "en",
+        "_dedupe_rank": [
+          1,
+          1,
+          1,
+          0
+        ],
+        "normalized": {
+          "company": "square pharmaceuticals erecruitment",
+          "title": "associate scientist formulation development r d",
+          "location": "",
+          "deadline": "2026-09-27",
+          "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+          "sector": "",
+          "job_function": "",
+          "job_level": "",
+          "job_type": "",
+          "vacancy": "",
+          "salary": ""
+        },
+        "fingerprint": "job_34011a9bddba2978fe83",
+        "identity_fingerprint": "identity_1d35530ee3d15ddcc8b6",
+        "verification": {
+          "status": "verified",
+          "level": "official",
+          "checks": {
+            "known_source": true,
+            "company": true,
+            "title": true,
+            "application_url": true,
+            "active": true,
+            "bangladesh": true,
+            "no_scam_signal": true
+          },
+          "checked_at": "2026-09-15T10:44:22.258624+00:00"
+        },
+        "scam_filter": {
+          "passed": true,
+          "signals": [],
+          "checked_at": "2026-09-15T10:44:22.258771+00:00"
+        },
+        "government_grade_gate": {
+          "passed": true,
+          "grade": null,
+          "confidence": "not_government",
+          "reason": "corporate_or_non_government"
+        },
+        "quality_score": 89,
+        "base_importance": 39,
+        "importance_score": 57
+      },
+      "normalized": {
+        "company": "square pharmaceuticals erecruitment",
+        "title": "associate scientist formulation development r d",
+        "location": "",
+        "deadline": "2026-09-27",
+        "application_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+        "sector": "",
+        "job_function": "",
+        "job_level": "",
+        "job_type": "",
+        "vacancy": "",
+        "salary": ""
+      },
+      "fingerprint": "job_34011a9bddba2978fe83",
+      "identity_fingerprint": "identity_1d35530ee3d15ddcc8b6",
+      "sources": [
+        {
+          "source_id": "square_pharma",
+          "source_name": "Square Pharmaceuticals eRecruitment",
+          "source_url": "http://career.squarepharma.com.bd/?src=dtlsjob&jid=766",
+          "seen_at": "2026-09-15T10:44:22.259601+00:00"
+        }
+      ],
+      "verification": {
+        "status": "verified",
+        "level": "official",
+        "checks": {
+          "known_source": true,
+          "company": true,
+          "title": true,
+          "application_url": true,
+          "active": true,
+          "bangladesh": true,
+          "no_scam_signal": true
+        },
+        "checked_at": "2026-09-15T10:44:22.258624+00:00"
+      },
+      "scam_filter": {
+        "passed": true,
+        "signals": [],
+        "checked_at": "2026-09-15T10:44:22.258771+00:00"
+      },
+      "quality_score": 89,
+      "importance_score": 57,
+      "first_seen": "2026-09-15T10:44:22.259607+00:00",
+      "last_seen": "2026-09-15T10:44:22.259609+00:00",
+      "update_history": [],
+      "repost_history": [],
+      "repost_due": false,
+      "update_pending": false,
+      "telegram": {
+        "published": true,
+        "message_id": 162,
+        "published_at": "2026-09-15T10:44:24.682751+00:00",
+        "last_event_type": "NEW"
+      },
+      "student_relevance_score": 0,
+      "corporate_priority_score": 0,
+      "last_published_fingerprint": "job_34011a9bddba2978fe83"
+    }
+  },
+  "sources": {
+    "bangladesh_national_portal_jobs": {
+      "last_crawl_epoch": 1789468797.1202965,
+      "last_failure": "2026-09-15T10:39:57.120301+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bteab_teletalk": {
+      "last_crawl_epoch": 1789468798.2187617,
+      "last_failure": "2026-09-15T10:39:58.218766+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "btrc_teletalk": {
+      "last_crawl_epoch": 1789468798.2391882,
+      "last_failure": "2026-09-15T10:39:58.239191+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bscplc_teletalk": {
+      "last_crawl_epoch": 1789468798.2652056,
+      "last_failure": "2026-09-15T10:39:58.265208+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "alljobs_teletalk": {
+      "last_crawl_epoch": 1789468798.3498857,
+      "last_success": "2026-09-15T10:39:58.349889+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "bscl_teletalk": {
+      "last_crawl_epoch": 1789468798.41408,
+      "last_failure": "2026-09-15T10:39:58.414083+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bpi_teletalk": {
+      "last_crawl_epoch": 1789468798.4484215,
+      "last_failure": "2026-09-15T10:39:58.448424+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bkkb_teletalk": {
+      "last_crawl_epoch": 1789468798.4550533,
+      "last_failure": "2026-09-15T10:39:58.455055+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "bpsc": {
+      "last_crawl_epoch": 1789468798.5858665,
+      "last_success": "2026-09-15T10:39:58.585869+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 4
+    },
+    "ictd_teletalk": {
+      "last_crawl_epoch": 1789468799.515113,
+      "last_failure": "2026-09-15T10:39:59.515116+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "dss_teletalk": {
+      "last_crawl_epoch": 1789468799.591646,
+      "last_failure": "2026-09-15T10:39:59.591648+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "telecomdept_teletalk": {
+      "last_crawl_epoch": 1789468799.6146858,
+      "last_failure": "2026-09-15T10:39:59.614688+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "mocat_jobs": {
+      "last_crawl_epoch": 1789468799.8179948,
+      "last_failure": "2026-09-15T10:39:59.817997+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "mopme_teletalk": {
+      "last_crawl_epoch": 1789468799.9458394,
+      "last_failure": "2026-09-15T10:39:59.945842+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "moha_jobs": {
+      "last_crawl_epoch": 1789468799.9620886,
+      "last_success": "2026-09-15T10:39:59.962090+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "ictd_jobs": {
+      "last_crawl_epoch": 1789468800.0679443,
+      "last_success": "2026-09-15T10:40:00.067945+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "national_job_portal": {
+      "last_crawl_epoch": 1789468800.9714043,
+      "last_success": "2026-09-15T10:40:00.971406+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "a2i_jobs": {
+      "last_crawl_epoch": 1789468801.0235577,
+      "last_failure": "2026-09-15T10:40:01.023559+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "rthd_jobs": {
+      "last_crawl_epoch": 1789468801.2704167,
+      "last_success": "2026-09-15T10:40:01.270418+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 7
+    },
+    "rdcd_teletalk": {
+      "last_crawl_epoch": 1789468801.298127,
+      "last_failure": "2026-09-15T10:40:01.298129+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "mopa_jobs": {
+      "last_crawl_epoch": 1789468801.4129612,
+      "last_success": "2026-09-15T10:40:01.412963+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "bat_career": {
+      "last_crawl_epoch": 1789468801.6882484,
+      "last_success": "2026-09-15T10:40:01.688249+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 15
+    },
+    "aci_career": {
+      "last_crawl_epoch": 1789468801.7405984,
+      "last_success": "2026-09-15T10:40:01.740601+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 14
+    },
+    "brac_bank": {
+      "last_crawl_epoch": 1789468801.9742002,
+      "last_success": "2026-09-15T10:40:01.974201+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 7
+    },
+    "jobs_teletalk_tbl": {
+      "last_crawl_epoch": 1789468802.0592237,
+      "last_failure": "2026-09-15T10:40:02.059227+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "brac_career": {
+      "last_crawl_epoch": 1789468802.2866957,
+      "last_success": "2026-09-15T10:40:02.286698+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "brac_bank_taleo": {
+      "last_crawl_epoch": 1789468802.3590124,
+      "last_success": "2026-09-15T10:40:02.359015+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "actionaid_bd": {
+      "last_crawl_epoch": 1789468802.4426954,
+      "last_success": "2026-09-15T10:40:02.442697+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "citybank_careers": {
+      "last_crawl_epoch": 1789468803.3128045,
+      "last_success": "2026-09-15T10:40:03.312806+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 7
+    },
+    "buet_jobs": {
+      "last_crawl_epoch": 1789468803.3214116,
+      "last_success": "2026-09-15T10:40:03.321413+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "care_career": {
+      "last_crawl_epoch": 1789468803.7275977,
+      "last_success": "2026-09-15T10:40:03.727600+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 8
+    },
+    "buet_registrar_jobs": {
+      "last_crawl_epoch": 1789468803.8569145,
+      "last_success": "2026-09-15T10:40:03.856916+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 11
+    },
+    "nestle_career": {
+      "last_crawl_epoch": 1789468803.9701157,
+      "last_failure": "2026-09-15T10:40:03.970118+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "evercare": {
+      "last_crawl_epoch": 1789468804.4414668,
+      "last_success": "2026-09-15T10:40:04.441469+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 6
+    },
+    "gp_career": {
+      "last_crawl_epoch": 1789468804.4687955,
+      "last_success": "2026-09-15T10:40:04.468798+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "renata": {
+      "last_crawl_epoch": 1789468804.984131,
+      "last_success": "2026-09-15T10:40:04.984133+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "daraz": {
+      "last_crawl_epoch": 1789468805.2360911,
+      "last_success": "2026-09-15T10:40:05.236094+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 2
+    },
+    "robi_career": {
+      "last_crawl_epoch": 1789468805.4184153,
+      "last_success": "2026-09-15T10:40:05.418418+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 0
+    },
+    "square_hospital": {
+      "last_crawl_epoch": 1789468805.8281865,
+      "last_success": "2026-09-15T10:40:05.828190+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 3
+    },
+    "unicef_bd": {
+      "last_crawl_epoch": 1789468806.2760725,
+      "last_success": "2026-09-15T10:40:06.276075+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 14
+    },
+    "unilever_bd": {
+      "last_crawl_epoch": 1789468806.528959,
+      "last_success": "2026-09-15T10:40:06.528962+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 14
+    },
+    "bkash_career": {
+      "last_crawl_epoch": 1789468806.6384215,
+      "last_failure": "2026-09-15T10:40:06.638424+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "standard_chartered_careers": {
+      "last_crawl_epoch": 1789468807.5014725,
+      "last_success": "2026-09-15T10:40:07.501474+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 14
+    },
+    "caab_jobs": {
+      "last_crawl_epoch": 1789468807.878694,
+      "last_failure": "2026-09-15T10:40:07.878699+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "square_pharma": {
+      "last_crawl_epoch": 1789468808.046346,
+      "last_success": "2026-09-15T10:40:08.046349+00:00",
+      "last_failure": null,
+      "consecutive_failures": 0,
+      "last_status": "ok",
+      "candidates_last_run": 6
+    },
+    "walton": {
+      "last_crawl_epoch": 1789468808.5047047,
+      "last_failure": "2026-09-15T10:40:08.504707+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "rhd_jobs": {
+      "last_crawl_epoch": 1789468809.077823,
+      "last_failure": "2026-09-15T10:40:09.077826+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "smart_job": {
+      "last_crawl_epoch": 1789468809.1961865,
+      "last_failure": "2026-09-15T10:40:09.196189+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    },
+    "marico_career": {
+      "last_crawl_epoch": 1789468809.6340606,
+      "last_failure": "2026-09-15T10:40:09.634064+00:00",
+      "consecutive_failures": 1,
+      "last_status": "failed",
+      "candidates_last_run": 0
+    }
+  },
+  "runs": [
+    {
+      "timestamp": "2026-09-15T10:44:26.183316+00:00",
+      "sources_attempted": 49,
+      "candidates": 244,
+      "jobs": 44,
+      "eligible": 1,
+      "events": 1,
+      "published": 1
+    }
+  ]
 }
