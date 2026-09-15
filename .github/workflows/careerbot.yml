@@ -1,4 +1,4 @@
-name: Career Newsroom V2.1 Final
+name: Career Newsroom V2 FINAL
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-newsroom-v2-1
+  group: career-newsroom-v2-2
   cancel-in-progress: false
 
 jobs:
