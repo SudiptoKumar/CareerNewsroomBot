@@ -1,4 +1,4 @@
-name: Career Newsroom V2 FINAL
+name: Career Newsroom V2 Company Identity
 
 on:
   schedule:
@@ -64,7 +64,7 @@ jobs:
         run: |
           git config user.name "CareerNewsroom Bot"
           git config user.email "actions@github.com"
-          git add job_state.json posted_urls.txt source_registry.json
+          git add job_state.json posted_urls.txt source_registry.json company_logo_cache.json
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
