@@ -1,8 +1,8 @@
 {
-  "version": 5,
-  "updated_at": "2026-09-15T08:45:52.820506+00:00",
-  "registry_status": "production_v2_authoritative_only",
-  "notes": "Only official government/employer/career/ATS sources are allowed as publishers. Third-party job boards and republishers are discovery-only and can never be displayed as the source or published.",
+  "version": 6,
+  "updated_at": "2026-09-15T10:00:00+00:00",
+  "registry_status": "production_v2_approved_publishers",
+  "notes": "Publishing is limited to registered authoritative government/employer/ATS sources plus explicitly approved trusted job boards: BDJobs and BDJobs Live. Unapproved republishers such as Dohaj remain discovery-only and can never become the published source.",
   "sources": [
     {
       "id": "national_job_portal",
@@ -911,6 +911,60 @@
       "parser": "html",
       "supports_pdf": true,
       "official": true,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true,
+      "allow_as_publisher": true
+    },
+    {
+      "id": "bdjobs",
+      "name": "BDJobs",
+      "categories": [
+        "private",
+        "banking",
+        "ngo",
+        "mnc",
+        "it",
+        "internship",
+        "job_portal"
+      ],
+      "source_type": "trusted_job_board",
+      "priority": "P1",
+      "url": "https://www.bdjobs.com/",
+      "domains": [
+        "bdjobs.com",
+        "www.bdjobs.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
+      "crawl_minutes": 60,
+      "status": "active",
+      "enabled": true,
+      "allow_as_publisher": true
+    },
+    {
+      "id": "bdjobs_live",
+      "name": "BDJobs Live",
+      "categories": [
+        "private",
+        "banking",
+        "ngo",
+        "mnc",
+        "it",
+        "internship",
+        "job_portal"
+      ],
+      "source_type": "trusted_job_board",
+      "priority": "P1",
+      "url": "https://www.bdjobslive.com/",
+      "domains": [
+        "bdjobslive.com",
+        "www.bdjobslive.com"
+      ],
+      "parser": "html",
+      "supports_pdf": true,
+      "official": false,
       "crawl_minutes": 60,
       "status": "active",
       "enabled": true,

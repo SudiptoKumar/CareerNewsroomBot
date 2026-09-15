@@ -15,13 +15,13 @@ from contextlib import ExitStack
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from typing import Any
-from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse, unquote
 
 import feedparser
 import requests
 import trafilatura
 from bs4 import BeautifulSoup
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -39,6 +39,7 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").strip()
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
+CAREER_USERNAME = "@CareerNewsroom"
 
 # Same primary Cerebras model family used by the working Tech bot.
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL") or "gpt-oss-120b"
@@ -73,6 +74,11 @@ FAIR_SOURCE_WINDOW = 3
 MAX_PDF_IMAGE_PAGES = 6
 MAX_CIRCULAR_MEDIA = 3
 MIN_JOB_RELEVANCE = 0
+LOGO_CACHE_FILE = Path("company_logo_cache.json")
+LOGO_SEARCH_TIMEOUT = 8
+MAX_LOGO_SEARCH_RESULTS = 14
+MIN_LOGO_PIXELS = 220
+LOGO_CARD_SIZE = (1200, 675)
 
 # Only these registry entries may ever become a displayed/published source.
 # Third-party job boards/republishers are discovery-only and are never publishable.
@@ -80,13 +86,16 @@ AUTHORITATIVE_SOURCE_TYPES = {
     "official_government", "government_aggregator", "official_employer",
     "corporate_career", "official_ats", "official_university",
 }
+# Trusted job boards explicitly approved by the channel owner. These are allowed
+# to be displayed as the source, unlike untrusted republishers such as Dohaj.
+TRUSTED_JOB_BOARD_TYPES = {"trusted_job_board"}
+TRUSTED_JOB_BOARD_HOSTS = {"bdjobs.com", "bdjobslive.com"}
 THIRD_PARTY_HOST_BLOCKLIST = {
-    "bdjobs.com", "bdjobslive.com", "dohaj.com", "skill.jobs",
-    "jobs.niyog.co", "jobsbd.com", "jobs-testbd.com",
+    "dohaj.com", "skill.jobs", "jobs.niyog.co", "jobsbd.com", "jobs-testbd.com",
 }
 
 EVENT_RETENTION_DAYS = 90
-MIN_DAYS_TO_DEADLINE = 7
+MIN_DAYS_TO_DEADLINE = 0
 MAX_CAPTION = 1000
 
 logger = logging.getLogger("CareerNewsroom")
@@ -218,6 +227,20 @@ def save_posted(posted: set[str]) -> None:
     atomic_write(POSTED_FILE, "\n".join(sorted(posted)) + ("\n" if posted else ""))
 
 
+def load_logo_cache() -> dict[str, Any]:
+    if not LOGO_CACHE_FILE.exists():
+        return {}
+    try:
+        data = json.loads(LOGO_CACHE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_logo_cache(cache: dict[str, Any]) -> None:
+    atomic_write(LOGO_CACHE_FILE, json.dumps(cache, ensure_ascii=False, indent=2) + "\n")
+
+
 # ============================================================
 # HTTP / NORMALIZATION
 # ============================================================
@@ -327,6 +350,10 @@ def host_of(url: str) -> str:
 def is_third_party_host(url: str) -> bool:
     host=host_of(url)
     return any(host == blocked or host.endswith("." + blocked) for blocked in THIRD_PARTY_HOST_BLOCKLIST)
+
+def is_trusted_job_board_host(url: str) -> bool:
+    host = host_of(url)
+    return any(host == allowed or host.endswith("." + allowed) for allowed in TRUSTED_JOB_BOARD_HOSTS)
 
 
 def year_signals(value: str) -> set[int]:
@@ -576,6 +603,7 @@ def extract_meta(content: bytes, url: str) -> dict[str, Any]:
 
     meta["job_image_candidates"] = [x for x in meta["job_image_candidates"] if x]
     meta["source_logo_candidates"] = list(dict.fromkeys(x for x in meta["source_logo_candidates"] if x))
+    meta["company_logo_candidates"] = list(meta["source_logo_candidates"])
     return meta
 
 
@@ -657,13 +685,19 @@ def registry_map(registry: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
-    """Resolve only to an authoritative registry source. Discovery vendors and job boards cannot win."""
+    """Resolve to an approved publisher source from the registry.
+
+    Official employers/government sources are always eligible. Explicitly approved
+    trusted job boards (currently BDJobs and BDJobs Live) are also eligible.
+    Other aggregators/republishers are discovery-only.
+    """
     host=host_of(url)
     if not host or is_third_party_host(url):
         return None
     best=None; best_len=-1
     for source in sources.values():
-        if not source.get("official"): continue
+        allowed_publisher = bool(source.get("official")) or (source.get("source_type") in TRUSTED_JOB_BOARD_TYPES and source.get("allow_as_publisher", False))
+        if not allowed_publisher: continue
         candidates=[source.get("url", "")] + list(source.get("domains", []) or []) + list(source.get("application_domains", []) or [])
         for raw_host in candidates:
             raw_host=safe_text(raw_host)
@@ -675,9 +709,16 @@ def source_for_url(url: str, sources: dict[str, dict[str, Any]]) -> dict[str, An
 
 
 def is_authoritative_source(source: dict[str, Any] | None) -> bool:
-    if not source or not source.get("official"): return False
-    if safe_text(source.get("source_type")) not in AUTHORITATIVE_SOURCE_TYPES: return False
-    return not is_third_party_host(source.get("url", ""))
+    if not source or not source.get("allow_as_publisher", False): return False
+    source_type = safe_text(source.get("source_type"))
+    official = bool(source.get("official"))
+    trusted_board = source_type in TRUSTED_JOB_BOARD_TYPES
+    if not (official and source_type in AUTHORITATIVE_SOURCE_TYPES) and not trusted_board:
+        return False
+    host = safe_text(source.get("url", ""))
+    if trusted_board:
+        return is_trusted_job_board_host(host) and not is_third_party_host(host)
+    return not is_third_party_host(host)
 
 
 def source_display_name(url: str, sources: dict[str, dict[str, Any]]) -> str:
@@ -1982,206 +2023,472 @@ def build_caption(job: dict[str, Any]) -> str:
     return text[:MAX_CAPTION]
 
 
-def download_image(url: str, referer: str = "") -> Image.Image | None:
+def download_image(url: str, referer: str = "", timeout: int = 12) -> Image.Image | None:
     if not url:
         return None
     try:
-        headers = {"Referer": referer} if referer else {}
-        r = SESSION.get(url, timeout=15, headers=headers, allow_redirects=True)
-        if r.status_code >= 400:
+        headers = {"Referer": referer, "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"} if referer else {}
+        r = SESSION.get(url, timeout=min(timeout, max(4, int(runtime_remaining()))), headers=headers, allow_redirects=True, stream=False)
+        if r.status_code >= 400 or len(r.content) > 10 * 1024 * 1024:
             return None
+        ctype=(r.headers.get("content-type") or "").lower()
+        if "svg" in ctype or url.lower().split("?",1)[0].endswith(".svg"):
+            try:
+                import cairosvg
+                png=cairosvg.svg2png(bytes=r.content, output_width=1800)
+                image=Image.open(BytesIO(png)); image.load()
+                return image.convert("RGBA")
+            except Exception:
+                return None
         image = Image.open(BytesIO(r.content))
         image.load()
-        return image.convert("RGB")
+        return image.convert("RGBA")
     except Exception:
         return None
 
 
-def crop_cover(image: Image.Image, size=(1200, 675)) -> Image.Image:
-    target = size[0] / size[1]
-    w, h = image.size
-    if not h:
-        return Image.new("RGB", size, "white")
-
-    ratio = w / h
-    if ratio > target:
-        new_w = int(h * target)
-        left = (w - new_w) // 2
-        image = image.crop((left, 0, left + new_w, h))
-    elif ratio < target:
-        new_h = int(w / target)
-        top = (h - new_h) // 2
-        image = image.crop((0, top, w, top + new_h))
-    return image.resize(size, Image.Resampling.LANCZOS)
+def _normalize_logo_source_url(url: str) -> str:
+    value = canonical_url(unquote(safe_text(url)))
+    if not value:
+        return ""
+    host = host_of(value)
+    if host in {"google.com", "www.google.com", "googleusercontent.com", "gstatic.com", "bing.com", "bingj.com"}:
+        return ""
+    if is_third_party_host(value) or is_trusted_job_board_host(value):
+        # Job-board/republisher branding is never an employer logo.
+        return ""
+    return value
 
 
-def fallback_card(job: dict[str, Any], path: Path) -> Path:
+def _logo_token_score(company: str, url: str, context: str = "") -> int:
+    tokens = {x for x in re.findall(r"[a-z0-9]+", normalize_company(company).lower()) if len(x) > 2}
+    hay = f"{url} {context}".lower()
+    score = 0
+    for token in tokens:
+        if token in hay:
+            score += 12
+    for hint, pts in (("logo", 18), ("brand", 10), ("wordmark", 10), ("identity", 8), ("mark", 5), ("avatar", -12), ("favicon", -20), ("sprite", -18), ("banner", -20), ("social", -10)):
+        if hint in hay:
+            score += pts
+    return score
+
+
+def _extract_logo_links_from_html(content: bytes, page_url: str, company: str = "") -> list[tuple[int, str, str]]:
+    """Return (score,url,provenance) logo candidates from an official page or social profile."""
+    out: list[tuple[int, str, str]] = []
+    try:
+        soup = BeautifulSoup(content, "html.parser")
+    except Exception:
+        return out
+    title = safe_text(soup.title.get_text(" ", strip=True) if soup.title else "")
+    social_host = host_of(page_url)
+    is_social = social_host in {"facebook.com", "x.com", "twitter.com", "instagram.com", "linkedin.com"}
+
+    # JSON-LD is the strongest semantic signal.
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        raw = script.string or script.get_text()
+        try:
+            data = json.loads(raw)
+        except Exception:
+            continue
+        stack = list(data) if isinstance(data, list) else [data]
+        while stack:
+            item = stack.pop()
+            if not isinstance(item, dict):
+                continue
+            if isinstance(item.get("@graph"), list):
+                stack.extend(item["@graph"])
+            typ = item.get("@type")
+            types = typ if isinstance(typ, list) else [typ]
+            if any(t in {"Organization", "Corporation", "Brand", "WebSite"} for t in types if t):
+                logo = item.get("logo") or item.get("image")
+                vals = logo if isinstance(logo, list) else [logo]
+                for val in vals:
+                    u = _jsonld_logo(val, page_url)
+                    if u:
+                        out.append((125 + _logo_token_score(company, u, "jsonld"), u, "jsonld"))
+
+    # Explicit logo links and image alt/title near company identity.
+    for link in soup.find_all("link"):
+        rel = " ".join(x.lower() for x in (link.get("rel") or []))
+        href = _absolute_media_url(link.get("href"), page_url)
+        if not href:
+            continue
+        if any(k in rel for k in ("logo", "apple-touch-icon")):
+            out.append((105 + _logo_token_score(company, href, rel), href, "link-logo"))
+
+    for img in soup.find_all("img")[:80]:
+        src = img.get("src") or img.get("data-src") or img.get("data-lazy-src") or img.get("data-original")
+        if not src:
+            continue
+        u = _absolute_media_url(src, page_url)
+        if not u:
+            continue
+        alt = safe_text(img.get("alt")); title_attr = safe_text(img.get("title")); cls = " ".join(img.get("class", []))
+        context = f"{alt} {title_attr} {cls} {src} {title}"
+        low = context.lower()
+        if any(x in low for x in ("favicon", "placeholder", "cookie", "qr code", "advert", "banner")):
+            continue
+        score = _logo_token_score(company, u, context)
+        if re.search(r"\blogo\b", low): score += 60
+        if alt and company and any(tok in alt.lower() for tok in re.findall(r"[a-z0-9]+", normalize_company(company).lower()) if len(tok) > 2): score += 35
+        if is_social:
+            # Social profiles expose the avatar/identity image in metadata or profile markup.
+            if "profile" in low or "avatar" in low or "photo" in low: score += 30
+            score += 20
+        out.append((score + 45, u, "social-profile" if is_social else "official-page-image"))
+
+    # OpenGraph is accepted only for social profile pages, never as an arbitrary job-page image.
+    if is_social:
+        for meta_key in ("og:image", "twitter:image", "twitter:image:src"):
+            tag = soup.find("meta", attrs={"property": meta_key}) or soup.find("meta", attrs={"name": meta_key})
+            u = _absolute_media_url(tag.get("content") if tag else "", page_url)
+            if u:
+                out.append((95 + _logo_token_score(company, u, "social metadata"), u, "social-metadata"))
+    return out
+
+
+def _discover_company_homepages(company: str) -> list[str]:
+    """Use public search only to locate likely official employer domains."""
+    found=[]
+    for query in (f'"{company}" official website careers', f'"{company}" official site'):
+        if runtime_budget_exhausted(): break
+        try:
+            r=SESSION.get("https://www.google.com/search?q="+quote(query),timeout=min(LOGO_SEARCH_TIMEOUT,max(4,int(runtime_remaining()))),headers={"Accept":"text/html,application/xhtml+xml"})
+            if r.status_code>=400: continue
+            soup=BeautifulSoup(r.text,"html.parser")
+            for a in soup.find_all("a",href=True):
+                href=safe_text(a.get("href"));
+                if href.startswith("/url?q="): href=href.split("/url?q=",1)[1].split("&",1)[0]
+                u=canonical_url(unquote(href)); h=host_of(u)
+                if not u or not h or h in {"google.com","gstatic.com","googleusercontent.com","youtube.com","facebook.com","x.com","twitter.com","instagram.com","linkedin.com"}: continue
+                if is_third_party_host(u) or is_trusted_job_board_host(u): continue
+                if u not in found: found.append(u)
+        except Exception:
+            continue
+    return found[:8]
+
+
+def _search_result_image_urls(company: str) -> list[tuple[int, str, str]]:
+    """Best-effort public image discovery. Search is only a fallback after official-site signals."""
+    queries = [
+        f'"{company}" official logo',
+        f'"{company}" company logo PNG SVG',
+    ]
+    results: list[tuple[int, str, str]] = []
+    for q in queries:
+        if runtime_budget_exhausted(): break
+        for engine, endpoint in (
+            ("google-images", "https://www.google.com/search?tbm=isch&q="),
+            ("bing-images", "https://www.bing.com/images/search?q="),
+        ):
+            try:
+                url = endpoint + quote(q)
+                r = SESSION.get(url, timeout=min(LOGO_SEARCH_TIMEOUT, max(4, int(runtime_remaining()))), headers={"Accept": "text/html,application/xhtml+xml", "Referer": "https://www.google.com/" if "google" in engine else "https://www.bing.com/"})
+                if r.status_code >= 400:
+                    continue
+                text = r.text
+                # Extract direct-looking image URLs from HTML/embedded JSON. Google and Bing both
+                # commonly expose original URLs in page data, even though the visible thumbnails differ.
+                matches = re.findall(r'https?://[^\\"\'<> ]+?(?:\\.(?:png|jpe?g|webp|svg))(?:\?[^\\"\'<> ]*)?', text, flags=re.I)
+                for raw in matches:
+                    u = _normalize_logo_source_url(raw.replace('\\/', '/'))
+                    if not u: continue
+                    score = 35 + _logo_token_score(company, u, q)
+                    results.append((score, u, engine))
+            except Exception:
+                continue
+    # Social-specific discovery through search results. The page itself may be blocked, but URLs can still lead to usable media.
+    return results
+
+
+def _discover_social_profile_urls(company: str, official_page_url: str = "") -> list[str]:
+    urls=[]
+    if official_page_url:
+        try:
+            r = http_get(official_page_url)
+            if r:
+                for _, u, _ in _extract_logo_links_from_html(r.content, r.url, company):
+                    # only URL-like candidates from this helper are media, not profiles; profile links are collected separately below
+                    pass
+                soup=BeautifulSoup(r.content,"html.parser")
+                for a in soup.find_all("a", href=True):
+                    u=canonical_url(urljoin(r.url,a.get("href")))
+                    h=host_of(u)
+                    if h in {"facebook.com","x.com","twitter.com","instagram.com","linkedin.com"}:
+                        urls.append(u)
+        except Exception:
+            pass
+    # Search engines are used only to locate public company profiles when the official page does not expose a link.
+    for site in ("facebook.com", "x.com", "twitter.com"):
+        try:
+            q=quote(f'site:{site} "{company}" official')
+            r=SESSION.get("https://www.google.com/search?q="+q,timeout=min(LOGO_SEARCH_TIMEOUT,max(4,int(runtime_remaining()))))
+            if r.status_code>=400: continue
+            soup=BeautifulSoup(r.text,"html.parser")
+            for a in soup.find_all("a",href=True):
+                href=safe_text(a.get("href"))
+                if "/url?q=" in href:
+                    href=href.split("/url?q=",1)[1].split("&",1)[0]
+                u=canonical_url(unquote(href))
+                if host_of(u) in {site,"www."+site}:
+                    urls.append(u)
+        except Exception:
+            continue
+    return list(dict.fromkeys(urls))[:8]
+
+
+def _logo_has_acceptable_background(image: Image.Image) -> bool:
+    rgba=image.convert("RGBA")
+    w,h=rgba.size
+    if min(w,h) < MIN_LOGO_PIXELS:
+        return False
+    # Reject giant white canvases that contain a tiny mark. We measure edge background dominance.
+    samples=[]
+    for x in range(0,w,max(1,w//20)):
+        samples.extend((rgba.getpixel((x,0)),rgba.getpixel((x,h-1))))
+    for y in range(0,h,max(1,h//20)):
+        samples.extend((rgba.getpixel((0,y)),rgba.getpixel((w-1,y))))
+    near_white=sum(1 for p in samples if p[3]>240 and min(p[:3])>=245)
+    return near_white < int(len(samples)*0.98) or True
+
+
+def _trim_logo(image: Image.Image) -> Image.Image:
+    """Remove only outer/edge whitespace while preserving internal white logo details."""
+    rgba=image.convert("RGBA")
+    rgba.thumbnail((1800,1800), Image.Resampling.LANCZOS)
+    px=rgba.load(); w,h=rgba.size
+    visited=set(); transparent=set()
+    # Treat only connected near-white/transparent pixels touching the edge as background.
+    stack=[]
+    for x in range(w): stack.extend(((x,0),(x,h-1)))
+    for y in range(h): stack.extend(((0,y),(w-1,y)))
+    while stack:
+        x,y=stack.pop()
+        if (x,y) in visited or x<0 or y<0 or x>=w or y>=h: continue
+        visited.add((x,y)); r,g,b,a=px[x,y]
+        is_bg=(a<30) or (r>=245 and g>=245 and b>=245)
+        if not is_bg: continue
+        transparent.add((x,y))
+        stack.extend(((x+1,y),(x-1,y),(x,y+1),(x,y-1)))
+    if transparent:
+        for x,y in transparent:
+            r,g,b,a=px[x,y]; px[x,y]=(r,g,b,0)
+    bbox=rgba.getbbox()
+    if bbox:
+        pad=max(8,min(28,int(min(rgba.size)*0.04)))
+        left=max(0,bbox[0]-pad); top=max(0,bbox[1]-pad); right=min(w,bbox[2]+pad); bottom=min(h,bbox[3]+pad)
+        rgba=rgba.crop((left,top,right,bottom))
+    return rgba
+
+
+def _logo_stats(image: Image.Image) -> dict[str, Any]:
+    rgba=image.convert("RGBA")
+    w,h=rgba.size
+    alpha=rgba.getchannel("A")
+    bbox=alpha.getbbox()
+    if not bbox:
+        return {"width":w,"height":h,"content_ratio":0.0,"aspect":w/max(1,h)}
+    cw=max(1,bbox[2]-bbox[0]); ch=max(1,bbox[3]-bbox[1])
+    return {"width":w,"height":h,"content_ratio":(cw*ch)/(w*h),"aspect":cw/ch}
+
+
+def _logo_candidate_score(company: str, image: Image.Image, url: str, provenance: str, context: str = "") -> int:
+    st=_logo_stats(image)
+    score=_logo_token_score(company,url,context)
+    score += {"jsonld":130,"link-logo":115,"official-page-image":95,"social-profile":82,"social-metadata":72,"google-images":55,"bing-images":52}.get(provenance,40)
+    if max(st["width"],st["height"]) >= 1400: score += 30
+    elif max(st["width"],st["height"]) >= 900: score += 22
+    elif max(st["width"],st["height"]) >= 600: score += 12
+    if min(st["width"],st["height"]) >= 300: score += 15
+    if st["content_ratio"] < 0.12: score -= 35
+    elif st["content_ratio"] > 0.45: score += 12
+    if any(x in url.lower() for x in ("favicon","avatar","icon")): score -= 35
+    host=host_of(url)
+    if host in {"facebook.com","x.com","twitter.com","instagram.com","linkedin.com"}: score -= 8
+    if any(x in host for x in ("bdjobs","dohaj","skill.jobs")): score -= 100
+    return score
+
+
+def _make_company_card(logo: Image.Image, company: str, path: Path) -> Path:
+    """Create the final 1200x675 company-identity card. Logo is preserved, not boxed."""
     path.parent.mkdir(exist_ok=True)
-    image = Image.new("RGB", (1200, 675), "white")
-    draw = ImageDraw.Draw(image)
-
-    regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font = ImageFont.truetype(regular, 38) if Path(regular).exists() else ImageFont.load_default()
-    bold = ImageFont.truetype(bold_path, 54) if Path(bold_path).exists() else font
-
-    company = safe_text(job.get("company") or "Career Opportunity")[:70]
-    title = safe_text(job.get("title") or "Job Vacancy")
-
-    draw.text((70, 65), company, fill="black", font=font)
-
-    words = title.split()
-    lines, current = [], []
-    for word in words:
-        test = " ".join(current + [word])
-        if len(test) > 27 and current:
-            lines.append(" ".join(current))
-            current = [word]
-        else:
-            current.append(word)
-    if current:
-        lines.append(" ".join(current))
-
-    y = 205
-    for line in lines[:4]:
-        draw.text((70, y), line, fill="black", font=bold)
-        y += 68
-
-    draw.text((70, 535), "Career Opportunity", fill="black", font=font)
-    draw.text((930, 610), "@CareerNewsroom", fill="black", font=font)
-
-    image.save(path, "JPEG", quality=92)
-    return path
-
-
-CAREER_USERNAME = "@CareerNewsroom"
-MIN_JOB_IMAGE_SHORT = 600
-MIN_JOB_IMAGE_LONG = 1000
-MIN_LOGO_SIZE = 160
-
-def _image_has_usable_size(image: Image.Image, min_w: int, min_h: int) -> bool:
-    try:
-        w, h = image.size
-        return min(w, h) >= MIN_JOB_IMAGE_SHORT and max(w, h) >= MIN_JOB_IMAGE_LONG
-    except Exception:
-        return False
-
-def _logo_has_usable_size(image: Image.Image) -> bool:
-    try:
-        w, h = image.size
-        return max(w, h) >= MIN_LOGO_SIZE
-    except Exception:
-        return False
-
-def fit_with_padding(image: Image.Image, size=(1200, 675)) -> Image.Image:
-    """Preserve the complete circular/photo. No destructive crop of job-circular content."""
-    image = image.convert("RGB")
-    image.thumbnail(size, Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", size, "white")
-    x = (size[0] - image.width) // 2
-    y = (size[1] - image.height) // 2
-    canvas.paste(image, (x, y))
-    return canvas
-
-def overlay_username(image: Image.Image) -> Image.Image:
-    image = image.convert("RGB")
-    draw = ImageDraw.Draw(image)
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    font = ImageFont.truetype(font_path, 26) if Path(font_path).exists() else ImageFont.load_default()
-    text = CAREER_USERNAME
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw, th = bbox[2]-bbox[0], bbox[3]-bbox[1]
-    pad_x, pad_y = 12, 7
-    x = image.width - tw - 24
-    y = image.height - th - 18
-    # Only the username is added. No title, source, logo, or decorative label.
-    draw.rounded_rectangle((x-pad_x, y-pad_y, x+tw+pad_x, y+th+pad_y), radius=8, fill=(0,0,0,150))
-    draw.text((x, y), text, fill="white", font=font)
-    return image
-
-def source_name_fallback(job: dict[str, Any], path: Path) -> Path:
-    image = Image.new("RGB", (1200, 675), "white")
-    draw = ImageDraw.Draw(image)
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font = ImageFont.truetype(font_path, 54) if Path(font_path).exists() else ImageFont.load_default()
-    text = safe_text(job.get("source_name") or "Job Source")[:90]
-    # Last fallback: only bold centered source name, absolutely no username.
-    bbox = draw.multiline_textbbox((0,0), text, font=font, spacing=10)
-    tw = bbox[2]-bbox[0]
-    lines=[]
-    words=text.split()
-    cur=[]
+    logo=_trim_logo(logo)
+    # Adaptive background: full-bleed, non-white card so the logo is not trapped inside a tiny white square.
+    stat=ImageStat.Stat(logo.convert("RGB").resize((1,1)))
+    avg=tuple(int(v) for v in stat.mean[:3])
+    lum=(0.2126*avg[0]+0.7152*avg[1]+0.0722*avg[2])/255
+    if lum < 0.48:
+        base=(246,248,251); text_fill=(24,32,42); accent=avg
+    else:
+        base=(19,27,38); text_fill=(248,250,252); accent=avg
+    canvas=Image.new("RGB",LOGO_CARD_SIZE,base)
+    # Subtle brand-tinted glow, never a white logo frame.
+    glow=Image.new("RGBA",LOGO_CARD_SIZE,(0,0,0,0))
+    gd=ImageDraw.Draw(glow)
+    glow_color=(max(0,min(255,accent[0])),max(0,min(255,accent[1])),max(0,min(255,accent[2])),45)
+    gd.ellipse((-180,-120,520,530),fill=glow_color)
+    glow=glow.filter(ImageFilter.GaussianBlur(55))
+    canvas=Image.alpha_composite(canvas.convert("RGBA"),glow).convert("RGB")
+    draw=ImageDraw.Draw(canvas)
+    # Preserve the entire logo with a large display area.
+    max_w,max_h=650,330
+    logo_copy=logo.copy(); ratio=min(max_w/logo_copy.width,max_h/logo_copy.height)
+    logo_copy=logo_copy.resize((max(1,int(logo_copy.width*ratio)),max(1,int(logo_copy.height*ratio))),Image.Resampling.LANCZOS)
+    lx=(1200-logo_copy.width)//2; ly=88+(330-logo_copy.height)//2
+    canvas.paste(logo_copy,(lx,ly),logo_copy)
+    font_reg="/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"
+    font_bold="/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"
+    if not Path(font_reg).exists(): font_reg="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    if not Path(font_bold).exists(): font_bold="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    size=48
+    company_clean=safe_text(company)[:110]
+    font=ImageFont.truetype(font_bold,size) if Path(font_bold).exists() else ImageFont.load_default()
+    # Fit company name to two lines maximum.
+    words=company_clean.split(); lines=[]; cur=[]
     for word in words:
         trial=" ".join(cur+[word])
-        if draw.textbbox((0,0),trial,font=font)[2] > 1040 and cur:
+        if draw.textbbox((0,0),trial,font=font)[2] > 980 and cur:
             lines.append(" ".join(cur)); cur=[word]
-        else:
-            cur.append(word)
+        else: cur.append(word)
     if cur: lines.append(" ".join(cur))
-    total_h=len(lines)*70
-    y=(675-total_h)//2
-    for line in lines[:3]:
-        w=draw.textbbox((0,0),line,font=font)[2]
-        draw.text(((1200-w)//2,y),line,fill="black",font=font)
-        y+=70
-    image.save(path,"JPEG",quality=95)
+    lines=lines[:2]
+    heights=[]
+    for line in lines:
+        bb=draw.textbbox((0,0),line,font=font); heights.append(bb[3]-bb[1])
+    total=sum(heights)+max(0,(len(lines)-1)*8)
+    y=470-total//2
+    for line,h in zip(lines,heights):
+        bb=draw.textbbox((0,0),line,font=font); x=(1200-(bb[2]-bb[0]))//2
+        draw.text((x,y),line,fill=text_fill,font=font); y += h+8
+    # Only channel username in the bottom-right corner.
+    user_font_path=font_reg
+    user_font=ImageFont.truetype(user_font_path,24) if Path(user_font_path).exists() else ImageFont.load_default()
+    txt=CAREER_USERNAME; bb=draw.textbbox((0,0),txt,font=user_font); tw,th=bb[2]-bb[0],bb[3]-bb[1]
+    ux=1200-tw-30; uy=675-th-22
+    badge=(0,0,0,125) if lum<0.48 else (255,255,255,155)
+    badge_img=Image.new("RGBA",(tw+28,th+18),(0,0,0,0)); bd=ImageDraw.Draw(badge_img); bd.rounded_rectangle((0,0,tw+28,th+18),radius=8,fill=badge)
+    badge_img_draw=ImageDraw.Draw(badge_img); badge_img_draw.text((14,9),txt,fill=(255,255,255,255) if lum<0.48 else (15,23,32,255),font=user_font)
+    canvas.paste(badge_img,(ux-14,uy-9),badge_img)
+    canvas.save(path,"JPEG",quality=96,optimize=True)
     return path
+
+
+def _discover_best_company_logo(job: dict[str, Any]) -> Image.Image | None:
+    company=safe_text(job.get("company"))
+    if not company or is_bad_company(company): return None
+    cache=load_logo_cache(); key=normalize_company(company)
+    cached=cache.get(key)
+    if isinstance(cached,dict) and cached.get("url"):
+        img=download_image(cached["url"], job.get("source_homepage") or job.get("source_url") or "", timeout=10)
+        if img is not None and _logo_has_usable_size(img):
+            logger.info("LOGO CACHE HIT | company=%s | score=%s",company,cached.get("score")); return img
+
+    candidates: list[tuple[int,str,str]]=[]
+    page_urls=[]
+    for u in (job.get("application_url"), job.get("source_url"), job.get("source_homepage")):
+        u=canonical_url(safe_text(u));
+        if u and not is_third_party_host(u) and not is_trusted_job_board_host(u) and u not in page_urls:
+            page_urls.append(u)
+    # For trusted job boards, discover the employer's own web presence instead of using board branding.
+    if not page_urls:
+        page_urls.extend(_discover_company_homepages(company))
+    else:
+        # A weak official page can coexist with a better direct employer domain discovered by search.
+        page_urls.extend(x for x in _discover_company_homepages(company) if x not in page_urls)
+    # Existing metadata from the job page gets first look.
+    meta=job.get("meta") or {}
+    for u in (meta.get("company_logo_candidates") or meta.get("source_logo_candidates") or []):
+        u=_normalize_logo_source_url(u)
+        if u: candidates.append((120+_logo_token_score(company,u,"metadata logo"),u,"link-logo"))
+
+    # Fetch official source pages, then social profiles linked by them.
+    social_profiles=[]
+    for page in page_urls[:4]:
+        try:
+            r=http_get(page)
+            if not r: continue
+            extracted=_extract_logo_links_from_html(r.content,r.url,company)
+            candidates.extend(extracted)
+            soup=BeautifulSoup(r.content,"html.parser")
+            for a in soup.find_all("a",href=True):
+                u=canonical_url(urljoin(r.url,a.get("href"))); h=host_of(u)
+                if h in {"facebook.com","x.com","twitter.com","instagram.com","linkedin.com"}: social_profiles.append(u)
+        except Exception:
+            continue
+
+    # Official employer home page discovery from registered source domain is enough in many cases.
+    social_seed = job.get("source_homepage") or ""
+    if is_trusted_job_board_host(social_seed) or is_third_party_host(social_seed):
+        social_seed = page_urls[0] if page_urls else ""
+    for profile in _discover_social_profile_urls(company, social_seed)[:8]:
+        social_profiles.append(profile)
+    for profile in list(dict.fromkeys(social_profiles))[:8]:
+        try:
+            r=http_get(profile, timeout=7)
+            if r:
+                candidates.extend(_extract_logo_links_from_html(r.content,r.url,company))
+        except Exception:
+            continue
+
+    # Search fallback: Google/Bing image discovery, only after official/social attempts.
+    # It is also used when the official page exposed only weak assets such as tiny icons.
+    ranked=[]
+    seen=set()
+    for score,u,prov in candidates:
+        u=_normalize_logo_source_url(u)
+        if not u or u in seen: continue
+        seen.add(u)
+        img=download_image(u, job.get("source_homepage") or job.get("source_url") or "", timeout=10)
+        if img is None or not _logo_has_usable_size(img): continue
+        trimmed=_trim_logo(img)
+        if max(trimmed.size) < MIN_LOGO_PIXELS: continue
+        final_score=_logo_candidate_score(company,trimmed,u,prov)
+        ranked.append((final_score,trimmed,u,prov))
+    ranked.sort(key=lambda x:x[0],reverse=True)
+    if not ranked or ranked[0][0] < 170:
+        candidates.extend(_search_result_image_urls(company))
+        # Rank the search additions together with already collected candidates.
+        seen_urls={u for _,_,u,_ in ranked}
+        for score,u,prov in candidates:
+            u=_normalize_logo_source_url(u)
+            if not u or u in seen_urls: continue
+            img=download_image(u, job.get("source_homepage") or job.get("source_url") or "", timeout=9)
+            if img is None or not _logo_has_usable_size(img): continue
+            trimmed=_trim_logo(img)
+            if max(trimmed.size) < MIN_LOGO_PIXELS: continue
+            final_score=_logo_candidate_score(company,trimmed,u,prov)
+            ranked.append((final_score,trimmed,u,prov)); seen_urls.add(u)
+        ranked.sort(key=lambda x:x[0],reverse=True)
+    if not ranked: return None
+    best_score,best_img,best_url,best_prov=ranked[0]
+    # Require stronger confidence when the candidate came from generic image search.
+    if best_prov in {"google-images","bing-images"} and best_score < 85:
+        logger.warning("LOGO NOT CONFIRMED | company=%s | best_score=%s | provenance=%s",company,best_score,best_prov)
+        return None
+    cache[key]={"company":company,"url":best_url,"score":best_score,"provenance":best_prov,"saved_at":now_iso()}
+    save_logo_cache(cache)
+    logger.info("LOGO SELECTED | company=%s | score=%s | provenance=%s | url=%s",company,best_score,best_prov,best_url)
+    return best_img
+
 
 def prepare_image(job: dict[str, Any], index: int) -> Path:
-    """Image priority: actual circular/PDF page -> source logo -> centered source name.
-    PDF rendering is deliberately delayed until after all publication gates have passed.
+    """Company identity image engine: verified employer logo -> full-bleed identity card.
+    No source-logo/name fallbacks. A job without a confidently identified company logo is held.
     """
     RUNTIME_DIR.mkdir(exist_ok=True)
-    meta=job.get("meta") or {}
-    pdf_path=safe_text(meta.get("pdf_path"))
-    if pdf_path and Path(pdf_path).exists() and not runtime_budget_exhausted():
-        try:
-            pdf_bytes=Path(pdf_path).read_bytes()
-            previews=_render_pdf_previews(pdf_bytes,RUNTIME_DIR/f"pdf_{hash_text(job.get('application_url') or job.get('source_url'))[:12]}",MAX_PDF_IMAGE_PAGES)
-            meta["pdf_preview_paths"]=previews[:MAX_CIRCULAR_MEDIA]
-            if previews:
-                meta["pdf_preview_path"]=previews[0]
-                paths=[]
-                for pth in previews[:MAX_CIRCULAR_MEDIA]:
-                    try:
-                        im=Image.open(pth).convert("RGB"); im=fit_with_padding(im); im=overlay_username(im)
-                        mp=RUNTIME_DIR/f"job_{index}_pdf_{len(paths)+1}.jpg"; im.save(mp,"JPEG",quality=96,optimize=True); paths.append(str(mp))
-                    except Exception: pass
-                if paths:
-                    job["_prepared_media_paths"]=paths
-                    logger.info("IMAGE | level=1 pdf_circular pages=%d source=%s",len(paths),safe_text(job.get("source_name")))
-                    return Path(paths[0])
-        except Exception as exc:
-            logger.info("PDF image render skipped | %s",exc.__class__.__name__)
-
-    candidates=[]
-    raw=meta.get("job_image_candidates") or []
-    for item in raw:
-        if isinstance(item,dict): candidates.append((int(item.get("score",0)),canonical_url(item.get("url",""))))
-        else: candidates.append((0,canonical_url(item)))
-    candidates=[x for x in candidates if x[1]]
-    candidates.sort(key=lambda x:x[0],reverse=True)
-    for score,url in candidates[:8]:
-        image=download_image(url,job.get("source_url", ""))
-        if not image or not _image_has_usable_size(image,MIN_JOB_IMAGE_SHORT,MIN_JOB_IMAGE_LONG): continue
-        out=overlay_username(fit_with_padding(image)); path=RUNTIME_DIR/f"job_{index}_matched.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
-        job["_prepared_media_paths"]=[str(path)]
-        logger.info("IMAGE | level=1 job_asset score=%s source=%s",score,safe_text(job.get("source_name")))
-        return path
-
-    logos=meta.get("source_logo_candidates") or []
-    for url in dict.fromkeys(canonical_url(x) for x in logos if canonical_url(x)):
-        image=download_image(url,job.get("source_url", ""))
-        if not image or not _logo_has_usable_size(image): continue
-        out=overlay_username(fit_with_padding(image)); path=RUNTIME_DIR/f"job_{index}_source_logo.jpg"; out.save(path,"JPEG",quality=96,optimize=True)
-        job["_prepared_media_paths"]= [str(path)]
-        logger.info("IMAGE | level=2 source_logo source=%s",safe_text(job.get("source_name")))
-        return path
-    path=RUNTIME_DIR/f"job_{index}_source_name.jpg"; source_name_fallback(job,path)
+    company=safe_text(job.get("company"))
+    logo=_discover_best_company_logo(job)
+    if logo is None:
+        raise RuntimeError(f"company logo not found with sufficient confidence: {company or 'unknown employer'}")
+    path=RUNTIME_DIR/f"job_{index}_company_identity.jpg"
+    _make_company_card(logo,company,path)
+    job["image_type"]="company_identity"
+    job["image_company"]=company
+    job["image_logo_provenance"]=(load_logo_cache().get(normalize_company(company)) or {}).get("provenance")
     job["_prepared_media_paths"]=[str(path)]
-    logger.info("IMAGE | level=3 source_name source=%s",safe_text(job.get("source_name")))
+    logger.info("IMAGE | company_identity | company=%s | provenance=%s",company,job.get("image_logo_provenance"))
     return path
-
 
 def telegram_call(
     method: str,
@@ -2401,7 +2708,7 @@ def publishable(events: list[dict[str,Any]])->list[dict[str,Any]]:
         if not dt: rejects["missing_deadline"]+=1; continue
         days=(dt-now).total_seconds()/86400
         if days<0: rejects["expired"]+=1; continue
-        if days<MIN_DAYS_TO_DEADLINE: rejects["deadline_under_7_days"]+=1; continue
+        if days<MIN_DAYS_TO_DEADLINE: rejects["deadline_expired"]+=1; continue
         if int(event.get("quality_score",0))<MIN_QUALITY_FOR_PUBLISH: rejects["quality"]+=1; continue
         published=bool(event.get("telegram",{}).get("published"))
         if kind=="NEW" and published: rejects["already_published"]+=1; continue
@@ -2512,7 +2819,10 @@ def run()->None:
                 if u: posted.add(u)
             published_count+=1; logger.info("PUBLISHED #%d | score=%s | quality=%s | student_relevance=%s | mode=%s | source=%s | title=%s",published_count,event.get("importance_score"),event.get("quality_score"),event.get("student_relevance_score"),result.get("mode"),safe_text(job.get("source_name")),safe_text(job.get("title"))); time.sleep(POST_DELAY_SECONDS)
         except Exception as exc:
-            logger.exception("Publication failed: %s",event["event_id"]); admin_alert(f"Publication failed\nevent={event['event_id']}\ntitle={safe_text(job.get('title'))}\nerror={exc}")
+            if str(exc).startswith("company logo not found"):
+                logger.warning("PUBLISH HOLD | company_logo_required | event=%s | company=%s",event["event_id"],safe_text(job.get("company")))
+            else:
+                logger.exception("Publication failed: %s",event["event_id"]); admin_alert(f"Publication failed\nevent={event['event_id']}\ntitle={safe_text(job.get('title'))}\nerror={exc}")
     state["updated_at"]=now_iso(); state["runs"]=(state.get("runs") or [])[-199:]+[{"timestamp":now_iso(),"sources_attempted":len(due_sources(registry,state)),"candidates":len(candidates),"jobs":len(jobs),"eligible":len(eligible),"events":len(events),"published":published_count}]
     prune_state(state); save_state(state); save_posted(posted)
     logger.info("FINISHED | sources=%d candidates=%d canonical_jobs=%d eligible_jobs=%d events=%d published=%d",len(due_sources(registry,state)),len(candidates),len(jobs),len(eligible),len(events),published_count)
@@ -2520,9 +2830,15 @@ def run()->None:
 
 def self_test() -> None:
     # Authoritative-source gate regression tests.
-    assert is_third_party_host("https://www.bdjobs.com/jobdetails.asp?id=1")
-    assert not is_authoritative_source({"official":False,"source_type":"job_aggregator","url":"https://www.bdjobs.com/"})
-    test_sources={"official":{"id":"official","name":"Official Employer","url":"https://example.com/careers","source_type":"official_employer","official":True}}
+    assert is_trusted_job_board_host("https://www.bdjobs.com/jobdetails.asp?id=1")
+    assert is_trusted_job_board_host("https://www.bdjobslive.com/jobs/123")
+    assert not is_authoritative_source({"official":False,"source_type":"job_aggregator","url":"https://www.dohaj.com/"})
+    trusted = {"id":"bdjobs","name":"BDJobs","url":"https://www.bdjobs.com/","source_type":"trusted_job_board","official":False,"allow_as_publisher":True}
+    assert is_authoritative_source(trusted)
+    assert _normalize_logo_source_url("https://www.bdjobs.com/logo.png") == ""
+    assert _normalize_logo_source_url("https://www.bdjobslive.com/logo.png") == ""
+    assert _normalize_logo_source_url("https://www.dohaj.com/logo.png") == ""
+    test_sources={"official":{"id":"official","name":"Official Employer","url":"https://example.com/careers","source_type":"official_employer","official":True,"allow_as_publisher":True}}
     assert is_authoritative_source(source_for_url("https://example.com/careers/job-1",test_sources))
     assert source_for_url("https://www.dohaj.com/jobs/1",test_sources) is None
     assert clean_job_title("Post: Associate Manager - Dhaka | BDJobs Live") == "Associate Manager"
@@ -2667,7 +2983,7 @@ def self_test() -> None:
     low["quality_score"] = 90
     low["telegram"] = {"published":False}
     low["canonical"] = dict(sample)
-    low["canonical"]["deadline"] = (datetime.now(timezone.utc) + timedelta(days=3)).strftime("%d-%m-%Y")
+    low["canonical"]["deadline"] = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%d-%m-%Y")
     assert not publishable([low])
 
     missing_deadline = dict(e1)
@@ -2679,8 +2995,8 @@ def self_test() -> None:
     missing_deadline["telegram"] = {"published":False}
     assert not publishable([missing_deadline])
 
-    # Exactly 7 days is allowed; less than 7 days is rejected.
-    seven = dict(e1); seven["canonical"] = dict(sample); seven["canonical"]["deadline"] = (datetime.now(timezone.utc)+timedelta(days=7, minutes=10)).strftime("%d-%m-%Y")
+    # Active deadlines remain eligible regardless of proximity; only expired jobs are rejected.
+    seven = dict(e1); seven["canonical"] = dict(sample); seven["canonical"]["deadline"] = (datetime.now(timezone.utc)+timedelta(days=1, minutes=10)).strftime("%d-%m-%Y")
     seven["verification"]={"status":"verified"}; seven["scam_filter"]={"passed":True}; seven["quality_score"]=90; seven["telegram"]={"published":False}
     assert publishable([seven])
     assert parse_deadline("৩০ সেপ্টেম্বর ২০৯৯") is not None
@@ -2704,9 +3020,11 @@ def self_test() -> None:
     except ImportError:
         pass
 
-    path = fallback_card(sample, RUNTIME_DIR / "self_test.jpg")
-    assert path.exists()
-    assert Image.open(path).size == (1200, 675)
+    # Build a synthetic company-identity image for publisher tests.
+    synthetic=Image.new("RGBA",(1400,900),(255,255,255,255))
+    sd=ImageDraw.Draw(synthetic); sd.rounded_rectangle((320,210,1080,690),radius=90,fill=(20,120,210,255)); sd.text((430,385),"ACME",fill="white",font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",140))
+    path=_make_company_card(_trim_logo(synthetic),"ABC Bank PLC",RUNTIME_DIR/"self_test_company_card.jpg")
+    assert Image.open(path).size == (1200,675)
 
     # Telegram publisher logic test via monkeypatch.
     original = globals()["telegram_call"]
@@ -2778,6 +3096,13 @@ def self_test() -> None:
     ev_b={"canonical":{**sample,"source_id":"source_b","title":"Senior Engineer"},"quality_score":95,"importance_score":95}
     ordered=fair_interleave([ev_b,ev_a]); assert ordered[0]["canonical"]["title"].startswith("Marketing Internship")
 
+    # Company-logo card regression tests. Use a synthetic high-resolution logo to validate trimming and composition.
+    synthetic=Image.new("RGBA",(1400,900),(255,255,255,255))
+    sd=ImageDraw.Draw(synthetic); sd.rounded_rectangle((320,210,1080,690),radius=90,fill=(20,120,210,255)); sd.text((430,385),"ACME",fill="white",font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",140))
+    trimmed=_trim_logo(synthetic)
+    assert max(trimmed.size) >= 700
+    out_path=_make_company_card(trimmed,"ABC Bank PLC",RUNTIME_DIR/"self_test_company_card.jpg")
+    assert Image.open(out_path).size == (1200,675)
     logger.info("CareerNewsroom self-test passed.")
 
 

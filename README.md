@@ -4,7 +4,7 @@ Production-grade Bangladesh job aggregation and Telegram publishing for `@Career
 
 ## Editorial source policy
 
-The bot now uses an **authoritative-source-only publishing policy**. A website that merely reposts jobs from another employer or job portal is not a valid source. Examples include BDJobs-style job boards, Dohaj-style republishers, and similar aggregators. They may appear as discovery hints, but they can never become the displayed source and their listing URL is not publishable unless the bot resolves the same vacancy to an authoritative employer/government source.
+The bot uses a **registered-source publishing policy**. Official government/employer/ATS sources are publishable, and the channel explicitly approves **BDJobs** and **BDJobs Live** as trusted job-board publishers. **Dohaj and other unapproved republishers remain discovery-only and can never become the displayed source.**
 
 Authoritative sources are limited to the registry: official Bangladesh government portals, official government agencies, official universities/organizations, official employer career pages, and official ATS/career systems operated on behalf of an employer.
 
@@ -72,13 +72,16 @@ JOB SNAPSHOT
 
 Bangla content is explicitly sent **left-to-right** with `is_rtl: false`.
 
-## Image policy
+## Company Identity Image Engine
 
-1. Actual circular/PDF page or job-specific image
-2. High-quality official source logo
-3. Centered official source name fallback
+Every published job uses a company/organization identity image rather than a job-board/source logo or a source-name fallback.
 
-The channel username is added only as the image branding marker, not as a fake job label.
+Priority: official circular/PDF logo -> employer official career/homepage logo -> official ATS-hosted logo with employer provenance -> verified public company social profile (Facebook/X/Instagram/LinkedIn) -> public Google/Bing image discovery as a last-resort search layer.
+
+Logo selection is scored by employer-name match, provenance, original pixel dimensions, content area, asset type, and anti-placeholder rules. SVG logos are rasterized at high resolution. External white margins are trimmed without destroying internal white logo details. The selected logo is displayed large on a 1200 x 675 full-bleed company card with the verified company name and only `@CareerNewsroom` in the bottom-right.
+
+BDJobs and BDJobs Live may remain job sources, but their logos are never used as company identity images.
+If no sufficiently confident employer logo can be found, the vacancy is held rather than publishing a misleading image.
 
 ## Runtime protection
 
@@ -119,3 +122,7 @@ EXA_API_KEY=dummy CEREBRAS_API_KEY=dummy TELEGRAM_BOT_TOKEN=dummy python main.py
 ## Important
 
 A locally mocked Telegram test is not a live Telegram test. The workflow log is the source of truth for the real Bot API run.
+
+### Deadline policy
+
+An active job is eligible while its application deadline is still in the future. The previous hard 7-day minimum has been removed. Deadline proximity affects urgency/ranking instead of eligibility.

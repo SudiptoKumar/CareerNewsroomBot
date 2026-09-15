@@ -11,3 +11,5 @@ pypdf
 PyMuPDF
 
 pytesseract
+
+cairosvg
