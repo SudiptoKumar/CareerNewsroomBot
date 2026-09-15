@@ -1,10 +1,10 @@
 {
   "version": 6,
-  "updated_at": "2026-09-15T10:44:26.183286+00:00",
+  "updated_at": "2026-09-15T10:51:08.164371+00:00",
   "jobs": {
     "evt_3b2ef7b0456a43fd": {
       "event_id": "evt_3b2ef7b0456a43fd",
-      "event_type": "PUBLISHED",
+      "event_type": "NONE",
       "status": "active",
       "status_basis": "deadline",
       "canonical": {
@@ -92,12 +92,12 @@
             "bangladesh": true,
             "no_scam_signal": true
           },
-          "checked_at": "2026-09-15T10:44:22.258624+00:00"
+          "checked_at": "2026-09-15T10:51:08.163250+00:00"
         },
         "scam_filter": {
           "passed": true,
           "signals": [],
-          "checked_at": "2026-09-15T10:44:22.258771+00:00"
+          "checked_at": "2026-09-15T10:51:08.163401+00:00"
         },
         "government_grade_gate": {
           "passed": true,
@@ -144,17 +144,17 @@
           "bangladesh": true,
           "no_scam_signal": true
         },
-        "checked_at": "2026-09-15T10:44:22.258624+00:00"
+        "checked_at": "2026-09-15T10:51:08.163250+00:00"
       },
       "scam_filter": {
         "passed": true,
         "signals": [],
-        "checked_at": "2026-09-15T10:44:22.258771+00:00"
+        "checked_at": "2026-09-15T10:51:08.163401+00:00"
       },
       "quality_score": 89,
       "importance_score": 57,
       "first_seen": "2026-09-15T10:44:22.259607+00:00",
-      "last_seen": "2026-09-15T10:44:22.259609+00:00",
+      "last_seen": "2026-09-15T10:51:08.164041+00:00",
       "update_history": [],
       "repost_history": [],
       "repost_due": false,
@@ -172,372 +172,372 @@
   },
   "sources": {
     "bangladesh_national_portal_jobs": {
-      "last_crawl_epoch": 1789468797.1202965,
-      "last_failure": "2026-09-15T10:39:57.120301+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469200.862806,
+      "last_failure": "2026-09-15T10:46:40.862809+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bteab_teletalk": {
-      "last_crawl_epoch": 1789468798.2187617,
-      "last_failure": "2026-09-15T10:39:58.218766+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.5297146,
+      "last_failure": "2026-09-15T10:46:42.529716+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "btrc_teletalk": {
-      "last_crawl_epoch": 1789468798.2391882,
-      "last_failure": "2026-09-15T10:39:58.239191+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.6028638,
+      "last_failure": "2026-09-15T10:46:42.602865+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bscplc_teletalk": {
-      "last_crawl_epoch": 1789468798.2652056,
-      "last_failure": "2026-09-15T10:39:58.265208+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.5142288,
+      "last_failure": "2026-09-15T10:46:42.514232+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "alljobs_teletalk": {
-      "last_crawl_epoch": 1789468798.3498857,
-      "last_success": "2026-09-15T10:39:58.349889+00:00",
+      "last_crawl_epoch": 1789469202.3497276,
+      "last_success": "2026-09-15T10:46:42.349731+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "bscl_teletalk": {
-      "last_crawl_epoch": 1789468798.41408,
-      "last_failure": "2026-09-15T10:39:58.414083+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.579191,
+      "last_failure": "2026-09-15T10:46:42.579192+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bpi_teletalk": {
-      "last_crawl_epoch": 1789468798.4484215,
-      "last_failure": "2026-09-15T10:39:58.448424+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.6085918,
+      "last_failure": "2026-09-15T10:46:42.608593+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bkkb_teletalk": {
-      "last_crawl_epoch": 1789468798.4550533,
-      "last_failure": "2026-09-15T10:39:58.455055+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469202.5901222,
+      "last_failure": "2026-09-15T10:46:42.590124+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "bpsc": {
-      "last_crawl_epoch": 1789468798.5858665,
-      "last_success": "2026-09-15T10:39:58.585869+00:00",
+      "last_crawl_epoch": 1789469202.6863947,
+      "last_success": "2026-09-15T10:46:42.686397+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 4
     },
     "ictd_teletalk": {
-      "last_crawl_epoch": 1789468799.515113,
-      "last_failure": "2026-09-15T10:39:59.515116+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469204.2914267,
+      "last_failure": "2026-09-15T10:46:44.291427+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "dss_teletalk": {
-      "last_crawl_epoch": 1789468799.591646,
-      "last_failure": "2026-09-15T10:39:59.591648+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469204.2041671,
+      "last_failure": "2026-09-15T10:46:44.204168+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "telecomdept_teletalk": {
-      "last_crawl_epoch": 1789468799.6146858,
-      "last_failure": "2026-09-15T10:39:59.614688+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469204.1917741,
+      "last_failure": "2026-09-15T10:46:44.191777+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mocat_jobs": {
-      "last_crawl_epoch": 1789468799.8179948,
-      "last_failure": "2026-09-15T10:39:59.817997+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469204.3930168,
+      "last_failure": "2026-09-15T10:46:44.393017+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mopme_teletalk": {
-      "last_crawl_epoch": 1789468799.9458394,
-      "last_failure": "2026-09-15T10:39:59.945842+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469204.3929079,
+      "last_failure": "2026-09-15T10:46:44.392910+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "moha_jobs": {
-      "last_crawl_epoch": 1789468799.9620886,
-      "last_success": "2026-09-15T10:39:59.962090+00:00",
+      "last_crawl_epoch": 1789469204.8298097,
+      "last_success": "2026-09-15T10:46:44.829811+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 3
     },
     "ictd_jobs": {
-      "last_crawl_epoch": 1789468800.0679443,
-      "last_success": "2026-09-15T10:40:00.067945+00:00",
+      "last_crawl_epoch": 1789469204.4540107,
+      "last_success": "2026-09-15T10:46:44.454011+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 11
     },
     "national_job_portal": {
-      "last_crawl_epoch": 1789468800.9714043,
-      "last_success": "2026-09-15T10:40:00.971406+00:00",
+      "last_crawl_epoch": 1789469205.9153848,
+      "last_success": "2026-09-15T10:46:45.915387+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "a2i_jobs": {
-      "last_crawl_epoch": 1789468801.0235577,
-      "last_failure": "2026-09-15T10:40:01.023559+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469206.0869284,
+      "last_failure": "2026-09-15T10:46:46.086929+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "rthd_jobs": {
-      "last_crawl_epoch": 1789468801.2704167,
-      "last_success": "2026-09-15T10:40:01.270418+00:00",
+      "last_crawl_epoch": 1789469206.079011,
+      "last_success": "2026-09-15T10:46:46.079012+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 7
     },
     "rdcd_teletalk": {
-      "last_crawl_epoch": 1789468801.298127,
-      "last_failure": "2026-09-15T10:40:01.298129+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469206.0791066,
+      "last_failure": "2026-09-15T10:46:46.079107+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "mopa_jobs": {
-      "last_crawl_epoch": 1789468801.4129612,
-      "last_success": "2026-09-15T10:40:01.412963+00:00",
+      "last_crawl_epoch": 1789469206.4135053,
+      "last_success": "2026-09-15T10:46:46.413507+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 11
     },
     "bat_career": {
-      "last_crawl_epoch": 1789468801.6882484,
-      "last_success": "2026-09-15T10:40:01.688249+00:00",
+      "last_crawl_epoch": 1789469206.9401257,
+      "last_success": "2026-09-15T10:46:46.940127+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 15
     },
     "aci_career": {
-      "last_crawl_epoch": 1789468801.7405984,
-      "last_success": "2026-09-15T10:40:01.740601+00:00",
+      "last_crawl_epoch": 1789469206.758652,
+      "last_success": "2026-09-15T10:46:46.758653+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 14
     },
     "brac_bank": {
-      "last_crawl_epoch": 1789468801.9742002,
-      "last_success": "2026-09-15T10:40:01.974201+00:00",
+      "last_crawl_epoch": 1789469207.0528255,
+      "last_success": "2026-09-15T10:46:47.052827+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 7
     },
     "jobs_teletalk_tbl": {
-      "last_crawl_epoch": 1789468802.0592237,
-      "last_failure": "2026-09-15T10:40:02.059227+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469206.4927409,
+      "last_failure": "2026-09-15T10:46:46.492742+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "brac_career": {
-      "last_crawl_epoch": 1789468802.2866957,
-      "last_success": "2026-09-15T10:40:02.286698+00:00",
+      "last_crawl_epoch": 1789469207.476185,
+      "last_success": "2026-09-15T10:46:47.476186+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "brac_bank_taleo": {
-      "last_crawl_epoch": 1789468802.3590124,
-      "last_success": "2026-09-15T10:40:02.359015+00:00",
+      "last_crawl_epoch": 1789469207.4626138,
+      "last_success": "2026-09-15T10:46:47.462615+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "actionaid_bd": {
-      "last_crawl_epoch": 1789468802.4426954,
-      "last_success": "2026-09-15T10:40:02.442697+00:00",
+      "last_crawl_epoch": 1789469207.4072149,
+      "last_success": "2026-09-15T10:46:47.407216+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "citybank_careers": {
-      "last_crawl_epoch": 1789468803.3128045,
-      "last_success": "2026-09-15T10:40:03.312806+00:00",
+      "last_crawl_epoch": 1789469208.6374705,
+      "last_success": "2026-09-15T10:46:48.637472+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 7
     },
     "buet_jobs": {
-      "last_crawl_epoch": 1789468803.3214116,
-      "last_success": "2026-09-15T10:40:03.321413+00:00",
+      "last_crawl_epoch": 1789469208.3288774,
+      "last_success": "2026-09-15T10:46:48.328881+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "care_career": {
-      "last_crawl_epoch": 1789468803.7275977,
-      "last_success": "2026-09-15T10:40:03.727600+00:00",
+      "last_crawl_epoch": 1789469209.1972094,
+      "last_success": "2026-09-15T10:46:49.197211+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 8
     },
     "buet_registrar_jobs": {
-      "last_crawl_epoch": 1789468803.8569145,
-      "last_success": "2026-09-15T10:40:03.856916+00:00",
+      "last_crawl_epoch": 1789469208.9610996,
+      "last_success": "2026-09-15T10:46:48.961101+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 11
     },
     "nestle_career": {
-      "last_crawl_epoch": 1789468803.9701157,
-      "last_failure": "2026-09-15T10:40:03.970118+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469209.2871556,
+      "last_failure": "2026-09-15T10:46:49.287157+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "evercare": {
-      "last_crawl_epoch": 1789468804.4414668,
-      "last_success": "2026-09-15T10:40:04.441469+00:00",
+      "last_crawl_epoch": 1789469209.7581642,
+      "last_success": "2026-09-15T10:46:49.758166+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 6
     },
     "gp_career": {
-      "last_crawl_epoch": 1789468804.4687955,
-      "last_success": "2026-09-15T10:40:04.468798+00:00",
+      "last_crawl_epoch": 1789469210.0478177,
+      "last_success": "2026-09-15T10:46:50.047820+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "renata": {
-      "last_crawl_epoch": 1789468804.984131,
-      "last_success": "2026-09-15T10:40:04.984133+00:00",
+      "last_crawl_epoch": 1789469210.4341068,
+      "last_success": "2026-09-15T10:46:50.434109+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "daraz": {
-      "last_crawl_epoch": 1789468805.2360911,
-      "last_success": "2026-09-15T10:40:05.236094+00:00",
+      "last_crawl_epoch": 1789469210.586282,
+      "last_success": "2026-09-15T10:46:50.586284+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 2
     },
     "robi_career": {
-      "last_crawl_epoch": 1789468805.4184153,
-      "last_success": "2026-09-15T10:40:05.418418+00:00",
+      "last_crawl_epoch": 1789469211.110473,
+      "last_success": "2026-09-15T10:46:51.110474+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 0
     },
     "square_hospital": {
-      "last_crawl_epoch": 1789468805.8281865,
-      "last_success": "2026-09-15T10:40:05.828190+00:00",
+      "last_crawl_epoch": 1789469211.342421,
+      "last_success": "2026-09-15T10:46:51.342423+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 3
     },
     "unicef_bd": {
-      "last_crawl_epoch": 1789468806.2760725,
-      "last_success": "2026-09-15T10:40:06.276075+00:00",
+      "last_crawl_epoch": 1789469211.4511237,
+      "last_success": "2026-09-15T10:46:51.451125+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 14
     },
     "unilever_bd": {
-      "last_crawl_epoch": 1789468806.528959,
-      "last_success": "2026-09-15T10:40:06.528962+00:00",
+      "last_crawl_epoch": 1789469211.6996822,
+      "last_success": "2026-09-15T10:46:51.699683+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 14
     },
     "bkash_career": {
-      "last_crawl_epoch": 1789468806.6384215,
-      "last_failure": "2026-09-15T10:40:06.638424+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469211.4519222,
+      "last_failure": "2026-09-15T10:46:51.451923+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "standard_chartered_careers": {
-      "last_crawl_epoch": 1789468807.5014725,
-      "last_success": "2026-09-15T10:40:07.501474+00:00",
+      "last_crawl_epoch": 1789469211.1025603,
+      "last_success": "2026-09-15T10:46:51.102562+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 14
     },
     "caab_jobs": {
-      "last_crawl_epoch": 1789468807.878694,
-      "last_failure": "2026-09-15T10:40:07.878699+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469211.6995761,
+      "last_failure": "2026-09-15T10:46:51.699579+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "square_pharma": {
-      "last_crawl_epoch": 1789468808.046346,
-      "last_success": "2026-09-15T10:40:08.046349+00:00",
+      "last_crawl_epoch": 1789469213.405205,
+      "last_success": "2026-09-15T10:46:53.405206+00:00",
       "last_failure": null,
       "consecutive_failures": 0,
       "last_status": "ok",
       "candidates_last_run": 6
     },
     "walton": {
-      "last_crawl_epoch": 1789468808.5047047,
-      "last_failure": "2026-09-15T10:40:08.504707+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469213.4051204,
+      "last_failure": "2026-09-15T10:46:53.405122+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "rhd_jobs": {
-      "last_crawl_epoch": 1789468809.077823,
-      "last_failure": "2026-09-15T10:40:09.077826+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469213.6620457,
+      "last_failure": "2026-09-15T10:46:53.662047+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "smart_job": {
-      "last_crawl_epoch": 1789468809.1961865,
-      "last_failure": "2026-09-15T10:40:09.196189+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469213.7512305,
+      "last_failure": "2026-09-15T10:46:53.751231+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     },
     "marico_career": {
-      "last_crawl_epoch": 1789468809.6340606,
-      "last_failure": "2026-09-15T10:40:09.634064+00:00",
-      "consecutive_failures": 1,
+      "last_crawl_epoch": 1789469209.921901,
+      "last_failure": "2026-09-15T10:46:49.921903+00:00",
+      "consecutive_failures": 2,
       "last_status": "failed",
       "candidates_last_run": 0
     }
@@ -551,6 +551,15 @@
       "eligible": 1,
       "events": 1,
       "published": 1
+    },
+    {
+      "timestamp": "2026-09-15T10:51:08.164380+00:00",
+      "sources_attempted": 49,
+      "candidates": 244,
+      "jobs": 44,
+      "eligible": 1,
+      "events": 1,
+      "published": 0
     }
   ]
 }
