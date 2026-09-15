@@ -1,1 +1,23 @@
-{}
+{
+  "test": {
+    "company": "Test Company",
+    "logo_url": "https://official.example/logo.png",
+    "score": 174,
+    "provenance": "google-images",
+    "saved_at": "2026-09-15T12:37:23.082393+00:00"
+  },
+  "care bangladesh": {
+    "company": "CARE Bangladesh",
+    "logo_url": "https://www.carebangladesh.org/themes/care-bangladesh/assets/img/next-frontier.svg",
+    "score": 200,
+    "provenance": "official-page-image",
+    "saved_at": "2026-09-15T12:43:42.910564+00:00"
+  },
+  "square pharmaceuticals": {
+    "company": "Square Pharmaceuticals",
+    "logo_url": "https://www.squarepharma.com.bd/images/home-baner/sq-01.jpg",
+    "score": 188,
+    "provenance": "official-page-image",
+    "saved_at": "2026-09-15T12:44:35.539156+00:00"
+  }
+}
