@@ -1,4 +1,4 @@
-# CareerNewsBot V1
+# CareerNewsBot V1.2
 
 > Automated Bangladesh job-news intelligence for Telegram, built by adapting the proven `TheTechNewsroomBot` architecture while replacing the tech-news editorial algorithm with a Bangladesh-job-specific discovery, eligibility, deadline, and ranking system.
 
@@ -984,7 +984,7 @@ The objective is not to publish the maximum number of vacancies. The objective i
 
 # 25. Reference Project Compatibility
 
-CareerNewsBot V1 is intentionally derived from the proven reference architecture rather than introducing a new technical stack.
+CareerNewsBot V1.2 is intentionally derived from the proven reference architecture rather than introducing a new technical stack.
 
 ### Kept
 
@@ -1035,7 +1035,7 @@ Suitable For / Key Highlights / Apply Now
 This keeps technical risk low while replacing the parts that actually need to change for the CareerNewsroom use case.
 
 
-## V1.1 Build Fixes
+## V1.2 Final Build Fixes
 
 - Removed duplicate runtime/self-test overrides.
 - Preserved the reference bot's extraction, numeric grounding, claim verification, image fallback, Rich Message and Telegram Bot API fallback pipeline.
@@ -1044,3 +1044,36 @@ This keeps technical risk low while replacing the parts that actually need to ch
 - Added stronger Bangladesh-only vacancy filtering.
 - Expanded RSS and direct job-source coverage.
 - Career-specific ranking and output remain limited to real vacancies with a deadline of at least 7 days.
+
+
+## 8. Production Architecture Parity Check
+
+This release is rebuilt directly from the proven `TheTechNewsroomBot` technical framework rather than layering Career overrides over the old implementation.
+
+The runtime keeps the same single-module pipeline, persistent queue, event clustering, RSS validators, Google News gap fill, Exa gap fill, Cerebras batch ranking, article extraction, numeric grounding, claim verification, image recovery chain, Rich Message publishing, Bot API fallback, URL deduplication, event memory, and GitHub Actions state persistence.
+
+Career-specific behavior is isolated to:
+
+- Bangladesh job source universe and job eligibility filtering
+- 72-hour source-publication window
+- 7-day minimum remaining application deadline
+- vacancy-specific ranking prompt
+- CareerNewsroom Telegram card schema
+- CareerNewsroom hashtags and branding
+
+There is one implementation of each runtime function. No duplicate `run()`, `self_test()`, or Career/Tech override layer remains.
+
+## 9. Failure Handling
+
+A failing RSS feed or unreachable direct portal is logged and skipped so the run can continue through other sources. Exa and Google News act as gap-fillers. If no candidate clears the strict freshness, Bangladesh eligibility, deadline, ranking, extraction, and verification gates, the bot publishes nothing rather than inventing or relaxing the rules.
+
+
+## 10. V1.2 Final Technical Parity Audit
+
+The final build was checked against the supplied `TheTechNewsroomBot-main` reference at the architecture level. The following reference runtime components are all present exactly once in CareerNewsBot: `run`, `self_test`, `available_candidates`, `rank_candidates`, `extract_article`, `process_story_candidate`, `prepare_image`, `send_rich_photo`, and `send_bot_api_fallback`.
+
+The GitHub Actions job keeps the same Python 3.12 runtime, dependency installation, compile check, self-test gate, scheduled execution, state persistence, repository write permission, concurrency protection, and Bangladesh timezone schedule. Only the channel/project identity is changed to `@CareerNewsroom`.
+
+The final build also fixes two runtime issues found in the prior CareerNewsBot run: the missing `available_candidates()` runtime reference and the Exa highlight join failure when a result contains `None` highlights. The numeric-grounding parser is additionally guarded so a four-digit year followed by `BBA` or `MBA` cannot be misread as a numeric unit.
+
+No live Exa, Cerebras, or Telegram API call is performed during offline self-test. Live API execution occurs in GitHub Actions after the required repository secrets are available.
