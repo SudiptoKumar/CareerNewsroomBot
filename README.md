@@ -569,7 +569,7 @@ The implementation should preserve the reference bot's retry logic for Telegram 
 The channel branding must change from:
 
 ```text
-@TheTechNewsroom
+@CareerNewsroom
 ```
 
 to:
@@ -1027,9 +1027,20 @@ THE CONTEXT / BOTTOM LINE
         ↓
 Suitable For / Key Highlights / Apply Now
 
-@TheTechNewsroom
+@CareerNewsroom
         ↓
 @CareerNewsroom
 ```
 
 This keeps technical risk low while replacing the parts that actually need to change for the CareerNewsroom use case.
+
+
+## V1.1 Build Fixes
+
+- Removed duplicate runtime/self-test overrides.
+- Preserved the reference bot's extraction, numeric grounding, claim verification, image fallback, Rich Message and Telegram Bot API fallback pipeline.
+- Fixed the 7-day deadline rule to require 7 full days remaining, while treating date-only deadlines as end-of-day.
+- Enforced the 72-hour discovery window.
+- Added stronger Bangladesh-only vacancy filtering.
+- Expanded RSS and direct job-source coverage.
+- Career-specific ranking and output remain limited to real vacancies with a deadline of at least 7 days.
