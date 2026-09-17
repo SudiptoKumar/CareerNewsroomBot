@@ -1,4 +1,4 @@
-name: CareerNewsroom V1.2
+name: CareerNewsroom V2
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v1
+  group: careernewsroom-v2
   cancel-in-progress: false
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
       - name: Run self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsroom
+      - name: Run CareerNewsBot
         run: python main.py
 
       - name: Save state
@@ -63,6 +63,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom state"
+            git commit -m "Update CareerNewsBot state"
             git push
           fi
