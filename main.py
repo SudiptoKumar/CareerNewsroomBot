@@ -48,7 +48,7 @@ STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
 # Same runtime/selection framework as the reference bot.
-MAX_STORIES_PER_RUN = 6
+MAX_STORIES_PER_RUN = 15
 RANKING_POOL_SIZE = 24
 DISCOVERY_LOOKBACK_HOURS = 72
 DEADLINE_SOFT_TARGET_DAYS = 7
@@ -2479,32 +2479,124 @@ def bold_terms_html(
 # DYNAMIC RICH MESSAGE HTML
 # ============================================================
 
+def _display_field(value):
+    """Return a displayable source-backed value; omit unknown placeholders."""
+    value = clean_generated_text(safe_text(value)).strip()
+    if not value:
+        return ""
+    if value.lower() in {
+        "not specified", "not available", "n/a", "na", "unknown",
+        "not mentioned", "not stated", "not provided", "-", "--",
+    }:
+        return ""
+    return value
+
+
+def _format_posted_date(story):
+    raw = safe_text(story.get("posted_at") or story.get("published_date"))
+    dt = parse_datetime(raw)
+    if dt:
+        return dt.astimezone(BD_TZ).strftime("%d %B %Y")
+    return _display_field(raw)
+
+
+def _snapshot_rows(story):
+    fields = [
+        ("📍 Location", story.get("location")),
+        ("💼 Type", story.get("job_type")),
+        ("🎓 Education", story.get("education")),
+        ("👨‍💼 Experience", story.get("experience")),
+        ("💰 Salary", story.get("salary")),
+        ("📅 Deadline", story.get("deadline")),
+        ("📌 Vacancies", story.get("vacancies")),
+        ("🎂 Age Limit", story.get("age_limit")),
+        ("⚧ Gender", story.get("gender")),
+        ("📝 Application", story.get("application_method")),
+        ("🕒 Posted", _format_posted_date(story)),
+    ]
+    rows = []
+    for label, value in fields:
+        value = _display_field(value)
+        if value:
+            rows.append((label, value))
+    return rows
+
+
+def _html_table(rows):
+    parts = [
+        "<table bordered striped compact><tr><th><b>FIELD</b></th><th><b>DETAILS</b></th></tr>"
+    ]
+    for label, value in rows:
+        parts.append(
+            "<tr><td>" + escape_rich_html(label) + "</td><td>"
+            + bold_terms_html(value, []) + "</td></tr>"
+        )
+    parts.append("</table>")
+    return "".join(parts)
+
+
+def _inline_keyboard(story):
+    apply_url = safe_text(story.get("apply_url") or story.get("url"))
+    if not apply_url or not re.match(r"^https?://", apply_url, re.I):
+        return None
+    return {
+        "inline_keyboard": [[
+            {"text": "📝 APPLY NOW", "url": apply_url}
+        ]]
+    }
+
+
 def dynamic_rich_html(story):
+    """CareerNewsroom rich card with table layout and omitted unavailable facts."""
     terms = derive_bold_terms(story)
+    company = _display_field(story.get("company"))
+    source = _display_field(story.get("source")) or "Official Source"
+    source_url = safe_text(story.get("url") or "")
+    rows = _snapshot_rows(story)
+
     parts = [
         '<img src="tg://photo?id=newsphoto">',
         "<h1>📣 " + escape_rich_html(story.get("headline", "Job Vacancy")) + "</h1>",
-        "<p>🏢 <b>Company:</b> " + bold_terms_html(story.get("company", "Not specified"), terms) + "</p>",
-        "<p>📍 <b>Location:</b> " + bold_terms_html(story.get("location", "Not specified"), terms) + "</p>",
-        "<p>💼 <b>Type:</b> " + bold_terms_html(story.get("job_type", "Not specified"), terms) + "</p>",
-        "<p>🎓 <b>Education:</b> " + bold_terms_html(story.get("education", "Not specified"), terms) + "</p>",
-        "<p>👨‍💼 <b>Experience:</b> " + bold_terms_html(story.get("experience", "Not specified"), terms) + "</p>",
-        "<p>💰 <b>Salary:</b> " + bold_terms_html(story.get("salary", "Not specified"), terms) + "</p>",
-        "<p>📅 <b>Deadline:</b> " + bold_terms_html(story.get("deadline", "Not specified"), terms) + "</p>",
-        "<h2>🎯 Suitable For</h2>",
-        "<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in story.get("suitable_for", [])) + "</p>",
-        "<h2>📌 Key Highlights</h2>",
-        "<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in story.get("highlights", [])) + "</p>",
-        "<h2>📝 Apply Now</h2>",
-        "<p>" + f'<a href="{html.escape(story.get("apply_url") or story.get("url", ""), quote=True)}">Apply Here</a>' + "</p>",
-        "<h2>🔎 Source</h2>",
-        "<p>" + f'<a href="{html.escape(story.get("url", ""), quote=True)}">{escape_rich_html(story.get("source", "Source"))}</a>' + "</p>",
     ]
+
+    if company:
+        parts.append("<p>🏢 <b>Company:</b> " + bold_terms_html(company, terms) + "</p>")
+
+    if rows:
+        parts.append("<h2>JOB SNAPSHOT</h2>")
+        parts.append(_html_table(rows))
+
+    suitable = [x for x in story.get("suitable_for", []) if _display_field(x)]
+    if suitable:
+        parts.append("<h2>🎯 Suitable For</h2>")
+        parts.append("<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in suitable) + "</p>")
+
+    highlights = [x for x in story.get("highlights", []) if _display_field(x)]
+    if highlights:
+        parts.append("<h2>📌 Key Highlights</h2>")
+        parts.append("<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in highlights) + "</p>")
+
+    apply_url = safe_text(story.get("apply_url") or story.get("url") or "")
+    if apply_url and re.match(r"^https?://", apply_url, re.I):
+        # Native Rich HTML button: the URL is never printed in the message body.
+        parts.append(
+            f'<tg-button-row align="center"><tg-button type="url" style="primary" url="{html.escape(apply_url, quote=True)}">📝 APPLY NOW</tg-button></tg-button-row>'
+        )
+
+    if source_url and re.match(r"^https?://", source_url, re.I):
+        parts.append(
+            "<p>🔎 <b>Official Source:</b> "
+            + f'<a href="{html.escape(source_url, quote=True)}">{escape_rich_html(source)}</a>'
+            + "</p>"
+        )
+    else:
+        parts.append("<p>🔎 <b>Official Source:</b> " + escape_rich_html(source) + "</p>")
+
     hashtags = " ".join(category_hashtags(story))
     if hashtags:
         parts.append("<p>" + escape_rich_html(hashtags) + "</p>")
-    return "\n".join(parts)
 
+    return "\n".join(parts)
 
 
 def rich_visible_length(text):
@@ -3008,7 +3100,7 @@ def telegram_call(
 
 
 
-def send_bot_api_fallback(image_path, rich_html):
+def send_bot_api_fallback(image_path, rich_html, reply_markup=None):
     """Last-resort Bot API photo send with a safe caption length."""
     text = re.sub(r"<br\s*/?>", "\n", rich_html, flags=re.I)
     text = re.sub(r"</(p|h1|h2|h3|footer|summary|details|tr|td)>", "\n", text, flags=re.I)
@@ -3023,7 +3115,11 @@ def send_bot_api_fallback(image_path, rich_html):
         with open(image_path, "rb") as photo:
             response = session.post(
                 url,
-                data={"chat_id": TELEGRAM_CHANNEL, "caption": text},
+                data={
+                    "chat_id": TELEGRAM_CHANNEL,
+                    "caption": text,
+                    **({"reply_markup": json.dumps(reply_markup, ensure_ascii=False)} if reply_markup else {}),
+                },
                 files={"photo": photo},
                 timeout=90,
             )
@@ -3034,6 +3130,7 @@ def send_bot_api_fallback(image_path, rich_html):
 def send_rich_photo(
     image_path,
     rich_html,
+    reply_markup=None,
 ):
     rich_message = {
         "html": rich_html,
@@ -3628,7 +3725,7 @@ def run():
     DISCOVERY_START = NOW_BD - timedelta(hours=ROLLING_DISCOVERY_HOURS)
     DISCOVERY_END = NOW_BD + timedelta(minutes=FUTURE_TOLERANCE_MINUTES)
 
-    logger.info("CAREER NEWSROOM V2 UPDATE-ONLY")
+    logger.info("CAREER NEWSROOM V2.1 UPDATE-ONLY")
     logger.info(
         "Channel=%s | LOOKBACK=%dh | %s -> %s | deadline soft-target=%dd",
         TELEGRAM_CHANNEL,
@@ -3680,10 +3777,11 @@ def run():
             continue
 
         image_path = prepare_image(story, index)
+        reply_markup = _inline_keyboard(story)
         result = send_rich_photo(image_path, rich_html)
         if not result.get("ok"):
             logger.warning("Rich Message publish failed; using Bot API fallback: %s", result.get("description"))
-            result = send_bot_api_fallback(image_path, rich_html)
+            result = send_bot_api_fallback(image_path, rich_html, reply_markup=reply_markup)
 
         if result.get("ok"):
             published_count += 1
@@ -3771,17 +3869,26 @@ def self_test():
         "url": "https://example.com/job",
         "topic": "Management Trainee",
         "bold_terms": ["Management Trainee", "Example Company Ltd.", "BBA", "MBA"],
+        "published_date": "2026-09-17T10:00:00+06:00",
     }
     rendered = fit_rich_html(sample)
     for marker in (
-        "📣 Management Trainee", "Company:", "Location:", "Type:", "Education:",
-        "Experience:", "Salary:", "Deadline:", "🎯 Suitable For", "📌 Key Highlights",
-        "📝 Apply Now", "🔎 Source", "#CareerNewsroom", "#BangladeshJob",
+        "📣 Management Trainee", "Company:", "JOB SNAPSHOT", "Location", "Type",
+        "Education", "Experience", "Deadline", "🎯 Suitable For", "📌 Key Highlights",
+        "Official Source", "#CareerNewsroom", "#BangladeshJob",
     ):
         assert marker in rendered
-    assert 'href="https://example.com/apply"' in rendered
+    assert "Salary" not in rendered
+    assert "Not specified" not in rendered
+    visible_without_tags = re.sub(r"<[^>]+>", "", rendered)
+    assert "https://example.com/apply" not in visible_without_tags
+    assert "https://example.com/job" not in visible_without_tags
+    assert 'href="https://example.com/job"' in rendered
+    keyboard = _inline_keyboard(sample)
+    assert keyboard == {"inline_keyboard": [[{"text": "📝 APPLY NOW", "url": "https://example.com/apply"}]]}
+    assert '<tg-button-row' in rendered and 'type="url"' in rendered and 'APPLY NOW</tg-button>' in rendered
     assert rich_visible_length(rendered) <= MAX_RICH_CHARACTERS
-    assert rendered.index("🎯 Suitable For") < rendered.index("📌 Key Highlights") < rendered.index("📝 Apply Now") < rendered.index("🔎 Source")
+    assert rendered.index("JOB SNAPSHOT") < rendered.index("🎯 Suitable For") < rendered.index("📌 Key Highlights") < rendered.index("Official Source")
 
     # Reference-framework parity tests that do not require network access.
     assert complete_text("A normal sentence.")
@@ -3886,7 +3993,7 @@ def self_test():
         globals()["download_image"] = original_download_image
         globals()["download_source_logo"] = original_download_source_logo
 
-    logger.info("CareerNewsBot V2 self-test passed.")
+    logger.info("CareerNewsBot V2.1 self-test passed.")
 
 
 
