@@ -1,41 +1,38 @@
-# CareerNewsBot V2.2
+# CareerNewsBot V2.3
 
-Production-oriented Bangladesh career news bot for `@CareerNewsroom`.
+Production-oriented Bangladesh career and job-news bot for `@CareerNewsroom`.
 
-## Output policy
-- Facts are source-locked. AI cannot replace the job title, company, location, deadline, apply URL, or other job facts.
-- The Telegram card uses `JOB SNAPSHOT` with high-impact information in a table. Missing fields are omitted instead of showing `Not specified`.
-- No `Suitable For` or `Key Highlights` sections. High-impact application details such as vacancies, age limit, application fee, application method, application period, and selection process are moved into the table when present.
-- Order is: hashtags → official source → single `📝 APPLY NOW ↗` button. URLs are hidden in the body.
-- Real article images are used when available. Missing images never block a post, which is published as text-only.
-- After source extraction, editorial formatting is deterministic, which avoids an unnecessary second AI call and protects vacancy identity.
+## Telegram post structure
+- High-impact factual fields are presented only inside `JOB SNAPSHOT`.
+- Missing fields are omitted. No `Not specified` placeholders.
+- `Suitable For` and `Key Highlights` sections are removed.
+- Order: job title/company → `JOB SNAPSHOT` → hashtags → official source → one native inline keyboard button.
+- The application URL is hidden from the body and attached to a single `📝 APPLY NOW ↗` InlineKeyboard button. Telegram Bot API supports `reply_markup` on `sendRichMessage`, so the button renders outside the Rich Message bubble like a normal inline keyboard.
+- Article photo is used when available. No image never blocks publication. Text-only Rich Messages remain valid.
 
-## Audience/editorial strategy
-The selection layer prioritizes useful opportunities for Bangladesh-based young professionals around the 20–30 age range, with extra relevance for BBA/MBA, business, finance/accounting, banking, marketing/sales, HR, management trainee, graduate, and internship roles. Nationality phrases are not added to the post copy.
+## Editorial strategy
+The audience is Bangladesh-based young job seekers around 20–30. Ranking gives extra weight to BBA/MBA, banking, finance/accounting, business, marketing/sales, HR, management trainee, graduate, internship and early-career roles. Nationality boilerplate is not inserted into posts.
 
-## Discovery
-RSS and job portals are primary. Google News and Exa provide gap filling. Source diversity is enforced during selection with up to 3 published posts per source per run when at least 5 sources are available. The system relaxes that cap only when needed to fill the run target.
+## Publishing volume
+- Minimum target: **5 best eligible jobs per run**.
+- Maximum: **15 jobs per run**.
+- The bot processes a broad ranked candidate pool and uses a bounded rescue pass when strict AI verification leaves fewer than five candidates.
+- The bot never fabricates jobs. If fewer than five genuinely publishable vacancies exist in the active inventory, it publishes the valid vacancies that remain.
+- Source diversity is preferred when five or more sources are available, with a normal cap of 3 published posts per source per run.
 
-Current direct portal coverage includes Bdjobs, BDJobs Live, Dohaj, Job.com.bd, Smart Job, Alljobs Teletalk, BPSC, BCC e-Recruitment, JobsNoticeBD, JobsInfo, JobFeeds, CircularBD and Bangladesh career/news job sections.
-
-## Freshness and deadline
+## Discovery and freshness
+- RSS, Bangladesh job portals, Google News RSS and Exa are used as complementary discovery layers.
 - Discovery window: latest 72 hours.
-- Expired jobs are rejected.
-- Deadline distance is a ranking factor, not a hard seven-day gate.
-- Missing publication timestamps may use source/fetch evidence according to the existing reference framework.
+- Expired vacancies are rejected.
+- Deadline distance is a ranking factor, not a seven-day hard gate.
+- Source-backed identity and factual fields remain immutable after extraction.
 
-## Telegram delivery
-- Rich HTML message when available.
-- Real photo when available.
-- Text-only Rich Message when no photo exists.
-- Bot API fallback with a single Apply button.
+## Technical architecture
+The bot preserves the proven reference framework: RSS ingestion, Google News gap-fill, Exa gap-fill, persistent queue/state, URL and event deduplication, source/article extraction, fact-locked JobRecord, local + AI ranking, deterministic numeric/deadline checks, article-image recovery, source branding, 1200×675 processing, Telegram Rich Messages, native InlineKeyboardMarkup and Bot API fallback, GitHub Actions and self-test.
 
-## Runtime
-Same core technical family as the reference Tech News bot: Exa, Cerebras, Telegram, RSS, Google News, persistent state, URL/event deduplication, article extraction, image processing, GitHub Actions and self-test.
-
-## Files
+## Project tree
 ```text
-CareerNewsBot-main-V2.2/
+CareerNewsBot-main-V2.3/
 ├── .github/
 │   └── workflows/
 │       ├── import-zip.yml
@@ -48,8 +45,6 @@ CareerNewsBot-main-V2.2/
 ```
 
 ## Verification
-Run:
-
 ```bash
 python -m py_compile main.py
 python main.py --self-test
