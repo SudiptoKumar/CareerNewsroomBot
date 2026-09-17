@@ -1,4 +1,4 @@
-name: CareerNewsroom V1
+name: CareerNewsroom V1.2
 
 on:
   schedule:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run-career-bot:
+  run-news-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -48,8 +48,7 @@ jobs:
         run: python -m py_compile main.py
 
       - name: Run self-test
-        run: |
-          EXA_API_KEY=dummy CEREBRAS_API_KEY=dummy TELEGRAM_BOT_TOKEN=dummy python main.py --self-test
+        run: python main.py --self-test
 
       - name: Run CareerNewsroom
         run: python main.py
