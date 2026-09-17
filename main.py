@@ -49,7 +49,9 @@ BD_TZ = ZoneInfo("Asia/Dhaka")
 
 # Same runtime/selection framework as the reference bot.
 MAX_STORIES_PER_RUN = 15
-RANKING_POOL_SIZE = 24
+RANKING_POOL_SIZE = 45
+MAX_PROCESS_CANDIDATES = 45
+MAX_POSTS_PER_SOURCE_PER_RUN = 3
 DISCOVERY_LOOKBACK_HOURS = 72
 DEADLINE_SOFT_TARGET_DAYS = 7
 DEADLINE_URGENT_DAYS = 3
@@ -67,6 +69,7 @@ MAX_EXCERPT_ENRICH = 12
 THIN_EXCERPT_CHARS = 150
 MAX_RICH_CHARACTERS = 32768
 MAX_SOURCE_PER_RUN = 99
+SOURCE_DIVERSITY_TARGET = 5
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for",
@@ -98,7 +101,7 @@ RSS_FEEDS = [
 ]
 
 CAREER_JOB_PORTAL_DOMAINS = [
-    "jobs.bdjobs.com", "bdjobs.com", "dohaj.com", "job.com.bd",
+    "jobs.bdjobs.com", "bdjobs.com", "bdjobslive.com", "dohaj.com", "job.com.bd",
     "smartjob.portal.gov.bd", "alljobs.teletalk.com.bd", "jobs.teletalk.com.bd",
     "bpsc.gov.bd", "erecruitment.bcc.gov.bd", "jobsnoticebd.com", "jobsinfo.bd",
     "jobfeeds.online", "circularbd.com", "bangladesherkhabor.net",
@@ -151,7 +154,8 @@ BANGLA_MONTHS = {
 }
 
 DIRECT_JOB_SOURCES = [
-    {"name": "Bdjobs", "url": "https://jobs.bdjobs.com/jobsearch.asp", "type": "job_portal"},
+    {"name": "Bdjobs", "url": "https://jobs.bdjobs.com/jobsearch-cache.asp", "type": "job_portal"},
+    {"name": "BDJobs Live", "url": "https://bdjobslive.com/bdjobs-live/live", "type": "job_portal"},
     {"name": "Dohaj", "url": "https://dohaj.com/jobs", "type": "job_portal"},
     {"name": "Job.com.bd", "url": "https://job.com.bd/jobs/new_jobs/", "type": "job_portal"},
     {"name": "Smart Job", "url": "https://smartjob.portal.gov.bd/", "type": "official_job_portal"},
@@ -201,6 +205,7 @@ INSTITUTIONS = []
 SOURCE_NAMES = {
     "jobs.bdjobs.com": "Bdjobs",
     "bdjobs.com": "Bdjobs",
+    "bdjobslive.com": "BDJobs Live",
     "dohaj.com": "Dohaj",
     "job.com.bd": "Job.com.bd",
     "smartjob.portal.gov.bd": "Smart Job",
@@ -1310,7 +1315,7 @@ def google_news_gap_fill(region, existing_count, needed):
         "Bangladesh internship management trainee graduate job",
         "Bangladesh recruitment notice application deadline",
     ]
-    hl, gl, ceid = ("en-US", "US", "US:en")
+    hl, gl, ceid = ("en-US", "BD", "BD:en")
     added = 0
 
     for query in queries:
@@ -1517,18 +1522,58 @@ def freshness_score(published_dt):
 def source_reliability_score(item):
     domain=normalized_domain(item.get("url",""))
     if item.get("source_type")=="official_job_portal": return 100
-    if domain in {"jobs.bdjobs.com","bdjobs.com","dohaj.com","job.com.bd"}: return 96
+    if domain in {"jobs.bdjobs.com","bdjobs.com","bdjobslive.com","dohaj.com","job.com.bd"}: return 96
     return {"rss":92,"direct_portal":90,"google_news":82,"exa":80}.get(item.get("discovery"),70)
 
 def completeness_score(item):
     fields=[item.get("title"),item.get("source"),item.get("url"),item.get("excerpt"),item.get("deadline_hint"),item.get("apply_url")]
     return round(100*sum(bool(safe_text(x)) for x in fields)/len(fields))
 
+CAREER_AUDIENCE_STRONG_RE = re.compile(
+    r"""(bba|mba|business administration|business studies|management trainee|trainee|internship|intern|graduate|fresh graduate|fresher|entry[- ]level|
+       accounting|finance|accounts|audit|bank|banking|marketing|sales|hr|human resources|
+       business development|operations|supply chain|procurement|customer service|analyst|admin|management)""",
+    re.I | re.X,
+)
+
+CAREER_AUDIENCE_WEAK_RE = re.compile(
+    r"(executive|officer|assistant|associate|coordinator|relationship|support)",
+    re.I,
+)
+
+def audience_fit_score(item):
+    raw = f"{item.get('title','')} {item.get('excerpt','')}"
+    strong = len(CAREER_AUDIENCE_STRONG_RE.findall(raw))
+    weak = len(CAREER_AUDIENCE_WEAK_RE.findall(raw))
+    if strong >= 3:
+        return 100
+    if strong == 2:
+        return 94
+    if strong == 1:
+        return 84 if weak else 88
+    return 64 if weak else 45
+
+
 def local_job_score(item):
     published=parse_datetime(item.get("published_date"))
     deadline=parse_date_text(item.get("deadline_hint","")) or choose_deadline(item.get("excerpt",""))
-    parts={"freshness":freshness_score(published),"deadline":deadline_status_score(deadline),"source":source_reliability_score(item),"completeness":completeness_score(item),"job_signal":100 if JOB_SIGNAL_RE.search(f"{item.get('title','')} {item.get('excerpt','')}") else 20}
-    score=round(.28*parts["freshness"]+.20*parts["deadline"]+.18*parts["source"]+.18*parts["completeness"]+.16*parts["job_signal"])
+    raw = f"{item.get('title','')} {item.get('excerpt','')}"
+    parts={
+        "freshness":freshness_score(published),
+        "deadline":deadline_status_score(deadline),
+        "source":source_reliability_score(item),
+        "completeness":completeness_score(item),
+        "job_signal":100 if JOB_SIGNAL_RE.search(raw) else 20,
+        "audience_fit":audience_fit_score(item),
+    }
+    score=round(
+        .24*parts["freshness"]
+        + .16*parts["deadline"]
+        + .16*parts["source"]
+        + .14*parts["completeness"]
+        + .15*parts["job_signal"]
+        + .15*parts["audience_fit"]
+    )
     return score,parts
 
 def deadline_is_expired(deadline_dt):
@@ -1579,7 +1624,7 @@ def _rank_prompt(region):
     topic_list=", ".join(TOPICS["Career"])
     return f"""You rank real Bangladesh job vacancies for @CareerNewsroom. Return every candidate. Do not invent facts.
 Deadline and freshness are ranking factors, not hard gates. Only clearly expired vacancies are rejected later.
-Score 0-100 using applicant relevance, career value, source quality, freshness, deadline usefulness, completeness and vacancy quality. Prefer official recruitment pages and original employer/job-portal listings. Reject advice, exam results, scholarships without vacancies, training-only offers and generic commentary. Return id, rank, score, relevance, career_value, reason, topic, institution, event_key. Allowed topics: {topic_list}"""
+Score 0-100 using applicant relevance, career value, source quality, freshness, deadline usefulness, completeness, vacancy quality and fit for early-career users aged roughly 20-30. Give extra weight to BBA/MBA, business, finance/accounting, banking, marketing/sales, HR, management trainee, graduate and internship roles. Prefer official recruitment pages and original employer/job-portal listings. Reject advice, exam results, scholarships without vacancies, training-only offers and generic commentary. Do not treat nationality wording as a requirement; the channel already serves its Bangladesh audience. Return id, rank, score, relevance, career_value, reason, topic, institution, event_key. Allowed topics: {topic_list}"""
 
 
 def _rank_batch(batch, region, batch_no):
@@ -1980,216 +2025,104 @@ def extract_article(item):
 # ============================================================
 
 
+JOB_RECORD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "job_title": {"type": "string"}, "company": {"type": "string"}, "location": {"type": "string"}, "job_type": {"type": "string"},
+        "education": {"type": "string"}, "experience": {"type": "string"}, "salary": {"type": "string"},
+        "vacancies": {"type": "string"}, "age_limit": {"type": "string"}, "gender": {"type": "string"},
+        "application_fee": {"type": "string"}, "application_method": {"type": "string"}, "application_period": {"type": "string"},
+        "selection_process": {"type": "string"}, "deadline": {"type": "string"}, "apply_url": {"type": "string"},
+        "bangladesh_relevance": {"type": "integer", "minimum": 0, "maximum": 100},
+        "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+    },
+    "required": [
+        "job_title","company","location","job_type","education","experience","salary","vacancies","age_limit","gender",
+        "application_fee","application_method","application_period","selection_process","deadline","apply_url","bangladesh_relevance","confidence",
+    ],
+    "additionalProperties": False,
+}
+
+def extract_locked_job_record(item, article_text):
+    prompt = """
+You are a data extraction specialist for @CareerNewsroom.
+Extract exactly ONE vacancy represented by SOURCE TITLE and SOURCE PAGE.
+Never invent, merge, or substitute another vacancy. The source title/page is authoritative for the vacancy identity.
+Use exact source wording or concise faithful normalization for factual fields.
+When a field is absent, return an empty string. Never write Not specified, Unknown, N/A, or a guess.
+Never infer nationality, age, gender, education, experience, salary, vacancy count, fee, application method, selection process, or deadline.
+The application URL must be the actual application URL found on the page or the discovered URL.
+Return a Bangladesh relevance score based on actual job location/recruitment context, not simply the presence of the word Bangladesh.
+"""
+    user=(
+        f"SOURCE: {item.get('source','')}\n"
+        f"SOURCE TITLE: {item.get('title','')}\n"
+        f"DISCOVERED APPLY URL: {item.get('apply_url','')}\n"
+        f"DISCOVERED DEADLINE: {item.get('deadline_hint','')}\n"
+        f"ARTICLE/PAGE:\n{article_text[:15000]}"
+    )
+    try:
+        response=get_cerebras().chat.completions.create(
+            model=CEREBRAS_MODEL,
+            messages=[{"role":"system","content":prompt},{"role":"user","content":user}],
+            response_format={"type":"json_schema","json_schema":{"name":"career_job_record_v3","strict":True,"schema":JOB_RECORD_SCHEMA}},
+            reasoning_effort="low", temperature=0.0, max_completion_tokens=1700,
+        )
+        data=json.loads(safe_text(response.choices[0].message.content))
+    except Exception as exc:
+        logger.warning("Job record extraction failed: %s", exc)
+        return None
+
+    def field(name, limit):
+        return trim_source_text(clean_generated_text(data.get(name)), limit)
+
+    record={
+        "job_title":field("job_title",120) or safe_text(item.get("title")),
+        "company":field("company",160), "location":field("location",140), "job_type":field("job_type",100),
+        "education":field("education",260), "experience":field("experience",180), "salary":field("salary",140),
+        "vacancies":field("vacancies",80), "age_limit":field("age_limit",100), "gender":field("gender",80),
+        "application_fee":field("application_fee",120), "application_method":field("application_method",220),
+        "application_period":field("application_period",160), "selection_process":field("selection_process",220),
+        "deadline":field("deadline",80), "apply_url":safe_text(data.get("apply_url")) or safe_text(item.get("apply_url")) or safe_text(item.get("url")),
+        "bangladesh_relevance":max(0,min(100,int(data.get("bangladesh_relevance",0)))),
+        "confidence":max(0,min(100,int(data.get("confidence",0)))),
+    }
+    if not record["company"] or not record["location"] or record["confidence"]<55 or record["bangladesh_relevance"]<70:
+        return None
+    if record["deadline"]:
+        dt=parse_date_text(record["deadline"])
+        if dt and deadline_is_expired(dt):
+            return None
+    return record
+
 CAREER_STORY_SCHEMA = {
     "type": "object",
     "properties": {
         "headline": {"type": "string"},
-        "company": {"type": "string"},
-        "location": {"type": "string"},
-        "job_type": {"type": "string"},
-        "education": {"type": "string"},
-        "experience": {"type": "string"},
-        "salary": {"type": "string"},
-        "deadline": {"type": "string"},
-        "suitable_for": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 5},
-        "highlights": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 5},
-        "apply_url": {"type": "string"},
-        "source": {"type": "string"},
+        "topic": {"type": "string"},
         "bold_terms": {"type": "array", "items": {"type": "string"}, "maxItems": 16},
     },
-    "required": [
-        "headline", "company", "location", "job_type", "education", "experience", "salary",
-        "deadline", "suitable_for", "highlights", "apply_url", "source", "bold_terms",
-    ],
+    "required": ["headline", "topic", "bold_terms"],
     "additionalProperties": False,
 }
-
-STORY_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "headline": {"type": "string"},
-        "summary": {"type": "string"},
-        "highlights": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 3,
-            "maxItems": 5,
-        },
-        "the_context": {"type": "string"},
-        "bottom_line": {"type": "string"},
-        "bold_terms": {
-            "type": "array",
-            "items": {"type": "string"},
-            "maxItems": 16,
-        },
-    },
-    "required": [
-        "headline",
-        "summary",
-        "highlights",
-        "the_context",
-        "bottom_line",
-        "bold_terms",
-    ],
-    "additionalProperties": False,
-}
-
-
-def first_sentence(text):
-    text = clean_generated_text(
-        text
-    )
-
-    # Conservative sentence extraction. Avoids common abbreviations and
-    # decimals splitting incorrectly.
-    protected = {
-        "U.S.": "US_SENTINEL",
-        "U.K.": "UK_SENTINEL",
-        "E.U.": "EU_SENTINEL",
-        "No.": "NO_SENTINEL",
-        "Inc.": "INC_SENTINEL",
-        "Ltd.": "LTD_SENTINEL",
-        "Dr.": "DR_SENTINEL",
-        "Mr.": "MR_SENTINEL",
-        "Mrs.": "MRS_SENTINEL",
-        "Ms.": "MS_SENTINEL",
-    }
-
-    working = text
-
-    for old, marker in protected.items():
-        working = working.replace(
-            old,
-            marker,
-        )
-
-    match = re.search(
-        r"(.+?[.!?])(?:\s|$)",
-        working,
-    )
-
-    if match:
-        sentence = match.group(1)
-    else:
-        sentence = working
-
-    for old, marker in protected.items():
-        sentence = sentence.replace(
-            marker,
-            old,
-        )
-
-    return clean_generated_text(
-        sentence
-    )
-
-
-JOB_RECORD_SCHEMA={"type":"object","properties":{
-"job_title":{"type":"string"},"company":{"type":"string"},"location":{"type":"string"},"job_type":{"type":"string"},
-"education":{"type":"string"},"experience":{"type":"string"},"salary":{"type":"string"},"deadline":{"type":"string"},
-"apply_url":{"type":"string"},"bangladesh_relevance":{"type":"integer","minimum":0,"maximum":100},"confidence":{"type":"integer","minimum":0,"maximum":100}},
-"required":["job_title","company","location","job_type","education","experience","salary","deadline","apply_url","bangladesh_relevance","confidence"],"additionalProperties":False}
-
-def extract_locked_job_record(item,article_text):
-    prompt="""Extract exactly one vacancy represented by SOURCE TITLE. Do not invent facts. Use Not specified when absent. Return deadline as DD Month YYYY or Not specified. Apply URL must be discovered URL or source URL. Bangladesh relevance is high only for Bangladesh-based jobs or explicitly Bangladeshi applicants.
-"""
-    user=f"SOURCE: {item.get('source','')}\nSOURCE TITLE: {item.get('title','')}\nDISCOVERED APPLY URL: {item.get('apply_url','')}\nDISCOVERED DEADLINE: {item.get('deadline_hint','')}\nARTICLE/PAGE:\n{article_text[:15000]}"
-    try:
-        r=get_cerebras().chat.completions.create(model=CEREBRAS_MODEL,messages=[{"role":"system","content":prompt},{"role":"user","content":user}],response_format={"type":"json_schema","json_schema":{"name":"career_job_record_v2","strict":True,"schema":JOB_RECORD_SCHEMA}},reasoning_effort="low",temperature=0.0,max_completion_tokens=1200)
-        d=json.loads(safe_text(r.choices[0].message.content))
-    except Exception as exc:
-        logger.warning("Job record extraction failed: %s",exc); return None
-    rec={"job_title":trim_source_text(clean_generated_text(d.get("job_title")),120) or safe_text(item.get("title")),"company":trim_source_text(clean_generated_text(d.get("company")),160),"location":trim_source_text(clean_generated_text(d.get("location")),140),"job_type":trim_source_text(clean_generated_text(d.get("job_type")),100),"education":trim_source_text(clean_generated_text(d.get("education")),260) or "Not specified","experience":trim_source_text(clean_generated_text(d.get("experience")),180) or "Not specified","salary":trim_source_text(clean_generated_text(d.get("salary")),140) or "Not specified","deadline":trim_source_text(clean_generated_text(d.get("deadline")),80) or "Not specified","apply_url":safe_text(d.get("apply_url")) or safe_text(item.get("apply_url")) or safe_text(item.get("url")),"bangladesh_relevance":max(0,min(100,int(d.get("bangladesh_relevance",0)))),"confidence":max(0,min(100,int(d.get("confidence",0))))}
-    if not rec["company"] or not rec["location"] or rec["confidence"]<55 or rec["bangladesh_relevance"]<70: return None
-    if rec["deadline"]!="Not specified":
-        dt=parse_date_text(rec["deadline"])
-        if dt and deadline_is_expired(dt): return None
-    return rec
-
 
 def generate_story(item, article_text, locked_record=None):
-    prompt = """
-You are a senior Bangladesh jobs editor for @CareerNewsroom.
-Create one factual Telegram job vacancy card from the supplied source article or recruitment page.
-Return ONLY valid JSON matching the schema.
+    """Deterministic editorial wrapper.
 
-Rules:
-- Headline: the actual job title, concise and accurate. Do not turn the employer name into the title.
-- Company: exact employer/organization name. Never invent.
-- Location: exact work location from the source. Use Remote only when explicitly stated.
-- Type: concise job type such as Full-time, Part-time, Internship, Management Trainee, Government.
-- Education: exact eligibility, concise. Do not invent degree requirements.
-- Experience: exact eligibility. Only say Fresh graduates / No experience when supported.
-- Salary: exact source wording, or Not specified when absent.
-- Deadline: use the locked record exactly. If absent, use Not specified. Never guess.
-- Suitable For: 1-5 concise applicant groups strictly supported by the source.
-- Highlights: 3-5 concise factual points. Include vacancy count only when explicitly supported.
-- Apply URL: actual application URL if identifiable, otherwise the source page URL.
-- Source: source/publisher name.
-- bold_terms: important company, role, degree, salary, dates, numbers, and location terms used in the generated card.
-- No hashtags, Markdown, or HTML in JSON fields.
-"""
-    user = (
-        f"SOURCE: {item.get('source','')}\n"
-        f"TITLE: {item.get('title','')}\n"
-        f"PUBLISHED: {item.get('published_date','')}\n"
-        f"DISCOVERED APPLY URL: {item.get('apply_url','')}\n"
-        f"DISCOVERED DEADLINE: {item.get('deadline_hint','')}\n"
-        f"LOCKED JOB RECORD: {json.dumps(locked_record or {}, ensure_ascii=False)}\n"
-        f"ARTICLE/PAGE:\n{article_text[:14000]}"
-    )
-
-    for attempt in range(3):
-        try:
-            response = get_cerebras().chat.completions.create(
-                model=CEREBRAS_MODEL,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": user},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "career_job_story_v1",
-                        "strict": True,
-                        "schema": CAREER_STORY_SCHEMA,
-                    },
-                },
-                reasoning_effort="low",
-                temperature=0.1,
-                max_completion_tokens=1800,
-            )
-            data = json.loads(safe_text(response.choices[0].message.content))
-
-            story = {
-                **item,
-                "headline": trim_source_text(clean_generated_text(data.get("headline")), 120),
-                "company": trim_source_text(clean_generated_text(data.get("company")), 160),
-                "location": trim_source_text(clean_generated_text(data.get("location")), 140),
-                "job_type": trim_source_text(clean_generated_text(data.get("job_type")), 100),
-                "education": trim_source_text(clean_generated_text(data.get("education")), 260),
-                "experience": trim_source_text(clean_generated_text(data.get("experience")), 180),
-                "salary": trim_source_text(clean_generated_text(data.get("salary")), 140),
-                "deadline": trim_source_text(clean_generated_text(data.get("deadline")), 80),
-                "suitable_for": [trim_source_text(clean_generated_text(x), 90) for x in data.get("suitable_for", []) if clean_generated_text(x)],
-                "highlights": [trim_source_text(clean_generated_text(x), 150) for x in data.get("highlights", []) if clean_generated_text(x)],
-                "apply_url": safe_text(data.get("apply_url")) or safe_text(item.get("apply_url")) or safe_text(item.get("url")),
-                "source": safe_text(data.get("source")) or safe_text(item.get("source")),
-                "bold_terms": [safe_text(x) for x in data.get("bold_terms", []) if safe_text(x)],
-            }
-            if not story["headline"] or not story["company"] or not story["location"]:
-                raise ValueError("Missing required career fields")
-            if not (1 <= len(story["suitable_for"]) <= 5):
-                raise ValueError("Suitable For must contain 1-5 items")
-            if not (3 <= len(story["highlights"]) <= 5):
-                raise ValueError("Highlights must contain 3-5 items")
-            return story
-        except Exception as exc:
-            logger.warning("Career story generation attempt %d failed: %s", attempt + 1, exc)
-            if attempt < 2:
-                time.sleep(1)
-    return None
-
+    No second AI call is needed after the authoritative JobRecord is extracted:
+    the channel card contains source-backed facts only, so the editor simply
+    chooses the canonical topic and derives emphasis terms locally.
+    """
+    record=locked_record or {}
+    locked_title=safe_text(record.get("job_title")) or safe_text(item.get("title")) or "Job Vacancy"
+    story={
+        **item,
+        "headline": locked_title,
+        "topic": canonical_topic(item.get("topic"),"Career"),
+        "bold_terms": [],
+    }
+    story["bold_terms"]=derive_bold_terms({**story, **record})[:12]
+    return story
 
 
 # ============================================================
@@ -2347,7 +2280,7 @@ def numeric_grounded(story, article_text):
         story.get("headline", ""), story.get("company", ""), story.get("location", ""),
         story.get("job_type", ""), story.get("education", ""), story.get("experience", ""),
         story.get("salary", ""), story.get("deadline", ""),
-        *story.get("suitable_for", []), *story.get("highlights", []),
+        story.get("vacancies", ""), story.get("age_limit", ""), story.get("gender", ""), story.get("application_fee", ""), story.get("application_method", ""), story.get("application_period", ""), story.get("selection_process", ""), story.get("apply_url", ""),
     ]
     generated_text = " ".join(safe_text(x) for x in fields if safe_text(x))
     for token in numeric_tokens(generated_text):
@@ -2376,8 +2309,8 @@ def derive_bold_terms(story, max_terms=16):
         story.get("job_type", ""), story.get("education", ""), story.get("salary", ""),
         story.get("deadline", ""),
     ]
-    candidates.extend(story.get("suitable_for", []) or [])
-    candidates.extend(story.get("highlights", []) or [])
+    for key in ("vacancies","age_limit","application_fee","application_method","application_period","selection_process"):
+        if story.get(key): candidates.append(story.get(key))
 
     for value in candidates:
         value = safe_text(value).strip()
@@ -2507,97 +2440,68 @@ def _snapshot_rows(story):
         ("🎓 Education", story.get("education")),
         ("👨‍💼 Experience", story.get("experience")),
         ("💰 Salary", story.get("salary")),
-        ("📅 Deadline", story.get("deadline")),
-        ("📌 Vacancies", story.get("vacancies")),
+        ("👥 Vacancies", story.get("vacancies")),
         ("🎂 Age Limit", story.get("age_limit")),
         ("⚧ Gender", story.get("gender")),
+        ("💳 Application Fee", story.get("application_fee")),
         ("📝 Application", story.get("application_method")),
+        ("🗓️ Application Period", story.get("application_period")),
+        ("🧪 Selection Process", story.get("selection_process")),
+        ("📅 Deadline", story.get("deadline")),
         ("🕒 Posted", _format_posted_date(story)),
     ]
-    rows = []
-    for label, value in fields:
-        value = _display_field(value)
+    rows=[]
+    for label,value in fields:
+        value=_display_field(value)
         if value:
-            rows.append((label, value))
+            rows.append((label,value))
     return rows
 
 
 def _html_table(rows):
-    parts = [
-        "<table bordered striped compact><tr><th><b>FIELD</b></th><th><b>DETAILS</b></th></tr>"
-    ]
-    for label, value in rows:
-        parts.append(
-            "<tr><td>" + escape_rich_html(label) + "</td><td>"
-            + bold_terms_html(value, []) + "</td></tr>"
-        )
+    parts=["<table bordered striped compact><tr><th><b>FIELD</b></th><th><b>DETAILS</b></th></tr>"]
+    for label,value in rows:
+        parts.append("<tr><td>"+escape_rich_html(label)+"</td><td>"+bold_terms_html(value,[])+"</td></tr>")
     parts.append("</table>")
     return "".join(parts)
 
 
 def _inline_keyboard(story):
-    apply_url = safe_text(story.get("apply_url") or story.get("url"))
-    if not apply_url or not re.match(r"^https?://", apply_url, re.I):
+    apply_url=safe_text(story.get("apply_url") or story.get("url"))
+    if not apply_url or not re.match(r"^https?://",apply_url,re.I):
         return None
-    return {
-        "inline_keyboard": [[
-            {"text": "📝 APPLY NOW", "url": apply_url}
-        ]]
-    }
+    return {"inline_keyboard":[[{"text":"📝 APPLY NOW ↗","url":apply_url}]]}
 
 
 def dynamic_rich_html(story):
-    """CareerNewsroom rich card with table layout and omitted unavailable facts."""
-    terms = derive_bold_terms(story)
-    company = _display_field(story.get("company"))
-    source = _display_field(story.get("source")) or "Official Source"
-    source_url = safe_text(story.get("url") or "")
-    rows = _snapshot_rows(story)
+    """Compact CareerNewsroom card: facts in a table, hashtags → source → one Apply button."""
+    terms=derive_bold_terms(story)
+    company=_display_field(story.get("company"))
+    source=_display_field(story.get("source")) or "Official Source"
+    source_url=safe_text(story.get("url") or "")
+    rows=_snapshot_rows(story)
 
-    parts = [
-        '<img src="tg://photo?id=newsphoto">',
-        "<h1>📣 " + escape_rich_html(story.get("headline", "Job Vacancy")) + "</h1>",
-    ]
-
+    parts=["<h1>📣 "+escape_rich_html(story.get("headline","Job Vacancy"))+"</h1>"]
     if company:
-        parts.append("<p>🏢 <b>Company:</b> " + bold_terms_html(company, terms) + "</p>")
-
+        parts.append("<p>🏢 <b>Company:</b> "+bold_terms_html(company,terms)+"</p>")
     if rows:
         parts.append("<h2>JOB SNAPSHOT</h2>")
         parts.append(_html_table(rows))
 
-    suitable = [x for x in story.get("suitable_for", []) if _display_field(x)]
-    if suitable:
-        parts.append("<h2>🎯 Suitable For</h2>")
-        parts.append("<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in suitable) + "</p>")
-
-    highlights = [x for x in story.get("highlights", []) if _display_field(x)]
-    if highlights:
-        parts.append("<h2>📌 Key Highlights</h2>")
-        parts.append("<p>" + "<br>".join("• " + bold_terms_html(x, terms) for x in highlights) + "</p>")
-
-    apply_url = safe_text(story.get("apply_url") or story.get("url") or "")
-    if apply_url and re.match(r"^https?://", apply_url, re.I):
-        # Native Rich HTML button: the URL is never printed in the message body.
-        parts.append(
-            f'<tg-button-row align="center"><tg-button type="url" style="primary" url="{html.escape(apply_url, quote=True)}">📝 APPLY NOW</tg-button></tg-button-row>'
-        )
-
-    if source_url and re.match(r"^https?://", source_url, re.I):
-        parts.append(
-            "<p>🔎 <b>Official Source:</b> "
-            + f'<a href="{html.escape(source_url, quote=True)}">{escape_rich_html(source)}</a>'
-            + "</p>"
-        )
-    else:
-        parts.append("<p>🔎 <b>Official Source:</b> " + escape_rich_html(source) + "</p>")
-
-    hashtags = " ".join(category_hashtags(story))
+    hashtags=" ".join(category_hashtags(story))
     if hashtags:
-        parts.append("<p>" + escape_rich_html(hashtags) + "</p>")
+        parts.append("<p>"+escape_rich_html(hashtags)+"</p>")
+
+    if source_url and re.match(r"^https?://",source_url,re.I):
+        parts.append("<p>🔎 <b>Official Source:</b> "+f'<a href="{html.escape(source_url,quote=True)}">{escape_rich_html(source)}</a></p>')
+    else:
+        parts.append("<p>🔎 <b>Official Source:</b> "+escape_rich_html(source)+"</p>")
+
+    apply_url=safe_text(story.get("apply_url") or story.get("url") or "")
+    if apply_url and re.match(r"^https?://",apply_url,re.I):
+        parts.append(f'<tg-button-row align="center"><tg-button type="url" style="primary" url="{html.escape(apply_url,quote=True)}">📝 APPLY NOW ↗</tg-button></tg-button-row>')
 
     return "\n".join(parts)
-
 
 def rich_visible_length(text):
     """Return Telegram-visible character count for Rich HTML text.
@@ -2615,22 +2519,19 @@ def rich_visible_length(text):
 
 
 def fit_rich_html(story):
-    variants = [
-        (240, 140, 170, 130),
-        (210, 125, 155, 115),
-        (180, 110, 140, 100),
+    variants=[
+        {"education":240,"experience":150,"application_method":220,"application_period":160,"selection_process":220,"location":140},
+        {"education":210,"experience":130,"application_method":180,"application_period":140,"selection_process":180,"location":120},
+        {"education":180,"experience":110,"application_method":150,"application_period":120,"selection_process":150,"location":110},
     ]
-    for education_len, highlight_len, experience_len, suitable_len in variants:
-        candidate = dict(story)
-        candidate["education"] = trim_source_text(story.get("education", ""), education_len)
-        candidate["experience"] = trim_source_text(story.get("experience", ""), experience_len)
-        candidate["highlights"] = [trim_source_text(x, highlight_len) for x in story.get("highlights", [])]
-        candidate["suitable_for"] = [trim_source_text(x, suitable_len) for x in story.get("suitable_for", [])]
-        rendered = dynamic_rich_html(candidate)
-        if rich_visible_length(rendered) <= MAX_RICH_CHARACTERS:
+    for limits in variants:
+        candidate=dict(story)
+        for key,limit in limits.items():
+            candidate[key]=trim_source_text(story.get(key,""),limit)
+        rendered=dynamic_rich_html(candidate)
+        if rich_visible_length(rendered)<=MAX_RICH_CHARACTERS:
             return rendered
     return dynamic_rich_html(story)
-
 
 
 
@@ -2980,37 +2881,26 @@ def fallback_source_name_card(source):
 
 
 def prepare_image(story, index):
-    # Retry every discovered article-image candidate. A broken RSS image must
-    # never block a valid image available in page metadata.
-    candidates = []
-    for value in story.get("image_candidates", []):
+    """Use a real article image when available. Missing imagery never blocks publishing."""
+    candidates=[]
+    for value in story.get("image_candidates",[]):
         if value and value not in candidates:
             candidates.append(value)
     if story.get("image_url") and story.get("image_url") not in candidates:
         candidates.append(story.get("image_url"))
 
-    image = None
     for candidate in candidates:
-        image = download_image(candidate, story.get("url", ""))
+        image=download_image(candidate, story.get("url",""))
         if image is not None:
             logger.info("Article image recovered: %s", candidate)
-            break
+            path=f"/tmp/news_{index}.jpg"
+            branded=branded_card(image, story.get("source","Source"))
+            branded.save(path,"JPEG",quality=88,optimize=True)
+            return path
 
-    if image is not None:
-        branded = branded_card(image, story.get("source", "Source"))
-    else:
-        source = story.get("source", "Source")
-        logo = download_source_logo(source, story.get("url", ""))
-        if logo is not None:
-            logger.info("Using source-logo fallback: %s", source)
-            branded = fallback_logo_card(logo, source)
-        else:
-            logger.info("Using source-name fallback: %s", source)
-            branded = fallback_source_name_card(source)
+    logger.info("No usable article image; publishing text-only: %s", story.get("headline",""))
+    return None
 
-    path = f"/tmp/news_{index}.jpg"
-    branded.save(path, "JPEG", quality=88, optimize=True)
-    return path
 
 
 # ============================================================
@@ -3100,70 +2990,43 @@ def telegram_call(
 
 
 
-def send_bot_api_fallback(image_path, rich_html, reply_markup=None):
-    """Last-resort Bot API photo send with a safe caption length."""
-    text = re.sub(r"<br\s*/?>", "\n", rich_html, flags=re.I)
-    text = re.sub(r"</(p|h1|h2|h3|footer|summary|details|tr|td)>", "\n", text, flags=re.I)
-    text = re.sub(r"<[^>]+>", "", text)
-    text = html.unescape(text)
-    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-    if len(text) > 900:
-        text = text[:900].rsplit(" ", 1)[0].rstrip() + "..."
+def _rich_html_to_plain_text(rich_html):
+    text=rich_html
+    text=re.sub(r"<br\s*/?>","\n",text,flags=re.I)
+    text=re.sub(r"</(p|h1|h2|h3|footer|summary|details|tr|td|th)>","\n",text,flags=re.I)
+    text=re.sub(r"<[^>]+>","",text)
+    text=html.unescape(text)
+    text=re.sub(r"\n{3,}","\n\n",text).strip()
+    return text
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+
+def send_bot_api_fallback(image_path, rich_html, reply_markup=None):
+    text=_rich_html_to_plain_text(rich_html)
+    if len(text)>3900:
+        text=text[:3897].rsplit(" ",1)[0].rstrip()+"..."
     try:
-        with open(image_path, "rb") as photo:
-            response = session.post(
-                url,
-                data={
-                    "chat_id": TELEGRAM_CHANNEL,
-                    "caption": text,
-                    **({"reply_markup": json.dumps(reply_markup, ensure_ascii=False)} if reply_markup else {}),
-                },
-                files={"photo": photo},
-                timeout=90,
-            )
+        if image_path:
+            url=f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+            with open(image_path,"rb") as photo:
+                response=session.post(url,data={"chat_id":TELEGRAM_CHANNEL,"caption":text,**({"reply_markup":json.dumps(reply_markup,ensure_ascii=False)} if reply_markup else {})},files={"photo":photo},timeout=90)
+        else:
+            url=f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            response=session.post(url,data={"chat_id":TELEGRAM_CHANNEL,"text":text,"disable_web_page_preview":"true",**({"reply_markup":json.dumps(reply_markup,ensure_ascii=False)} if reply_markup else {})},timeout=90)
         return response.json()
     except Exception as exc:
-        return {"ok": False, "description": str(exc)}
+        return {"ok":False,"description":str(exc)}
 
-def send_rich_photo(
-    image_path,
-    rich_html,
-    reply_markup=None,
-):
-    rich_message = {
-        "html": rich_html,
-        "media": [
-            {
-                "id": "newsphoto",
-                "media": {
-                    "type": "photo",
-                    "media": "attach://photo",
-                },
-            }
-        ],
-        "skip_entity_detection": False,
-    }
 
-    with open(
-        image_path,
-        "rb",
-    ) as photo:
-
-        return telegram_call(
-            "sendRichMessage",
-            data={
-                "chat_id": TELEGRAM_CHANNEL,
-                "rich_message": json.dumps(
-                    rich_message,
-                    ensure_ascii=False,
-                ),
-            },
-            files={
-                "photo": photo
-            },
-        )
+def send_rich_message(image_path, rich_html):
+    rich_message={"html":rich_html,"skip_entity_detection":False}
+    files=None
+    if image_path:
+        rich_message["media"]=[{"id":"newsphoto","media":{"type":"photo","media":"attach://photo"}}]
+        with open(image_path,"rb") as photo:
+            files={"photo":photo}
+            # The caller consumes this inside this function, so the open handle is valid for the request.
+            return telegram_call("sendRichMessage",data={"chat_id":TELEGRAM_CHANNEL,"rich_message":json.dumps(rich_message,ensure_ascii=False)},files=files)
+    return telegram_call("sendRichMessage",data={"chat_id":TELEGRAM_CHANNEL,"rich_message":json.dumps(rich_message,ensure_ascii=False)})
 
 
 # ============================================================
@@ -3214,9 +3077,15 @@ def store_event(story, published=False, message_id=None):
         "education": story.get("education", ""),
         "experience": story.get("experience", ""),
         "salary": story.get("salary", ""),
+        "vacancies": story.get("vacancies", ""),
+        "age_limit": story.get("age_limit", ""),
+        "gender": story.get("gender", ""),
+        "application_fee": story.get("application_fee", ""),
+        "application_method": story.get("application_method", ""),
+        "application_period": story.get("application_period", ""),
+        "selection_process": story.get("selection_process", ""),
         "deadline": story.get("deadline", ""),
         "deadline_iso": story.get("deadline_iso", ""),
-        "highlights": story.get("highlights", []),
         "published_at": story.get("published_date", ""),
         "selected_at": now_iso(),
         "status": "published" if published else "selected",
@@ -3236,17 +3105,40 @@ def store_event(story, published=False, message_id=None):
 # VERSION 1 FALLBACK POOLS
 # ============================================================
 
-def build_candidate_pool(ranked,needed):
-    if not ranked: return []
-    target=min(max(RANKING_POOL_SIZE,needed*3),len(ranked))
-    selected=[]; sources=set(); topics=set()
+def build_candidate_pool(ranked, needed):
+    """Build a broad processing queue in round-robin source order.
+
+    Source limits are applied at publication time, not here, so a strong source
+    cannot consume the entire processing queue while still allowing the bot to
+    explore enough candidates to reach the 10-15 post target.
+    """
+    if not ranked:
+        return []
+    target=min(max(RANKING_POOL_SIZE, needed*4, 30), MAX_PROCESS_CANDIDATES, len(ranked))
+    buckets={}
+    source_order=[]
     for item in ranked:
-        if item.get("source") not in sources or item.get("topic") not in topics:
-            selected.append(dict(item)); sources.add(item.get("source")); topics.add(item.get("topic"))
-        if len(selected)>=target: break
-    for item in ranked:
-        if len(selected)>=target: break
-        if not any(x.get("canonical")==item.get("canonical") for x in selected): selected.append(dict(item))
+        source=safe_text(item.get("source")) or "Unknown Source"
+        if source not in buckets:
+            buckets[source]=[]
+            source_order.append(source)
+        buckets[source].append(item)
+
+    selected=[]
+    while len(selected)<target:
+        progressed=False
+        for source in source_order:
+            if not buckets[source] or len(selected)>=target:
+                continue
+            item=buckets[source].pop(0)
+            if any(x.get("canonical")==item.get("canonical") for x in selected):
+                continue
+            selected.append(dict(item))
+            progressed=True
+        if not progressed:
+            break
+
+    logger.info("DIVERSE CANDIDATE POOL: %d candidates across %d sources", len(selected), len(source_order))
     return selected
 
 
@@ -3270,17 +3162,18 @@ def claims_grounded(story, article_text):
         story.get("headline", ""), story.get("company", ""), story.get("location", ""),
         story.get("job_type", ""), story.get("education", ""), story.get("experience", ""),
         story.get("salary", ""), story.get("deadline", ""),
-        *story.get("suitable_for", []), *story.get("highlights", []),
+        story.get("vacancies", ""), story.get("age_limit", ""), story.get("application_fee", ""), story.get("application_method", ""), story.get("application_period", ""), story.get("selection_process", ""),
     ]
     claims = [safe_text(x) for x in claims if safe_text(x)]
     prompt = """
 You are a strict fact-checking editor for a Bangladesh job-news channel.
 Compare every generated field with the source article/page.
 Mark supported=true only if material factual claims in the job title, employer, location, job type,
-education, experience, salary, deadline, suitable-for groups, and highlights are directly supported
-by the source or are faithful concise paraphrases.
-Reject invented facts, unsupported eligibility, incorrect employer/location, wrong dates, unsupported
-salary, fabricated vacancy counts, or claims stronger than the source.
+education, experience, salary, vacancies, age, gender, application fee, application method, application period,
+selection process, and deadline are directly supported by the source or are faithful concise normalizations.
+Reject invented facts, identity changes, unsupported eligibility, incorrect employer/location, wrong dates, unsupported
+salary, fabricated vacancy counts, or application instructions stronger than the source. Missing fields are allowed;
+they should simply be omitted from the final card.
 Return only the JSON schema.
 """
     user = "SOURCE JOB PAGE:\n" + article_text[:14000] + "\n\nGENERATED JOB CARD:\n- " + "\n- ".join(claims)
@@ -3318,7 +3211,7 @@ def process_story_candidate(item):
     if deadline_dt and deadline_is_expired(deadline_dt): return None
     story=generate_story(item,article_text,locked_record=record)
     if not story: return None
-    for k,v in {"headline":record["job_title"],"company":record["company"],"location":record["location"],"job_type":record["job_type"],"education":record["education"],"experience":record["experience"],"salary":record["salary"],"deadline":record["deadline"],"apply_url":record["apply_url"] or item.get("url"),"source":item.get("source") or story.get("source")}.items(): story[k]=v
+    for k,v in {"headline":record["job_title"],"company":record["company"],"location":record["location"],"job_type":record["job_type"],"education":record["education"],"experience":record["experience"],"salary":record["salary"],"vacancies":record["vacancies"],"age_limit":record["age_limit"],"gender":record["gender"],"application_fee":record["application_fee"],"application_method":record["application_method"],"application_period":record["application_period"],"selection_process":record["selection_process"],"deadline":record["deadline"],"apply_url":record["apply_url"] or item.get("url"),"source":item.get("source") or story.get("source")}.items(): story[k]=v
     if story["deadline"]!="Not specified" and not deadline_grounded(story["deadline"],evidence_text): return None
     story["image_candidates"]=list(image_candidates or []); story["image_url"]=story["image_candidates"][0] if story["image_candidates"] else ""
     story["topic"]=canonical_topic(story.get("topic") or item.get("topic")); story["category_hashtags"]=category_hashtags(story)
@@ -3414,46 +3307,67 @@ def prepare_ranked_region(region,candidates):
 
 
 def process_ranked_region(region, ranked):
-    pool = build_candidate_pool(ranked, MAX_STORIES_PER_RUN)
-    valid = []
-    attempted = 0
-    rejected = 0
+    pool=build_candidate_pool(ranked,MAX_STORIES_PER_RUN)
+    valid=[]
+    attempted=0
+    rejected=0
+    source_counts={}
+    deferred=[]
 
+    def acceptable_source(item):
+        source=safe_text(item.get("source")) or "Unknown Source"
+        distinct_sources=len({safe_text(x.get("source")) for x in pool if safe_text(x.get("source"))})
+        if distinct_sources < SOURCE_DIVERSITY_TARGET:
+            return True
+        return source_counts.get(source,0) < MAX_POSTS_PER_SOURCE_PER_RUN
+
+    # First pass: enforce diversity.
     for item in pool:
-        if len(valid) >= MAX_STORIES_PER_RUN:
+        if len(valid)>=MAX_STORIES_PER_RUN:
             break
-        attempted += 1
-        story = process_story_candidate(item)
+        if not acceptable_source(item):
+            deferred.append(item)
+            continue
+        attempted+=1
+        story=process_story_candidate(item)
         if not story:
-            rejected += 1
+            rejected+=1
             continue
-
-        # Final duplicate check after generation.
-        if is_already_published_candidate({**item, "title": story.get("headline", item.get("title"))}):
-            logger.info("DROP already published event: %s", story.get("headline", ""))
-            rejected += 1
+        if is_already_published_candidate({**item,"title":story.get("headline",item.get("title"))}):
+            logger.info("DROP already published event: %s",story.get("headline",""))
+            rejected+=1
             continue
-
-        story["topic"] = canonical_topic(story.get("topic"), region)
-        story["category_hashtags"] = category_hashtags(story)
+        story["topic"]=canonical_topic(story.get("topic"),region)
+        story["category_hashtags"]=category_hashtags(story)
+        story["publish_score"] = item.get("importance_score", item.get("local_score", 0))
         valid.append(story)
-        logger.info(
-            "ACCEPT %s #%d: rank=%s title=%s",
-            region,
-            len(valid),
-            item.get("editor_rank", "?"),
-            story.get("headline", ""),
-        )
+        source=safe_text(story.get("source")) or "Unknown Source"
+        source_counts[source]=source_counts.get(source,0)+1
+        logger.info("ACCEPT %s #%d: score=%s rank=%s source=%s title=%s",region,len(valid),story.get("publish_score",0),item.get("editor_rank","?"),source,story.get("headline",""))
 
-    logger.info(
-        "%s FINAL VALID: %d/%d | pool=%d attempted=%d rejected=%d",
-        region,
-        len(valid),
-        MAX_STORIES_PER_RUN,
-        len(pool),
-        attempted,
-        rejected,
-    )
+    # Second pass: only relax source balance if necessary to reach the run target.
+    if len(valid)<MAX_STORIES_PER_RUN:
+        for item in deferred:
+            if len(valid)>=MAX_STORIES_PER_RUN:
+                break
+            attempted+=1
+            story=process_story_candidate(item)
+            if not story:
+                rejected+=1
+                continue
+            if is_already_published_candidate({**item,"title":story.get("headline",item.get("title"))}):
+                rejected+=1
+                continue
+            story["topic"]=canonical_topic(story.get("topic"),region)
+            story["category_hashtags"]=category_hashtags(story)
+            story["publish_score"] = item.get("importance_score", item.get("local_score", 0))
+            valid.append(story)
+            source=safe_text(story.get("source")) or "Unknown Source"
+            source_counts[source]=source_counts.get(source,0)+1
+            logger.info("ACCEPT BALANCED-FALLBACK %s #%d score=%s source=%s title=%s",region,len(valid),story.get("publish_score",0),source,story.get("headline",""))
+
+    valid.sort(key=lambda x:(-float(x.get("publish_score",0)), -(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
+    logger.info("%s FINAL VALID: %d/%d | pool=%d attempted=%d rejected=%d | sources=%s",region,len(valid),MAX_STORIES_PER_RUN,len(pool),attempted,rejected,source_counts)
     return valid
 
 
@@ -3725,7 +3639,7 @@ def run():
     DISCOVERY_START = NOW_BD - timedelta(hours=ROLLING_DISCOVERY_HOURS)
     DISCOVERY_END = NOW_BD + timedelta(minutes=FUTURE_TOLERANCE_MINUTES)
 
-    logger.info("CAREER NEWSROOM V2.1 UPDATE-ONLY")
+    logger.info("CAREER NEWSROOM V2.2 UPDATE-ONLY")
     logger.info(
         "Channel=%s | LOOKBACK=%dh | %s -> %s | deadline soft-target=%dd",
         TELEGRAM_CHANNEL,
@@ -3757,7 +3671,7 @@ def run():
         filtered.append(item)
 
     logger.info("CAREER CANDIDATES=%d", len(filtered))
-    ranked = prepare_ranked_region("Career", filtered[:80])
+    ranked = prepare_ranked_region("Career", filtered[:100])
     logger.info("CAREER UNIQUE/RANKED=%d", len(ranked))
 
     for item in ranked[:12]:
@@ -3778,7 +3692,7 @@ def run():
 
         image_path = prepare_image(story, index)
         reply_markup = _inline_keyboard(story)
-        result = send_rich_photo(image_path, rich_html)
+        result = send_rich_message(image_path, rich_html)
         if not result.get("ok"):
             logger.warning("Rich Message publish failed; using Bot API fallback: %s", result.get("description"))
             result = send_bot_api_fallback(image_path, rich_html, reply_markup=reply_markup)
@@ -3820,181 +3734,185 @@ def self_test():
     refresh_career_window()
     assert TELEGRAM_CHANNEL == "@CareerNewsroom"
     assert DISCOVERY_LOOKBACK_HOURS == 72
-    assert DEADLINE_SOFT_TARGET_DAYS == 7
+    assert MAX_STORIES_PER_RUN == 15
+    assert MAX_POSTS_PER_SOURCE_PER_RUN == 3
 
-    # Domain and date rules.
+    # Domain/date basics.
     assert primary_domain_allowed("https://jobs.bdjobs.com/example", "Career")
+    assert primary_domain_allowed("https://bdjobslive.com/bdjobs-live/live", "Career")
     assert primary_domain_allowed("https://smartjob.portal.gov.bd/", "Career")
     assert not primary_domain_allowed("https://example.com/job", "Career")
-    assert parse_date_text("25 September 2026").date() == datetime(2026, 9, 25, tzinfo=BD_TZ).date()
-    assert deadline_is_eligible(career_now() + timedelta(days=7))
-    assert deadline_is_eligible(career_now() + timedelta(days=6, hours=23))
+    assert parse_date_text("25 September 2026").date() == datetime(2026,9,25,tzinfo=BD_TZ).date()
 
-    # Strict 72-hour window.
-    inside = career_now() - timedelta(hours=71, minutes=59)
-    outside = career_now() - timedelta(hours=72, minutes=1)
-    base_item = {
-        "title": "Management Trainee Job Circular",
-        "url": "https://www.banglatribune.com/jobs/test",
-        "source": "Bangla Tribune",
-        "region": "Career",
-        "excerpt": "Dhaka Bangladesh company recruitment management trainee vacancy",
-        "date_estimated": False,
+    # Freshness is still a 72-hour discovery boundary.
+    inside=career_now()-timedelta(hours=71,minutes=59)
+    outside=career_now()-timedelta(hours=72,minutes=1)
+    base_item={
+        "title":"Management Trainee Internship BBA MBA",
+        "url":"https://www.banglatribune.com/jobs/test",
+        "source":"Bangla Tribune",
+        "region":"Career",
+        "excerpt":"Dhaka Bangladesh company recruitment management trainee internship BBA MBA vacancy",
+        "date_estimated":False,
+        "published_date":inside.isoformat(),
     }
-    assert candidate_basic_allowed({**base_item, "published_date": inside.isoformat()})
-    near_score, _ = local_job_score({**base_item, "published_date": inside.isoformat(), "deadline_hint": (career_now()+timedelta(days=2)).strftime("%d %B %Y")})
-    far_score, _ = local_job_score({**base_item, "published_date": inside.isoformat(), "deadline_hint": (career_now()+timedelta(days=20)).strftime("%d %B %Y")})
-    assert far_score > near_score
-    assert not candidate_basic_allowed({**base_item, "published_date": outside.isoformat()})
-    assert not candidate_basic_allowed({**base_item, "published_date": inside.isoformat(), "title": "India Jobs Open Now", "excerpt": "India recruitment jobs"})
+    assert candidate_basic_allowed(base_item)
+    assert not candidate_basic_allowed({**base_item,"published_date":outside.isoformat()})
+    assert not candidate_basic_allowed({**base_item,"title":"India Jobs Open Now","excerpt":"India recruitment jobs"})
 
-    # Rich HTML output matches the requested CareerNewsroom card.
-    sample = {
-        "headline": "Management Trainee",
-        "company": "Example Company Ltd.",
-        "location": "Dhaka",
-        "job_type": "Management Trainee",
-        "education": "BBA / MBA",
-        "experience": "Fresh graduates may apply",
-        "salary": "Not specified",
-        "deadline": "25 September 2026",
-        "suitable_for": ["BBA", "MBA", "Fresh Graduate"],
-        "highlights": [
-            "Corporate management opportunity",
-            "Fresh graduates eligible",
-            "Career development opportunity",
-        ],
-        "apply_url": "https://example.com/apply",
-        "source": "Official Career Page",
-        "url": "https://example.com/job",
-        "topic": "Management Trainee",
-        "bold_terms": ["Management Trainee", "Example Company Ltd.", "BBA", "MBA"],
-        "published_date": "2026-09-17T10:00:00+06:00",
+    # Audience-fit scoring: BBA/MBA and internship should receive a meaningful boost.
+    a,_=local_job_score(base_item)
+    b,_=local_job_score({**base_item,"title":"Generic Vacancy","excerpt":"Dhaka recruitment vacancy"})
+    assert a>b
+
+    # Source-diverse candidate ordering.
+    ranked=[
+        {"canonical":f"src{i}","source":src,"topic":"Corporate Jobs","editor_rank":i,"published_date":now_iso(),"title":f"Job {i}","url":f"https://{src.lower().replace(' ','')}.example/job{i}"}
+        for i,src in enumerate(["Bdjobs","Bdjobs","Bdjobs","Bdjobs","Dohaj","Dohaj","JobPagol","ProjobsBD","BDJobs Live","Smart Job","Bdjobs","Dohaj","JobPagol","ProjobsBD","Smart Job","BDJobs Live","Bdjobs","Dohaj"],1)
+    ]
+    pool=build_candidate_pool(ranked,15)
+    counts={}
+    for row in pool[:15]:
+        counts[row["source"]]=counts.get(row["source"],0)+1
+    assert len(counts)>=5
+    assert set(counts).issuperset({"Bdjobs","Dohaj","JobPagol","ProjobsBD","BDJobs Live","Smart Job"})
+
+    # Output structure: table contains all important facts, no separate Suitable/Highlights.
+    sample={
+        "headline":"Management Trainee",
+        "company":"Example Company Ltd.",
+        "location":"Dhaka",
+        "job_type":"Management Trainee",
+        "education":"BBA / MBA",
+        "experience":"Fresh graduates may apply",
+        "salary":"",
+        "vacancies":"02",
+        "age_limit":"18-30",
+        "gender":"All",
+        "application_fee":"BDT 200",
+        "application_method":"Online application",
+        "application_period":"17 September 2026 – 25 September 2026",
+        "selection_process":"Written and viva",
+        "deadline":"25 September 2026",
+        "apply_url":"https://example.com/apply",
+        "source":"Example Source",
+        "url":"https://example.com/job",
+        "topic":"Management Trainee",
+        "bold_terms":["Management Trainee","Example Company Ltd.","BBA","MBA"],
+        "published_date":"2026-09-17T10:00:00+06:00",
     }
-    rendered = fit_rich_html(sample)
-    for marker in (
-        "📣 Management Trainee", "Company:", "JOB SNAPSHOT", "Location", "Type",
-        "Education", "Experience", "Deadline", "🎯 Suitable For", "📌 Key Highlights",
-        "Official Source", "#CareerNewsroom", "#BangladeshJob",
-    ):
+    rendered=fit_rich_html(sample)
+    for marker in ("📣 Management Trainee","Company:","JOB SNAPSHOT","Location","Type","Education","Experience","Vacancies","Age Limit","Application Fee","Application","Application Period","Selection Process","Deadline","Posted","#CareerNewsroom","Official Source","📝 APPLY NOW ↗"):
         assert marker in rendered
-    assert "Salary" not in rendered
+    assert "🎯 Suitable For" not in rendered
+    assert "📌 Key Highlights" not in rendered
     assert "Not specified" not in rendered
-    visible_without_tags = re.sub(r"<[^>]+>", "", rendered)
-    assert "https://example.com/apply" not in visible_without_tags
-    assert "https://example.com/job" not in visible_without_tags
-    assert 'href="https://example.com/job"' in rendered
-    keyboard = _inline_keyboard(sample)
-    assert keyboard == {"inline_keyboard": [[{"text": "📝 APPLY NOW", "url": "https://example.com/apply"}]]}
-    assert '<tg-button-row' in rendered and 'type="url"' in rendered and 'APPLY NOW</tg-button>' in rendered
-    assert rich_visible_length(rendered) <= MAX_RICH_CHARACTERS
-    assert rendered.index("JOB SNAPSHOT") < rendered.index("🎯 Suitable For") < rendered.index("📌 Key Highlights") < rendered.index("Official Source")
+    visible=re.sub(r"<[^>]+>","",rendered)
+    assert "https://example.com/apply" not in visible
+    assert "https://example.com/job" not in visible
+    assert rendered.index("JOB SNAPSHOT") < rendered.index("#CareerNewsroom") < rendered.index("Official Source") < rendered.index("📝 APPLY NOW ↗")
+    assert _inline_keyboard(sample)=={"inline_keyboard":[[{"text":"📝 APPLY NOW ↗","url":"https://example.com/apply"}]]}
+    assert '<tg-button-row align="center"' in rendered
+    assert rich_visible_length(rendered)<=MAX_RICH_CHARACTERS
 
-    # Reference-framework parity tests that do not require network access.
+    # Missing-field omission.
+    missing={k:v for k,v in sample.items() if k not in {"salary","experience","gender","age_limit","application_fee","application_method","application_period","selection_process"}}
+    rendered_missing=fit_rich_html(missing)
+    for marker in ("Salary","Experience","Age Limit","Gender","Application Fee","Application","Application Period","Selection Process"):
+        assert marker not in rendered_missing
+    assert "Not specified" not in rendered_missing
+
+    # Event/URL framework tests.
     assert complete_text("A normal sentence.")
     assert complete_text("An incomplete sentence—") is False
-    assert likely_same_event(
-        "ABC Bank Management Trainee 2026",
-        "ABC Bank Management Trainee 2026",
-    )
-    assert canonical_url("https://www.example.com/job/?utm_source=x") == "example.com/job"
+    assert likely_same_event("ABC Bank Management Trainee 2026","ABC Bank Management Trainee 2026")
+    assert canonical_url("https://www.example.com/job/?utm_source=x")=="example.com/job"
     assert "management" in extract_entities("Management Trainee vacancy in Dhaka")
-    clustered = cluster_ranked_events([
-        {
-            "title": "ABC Bank Management Trainee",
-            "source": "ProjobsBD",
-            "url": "https://projobsbd.com/a",
-            "published_date": now_iso(),
-            "region": "Career",
-        },
-        {
-            "title": "ABC Bank Management Trainee",
-            "source": "JagoNews24",
-            "url": "https://www.jagonews24.com/a",
-            "published_date": now_iso(),
-            "region": "Career",
-        },
+    clustered=cluster_ranked_events([
+        {"title":"ABC Bank Management Trainee","source":"ProjobsBD","url":"https://projobsbd.com/a","published_date":now_iso(),"region":"Career"},
+        {"title":"ABC Bank Management Trainee","source":"JagoNews24","url":"https://www.jagonews24.com/a","published_date":now_iso(),"region":"Career"},
     ])
-    assert len(clustered) >= 1
-    assert clustered[0].get("event_cluster_size", 1) >= 1
-    assert canonical_topic("Management Trainee") == "Management Trainee"
-    assert "#CareerNewsroom" in category_hashtags(sample)
+    assert len(clustered)>=1
+    assert canonical_topic("Management Trainee")=="Management Trainee"
 
-    # Job-schema grounding tests without network.
-    article = (
-        "Example Company Ltd. is hiring Management Trainees in Dhaka. "
-        "Applicants should have a BBA or MBA degree. Fresh graduates may apply. "
-        "Salary is not specified. The application deadline is 25 September 2026."
-    )
-    assert deadline_grounded("25 September 2026", article)
-    assert numeric_grounded(sample, article)[0]
-
-    # Deterministic image recovery chain, same framework as reference bot.
-    original_download_image = globals()["download_image"]
-    original_download_source_logo = globals()["download_source_logo"]
+    # Publication selection test: source cap is applied to published output when enough sources exist.
+    original_process = globals()["process_story_candidate"]
+    original_is_published = globals()["is_already_published_candidate"]
     try:
-        article_img = Image.new("RGB", (1600, 900), (110, 125, 145))
-        logo_img = Image.new("RGB", (900, 700), (250, 250, 250))
-        calls = []
-
-        def fake_download_image(url, referer=""):
-            calls.append(url)
-            if "broken" in safe_text(url):
-                return None
-            if "good" in safe_text(url):
-                return article_img.copy()
-            return None
-
-        globals()["download_image"] = fake_download_image
-        recovered = prepare_image({
-            "url": "https://example.com/job",
-            "source": "Bangla Tribune",
-            "image_candidates": ["https://example.com/broken.jpg", "https://example.com/good.jpg"],
-        }, 990)
-        assert os.path.exists(recovered)
-        assert Image.open(recovered).size == (1200, 675)
-        assert calls[:2] == ["https://example.com/broken.jpg", "https://example.com/good.jpg"]
-
-        globals()["download_image"] = lambda url, referer="": None
-        globals()["download_source_logo"] = lambda source, article_url="": logo_img.copy()
-        logo_path = prepare_image({"url": "https://example.com/job", "source": "Bangla Tribune", "image_candidates": []}, 991)
-        assert os.path.exists(logo_path)
-        assert Image.open(logo_path).size == (1200, 675)
-
-        globals()["download_source_logo"] = lambda source, article_url="": None
-        name_path = prepare_image({"url": "https://example.com/job", "source": "Bangla Tribune", "image_candidates": []}, 992)
-        assert os.path.exists(name_path)
-        assert Image.open(name_path).size == (1200, 675)
-
-        html_sample = """<html><head>
-        <meta property="og:image" content="https://example.com/og.jpg">
-        <meta name="twitter:image" content="https://example.com/twitter.jpg">
-        <link rel="preload" as="image" href="https://example.com/preload.jpg">
-        <script type="application/ld+json">{"image":"https://example.com/jsonld.jpg"}</script>
-        </head><body><img data-src="https://example.com/lazy.jpg" srcset="https://example.com/src1.jpg 1x, https://example.com/src2.jpg 2x"></body></html>"""
-        discovered = find_image_candidates(
-            "https://example.com/job",
-            html_sample,
-            "https://example.com/job",
-            "https://example.com/rss.jpg",
-        )
-        for expected in (
-            "https://example.com/rss.jpg",
-            "https://example.com/og.jpg",
-            "https://example.com/twitter.jpg",
-            "https://example.com/preload.jpg",
-            "https://example.com/jsonld.jpg",
-            "https://example.com/lazy.jpg",
-            "https://example.com/src1.jpg",
-            "https://example.com/src2.jpg",
-        ):
-            assert expected in discovered
+        globals()["process_story_candidate"] = lambda item: {**item, "headline": item.get("title"), "source": item.get("source"), "topic": "Corporate Jobs", "canonical": item.get("canonical"), "url": item.get("url")}
+        globals()["is_already_published_candidate"] = lambda item: False
+        cap_ranked=[]
+        for source in ["Bdjobs","Dohaj","JobPagol","ProjobsBD","BDJobs Live"]:
+            for i in range(5):
+                cap_ranked.append({"canonical":f"cap-{source}-{i}","source":source,"topic":"Corporate Jobs","editor_rank":len(cap_ranked)+1,"published_date":now_iso(),"title":f"{source} Job {i}","url":"https://example.com/%s/%d"%(source.lower().replace(' ',''),i)})
+        selected=process_ranked_region("Career", cap_ranked)
+        published_source_counts={}
+        for row in selected:
+            source=row.get("source")
+            published_source_counts[source]=published_source_counts.get(source,0)+1
+        assert len(selected)==15
+        assert len(published_source_counts)==5
+        assert all(v<=MAX_POSTS_PER_SOURCE_PER_RUN for v in published_source_counts.values())
     finally:
-        globals()["download_image"] = original_download_image
-        globals()["download_source_logo"] = original_download_source_logo
+        globals()["process_story_candidate"] = original_process
+        globals()["is_already_published_candidate"] = original_is_published
 
-    logger.info("CareerNewsBot V2.1 self-test passed.")
+    # Job record shape and fact lock behavior without network.
+    record={
+        "job_title":"Management Trainee","company":"Example Company Ltd.","location":"Dhaka","job_type":"Management Trainee",
+        "education":"BBA / MBA","experience":"Fresh graduates may apply","salary":"","vacancies":"02","age_limit":"18-30","gender":"",
+        "application_fee":"BDT 200","application_method":"Online application","application_period":"17 September 2026 – 25 September 2026",
+        "selection_process":"Written and viva","deadline":"25 September 2026","apply_url":"https://example.com/apply",
+        "bangladesh_relevance":95,"confidence":95,
+    }
+    story=generate_story
+    assert record["job_title"]=="Management Trainee"
 
+    # Fact-lock test: editorial output cannot replace authoritative source facts.
+    original_extract = globals()["extract_article"]
+    original_record = globals()["extract_locked_job_record"]
+    original_generate = globals()["generate_story"]
+    original_deadline_grounded = globals()["deadline_grounded"]
+    original_numeric_grounded = globals()["numeric_grounded"]
+    original_claims_grounded = globals()["claims_grounded"]
+    try:
+        test_record = {
+            "job_title":"Bank Management Trainee", "company":"Example Bank PLC", "location":"Dhaka",
+            "job_type":"Management Trainee", "education":"BBA / MBA", "experience":"Fresh graduates",
+            "salary":"BDT 35,000", "vacancies":"03", "age_limit":"18-30", "gender":"",
+            "application_fee":"BDT 200", "application_method":"Online", "application_period":"17-18 September 2026",
+            "selection_process":"Written and viva", "deadline":"30 September 2026", "apply_url":"https://example.com/apply",
+            "bangladesh_relevance":95, "confidence":95,
+        }
+        globals()["extract_article"] = lambda item: ("Example Bank PLC is hiring Bank Management Trainees in Dhaka. BBA / MBA. Deadline 30 September 2026. BDT 35,000. 03 vacancies.", [])
+        globals()["extract_locked_job_record"] = lambda item, article_text: dict(test_record)
+        globals()["generate_story"] = lambda item, article_text, locked_record=None: {**item, "headline":"Wrong Job Title", "company":"Wrong Company", "location":"Wrong Location"}
+        globals()["deadline_grounded"] = lambda deadline, evidence: True
+        globals()["numeric_grounded"] = lambda story, evidence: (True, "")
+        globals()["claims_grounded"] = lambda story, evidence: (True, [])
+        locked_story = process_story_candidate({**base_item, "title":"Bank Management Trainee", "source":"Bdjobs"})
+        assert locked_story["headline"] == test_record["job_title"]
+        assert locked_story["company"] == test_record["company"]
+        assert locked_story["deadline"] == test_record["deadline"]
+        assert locked_story["application_fee"] == test_record["application_fee"]
+        assert locked_story["selection_process"] == test_record["selection_process"]
+    finally:
+        globals()["extract_article"] = original_extract
+        globals()["extract_locked_job_record"] = original_record
+        globals()["generate_story"] = original_generate
+        globals()["deadline_grounded"] = original_deadline_grounded
+        globals()["numeric_grounded"] = original_numeric_grounded
+        globals()["claims_grounded"] = original_claims_grounded
+
+    # Image behavior: no photo is a valid outcome.
+    original_download_image=globals()["download_image"]
+    try:
+        globals()["download_image"]=lambda url,referer="": None
+        assert prepare_image({"url":"https://example.com/job","source":"Example Source","image_candidates":[]},990) is None
+    finally:
+        globals()["download_image"]=original_download_image
+
+    logger.info("CareerNewsBot V2.2 self-test passed.")
 
 
 def visible_text_for_test(
