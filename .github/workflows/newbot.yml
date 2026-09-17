@@ -1,4 +1,4 @@
-name: CareerNewsroom V2
+name: CareerNewsroom V3
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v2
+  group: careernewsroom-v3
   cancel-in-progress: false
 
 jobs:
@@ -58,7 +58,7 @@ jobs:
         run: |
           git config user.name "Career News Bot"
           git config user.email "actions@github.com"
-          git add news_state.json posted_urls.txt
+          git add news_state.json posted_urls.txt source_health.json
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
