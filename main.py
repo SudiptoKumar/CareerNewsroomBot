@@ -79,6 +79,7 @@ FAST_AI_CANDIDATE_LIMIT = int(os.environ.get("FAST_AI_CANDIDATE_LIMIT", "20"))
 FAST_DISCOVERY_TIMEOUT = int(os.environ.get("FAST_DISCOVERY_TIMEOUT", "15"))
 FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
 
+BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 DOHAJ_DOMAIN = "dohaj.com"
 
