@@ -1,2 +1,7 @@
-requests>=2.32,<3
-beautifulsoup4>=4.13,<5
+exa-py
+cerebras_cloud_sdk
+requests
+urllib3
+beautifulsoup4
+Pillow
+trafilatura

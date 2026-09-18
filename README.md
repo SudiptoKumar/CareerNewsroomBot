@@ -1,23 +1,30 @@
-# CareerNewsroomBot V0.5
+# CareerNewsroom V0.5
 
-Bdjobs-only job intelligence bot for @CareerNewsroom.
+A production-style Bangladesh job newsroom built from the proven Newsroom runtime pattern.
 
-## Pipeline
+## Sources
 
-Bdjobs discovery -> Exa web research -> deterministic job extraction -> BBA/MBA audience pre-score -> Cerebras editorial judging -> final selection -> Telegram.
+Only these source universes are used:
 
-## Source policy
+- **Bdjobs**: researched through Exa with a 7-day discovery window, then read and ranked as individual vacancy pages.
+- **Dohaj**: only the first five jobs from each of the eight approved category/government URLs are considered on each run.
 
-The only source domain is Bdjobs (`bdjobs.com` and its subdomains). External URLs are allowed only when they are extracted as the application's destination from a Bdjobs vacancy page.
+Dohaj source/details URL stays in the Official Source section. When the Dohaj page exposes the original external application URL, that exact destination is used for the native `APPLY NOW` button. When no verified external application URL is found, the button becomes `READ MORE` and opens the Dohaj details page.
 
 ## Audience
 
-Prioritizes BBA/MBA students, fresh graduates, internships, graduate/management trainee roles, finance, accounting, banking, marketing, HR, business, commercial, operations, supply chain and related early-career roles.
+The editorial judge is optimized for Bangladesh users around 20-30, especially BBA/MBA students, graduates, freshers and early-career professionals.
 
-## Freshness
+## Publication
 
-The last 7 days are the primary Exa discovery window. A 72-hour boundary is not a publication gate. An active, verified vacancy can remain in the persistent inventory after 72 hours and can still be published while its application deadline remains active.
+A run publishes every verified, judged candidate that clears the quality threshold, up to 15 jobs. The target minimum is 5 when at least 5 genuine candidates are available. Jobs are never invented to meet the target.
 
-## Telegram
+## State
 
-The bot uses one native inline keyboard button. A verified application destination uses `APPLY NOW`; otherwise the source/details page uses `READ MORE`.
+`news_state.json` retains unpublished jobs and published event information. `posted_urls.txt` prevents direct URL republishing.
+
+## Required GitHub Actions secrets
+
+- `EXA_API_KEY`
+- `CEREBRAS_API_KEY`
+- `TELEGRAM_BOT_TOKEN`
