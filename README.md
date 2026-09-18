@@ -1,4 +1,4 @@
-# Career News Bot 1.5
+# Career News Bot
 
 Fast, incremental Bangladesh job-news pipeline for Career Newsroom with a polished, standardized post format.
 
@@ -58,7 +58,7 @@ Telegram Rich Message
 - Missing source fields are omitted from the table. The bot never inserts `—` placeholders for unavailable information.
 - Bengali script is blocked from publication. Government vacancy counts and other Bengali fields are translated/normalized before rendering.
 - Telegram posts do **not** use `protect_content`; subscribers remain free to forward/share/save posts according to the channel/client rules. The bot cannot independently hide Telegram’s native share/forward control while keeping forwarding enabled.
-- Rich Message tables have no Bot API width/min-width setting. Career News Bot 1.5 uses a fixed divider width anchor so short posts render with a consistent practical bubble width on mobile clients while retaining the native table. Exact pixel width remains Telegram-client controlled.
+- Rich Message tables have no Bot API width/min-width setting. Career News Bot uses a fixed divider width anchor so short posts render with a consistent practical bubble width on mobile clients while retaining the native table. Exact pixel width remains Telegram-client controlled.
 
 ## Source discovery
 
@@ -232,7 +232,7 @@ python -m py_compile main.py
 python main.py --self-test
 ```
 
-## Career News Bot 1.5 regression fixes
+## Career News Bot regression fixes
 
 - Removed `Application Start`, `Application End`, and `Application Period` from the rendered table.
 - Added Bengali-vacancy translation, including Bengali numerals such as `৩৩৮` -> `338`.
@@ -243,9 +243,9 @@ python main.py --self-test
 - Added clickable `Career News (linked to https://t.me/CareerNewsroom)` channel identity after hashtags, backed by the channel URL.
 - Restored a stable practical message-width anchor because the Rich Message table API does not expose a minimum-width property.
 
-Pipeline version: `Polish-1.4`.
+Pipeline version: `Career News Bot`.
 
 
-## Career News Bot 1.5 deployment guard
+## Career News Bot deployment guard
 
-The workflow verifies that `main.py` contains `PIPELINE_VERSION = "Polish-1.5"` before running the bot. This prevents GitHub Actions from silently executing an older Polish build. State persistence retries the Git push up to three times after fetching/rebasing `main`, reducing the chance that a transient remote commit error leaves duplicate-protection state unpublished.
+The workflow verifies that `main.py` contains `PIPELINE_VERSION = "Career News Bot"` before running the bot. This prevents GitHub Actions from silently executing an older Polish build. State persistence retries the Git push up to three times after fetching/rebasing `main`, reducing the chance that a transient remote commit error leaves duplicate-protection state unpublished.
