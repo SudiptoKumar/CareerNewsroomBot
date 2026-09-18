@@ -1,6 +1,6 @@
-# CareerNewsroomBot V1
+# CareerNewsroomBot Polish
 
-Fast, incremental Bangladesh job-news pipeline for Career Newsroom.
+Fast, incremental Bangladesh job-news pipeline for Career Newsroom with a polished, standardized post format.
 
 ## Core goal
 
@@ -31,6 +31,8 @@ Fill remaining slots with private BBA/MBA jobs
 Hard maximum 20
         ↓
 Consistency validation
+        ↓
+Polish formatter: fixed table + English government text + DD-MM-YYYY dates
         ↓
 Telegram Rich Message
 ```
@@ -130,9 +132,11 @@ A job appearing in several Dohaj categories is treated as one vacancy.
 
 Each job is converted into one source-backed record. The Telegram post is rendered only from that record.
 
-This prevents mismatches such as one job's vacancy appearing in another job, salary becoming vacancy, responsibilities becoming Experience, or the wrong source being shown.
+This prevents mismatches such as one job's vacancy appearing in another job, salary becoming vacancy, responsibilities becoming Experience, incorrect date formats, or the wrong source being shown.
 
 ### Table fields
+
+The polished format uses the same 13 data rows on every post, so the table structure stays consistent across private and government jobs:
 
 - Location
 - Employment
@@ -143,18 +147,27 @@ This prevents mismatches such as one job's vacancy appearing in another job, sal
 - Vacancy
 - Age
 - Application
-- Application Period
-- Selection
+- Application Start
+- Application End
 - Deadline
 - Posted
 
-Missing fields are omitted. No `--` or invented values.
+Unavailable fields use a compact `—` placeholder instead of changing the table structure. Application Start and Application End are separate rows, with one date per row.
 
 Experience appears only for real duration/fresher status. Technical skills, responsibilities and `Area of Experience` text are not treated as Experience.
 
+## Polish formatting
+
+- Company names are normalized to readable title case instead of appearing in all-lowercase source casing.
+- Detail values are normalized to readable casing.
+- Age is rendered as `18-30 Years` or `25 Years`; phrases such as `at least 25 years` are removed.
+- All displayed dates use `DD-MM-YYYY`.
+- Government posts use `Source: Dohaj`, not `Source: Dohaj Government Jobs`.
+- Government circular titles and Bengali fields are converted to English before publication. One compact Cerebras translation call is used for Bengali government fields when available; a local English/Latin fallback keeps the post publishable if the AI service is unavailable.
+
 ## Telegram design
 
-V1 uses Telegram Bot API `sendRichMessage` with native Rich Message blocks. The table is:
+The polished version uses Telegram Bot API `sendRichMessage` with native Rich Message blocks. The table is:
 
 - bordered
 - striped

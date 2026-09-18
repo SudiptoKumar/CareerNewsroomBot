@@ -39,7 +39,7 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "V1-fast-incremental"
+PIPELINE_VERSION = "Polish-1.0"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -962,22 +962,26 @@ def compact_vacancy(value):
 
 
 def compact_age(value):
-    blob = _clean_one_line(value)
+    blob=_clean_one_line(value).translate(BENGALI_DIGIT_MAP)
+    blob=blob.replace("থেকে","to").replace("বছর","years").replace("বছরের","years").replace("ন্যূনতম","minimum")
     if not blob:
         return ""
-    for pattern in (
-        r"\b(at\s+least\s+\d+\s+years?)\b",
-        r"\b(\d+\s*(?:to|[-–])\s*\d+\s*years?)\b",
-        r"\b(\d+\+\s*years?)\b",
-    ):
-        match = re.search(pattern, blob, flags=re.I)
-        if match:
-            return re.sub(r"\s*[-–]\s*", "-", match.group(1))
+    m=re.search(r"\b(\d{1,2})\s*(?:to|[-–])\s*(\d{1,2})\s*(?:years?|year)?\b",blob,flags=re.I)
+    if m:
+        return f"{m.group(1)}-{m.group(2)} Years"
+    m=re.search(r"\b(?:at\s+least|minimum(?:\s+age)?|not\s+less\s+than|minimum\s+of)\s*:?\s*(\d{1,2})\s*(?:years?|year)\b",blob,flags=re.I)
+    if m:
+        return f"{m.group(1)} Years"
+    m=re.search(r"\b(\d{1,2})\s*(?:\+|plus|years?|year)\b",blob,flags=re.I)
+    if m:
+        return f"{m.group(1)} Years"
     return ""
 
 
 def compact_employment(value):
     blob = _clean_one_line(value).lower()
+    if any(x in blob for x in ("সরকারি", "সরকারী")):
+        return "Government Job"
     if not blob:
         return ""
     if "full time" in blob or "full-time" in blob:
@@ -1008,6 +1012,10 @@ def compact_workplace(value):
 
 def compact_application(value, apply_url=""):
     blob = _clean_one_line(value).lower()
+    if "অনলাইন" in blob:
+        return "Online"
+    if "ইমেইল" in blob or "ই-মেইল" in blob or "ইমেল" in blob:
+        return "Email"
     if "walk-in" in blob or "walk in" in blob:
         if any(x in blob for x in ("online", "career website", "website")):
             return "Online + Walk-in"
@@ -1111,6 +1119,214 @@ def normalize_date_text(value):
     return ""
 
 
+def format_date_display(value):
+    """Display every publishable date consistently as DD-MM-YYYY."""
+    raw = safe_text(value)
+    if not raw:
+        return ""
+    iso = normalize_date_text(raw)
+    if iso:
+        try:
+            return datetime.fromisoformat(iso).strftime("%d-%m-%Y")
+        except Exception:
+            pass
+    return raw
+
+
+def extract_date_tokens(value):
+    """Extract up to two date tokens from a mixed English/Bengali date range."""
+    raw = safe_text(value).translate(BENGALI_DIGIT_MAP)
+    patterns = [
+        r"\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b",
+        r"\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b",
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\b",
+        r"\b[A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,\s]+(?:19|20)\d{2}\b",
+        r"(?<!\d)\d{1,2}\s+[\u0980-\u09ff]+\s+\d{4}(?!\d)",
+    ]
+    matches=[]
+    for pattern in patterns:
+        matches.extend(re.findall(pattern, raw, flags=re.I))
+    ordered=[]; seen=set()
+    for token in sorted(matches, key=lambda x: raw.find(x)):
+        key=token.strip().lower()
+        normalized=normalize_date_text(token)
+        if key in seen or not normalized:
+            continue
+        seen.add(key); ordered.append(normalized)
+        if len(ordered)>=2:
+            break
+    return ordered
+
+
+def _format_mixed_dates(value):
+    raw=safe_text(value)
+    if not raw:
+        return ""
+    pattern=(r"\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b|"
+             r"\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b|"
+             r"\b\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\b|"
+             r"\b[A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?[,\s]+(?:19|20)\d{2}\b|"
+             r"(?<!\d)\d{1,2}\s+[\u0980-\u09ff]+\s+\d{4}(?!\d)")
+    for token in sorted(set(re.findall(pattern, raw, flags=re.I)), key=len, reverse=True):
+        formatted=format_date_display(token)
+        if formatted != token:
+            raw=raw.replace(token, formatted)
+    return raw
+
+
+def smart_title_case(value):
+    """Readable display casing while preserving acronyms and common abbreviations."""
+    text=_clean_one_line(value)
+    if not text or not any(ch.isalpha() for ch in text):
+        return text
+    if "@" in text or "://" in text:
+        return text
+    stop={"and","or","of","in","to","for","the","a","an","at","on","by","from","with"}
+    suffixes={"ltd":"Ltd.","ltd.":"Ltd.","limited":"Limited","llc":"LLC","plc":"PLC","inc":"Inc.","inc.":"Inc.","co":"Co.","co.":"Co.","phd":"PhD"}
+    parts=re.split(r"(\s+|/|-|–|—|\(|\)|,|:)",text); out=[]; word_index=0
+    for part in parts:
+        if not part or re.fullmatch(r"\s+|/|-|–|—|\(|\)|,|:",part):
+            out.append(part); continue
+        low=part.lower()
+        if low in suffixes:
+            out.append(suffixes[low])
+        elif part.upper()==part and len(part)<=8 and any(ch.isalpha() for ch in part):
+            out.append(part)
+        elif part.islower() or part.isupper():
+            out.append(low if low in stop and word_index>0 else part[:1].upper()+part[1:].lower())
+        else:
+            out.append(part)
+        word_index += 1
+    return "".join(out).strip()
+
+
+def format_table_value(label,value):
+    raw=_clean_one_line(value)
+    if not raw:
+        return "—"
+    if label in {"Deadline","Posted","Application Start","Application End"}:
+        return format_date_display(raw)
+    if label=="Age":
+        return compact_age(raw) or smart_title_case(raw)
+    if label=="Salary":
+        cleaned=re.sub(r"\btk\b\.?","Tk.",raw,flags=re.I)
+        cleaned=re.sub(r"\b(টাকা|taka)\b","Tk.",cleaned,flags=re.I)
+        if cleaned.lower()=="negotiable":
+            return "Negotiable"
+        return re.sub(r"\s+"," ",cleaned)[:48].rstrip()
+    if label=="Vacancy":
+        return raw
+    return smart_title_case(_format_mixed_dates(raw))[:52].rstrip()
+
+
+def _contains_bengali(value):
+    return bool(re.search(r"[\u0980-\u09ff]",safe_text(value)))
+
+
+def infer_government_organization(title):
+    text=_clean_one_line(title)
+    if not text:
+        return ""
+    lower=text.lower()
+    markers=("office","commission","commissioner","directorate","department","ministry","authority","tax zone","division","board","corporation","অফিস","কার্যালয়","কার্যালয়","কমিশন","অধিদপ্তর","বিভাগ","মন্ত্রণালয়","মন্ত্রণালয়","কর্তৃপক্ষ","কর অঞ্চল","বোর্ড")
+    if not any(m in lower for m in markers):
+        return ""
+    text=re.sub(r"(?i)\b(?:job|recruitment|employment|appointment)\s+(?:circular|notice)\b.*$","",text)
+    text=re.sub(r"(?i)\b(?:19|20)\d{2}\b","",text)
+    text=re.sub(r"\b202[0-9]\b","",text)
+    translated=fallback_government_translate(text)
+    translated=re.sub(r"(?i)\b(?:recruitment|job|employment|appointment)\s+(?:circular|notice)\b.*$","",translated)
+    return _clean_one_line(translated)
+
+
+BANGLA_PHRASE_MAP={
+    "নিয়োগ বিজ্ঞপ্তি":"Recruitment Circular","নিয়োগ বিজ্ঞপ্তি":"Recruitment Circular","নিয়োগ":"Recruitment","নিয়োগ":"Recruitment",
+    "সরকারি চাকরি":"Government Job","সরকারী চাকরি":"Government Job","বিভাগীয় কমিশনার":"Divisional Commissioner","বিভাগীয় কমিশনার":"Divisional Commissioner",
+    "কার্যালয়":"Office","কার্যালয়":"Office","অফিস":"Office","অধিদপ্তর":"Directorate","পরিদপ্তর":"Directorate",
+    "মন্ত্রণালয়":"Ministry","মন্ত্রণালয়":"Ministry","বিভাগ":"Department","দপ্তর":"Department","কর্তৃপক্ষ":"Authority","কমিশন":"Commission","বোর্ড":"Board",
+    "কর অঞ্চল":"Tax Zone","ঢাকা":"Dhaka","ময়মনসিংহ":"Mymensingh","ময়মনসিংহ":"Mymensingh","চট্টগ্রাম":"Chattogram","খুলনা":"Khulna","রাজশাহী":"Rajshahi","সিলেট":"Sylhet","বরিশাল":"Barishal","রংপুর":"Rangpur","কক্সবাজার":"Cox's Bazar",
+    "আবেদন":"Application","আবেদনের":"Application","অনলাইন":"Online","লিখিত":"Written","মৌখিক":"Viva","পরীক্ষা":"Exam",
+    "বেতন":"Salary","বয়সসীমা":"Age Limit","বয়সসীমা":"Age Limit","অভিজ্ঞতা":"Experience","শিক্ষাগত যোগ্যতা":"Educational Qualification",
+    "পদ সংখ্যা":"Vacancy","পদসংখ্যা":"Vacancy","পদ":"Post","সংখ্যা":"Number","প্রকাশিত":"Published","শেষ তারিখ":"Deadline","চাকরির ধরন":"Employment Type",
+    "চাকুরি স্থান":"Job Location","চাকরি স্থান":"Job Location", "আবেদন শুরুর সময়":"Application Start Time","আবেদন শুরুর সময়":"Application Start Time",
+    "আবেদনের শেষ সময়":"Application End Time","আবেদনের শেষ সময়":"Application End Time",
+    "থেকে":"to","বছরের":"Years","বছর":"Years","এসএসসি":"SSC","এইচএসসি":"HSC",
+    "স্নাতকোত্তর":"Master's","স্নাতক":"Bachelor's","ডিপ্লোমা":"Diploma","উচ্চ মাধ্যমিক":"HSC",
+}
+BN_CHAR_MAP=str.maketrans({"অ":"o","আ":"a","ই":"i","ঈ":"i","উ":"u","ঊ":"u","ঋ":"ri","এ":"e","ঐ":"oi","ও":"o","ঔ":"ou","ক":"k","খ":"kh","গ":"g","ঘ":"gh","ঙ":"ng","চ":"ch","ছ":"chh","জ":"j","ঝ":"jh","ঞ":"n","ট":"t","ঠ":"th","ড":"d","ঢ":"dh","ণ":"n","ত":"t","থ":"th","দ":"d","ধ":"dh","ন":"n","প":"p","ফ":"ph","ব":"b","ভ":"bh","ম":"m","য":"y","র":"r","ল":"l","শ":"sh","ষ":"sh","স":"s","হ":"h","ড়":"r","ঢ়":"rh","য়":"y","ৎ":"t","ং":"ng","ঃ":"h","ঁ":"n","্":"","া":"a","ি":"i","ী":"i","ু":"u","ূ":"u","ৃ":"ri","ে":"e","ৈ":"oi","ো":"o","ৌ":"ou"})
+
+def fallback_government_translate(value):
+    text=safe_text(value)
+    if not text or not _contains_bengali(text):
+        return smart_title_case(text)
+    out=text
+    for src,dst in sorted(BANGLA_PHRASE_MAP.items(),key=lambda x:len(x[0]),reverse=True):
+        out=out.replace(src,dst)
+    if _contains_bengali(out):
+        out=out.translate(BN_CHAR_MAP)
+    out=out.translate(BENGALI_DIGIT_MAP)
+    out=re.sub(r"\s+"," ",out)
+    return smart_title_case(out)
+
+GOV_TRANSLATE_SCHEMA={"type":"object","properties":{"results":{"type":"array","items":{"type":"object","properties":{k:{"type":"string"} for k in ("id","title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category")},"required":["id","title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category"],"additionalProperties":False}}},"required":["results"],"additionalProperties":False}
+
+def translate_government_jobs(jobs):
+    """Translate government fields once, with local fallback so no Bangla is published."""
+    gov=[j for j in jobs if j.get("is_government")]
+    if not gov:
+        return jobs
+    source_snapshots=[]
+    for job in gov:
+        job["source"]="Dohaj"
+        if not job.get("company"):
+            job["company"]=infer_government_organization(job.get("title","")) or "Government Organization"
+        source_fields={k:safe_text(job.get(k,"")) for k in ("title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category")}
+        if any(_contains_bengali(v) for v in source_fields.values()):
+            source_snapshots.append((job,source_fields))
+        for key,value in source_fields.items():
+            if value:
+                job[key]=fallback_government_translate(value)
+        # Re-run field compaction after translation/fallback for stable display forms.
+        job["age"]=compact_age(job.get("age")) or job.get("age","")
+        job["application_method"]=compact_application(job.get("application_method"),job.get("apply_url","")) or job.get("application_method","")
+        job["employment_type"]=compact_employment(job.get("employment_type")) or job.get("employment_type","")
+    client=get_cerebras()
+    if not client or not source_snapshots:
+        return jobs
+    payload=[]
+    for idx,(job,source_fields) in enumerate(source_snapshots,1):
+        payload.append("\n".join([
+            f"ID: {idx}",
+            "Translate these government-job fields from Bangla to concise natural English. Preserve names, numbers and facts. Do not invent.",
+            *[f"{k}: {source_fields.get(k,'')}" for k in source_fields],
+        ]))
+    try:
+        response=client.chat.completions.create(
+            model=CEREBRAS_MODEL,
+            messages=[
+                {"role":"system","content":"Return only the supplied fields translated into natural English suitable for a Telegram job post."},
+                {"role":"user","content":"\n\n".join(payload)},
+            ],
+            response_format={"type":"json_schema","json_schema":{"name":"government_job_translation","strict":True,"schema":GOV_TRANSLATE_SCHEMA}},
+            reasoning_effort="low",
+            temperature=0.0,
+            max_completion_tokens=1800,
+        )
+        rows=json.loads(safe_text(response.choices[0].message.content)).get("results",[])
+        for row in rows:
+            try: idx=int(row.get("id"))
+            except Exception: continue
+            if 1<=idx<=len(source_snapshots):
+                job,_=source_snapshots[idx-1]
+                for key in ("title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category"):
+                    value=safe_text(row.get(key))
+                    if value:
+                        job[key]=smart_title_case(value)
+    except Exception as exc:
+        logger.warning("Government translation AI unavailable; local English fallback kept: %s",exc)
+    return jobs
+
+
 def _html_h1(page_html):
     if not page_html:
         return ""
@@ -1186,8 +1402,17 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     hiring = jsonld.get("hiringOrganization")
     if isinstance(hiring, dict):
         company = safe_text(hiring.get("name"))
-    company = (company or _dohaj_summary_value(text, ["প্রতিষ্ঠানের নাম", "Company Name", "Company", "Organization Name", "Employer"])
-               or _label_value(text, ["Company Name", "Company", "Organization Name", "Employer", "প্রতিষ্ঠানের নাম"]))
+    company = (company or _dohaj_summary_value(text, [
+        "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম",
+        "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম", "Company Name", "Company",
+        "Organization Name", "Employer", "Department", "Ministry", "Office", "Directorate",
+        "Authority", "Commission", "Board"
+    ]) or _label_value(text, [
+        "Company Name", "Company", "Organization Name", "Employer", "Department", "Ministry",
+        "Office", "Directorate", "Authority", "Commission", "Board", "প্রতিষ্ঠানের নাম",
+        "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম", "অধিদপ্তরের নাম",
+        "কার্যালয়ের নাম", "কার্যালয়ের নাম"
+    ]))
 
     location = _dohaj_summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"])
     salary = _dohaj_summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"])
@@ -1212,18 +1437,26 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     # Government circulars frequently expose application start/end dates in prose.
     start_date = _regex_value(text, [
         r"আবেদন শুরুর সময়\s*[:：-]?\s*([^\n]+)",
+        r"আবেদন শুরুের সময়\s*[:：-]?\s*([^\n]+)",
+        r"আবেদন শুরুের সময়\s*[:：-]?\s*([^\n]+)",
         r"আবেদন শুরুর সময়\s*[:：-]?\s*([^\n]+)",
+        r"Application Start(?:ing)?(?: Date)?\s*[:：-]?\s*([^\n]+)",
     ])
     end_date = _regex_value(text, [
         r"আবেদনের শেষ সময়\s*[:：-]?\s*([^\n]+)",
         r"আবেদনের শেষ সময়\s*[:：-]?\s*([^\n]+)",
+        r"Application End(?:ing)?(?: Date)?\s*[:：-]?\s*([^\n]+)",
     ])
     start_iso = normalize_date_text(start_date)
     end_iso = normalize_date_text(end_date)
+    if not (start_iso and end_iso) and application_period:
+        dates=extract_date_tokens(application_period)
+        if len(dates)>=2:
+            start_iso,end_iso=dates[:2]
     if end_iso and not deadline:
         deadline = end_iso
-    if start_iso and end_iso:
-        application_period = f"{start_iso} to {end_iso}"
+    if start_iso:
+        application_period = f"{start_iso} to {end_iso}" if end_iso else start_iso
 
     if jsonld:
         if not published and jsonld.get("datePosted"):
@@ -1273,6 +1506,11 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
 
     published_iso = normalize_date_text(published)
     deadline_iso = normalize_date_text(deadline)
+    period_dates=extract_date_tokens(application_period)
+    application_start=period_dates[0] if period_dates else (start_iso or "")
+    application_end=period_dates[1] if len(period_dates)>1 else (end_iso or "")
+    if is_gov and not company:
+        company=infer_government_organization(title) or "Government Organization"
 
     return {
         "title": title,
@@ -1289,9 +1527,11 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "application_method": application_method,
         "selection_process": selection_process,
         "application_period": application_period,
+        "application_start": application_start,
+        "application_end": application_end,
         "posted_date": published_iso,
         "deadline": deadline_iso,
-        "source": "Dohaj Government Jobs" if is_gov and is_domain_allowed(source_url, [DOHAJ_DOMAIN]) else source_name(source_url),
+        "source": "Dohaj" if is_domain_allowed(source_url, [DOHAJ_DOMAIN]) else source_name(source_url),
         "source_url": source_url,
         "url": source_url,
         "discovery": discovery_item.get("discovery", ""),
@@ -1351,7 +1591,7 @@ def research_job(item):
         fields["posted_date"] = item.get("listing_posted")
     if not fields.get("deadline") and item.get("listing_deadline"):
         fields["deadline"] = item.get("listing_deadline")
-    fields["source"] = "Dohaj Government Jobs" if fields["is_government"] and is_domain_allowed(item["url"], [DOHAJ_DOMAIN]) else source_name(item["url"])
+    fields["source"] = "Dohaj" if is_domain_allowed(item["url"], [DOHAJ_DOMAIN]) else source_name(item["url"])
     fields["title"] = fields["title"] or item.get("title", "")
     fields["company"] = fields["company"] or item.get("company", "")
     fields["application_method"] = compact_application(fields.get("application_method", ""), apply_url)
@@ -1921,31 +2161,14 @@ def _field_icon(label):
 
 
 def job_snapshot_rows(job):
-    """Return short, high-impact, source-backed facts. Experience is in the table."""
+    """Fixed compact snapshot: every post uses the same rows and one date per row."""
     mapping=[
-        ("Location","location"),
-        ("Employment","employment_type"),
-        ("Workplace","workplace"),
-        ("Education","education"),
-        ("Experience","experience"),
-        ("Salary","salary"),
-        ("Vacancy","vacancy"),
-        ("Age","age"),
-        ("Application","application_method"),
-        ("Application Period","application_period"),
-        ("Selection","selection_process"),
-        ("Deadline","deadline"),
-        ("Posted","posted_date"),
+        ("Location","location"),("Employment","employment_type"),("Workplace","workplace"),
+        ("Education","education"),("Experience","experience"),("Salary","salary"),("Vacancy","vacancy"),
+        ("Age","age"),("Application","application_method"),("Application Start","application_start"),
+        ("Application End","application_end"),("Deadline","deadline"),("Posted","posted_date"),
     ]
-    rows=[]
-    for label,key in mapping:
-        value=display_value(job.get(key))
-        if not value: continue
-        if value.lower() in {"--","n/a","na","not available","not specified","none","null"}: continue
-        value=trim_source_text(value, 58)
-        if "\n" in value: value=value.replace("\n"," ")
-        rows.append((label,value))
-    return rows
+    return [(label,format_table_value(label,job.get(key))) for label,key in mapping]
 
 
 def _rich_bold(text):
@@ -1959,9 +2182,9 @@ def _rich_url(text,url):
 def rich_message_blocks(job):
     """Native Telegram Rich Message. Media is intentionally disabled."""
     blocks=[
-        {"type":"heading","size":1,"text":"📣 "+display_value(job.get("title"))},
+        {"type":"heading","size":1,"text":"📣 "+smart_title_case(display_value(job.get("title")))},
     ]
-    company=display_value(job.get("company"))
+    company=smart_title_case(display_value(job.get("company"))) or ("Government Organization" if job.get("is_government") else "")
     if company:
         blocks.append({"type":"paragraph","text":_rich_bold("🏢 "+company)})
     blocks.append({"type":"heading","size":2,"text":"JOB SNAPSHOT"})
@@ -1989,7 +2212,7 @@ def rich_message_blocks(job):
     if tags:
         blocks.append({"type":"paragraph","text":tags})
 
-    source=safe_text(job.get("source","Source"))
+    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else safe_text(job.get("source","Source"))
     source_url=safe_text(job.get("source_url"))
     footer=["Source: "]
     footer.append(_rich_url(source,source_url) if source_url else source)
@@ -2029,12 +2252,13 @@ def dynamic_rich_html(job):
 
 
 def plain_job_text(job):
-    lines=["📣 "+display_value(job.get("title")),"🏢 "+display_value(job.get("company")),"","JOB SNAPSHOT"]
+    lines=["📣 "+smart_title_case(display_value(job.get("title"))),"🏢 "+(smart_title_case(display_value(job.get("company"))) or ("Government Organization" if job.get("is_government") else "")),"","JOB SNAPSHOT"]
     for label,value in job_snapshot_rows(job):
         lines.append(f"{_field_icon(label)} {label}: {value}")
     tags=" ".join(job_hashtags(job))
     if tags: lines.extend(["",tags])
-    lines.append(f"Source: {job.get('source','Source')}")
+    source="Dohaj" if job.get("is_government") else job.get("source","Source")
+    lines.append(f"Source: {source}")
     return "\n".join(lines)
 
 
@@ -2043,7 +2267,7 @@ def fit_rich_blocks(job):
     if rich_blocks_visible_length(blocks)<=MAX_RICH_CHARACTERS:
         return blocks
     candidate=dict(job)
-    for key,limit in (("title",160),("company",100),("location",58),("education",50),("experience",32),("salary",58),("application_period",48)):
+    for key,limit in (("title",120),("company",80),("location",42),("education",42),("experience",28),("salary",44),("application_start",20),("application_end",20)):
         if candidate.get(key): candidate[key]=trim_source_text(candidate[key],limit)
     return rich_message_blocks(candidate)
 
@@ -2065,7 +2289,7 @@ def _research_items_parallel(items):
             if not researched: continue
             researched["source_url"]=item["url"]; researched["canonical"]=item["canonical"]
             researched["is_government"]=bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower()
-            researched["source"]=("Dohaj Government Jobs" if researched["is_government"] and is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
+            researched["source"]=("Dohaj" if is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
             results.append(researched)
     return results
 
@@ -2103,7 +2327,8 @@ def run():
     gov_part=[j for j in selected if j.get("is_government")]
     priv_part=[j for j in selected if not j.get("is_government")]
     selected=(gov_part+priv_part)[:MAX_STORIES_PER_RUN]
-    logger.info("FINAL SELECTED=%d | government=%d | private=%d | discovery=%d | elapsed_before_publish=%.1fs",len(selected),len(gov_part),len(priv_part),len(discovered),time.monotonic()-started)
+    selected=translate_government_jobs(selected)
+    logger.info("FINAL SELECTED=%d | government=%d | private=%d | discovery=%d | elapsed_before_publish=%.1fs",len(selected),len([j for j in selected if j.get("is_government")]),len([j for j in selected if not j.get("is_government")]),len(discovered),time.monotonic()-started)
     published_count=0
     for index,job in enumerate(selected,start=1):
         blocks=fit_rich_blocks(job)
@@ -2173,8 +2398,15 @@ def self_test():
     rows=job_snapshot_rows(fields)
     assert "Experience" in [x[0] for x in rows]
     assert all("\n" not in v for _,v in rows)
+    assert {label for label,_ in rows} >= {"Application Start","Application End","Deadline","Posted"}
+    assert format_date_display("2026-09-18")=="18-09-2026"
+    assert format_date_display("18 Oct 2026")=="18-10-2026"
+    assert compact_age("at least 25 years")=="25 Years"
+    assert compact_age("18 to 30 years")=="18-30 Years"
+    assert smart_title_case("global asia bangladesh limited")=="Global Asia Bangladesh Limited"
     blocks=rich_message_blocks(fields)
     table=next(b for b in blocks if b.get("type")=="table")
+    assert len(table["cells"])==14  # header + 13 fixed data rows
     assert table["is_bordered"] is True
     assert table["is_striped"] is True
     assert table["is_compact"] is True
@@ -2216,7 +2448,9 @@ def self_test():
     assert gov_fields["location"]=="Mymensingh"
     assert gov_fields["posted_date"]=="2026-09-16"
     assert gov_fields["deadline"]=="2026-10-06"
-    assert gov_fields["source"]=="Dohaj Government Jobs"
+    assert gov_fields["source"]=="Dohaj"
+    assert gov_fields["application_start"]=="2026-09-15"
+    assert gov_fields["application_end"]=="2026-10-06"
     unicode_url="https://dohaj.com/gov-job/তথ্য-ও-যোগাযোগ-প্রযুক্তি-বিভাগ-নিয়োগ-বিজ্ঞপ্তি-2025"
     safe_url=request_safe_url(unicode_url)
     assert "%" in safe_url and "তথ্য" not in safe_url
@@ -2232,7 +2466,7 @@ def self_test():
     ok,_=deterministic_job_gate(gov_no_company)
     assert ok
     no_company_blocks=rich_message_blocks(gov_no_company)
-    assert not any("🏢" in str(b.get("text","")) for b in no_company_blocks if isinstance(b,dict))
+    assert any("Government Organization" in str(b.get("text","")) for b in no_company_blocks if isinstance(b,dict))
 
     # Strong duplicate filter, including cross-source mirrors.
     a={"source_url":"https://dohaj.com/job-details/a","title":"Accounts Executive","company":"Example Ltd","location":"Dhaka","posted_date":"2026-09-18"}
@@ -2262,7 +2496,12 @@ def self_test():
     # Photo feature is fully disabled in V4.
     assert not any(b.get("type")=="photo" for b in rich_message_blocks(fresh))
 
-    assert PIPELINE_VERSION == "V1-fast-incremental"
+    translated={**gov_fields,"title":"কর অঞ্চল-১৬, ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬","company":"ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়","location":"ঢাকা"}
+    # Without Cerebras this must still produce non-Bengali publishable text.
+    translated=translate_government_jobs([translated])[0]
+    assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
+
+    assert PIPELINE_VERSION == "Polish-1.0"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_GOVERNMENT_POSTS_PER_RUN == 5
