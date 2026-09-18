@@ -1,12 +1,10 @@
-name: CareerNewsroom V0.5
+name: CareerNewsroom V1
 
 on:
   schedule:
     - cron: "0,30 8-23 * * *"
       timezone: "Asia/Dhaka"
-    - cron: "0,30 0-1 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "0 2 * * *"
+    - cron: "0,30 0-2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -14,50 +12,58 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v0-5
+  group: careernewsroom-v1
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     env:
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
-      NEWS_MODE: "update"
       PYTHONUNBUFFERED: "1"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+          cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Compile check
+      - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Self-test
+      - name: Run self-test
         run: python main.py --self-test
 
       - name: Run CareerNewsroom
         run: python main.py
 
-      - name: Persist state
+      - name: Save state
+        if: always()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Career News Bot"
+          git config user.email "actions@github.com"
           git add news_state.json posted_urls.txt
+
           if git diff --cached --quiet; then
-            echo "No state changes."
+            echo "No state changes to commit."
           else
-            git commit -m "chore: update CareerNewsroom state"
+            git commit -m "Update CareerNewsroom state"
             git push
           fi
