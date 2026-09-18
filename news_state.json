@@ -2,93 +2,93 @@
   "feeds": {
     "https://projobsbd.com/feed/": {
       "etag": null,
-      "last_modified": "Thu, 17 Sep 2026 07:29:12 GMT",
-      "last_checked": "2026-09-18T08:49:34.270766+06:00",
+      "last_modified": "Fri, 18 Sep 2026 03:07:42 GMT",
+      "last_checked": "2026-09-18T11:33:54.645701+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://projobsbd.com/category/running-job-circular/feed/": {
       "etag": null,
       "last_modified": "Thu, 17 Sep 2026 07:29:12 GMT",
-      "last_checked": "2026-09-18T08:49:34.544003+06:00",
+      "last_checked": "2026-09-18T11:33:54.900330+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://bdgovtjobs.com/feed/": {
-      "etag": "W/\"728bbde8808d3d2569e04dcc14d200d0\"",
-      "last_modified": "Thu, 17 Sep 2026 04:44:38 GMT",
-      "last_checked": "2026-09-18T08:49:36.339006+06:00",
+      "etag": "W/\"2f2fa28eb9bb6b2f0cfa96bc34076734\"",
+      "last_modified": "Fri, 18 Sep 2026 04:08:49 GMT",
+      "last_checked": "2026-09-18T11:33:56.317493+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://jobpagol.com/feed/": {
-      "last_checked": "2026-09-18T08:49:36.581113+06:00",
-      "fail_count": 1
+      "last_checked": "2026-09-18T11:33:56.531729+06:00",
+      "fail_count": 2
     },
     "https://bdpratidin.net/rss/category/job": {
       "etag": null,
       "last_modified": null,
-      "last_checked": "2026-09-18T08:49:47.536511+06:00",
+      "last_checked": "2026-09-18T11:33:59.137718+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.jagonews24.com/rss/rss.xml": {
       "etag": null,
       "last_modified": null,
-      "last_checked": "2026-09-18T08:49:48.365274+06:00",
+      "last_checked": "2026-09-18T11:33:59.861012+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.banglatribune.com/feed": {
-      "last_checked": "2026-09-18T08:49:48.646817+06:00",
-      "fail_count": 1
+      "last_checked": "2026-09-18T11:33:59.984949+06:00",
+      "fail_count": 2
     },
     "https://www.bd24live.com/bangla/feed": {
-      "last_checked": "2026-09-18T08:49:48.869003+06:00",
-      "fail_count": 1
+      "last_checked": "2026-09-18T11:34:00.093484+06:00",
+      "fail_count": 2
     },
     "https://risingbd.com/rss/rss.xml": {
-      "etag": "\"1b3e6-65bb8ae610f8b-gzip\"",
-      "last_modified": "Fri, 18 Sep 2026 02:30:17 GMT",
-      "last_checked": "2026-09-18T08:49:49.342393+06:00",
+      "etag": "\"1b465-65bbb31bbf8d0-gzip\"",
+      "last_modified": "Fri, 18 Sep 2026 05:30:11 GMT",
+      "last_checked": "2026-09-18T11:34:00.485342+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.bd-journal.com/feed/latest-rss.xml": {
       "etag": null,
-      "last_modified": "Fri, 18 Sep 2026 02:14:45 GMT",
-      "last_checked": "2026-09-18T08:49:49.776847+06:00",
+      "last_modified": "Fri, 18 Sep 2026 05:24:46 GMT",
+      "last_checked": "2026-09-18T11:34:00.921110+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.prothomalo.com/feed/": {
       "etag": null,
-      "last_modified": "Fri, 18 Sep 2026 02:44:01 GMT",
-      "last_checked": "2026-09-18T08:49:50.082405+06:00",
+      "last_modified": "Fri, 18 Sep 2026 05:32:09 GMT",
+      "last_checked": "2026-09-18T11:34:01.232242+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.jugantor.com/feed/rss.xml": {
       "etag": null,
       "last_modified": null,
-      "last_checked": "2026-09-18T08:49:50.637881+06:00",
+      "last_checked": "2026-09-18T11:34:01.720442+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.kalerkantho.com/rss.xml": {
-      "last_checked": "2026-09-18T08:49:50.796441+06:00",
-      "fail_count": 1
+      "last_checked": "2026-09-18T11:34:01.827030+06:00",
+      "fail_count": 2
     },
     "https://www.thedailystar.net/jobs/rss.xml": {
-      "etag": "W/\"1789699792\"",
-      "last_modified": "Fri, 18 Sep 2026 02:49:52 GMT",
-      "last_checked": "2026-09-18T08:49:53.046024+06:00",
+      "etag": "W/\"1789709643\"",
+      "last_modified": "Fri, 18 Sep 2026 05:34:03 GMT",
+      "last_checked": "2026-09-18T11:34:03.550947+06:00",
       "fail_count": 0,
       "alerted": false
     },
     "https://www.ittefaq.com.bd/rss.xml": {
-      "last_checked": "2026-09-18T08:49:53.170715+06:00",
-      "fail_count": 1
+      "last_checked": "2026-09-18T11:34:03.627433+06:00",
+      "fail_count": 2
     }
   },
   "queue": {
@@ -108,7 +108,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.287396+06:00",
-      "last_seen": "2026-09-18T08:49:34.287402+06:00"
+      "last_seen": "2026-09-18T11:33:54.665008+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/bba-job-circular": {
       "title": "বাংলাদেশ সেতু কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -126,7 +128,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.288469+06:00",
-      "last_seen": "2026-09-18T08:49:34.288474+06:00"
+      "last_seen": "2026-09-18T11:33:54.666038+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/nu-job-circular": {
       "title": "জাতীয় বিশ্ববিদ্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -144,7 +148,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.289538+06:00",
-      "last_seen": "2026-09-18T08:49:34.289542+06:00"
+      "last_seen": "2026-09-18T11:33:54.667106+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/division-office-job-circular": {
       "title": "সকল বিভাগীয় কমিশনারের কার্যালয় নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -162,7 +168,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.290675+06:00",
-      "last_seen": "2026-09-18T08:49:34.290678+06:00"
+      "last_seen": "2026-09-18T11:33:54.668206+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/nctb-job-circular": {
       "title": "জাতীয় শিক্ষাক্রম ও পাঠ্যপুস্তক বোর্ড নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -180,7 +188,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.291949+06:00",
-      "last_seen": "2026-09-18T08:49:34.291953+06:00"
+      "last_seen": "2026-09-18T11:33:54.669411+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/nmi-jobs-circular": {
       "title": "ন্যাশনাল মেরিটাইম ইনস্টিটিউট নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -198,7 +208,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.293000+06:00",
-      "last_seen": "2026-09-18T08:49:34.293003+06:00"
+      "last_seen": "2026-09-18T11:33:54.670445+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/momota-ngo-job-circular": {
       "title": "মমতা এনজিও নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -216,7 +228,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:34.294010+06:00",
-      "last_seen": "2026-09-18T08:49:34.294015+06:00"
+      "last_seen": "2026-09-18T11:33:54.671485+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "projobsbd.com/idra-job-circular": {
       "title": "বীমা উন্নয়ন ও নিয়ন্ত্রণ কর্তৃপক্ষ নিয়োগ বিজ্ঞপ্তি ২০২৬",
@@ -270,7 +284,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:36.447353+06:00",
-      "last_seen": "2026-09-18T08:49:36.447360+06:00"
+      "last_seen": "2026-09-18T11:33:56.431475+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "bdgovtjobs.com/national-maritime-institute-nmi-job-circular": {
       "title": "National Maritime Institute NMI Job Circular 2026",
@@ -288,7 +304,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:36.447883+06:00",
-      "last_seen": "2026-09-18T08:49:36.447887+06:00"
+      "last_seen": "2026-09-18T11:33:56.431955+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "bdgovtjobs.com/mamata-ngo-job-circular": {
       "title": "MAMATA NGO Job Circular 2026",
@@ -362,7 +380,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:36.450165+06:00",
-      "last_seen": "2026-09-18T08:49:36.450169+06:00"
+      "last_seen": "2026-09-18T11:33:56.430957+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "bdgovtjobs.com/national-university-job-circular": {
       "title": "National University NU Job Circular 2026 – nu.ac.bd Apply online",
@@ -453,7 +473,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:49.395615+06:00",
-      "last_seen": "2026-09-18T08:49:49.395619+06:00"
+      "last_seen": "2026-09-18T11:34:00.553172+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "risingbd.com/national/news/663376": {
       "title": "প্রধানমন্ত্রীর কার্যালয়ের মহাপরিচালক হলেন আবুল খায়ের",
@@ -471,7 +493,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:49.409675+06:00",
-      "last_seen": "2026-09-18T08:49:49.409678+06:00"
+      "last_seen": "2026-09-18T11:34:00.568030+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "risingbd.com/campus/news/663365": {
       "title": "ইবির ৪ বিভাগে সভাপতি পদে নতুন মুখ",
@@ -489,7 +513,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:49.412817+06:00",
-      "last_seen": "2026-09-18T08:49:49.412820+06:00"
+      "last_seen": "2026-09-18T11:34:00.571402+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "risingbd.com/bangladesh/news/663346": {
       "title": "আদিবাসীদের পাঁচ শতাংশ কোটা পুনর্বহালের দাবিতে সমাবেশ",
@@ -561,7 +587,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:50.140911+06:00",
-      "last_seen": "2026-09-18T08:49:50.140916+06:00"
+      "last_seen": "2026-09-18T11:34:01.390262+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "prothomalo.com/education/scholarship/xa7vsac3p3": {
       "title": "নেতাজি সুভাষ আইসিএআর ইন্টারন্যাশনাল ফেলোশিপ, আবেদনে যে যে যোগ্যতা",
@@ -579,7 +607,9 @@
       "apply_url": "",
       "status": "pending",
       "first_seen": "2026-09-18T08:49:50.141130+06:00",
-      "last_seen": "2026-09-18T08:49:50.141132+06:00"
+      "last_seen": "2026-09-18T11:34:01.390509+06:00",
+      "application_url": "",
+      "deadline_hint": ""
     },
     "nagorik.prothomalo.com/reader/fcy9baz6nn": {
       "title": "বিসিএস উন্মাদনা বনাম বেসরকারি ক্যারিয়ার: বাংলাদেশের তরুণ প্রজন্ম কেন ঝুঁকেছে সরকারি চাকরিতে",
@@ -1518,6 +1548,188 @@
       "status": "pending",
       "first_seen": "2026-09-18T08:51:27.215406+06:00",
       "last_seen": "2026-09-18T08:51:27.215408+06:00"
+    },
+    "projobsbd.com/mole-job-circular": {
+      "title": "শ্রম ও কর্মসংস্থান মন্ত্রণালয় নিয়োগ বিজ্ঞপ্তি ২০২৬",
+      "url": "https://projobsbd.com/mole-job-circular/",
+      "canonical": "projobsbd.com/mole-job-circular",
+      "published_dt": "2026-09-18T09:07:41+06:00",
+      "published_date": "2026-09-18T09:07:41+06:00",
+      "source": "ProjobsBD",
+      "region": "Career",
+      "excerpt": "১৫টি পদে শ্রম ও কর্মসংস্থান মন্ত্রণালয়ে আবারো নতুন নিয়োগ বিজ্ঞপ্তি প্রকাশ হয়েছে। শ্রম ও কর্মসংস্থান মন্ত্রণালয়ের রাজস্বখাতের নিম্নবর্ণিত স্থায়ী শূন্য পদে সরাসরি নিয়োগের জন্য পদের পাশে বর্ণিত শর্তে প্রকৃত বাংলাদেশী নাগরিকদের নিকট হতে দরখাস্ত আহবান করা যাচ্ছে। চাকরির ধরন সরকারি চাকরি জেলা সকল জেলা চাকরিদাতা সংস্থা শ্রম ও কর্মসংস্থান মন্ত্রণালয় ওয়েবসাইট https://mole.gov.bd পদের সংখ্যা ১৫ ... Read more",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://projobsbd.com/mole-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:54.663055+06:00",
+      "last_seen": "2026-09-18T11:33:54.663062+06:00"
+    },
+    "projobsbd.com/bb-job-circular": {
+      "title": "বাংলাদেশ ব্যাংক নিয়োগ বিজ্ঞপ্তি ২০২৬ 🔥হট জব",
+      "url": "https://projobsbd.com/bb-job-circular/",
+      "canonical": "projobsbd.com/bb-job-circular",
+      "published_dt": "2026-09-18T09:03:25+06:00",
+      "published_date": "2026-09-18T09:03:25+06:00",
+      "source": "ProjobsBD",
+      "region": "Career",
+      "excerpt": "২৩৬টি পদে বাংলাদেশ ব্যাংক আবার নতুন নিয়োগ বিজ্ঞপ্তি প্রকাশ করেছে। বাংলাদেশ ব্যাংক-এ আবেদন করার জন্য মূলত অল্প কিছুদিন সময় থাকে, তাই শেষ তারিখ ও সময়ের জন্য অপেক্ষা না করে হাতে যথেষ্ট সময় নিয়ে আবেদন করে ফেলুন। বাংলাদেশ ব্যাংকের সকল নিয়োগ বিজ্ঞপ্তি এখানে প্রকাশ করে থাকি। প্রতি মাসেই বাংলাদেশ ব্যাংকে নিয়োগ বিজ্ঞপ্তি দিয়ে থাকে, যা আমরা ... Read more",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://projobsbd.com/bb-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:54.663931+06:00",
+      "last_seen": "2026-09-18T11:33:54.663937+06:00"
+    },
+    "bdgovtjobs.com/dbl-pharmaceuticals-job-circular": {
+      "title": "DBL Pharmaceuticals Job Circular 2026 – Salary, Age, Qualification",
+      "url": "https://bdgovtjobs.com/dbl-pharmaceuticals-job-circular/",
+      "canonical": "bdgovtjobs.com/dbl-pharmaceuticals-job-circular",
+      "published_dt": "2026-09-18T09:55:42+06:00",
+      "published_date": "2026-09-18T09:55:42+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "Details of the DBL Pharmaceuticals Job Circular 2026 are fully available on our website at https://bdgovtjobs.com/. We covered key information, ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/dbl-pharmaceuticals-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.426924+06:00",
+      "last_seen": "2026-09-18T11:33:56.426930+06:00"
+    },
+    "bdgovtjobs.com/drug-international-limited-job-circular": {
+      "title": "Drug International Limited Job Circular 2026",
+      "url": "https://bdgovtjobs.com/drug-international-limited-job-circular/",
+      "canonical": "bdgovtjobs.com/drug-international-limited-job-circular",
+      "published_dt": "2026-09-18T09:40:08+06:00",
+      "published_date": "2026-09-18T09:40:08+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "The details of the Drug International Limited Job Circular 2026 are available on our website https://bdgovtjobs.com. We have published all ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/drug-international-limited-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.427490+06:00",
+      "last_seen": "2026-09-18T11:33:56.427494+06:00"
+    },
+    "bdgovtjobs.com/osl-pharma-job-circular": {
+      "title": "OSL Pharma Limited Job Circular 2026 – Check Salary, Age, Qualification",
+      "url": "https://bdgovtjobs.com/osl-pharma-job-circular/",
+      "canonical": "bdgovtjobs.com/osl-pharma-job-circular",
+      "published_dt": "2026-09-18T09:36:34+06:00",
+      "published_date": "2026-09-18T09:36:34+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "OSL Pharma Limited Job Circular 2026 has been published on our website https://bdgovtjobs.com. We have covered all the important details, ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/osl-pharma-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.428097+06:00",
+      "last_seen": "2026-09-18T11:33:56.428102+06:00"
+    },
+    "bdgovtjobs.com/unimed-unihealth-pharmaceuticals-job-circular": {
+      "title": "Unimed Unihealth Pharmaceuticals Job Circular 2026",
+      "url": "https://bdgovtjobs.com/unimed-unihealth-pharmaceuticals-job-circular/",
+      "canonical": "bdgovtjobs.com/unimed-unihealth-pharmaceuticals-job-circular",
+      "published_dt": "2026-09-18T09:33:48+06:00",
+      "published_date": "2026-09-18T09:33:48+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "Unimed Unihealth Pharmaceuticals Job Circular 2026 has been published on our website https://bdgovtjobs.com. We covered all the important points, including ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/unimed-unihealth-pharmaceuticals-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.428709+06:00",
+      "last_seen": "2026-09-18T11:33:56.428714+06:00"
+    },
+    "bdgovtjobs.com/aristopharma-ltd-job-circular": {
+      "title": "Aristopharma Ltd Job Circular 2026 – aristopharma.com Apply now",
+      "url": "https://bdgovtjobs.com/aristopharma-ltd-job-circular/",
+      "canonical": "bdgovtjobs.com/aristopharma-ltd-job-circular",
+      "published_dt": "2026-09-18T09:10:22+06:00",
+      "published_date": "2026-09-18T09:10:22+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "Details of the Aristopharma Ltd. Job Circular 2026 are available on our website at https://bdgovtjobs.com/. We covered all the important ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/aristopharma-ltd-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.429271+06:00",
+      "last_seen": "2026-09-18T11:33:56.429275+06:00"
+    },
+    "bdgovtjobs.com/popular-pharmaceuticals-limited-job-circular": {
+      "title": "Popular Pharmaceuticals Limited Job Circular 2026 – নতুন নিয়োগ",
+      "url": "https://bdgovtjobs.com/popular-pharmaceuticals-limited-job-circular/",
+      "canonical": "bdgovtjobs.com/popular-pharmaceuticals-limited-job-circular",
+      "published_dt": "2026-09-18T09:00:45+06:00",
+      "published_date": "2026-09-18T09:00:45+06:00",
+      "source": "BD Govt Jobs",
+      "region": "Career",
+      "excerpt": "Popular Pharmaceuticals Limited Job Circular 2026 is now available on our website: https://bdgovtjobs.com. We covered all the important points, including ... View Full Information",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://bdgovtjobs.com/popular-pharmaceuticals-limited-job-circular/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:33:56.429925+06:00",
+      "last_seen": "2026-09-18T11:33:56.429930+06:00"
+    },
+    "risingbd.com/economics/news/663446": {
+      "title": "শিল্পকারখানায় সরাসরি বিনিয়োগ করবে না সরকার",
+      "url": "https://www.risingbd.com/economics/news/663446",
+      "canonical": "risingbd.com/economics/news/663446",
+      "published_dt": "2026-09-18T08:31:00+06:00",
+      "published_date": "2026-09-18T08:31:00+06:00",
+      "source": "RisingBD",
+      "region": "Career",
+      "excerpt": "নতুন করে সরকারি অর্থে শিল্পকারখানা স্থাপনের পরিবর্তে শিল্প পরিচালনা ও উৎপাদন সক্ষমতা বাড়াতে বেসরকারি খাতের অংশগ্রহণ বাড়ানোর নীতিগত অবস্থান জানিয়েছে সরকার।",
+      "image": "",
+      "discovery": "rss",
+      "date_estimated": false,
+      "source_url": "https://www.risingbd.com/economics/news/663446",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:34:00.542706+06:00",
+      "last_seen": "2026-09-18T11:34:00.542712+06:00"
+    },
+    "jobsnoticebd.com/pharmaceutical-company-job": {
+      "title": "ঔষধ কোম্পানি চাকরি",
+      "url": "https://jobsnoticebd.com/pharmaceutical-company-job/",
+      "canonical": "jobsnoticebd.com/pharmaceutical-company-job",
+      "published_dt": "2026-09-18T00:00:00+06:00",
+      "published_date": "2026-09-18T00:00:00+06:00",
+      "source": "JobsNoticeBD",
+      "source_type": "job_portal",
+      "region": "Career",
+      "excerpt": "ড্রাগ ইন্টারন্যাশনাল লিমিটেড নিয়োগ বিজ্ঞপ্তি ২০২৬ September 18, 2026 by Mohasin Islam … বিস্তারিত দেখুন … Categories ঔষধ কোম্পানি চাকরি , বেসরকারি চাকরি পদের সংখ্যা: অসংখ্য জন আবেদনের শেষ তারিখ: ২৬ সেপ্টেম্বর ২০২৬",
+      "image": "",
+      "discovery": "direct_portal",
+      "date_estimated": false,
+      "deadline_hint": "18 September 2026",
+      "source_url": "https://jobsnoticebd.com/pharmaceutical-company-job/",
+      "apply_url": "",
+      "status": "pending",
+      "first_seen": "2026-09-18T11:35:17.054326+06:00",
+      "last_seen": "2026-09-18T11:35:17.054330+06:00"
     }
   },
   "events": {
