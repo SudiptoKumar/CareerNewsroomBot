@@ -33,6 +33,7 @@ jobs:
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
+      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
 
     steps:
       - name: Checkout repository
