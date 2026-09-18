@@ -1,51 +1,75 @@
-# CareerNewsBot V1
+# CareerNewsroom
 
-Production Bangladesh job-news bot for `@CareerNewsroom`, built on the existing TechNewsroom technical framework.
+Production Bangladesh job-news bot for `@CareerNewsroom`, using the proven TechNewsroom runtime framework with a dedicated career discovery and selection engine.
 
-## Post structure
-- Job title and company first.
-- High-impact job facts are kept in `JOB SNAPSHOT` as a compact Rich HTML table.
-- Missing fields are omitted completely.
-- No separate `Suitable For` or `Key Highlights` blocks.
-- Order: job card → hashtags → Official Source → one native Telegram Inline Keyboard button.
-- The Apply button text is exactly `APPLY NOW`. It contains only the actual application destination.
-- Source URL and Apply URL are separate fields end-to-end. The source/details URL is shown only behind the source name.
-- No raw URL is displayed in the message body.
-- If no usable job photo exists, the bot can publish a text-only Rich Message.
+## Publishing flow
+```text
+RSS + direct job portals + Google News RSS + Exa
+→ normalize + URL dedup
+→ job-detail detection
+→ 72-hour rolling inventory
+→ local relevance scoring
+→ source-balanced AI ranking (bounded)
+→ source-page extraction
+→ separate Source URL / Apply URL resolution
+→ fact-locked job record
+→ Rich HTML + inline keyboard
+→ Telegram
+```
 
-## Application URL rules
-- `source_url` is the original job/details page.
-- `apply_url` is the real application destination.
-- A source URL is never used as an Apply URL fallback.
-- Application links found in the Application section, anchors, forms, data attributes, or verified page text are candidates for `apply_url`.
-- If the source and application URLs differ by domain, both are preserved independently.
-- If no verified application URL exists, the bot does not attach an incorrect fallback button.
+## Key behavior
+- Each run targets **5 to 15** verified vacancies when enough eligible jobs exist. The bot never fabricates jobs to satisfy the minimum.
+- Discovery remains a **72-hour rolling window**. Jobs with no explicit portal timestamp may use `first_seen` as a lower-confidence discovery anchor.
+- Google News and Exa are always-on complementary discovery channels, not only emergency gap-fillers.
+- Bdjobs is a high-priority source and is extracted using job-detail URL detection instead of requiring the title to contain the word `job`. Google News and Exa are always-on parallel discovery channels so large direct-source inventories do not suppress secondary sources.
+- Large sources are filtered by vacancy intent, audience relevance, page type, freshness, deadline usefulness, source reliability, completeness and source diversity.
+- BBA/MBA, business, finance/accounting, banking, marketing/sales, HR, operations, management trainee, graduate, entry-level and internship roles receive stronger audience-fit signals.
+- Official government, NGO, education and reputable corporate vacancies remain eligible when relevant.
+- Generic career advice, portal utility pages, scholarships, training/event content, profiles, list pages and obvious non-vacancies are filtered before expensive AI processing.
+- AI ranking is bounded to a single batch of the strongest candidates. There is no per-job AI claim-verification loop. AI job-record extraction is a small fallback only for ambiguous records.
+- Runtime is designed around a low-token funnel: broad discovery → deterministic job filtering → local scoring → one AI ranking batch → local source-locked publishing. A bounded reserve pass can inspect additional candidates only when the 5-post target has not been reached.
+- AI cannot replace source-backed job identity. Title, company, location, deadline, application information and URLs remain source-locked.
 
-## Job snapshot fields
-High-value fields are shown only when present: location, type, education, experience, salary, vacancies, age limit, application fee, application method, application period, selection process, deadline and posted date. Raw links inside the Application field are hidden from the body and used as the Apply URL when verified.
+## URL rules
+- `source_url` = original job/details page.
+- `apply_url` = actual application destination.
+- They are stored independently from discovery through state and Telegram.
+- The source URL is **never** used as an Apply URL fallback.
+- The Apply button is created only from a verified HTTP(S) `apply_url`.
+- The button text is exactly `APPLY NOW`, with no emoji.
+- Raw URLs are not displayed in the message body.
 
-## Discovery and selection
-- RSS, Bangladesh job portals, Google News RSS and Exa are complementary discovery layers.
-- Freshness window: 72 hours.
-- Expired vacancies are rejected. Deadline distance is a ranking factor, not a seven-day hard gate.
-- Large portals such as Bdjobs are important discovery sources, but are not forwarded indiscriminately.
-- Relevance scoring prioritizes BBA/MBA, business, finance/accounting, banking, marketing/sales, HR, business development, operations, management trainee, graduate, internship and other early-career roles.
-- Clearly unrelated service/manual roles are filtered unless the job itself contains strong relevance to the target audience.
-- Local deterministic scoring runs before AI ranking. Only the strongest locally ranked candidates consume the bounded AI ranking budget.
-- Event, URL and title deduplication are retained.
-- Source diversity is enforced during candidate processing and publication when multiple sources are available.
-- Minimum publication target is 5 and maximum is 15. The bot never fabricates vacancies to meet the target.
+## Post layout
+```text
+📣 JOB TITLE
 
-## Technical architecture
-The implementation preserves the working framework from the reference TechNewsroom bot: RSS ingestion, Google News gap-fill, Exa gap-fill, persistent queue/state, canonical URL handling, event deduplication, article extraction, source/image fallback, 1200×675 image processing, Telegram Rich Messages, native InlineKeyboardMarkup, Bot API fallback, GitHub Actions, numeric grounding, claim verification and self-test.
+🏢 Company: ...
+
+JOB SNAPSHOT
+┌──────────┬────────────────┐
+│ FIELD    │ DETAILS        │
+├──────────┼────────────────┤
+│ ...      │ ...            │
+└──────────┴────────────────┘
+
+#hashtags
+
+🔎 Official Source: Source Name
+
+[ APPLY NOW ]   ← native Telegram Inline Keyboard
+```
+
+Missing fields are omitted. Gender is not collected or displayed. High-impact information is kept in the snapshot; lower-value editorial sections are intentionally removed.
+
+## Technical framework preserved
+RSS ingestion, Google News, Exa, persistent queue/state, canonical URL handling, event deduplication, article extraction, image recovery, source-logo/source-name fallback, optional text-only publishing, 1200×675 image processing, Telegram Rich Messages, native InlineKeyboardMarkup, Bot API fallback, GitHub Actions, numeric grounding and deterministic fact validation.
 
 ## Repository tree
 ```text
-CareerNewsBot-main/
-├── .github/
-│   └── workflows/
-│       ├── import-zip.yml
-│       └── newbot.yml
+CareerNewsroom/
+├── .github/workflows/
+│   ├── import-zip.yml
+│   └── newbot.yml
 ├── README.md
 ├── main.py
 ├── news_state.json
@@ -53,8 +77,9 @@ CareerNewsBot-main/
 └── requirements.txt
 ```
 
-## Local validation
+## Validation
 ```bash
 python -m py_compile main.py
 python main.py --self-test
 ```
+The self-test covers source/apply URL separation, real application-link extraction, Bdjobs detail-page detection, no-placeholder fields, no gender field, native inline keyboard payload, source diversity, 72-hour freshness, expired-deadline rejection, and the one-batch ranking design.
