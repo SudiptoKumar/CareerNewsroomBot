@@ -1,4 +1,4 @@
-# CareerNewsBot V3 Final
+# CareerNewsBot V3.1 Final
 
 Telegram career-news bot for **@CareerNewsroom**. Built around the same proven runtime pattern as the reference TechNewsroom bot, with a career-specific discovery, scoring, fact-locking, application-link resolution, source diversity, and Telegram presentation layer.
 
@@ -383,3 +383,9 @@ CareerNewsBot-main/
 ├── requirements.txt
 └── source_health.json
 ```
+## V3.1 reliability fixes
+
+- Direct portal HTTP errors (403/404/5xx) are treated as source failures and skipped without aborting the run.
+- The direct-portal consumer validates that a usable response object exists before reading `.text`.
+- GitHub Actions uses the current Node 24-compatible `actions/checkout@v7` and `actions/setup-python@v7` releases.
+

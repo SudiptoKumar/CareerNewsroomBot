@@ -3883,7 +3883,10 @@ def direct_portal_gap_fill():
             r = requests.get(source["url"], headers=HEADERS, timeout=18, allow_redirects=True)
             if r.status_code >= 400:
                 mark_source_health(source["name"], "http_error", r.status_code)
-                return source, 0, []
+                # Never return a numeric sentinel here. The consumer expects
+                # either a response-like object or None. Returning 0 caused
+                # a failed portal to crash the whole run at response.text.
+                return source, None, []
             mark_source_health(source["name"], "ok", r.status_code)
             return source, r, []
         except Exception as exc:
@@ -3896,7 +3899,8 @@ def direct_portal_gap_fill():
         futures=[pool.submit(fetch_one, source) for source in DIRECT_JOB_SOURCES]
         for fut in as_completed(futures):
             source, response, _ = fut.result()
-            if response is None:
+            if response is None or not hasattr(response, "text"):
+                logger.warning("Direct portal %s produced no usable HTTP response", source.get("name", "Unknown Source"))
                 continue
             soup=BeautifulSoup(response.text, "html.parser")
             seen_local=set()
@@ -3978,7 +3982,7 @@ def direct_portal_gap_fill():
 
 def run():
     refresh_career_window()
-    logger.info("CAREER NEWSROOM V3 FINAL | channel=%s | window=%s -> %s | target=%d max=%d",TELEGRAM_CHANNEL,DISCOVERY_START.isoformat(),DISCOVERY_END.isoformat(),PUBLISH_TARGET,MAX_STORIES_PER_RUN)
+    logger.info("CAREER NEWSROOM V3.1 FINAL | channel=%s | window=%s -> %s | target=%d max=%d",TELEGRAM_CHANNEL,DISCOVERY_START.isoformat(),DISCOVERY_END.isoformat(),PUBLISH_TARGET,MAX_STORIES_PER_RUN)
     prune_state()
     refresh_category_coverage()
 
@@ -4183,7 +4187,54 @@ def self_test():
     assert dynamic_source_cap if 'dynamic_source_cap' in globals() else True
     assert source_health_file if False else True
 
-    logger.info("CAREER V3 FINAL SELF-TEST PASS")
+    # Regression: direct-portal HTTP failures (403/404/5xx) must be skipped
+    # without ever reaching response.text. This catches the exact production
+    # failure where an integer sentinel caused AttributeError and aborted the run.
+    original_sources = list(DIRECT_JOB_SOURCES)
+    original_get = requests.get
+    original_queue = STATE.get("queue")
+    original_health = {k: dict(v) for k, v in SOURCE_HEALTH.items()}
+    try:
+        STATE["queue"] = {}
+        SOURCE_HEALTH.clear()
+        DIRECT_JOB_SOURCES[:] = [
+            {"name":"SelfTest Good", "source":"Bdjobs", "url":"https://jobs.bdjobs.com/selftest", "type":"job_portal", "lane":"new"},
+            {"name":"SelfTest 403", "source":"SelfTest 403", "url":"https://jobs.bdjobs.com/selftest-403", "type":"job_portal", "lane":"general"},
+            {"name":"SelfTest 500", "source":"SelfTest 500", "url":"https://jobs.bdjobs.com/selftest-500", "type":"job_portal", "lane":"general"},
+        ]
+
+        class _SelfTestResponse:
+            def __init__(self, status_code, url, text=""):
+                self.status_code = status_code
+                self.url = url
+                self.text = text
+                self.content = text.encode("utf-8")
+                self.headers = {}
+
+        direct_html = (
+            "<div>Posted 18 September 2026 Deadline 30 September 2026 "
+            "Company: Example Company Location: Dhaka, Bangladesh "
+            "<a href='/job/self-test'>Management Trainee</a></div>"
+        )
+
+        def _selftest_get(url, **kwargs):
+            if url.endswith("-403"):
+                return _SelfTestResponse(403, url)
+            if url.endswith("-500"):
+                return _SelfTestResponse(500, url)
+            return _SelfTestResponse(200, url, direct_html)
+
+        requests.get = _selftest_get
+        assert direct_portal_gap_fill() == 1
+        assert len(STATE["queue"]) == 1
+    finally:
+        requests.get = original_get
+        DIRECT_JOB_SOURCES[:] = original_sources
+        STATE["queue"] = original_queue
+        SOURCE_HEALTH.clear()
+        SOURCE_HEALTH.update(original_health)
+
+    logger.info("CAREER V3.1 FINAL SELF-TEST PASS")
     return True
 
 
