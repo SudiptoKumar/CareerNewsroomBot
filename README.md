@@ -1,4 +1,4 @@
-# CareerNewsroom V1
+# CareerNewsroom V2
 
 Production-oriented Bangladesh job newsroom for BBA/MBA students, graduates, freshers and early-career professionals.
 
@@ -70,3 +70,33 @@ Required:
 - `TELEGRAM_BOT_TOKEN`
 
 The workflow runs on the Asia/Dhaka schedule and can also be started manually with **Run workflow**.
+
+
+## V2 post-rendering changes
+
+### Photo handling
+- A photo is attached only when the source provides a visually usable image.
+- Blank/black/white/flat placeholder images are rejected before publishing.
+- Placeholder, favicon, avatar and common logo image URLs are rejected.
+- If no usable image remains, the post is sent as **rich text only**. No blank photo container and no generated source-logo fallback are used.
+
+### Job information table
+The rich message now uses Telegram Rich Message HTML with a `JOB SNAPSHOT` table and includes source-backed high-impact fields when available:
+
+- Location
+- Employment
+- Workplace
+- Education
+- Experience
+- Salary
+- Vacancy
+- Age
+- Application
+- Application Period
+- Selection Process
+- Deadline
+- Posted
+
+Missing or placeholder values such as `--`, `N/A`, `Not Available` and `Not Specified` are omitted instead of displayed. Long source narratives are truncated to keep the table readable.
+
+Telegram Rich Messages support structured tables, media and interactive controls in current Bot API versions. The bot continues to use `sendRichMessage` for the post body and one native inline `APPLY NOW`/`READ MORE` button for the action.

@@ -16,7 +16,7 @@ from io import BytesIO
 import requests
 import trafilatura
 from bs4 import BeautifulSoup
-from PIL import Image, ImageDraw, ImageFont, ImageFile
+from PIL import Image, ImageDraw, ImageFont, ImageFile, ImageStat
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -666,16 +666,34 @@ def extract_apply_url(page_html, page_url, source):
 
 
 def _label_value(text, labels):
-    lines = [x.strip() for x in safe_text(text).splitlines() if x.strip()]
-    label_set = {x.lower() for x in labels}
+    """Extract a labelled field from both line-oriented and flattened source text."""
+    raw = safe_text(text)
+    if not raw:
+        return ""
+
+    lines = [re.sub(r"\s+", " ", x).strip() for x in raw.splitlines() if x.strip()]
     for i, line in enumerate(lines):
         low = line.lower().rstrip(":")
         for label in labels:
-            prefix = label.lower().rstrip(":")
+            prefix = re.sub(r"\s+", " ", label.lower().rstrip(":"))
             if low == prefix and i + 1 < len(lines):
                 return lines[i + 1]
             if low.startswith(prefix + ":"):
                 return line.split(":", 1)[1].strip()
+
+    # Trafilatura/source pages sometimes flatten labels and values into one line.
+    # Keep the value bounded so the next labelled field is not swallowed.
+    label_pattern = "|".join(re.escape(x) for x in sorted(labels, key=len, reverse=True))
+    if label_pattern:
+        match = re.search(
+            rf"(?:^|[\n|])\s*(?:{label_pattern})\s*[:\-]\s*(.+?)(?=\s+(?:[A-Za-z][A-Za-z /().&-]{{2,40}})\s*[:\-]|$)",
+            raw,
+            flags=re.I | re.S,
+        )
+        if match:
+            value = re.sub(r"\s+", " ", match.group(1)).strip(" \t|-")
+            if value:
+                return value
     return ""
 
 
@@ -721,7 +739,9 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     workplace = _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
     age = _label_value(text, ["Age", "Age Limit", "Age Requirements"])
     category = _label_value(text, ["Category", "Job Category"])
-    application_method = _label_value(text, ["Application", "Application Process", "How to Apply", "Read Before Apply"])
+    application_method = _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply"])
+    selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
+    application_period = _label_value(text, ["Application Period", "Application Date", "Interview Date", "Walk-in Date"])
 
     published = _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date"])
     deadline = _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before"])
@@ -765,6 +785,8 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "age": age,
         "category": category,
         "application_method": application_method,
+        "selection_process": selection_process,
+        "application_period": application_period,
         "posted_date": published_iso,
         "deadline": deadline_iso,
         "source": discovery_item.get("source") or source_name(source_url),
@@ -1002,6 +1024,9 @@ def judge_batch(batch, batch_no):
             f"Posted: {job.get('posted_date','')}",
             f"Deadline: {job.get('deadline','')}",
             f"Application: {trim_source_text(job.get('application_method',''), 900)}",
+            f"Selection process: {trim_source_text(job.get('selection_process',''), 900)}",
+            f"Application period: {trim_source_text(job.get('application_period',''), 500)}",
+            f"Workplace: {job.get('workplace','')}",
             f"Business relevance pre-score: {job.get('audience_pre_score',0)}",
             f"Source text evidence: {trim_source_text(job.get('raw_text',''), 2600)}",
             "",
@@ -1318,41 +1343,77 @@ def make_source_fallback(source, logo=None):
     return image
 
 
+def _image_url_looks_like_placeholder(url):
+    path = urlparse(safe_text(url)).path.lower()
+    name = path.rsplit("/", 1)[-1]
+    bad_terms = (
+        "placeholder", "no-image", "no_image", "noimage", "default-image",
+        "default_image", "defaultimage", "dummy", "blank", "spacer",
+        "transparent", "favicon", "avatar", "profile-image", "profile_image",
+        "site-logo", "site_logo", "sitelogo", "company-logo", "company_logo",
+    )
+    return any(term in path or term in name for term in bad_terms)
+
+
+def is_usable_job_image(image):
+    """Reject blank, solid-colour and placeholder-like images before publishing."""
+    try:
+        if image is None:
+            return False
+        image = image.convert("RGB")
+        if image.width < 240 or image.height < 120:
+            return False
+
+        # Downsample for cheap, stable pixel statistics.
+        sample = image.resize((96, 54), Image.Resampling.BILINEAR)
+        stat = ImageStat.Stat(sample)
+        means = stat.mean
+        stds = stat.stddev
+        overall_mean = sum(means) / 3.0
+        overall_std = sum(stds) / 3.0
+
+        # Completely/near-completely black or white cards are not job photos.
+        gray = sample.convert("L")
+        pixels = list(gray.getdata())
+        near_black = sum(1 for px in pixels if px <= 12) / len(pixels)
+        near_white = sum(1 for px in pixels if px >= 243) / len(pixels)
+        if near_black >= 0.97 or near_white >= 0.97:
+            return False
+
+        # A flat placeholder/background has almost no pixel variation.
+        if overall_std < 4.5:
+            return False
+
+        # Also reject an image where all three channels are effectively identical
+        # and the frame is nearly flat, which catches simple blank graphics.
+        if max(means) - min(means) < 2.0 and overall_std < 7.0:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def download_image(url, referer=""):
+    if _image_url_looks_like_placeholder(url):
+        return None
     try:
         response = session.get(url, headers={**HEADERS, "Referer": referer or url}, timeout=20)
         if response.status_code >= 400 or not response.content:
             return None
         image = Image.open(BytesIO(response.content))
-        if image.width < 240 or image.height < 120:
+        image.load()
+        if not is_usable_job_image(image):
+            logger.info("Rejected unusable/blank image: %s", url)
             return None
         return image.convert("RGB")
     except Exception:
         return None
 
 
-def download_logo(url, referer=""):
-    image = download_image(url, referer)
-    return image
-
-
-def source_logo_candidates(source, article_url):
-    domain = normalized_domain(article_url)
-    candidates = []
-    if source == "Dohaj" or domain == DOHAJ_DOMAIN:
-        candidates = ["https://dohaj.com/favicon.ico", "https://dohaj.com/images/logo.png"]
-    else:
-        candidates = [
-            "https://bdjobs.com/favicon.ico",
-            "https://www.bdjobs.com/favicon.ico",
-        ]
-    return candidates
-
-
 def prepare_image(job, index):
-    """Return only a genuine source image. Never manufacture a placeholder."""
+    """Return a genuine, visually usable source image or None for text-only output."""
     candidates = _unique_image_urls(job.get("image_candidates", []), job.get("source_url", ""))
-    for image_url in candidates[:6]:
+    for image_url in candidates[:8]:
         try:
             image = download_image(image_url, referer=job.get("source_url", ""))
             if image is None:
@@ -1360,11 +1421,11 @@ def prepare_image(job, index):
             branded = branded_card(image)
             path = f"/tmp/career_news_{index}.jpg"
             branded.save(path, "JPEG", quality=88, optimize=True)
-            logger.info("Image selected | source=%s", job.get("source", "Source"))
+            logger.info("Image selected | source=%s | url=%s", job.get("source", "Source"), image_url)
             return path
         except Exception as exc:
             logger.warning("Image candidate failed %s: %s", image_url, exc)
-    logger.info("No genuine image available | %s", job.get("title", ""))
+    logger.info("No usable job image | text-only post | %s", job.get("title", ""))
     return None
 
 
@@ -1477,18 +1538,50 @@ def job_hashtags(job):
     return list(dict.fromkeys(tags))[:4]
 
 
+def _field_icon(label):
+    return {
+        "Location": "📍",
+        "Employment": "💼",
+        "Workplace": "🏢",
+        "Education": "🎓",
+        "Experience": "🧑‍💼",
+        "Salary": "💰",
+        "Vacancy": "👥",
+        "Age": "🎂",
+        "Application": "📝",
+        "Application Period": "🗓️",
+        "Selection": "🧪",
+        "Deadline": "📅",
+        "Posted": "🕒",
+    }.get(label, "•")
+
+
 def job_snapshot_rows(job):
+    """Return only source-backed, high-impact job facts. Missing fields are omitted."""
     rows = []
     mapping = [
-        ("Location", "location"), ("Type", "employment_type"),
-        ("Education", "education"), ("Experience", "experience"),
-        ("Salary", "salary"), ("Deadline", "deadline"), ("Posted", "posted_date"),
+        ("Location", "location"),
+        ("Employment", "employment_type"),
+        ("Workplace", "workplace"),
+        ("Education", "education"),
+        ("Experience", "experience"),
+        ("Salary", "salary"),
+        ("Vacancy", "vacancy"),
+        ("Age", "age"),
+        ("Application", "application_method"),
+        ("Application Period", "application_period"),
+        ("Selection", "selection_process"),
+        ("Deadline", "deadline"),
+        ("Posted", "posted_date"),
     ]
     for label, key in mapping:
         value = display_value(job.get(key))
-        if value and value not in {"--", "N/A", "Na"}:
+        if value and value.lower() not in {"--", "n/a", "na", "not available", "not specified", "none", "null"}:
+            # Keep the table readable when a source gives a very long narrative.
+            limit = 650 if key in {"education", "experience", "application_method", "selection_process"} else 350
+            value = trim_source_text(value, limit)
             rows.append((label, value))
-    return rows[:7]
+    return rows
 
 
 def dynamic_rich_html(job, include_photo=False):
@@ -1497,9 +1590,19 @@ def dynamic_rich_html(job, include_photo=False):
     parts = []
     if include_photo:
         parts.append('<img src="tg://photo?id=newsphoto">')
-    parts.extend([f"<h1>{title}</h1>", f"<p><b>{company}</b></p>", "<table>"])
+    parts.extend([
+        f"<h1>{title}</h1>",
+        f"<p><b>{company}</b></p>",
+        "<h2>JOB SNAPSHOT</h2>",
+        "<table>",
+        "<tr><th>FIELD</th><th>DETAILS</th></tr>",
+    ])
     for label, value in job_snapshot_rows(job):
-        parts.append(f"<tr><td><b>{html.escape(label)}</b></td><td>{html.escape(value, quote=False)}</td></tr>")
+        icon = _field_icon(label)
+        parts.append(
+            f"<tr><td><b>{html.escape(icon + ' ' + label)}</b></td>"
+            f"<td>{html.escape(value, quote=False)}</td></tr>"
+        )
     parts.append("</table>")
     tags = " ".join(job_hashtags(job))
     if tags:
@@ -1530,7 +1633,7 @@ def fit_rich_html(job, include_photo=False):
     if rich_visible_length(result) <= MAX_RICH_CHARACTERS:
         return result
     candidate = dict(job)
-    for key, limit in (("education", 1200), ("experience", 700), ("application_method", 700), ("location", 500), ("salary", 300)):
+    for key, limit in (("education", 900), ("experience", 650), ("application_method", 450), ("application_period", 350), ("selection_process", 500), ("workplace", 300), ("location", 500), ("salary", 300)):
         if candidate.get(key):
             candidate[key] = trim_source_text(candidate[key], limit)
     return dynamic_rich_html(candidate, include_photo=include_photo)
@@ -1541,7 +1644,7 @@ def fit_rich_html(job, include_photo=False):
 # ============================================================
 
 def run():
-    logger.info("CAREERNEWSROOM V1")
+    logger.info("CAREERNEWSROOM V2")
     logger.info("Channel=%s | Sources=Bdjobs+Dohaj | Target=5-15", TELEGRAM_CHANNEL)
     logger.info("BDJOBS DISCOVERY WINDOW=%s -> %s", DISCOVERY_START.isoformat(), DISCOVERY_END.isoformat())
     prune_state()
@@ -1662,6 +1765,12 @@ def self_test():
     <p>Education: Bachelor of Business Administration (BBA) or MBA</p>
     <p>Experience: Freshers are encouraged to apply.</p>
     <p>Salary: Tk. 35000 - 45000</p>
+    <p>Employment Status: Full Time</p>
+    <p>Job Work Place: Work at Office</p>
+    <p>Age: 18 to 30 years</p>
+    <p>Application: Online</p>
+    <p>Application Period: 20 September 2026 - 17 October 2026</p>
+    <p>Selection Process: Written exam and viva exam</p>
     <p>Application Deadline: 2026-10-17</p>
     <a href="https://careers.examplebank.com/jobs/123">Apply Online</a>
     </body></html>
@@ -1684,6 +1793,11 @@ def self_test():
     assert fields["vacancy"] == "10"
     assert fields["salary"].startswith("Tk")
     assert fields["deadline"] == "2026-10-17"
+    assert fields["employment_type"] == "Full Time"
+    assert fields["workplace"] == "Work at Office"
+    assert fields["age"] == "18 to 30 years"
+    assert fields["selection_process"] == "Written exam and viva exam"
+    assert fields["application_period"] == "20 September 2026 - 17 October 2026"
     assert apply_url == "https://careers.examplebank.com/jobs/123"
     ok, _ = deterministic_job_gate(fields)
     assert ok
@@ -1709,11 +1823,37 @@ def self_test():
     assert "#BBA_MBA" not in html_text
     assert "🏢 Example Bank" in html_text
     assert "📣 Management Trainee" in html_text
+    assert "JOB SNAPSHOT" in html_text
+    assert "FIELD" in html_text and "DETAILS" in html_text
+    assert "🎓 Education" in html_text
+    assert "🧪 Selection" in html_text
+    assert "🗓️ Application Period" in html_text
+    assert "📅 Deadline" in html_text
     assert rich_visible_length(html_text) < MAX_RICH_CHARACTERS
     no_photo_html = dynamic_rich_html(fields, include_photo=False)
     assert "tg://photo" not in no_photo_html
     photo_html = dynamic_rich_html(fields, include_photo=True)
     assert "tg://photo?id=newsphoto" in photo_html
+
+    missing = dict(fields)
+    missing["education"] = ""
+    missing["selection_process"] = ""
+    missing["application_period"] = ""
+    missing_html = dynamic_rich_html(missing)
+    assert "Education" not in missing_html
+    assert "Selection" not in missing_html
+
+    black = Image.new("RGB", (1200, 675), (0, 0, 0))
+    white = Image.new("RGB", (1200, 675), (255, 255, 255))
+    real = Image.new("RGB", (1200, 675))
+    draw = ImageDraw.Draw(real)
+    draw.rectangle((0, 0, 600, 675), fill=(20, 80, 160))
+    draw.rectangle((600, 0, 1200, 675), fill=(220, 180, 60))
+    assert not is_usable_job_image(black)
+    assert not is_usable_job_image(white)
+    assert is_usable_job_image(real)
+    assert _image_url_looks_like_placeholder("https://example.com/images/placeholder-job.jpg")
+    assert _image_url_looks_like_placeholder("https://example.com/favicon.ico")
 
     noisy = {
         "title": "Salary Calculator for Students",
@@ -1789,7 +1929,7 @@ def self_test():
     finally:
         cerebras = original_cerebras
 
-    logger.info("CareerNewsroom V1 self-test passed.")
+    logger.info("CareerNewsroom V2 self-test passed.")
 
 
 if __name__ == "__main__":
