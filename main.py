@@ -2396,8 +2396,8 @@ def rich_message_blocks(job):
 
     # Telegram RichBlockTable has no width/min-width property. Keep the table
     # non-compact and use a centered pull-quote as the consistent editorial
-    # signature. The short 22-character dividers are intentional.
-    divider="──────────────────────"
+    # signature. The short 21-character dividers are intentional.
+    divider="─────────────────────"
     blocks.append({"type":"paragraph","text":divider})
     blocks.append({"type":"pullquote","text":"Your next opportunity starts here. 💼"})
     blocks.append({"type":"paragraph","text":divider})
@@ -2406,7 +2406,7 @@ def rich_message_blocks(job):
         blocks.append({"type":"paragraph","text":tags})
     # Channel identity is displayed as a username while the actual channel URL
     # stays behind the link, so no raw URL is exposed in the post.
-    blocks.append({"type":"paragraph","text":[_rich_url("@CareerNewsroom","https://t.me/CareerNewsroom")]})
+    blocks.append({"type":"paragraph","text":{"type":"bold","text":_rich_url("Career News","https://t.me/CareerNewsroom")}})
 
     source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else safe_text(job.get("source","Source"))
     source_url=safe_text(job.get("source_url"))
@@ -2724,8 +2724,9 @@ def self_test():
     rendered=rich_message_blocks(fresh)
     assert not any(b.get("type")=="photo" for b in rendered)
     assert any(b.get("type")=="pullquote" and "Your next opportunity starts here." in str(b.get("text","")) for b in rendered)
-    assert sum(1 for b in rendered if b.get("type")=="paragraph" and b.get("text")=="──────────────────────") == 2
-    assert any("@CareerNewsroom" in str(b.get("text","")) for b in rendered)
+    assert sum(1 for b in rendered if b.get("type")=="paragraph" and b.get("text")=="─────────────────────") == 2
+    channel_link = next(b for b in rendered if b.get("type")=="paragraph" and isinstance(b.get("text"), dict) and b["text"].get("type")=="bold" and isinstance(b["text"].get("text"), dict) and b["text"]["text"].get("type")=="url")
+    assert channel_link["text"]["text"] == {"type":"url","text":"Career News","url":"https://t.me/CareerNewsroom"}
     # Rendering never includes application start/end rows.
     assert not any(label in {"Application Start","Application End","Application Period"} for label,_ in job_snapshot_rows(fresh))
 

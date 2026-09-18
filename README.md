@@ -240,7 +240,7 @@ python main.py --self-test
 - Added a second experience extraction pass and defense-in-depth private experience filtering.
 - Removed `protect_content`; forwarding/sharing remains enabled.
 - Added a centered Rich Message pull-quote between 22-character dividers.
-- Added clickable `@CareerNewsroom` channel identity after hashtags, backed by the channel URL.
+- Added clickable `Career News (linked to https://t.me/CareerNewsroom)` channel identity after hashtags, backed by the channel URL.
 - Restored a stable practical message-width anchor because the Rich Message table API does not expose a minimum-width property.
 
-Pipeline version: `Polish-1.3`.
+Pipeline version: `Polish-1.4`.
