@@ -1,57 +1,72 @@
-# CareerNewsroom V0.5
+# CareerNewsroom V1
 
-A simple production bot that discovers and publishes Bangladesh job vacancies for a BBA/MBA and early-career audience.
+Production-oriented Bangladesh job newsroom for BBA/MBA students, graduates, freshers and early-career professionals.
 
-## Sources
+## Source pipeline
 
 ### Bdjobs
 
-Bdjobs is discovered in two independent ways:
+Bdjobs is discovered **directly from the Bdjobs website**, not through Exa search. The bot reads the native Bdjobs job-search pages, follows real `jobdetails` vacancy URLs, then retrieves each actual vacancy page.
 
-1. Bdjobs official listing pages, including the official New Jobs/search surface. Individual `/jobdetails/?id=...` vacancy links are extracted and the vacancy page is researched before publishing.
-2. Exa is used as a Bdjobs-only research/discovery layer with a seven-day discovery window.
-
-Bdjobs listing metadata such as functional category, organization type, industry, location, posted period, deadline, job nature, job level, experience and age are used as the basis for the local filter.
+The current Bdjobs detail URL pattern is handled explicitly, including URLs such as `jobs.bdjobs.com/jobdetails/?id=...`.
 
 ### Dohaj
 
-Only these eight pages are used, and only the latest five job-detail links from each page are considered per run:
+Dohaj is discovered directly from these approved pages:
 
-- https://dohaj.com/category/accounting-finance
-- https://dohaj.com/category/marketing-sales
-- https://dohaj.com/category/hr-org-development
-- https://dohaj.com/category/gen-mgt-admin
-- https://dohaj.com/category/commercial
-- https://dohaj.com/category/supply-chain-procurement
-- https://dohaj.com/category/bank-non-bank-fin-institution
-- https://dohaj.com/gov-jobs
+- `https://dohaj.com/category/accounting-finance`
+- `https://dohaj.com/category/marketing-sales`
+- `https://dohaj.com/category/hr-org-development`
+- `https://dohaj.com/category/gen-mgt-admin`
+- `https://dohaj.com/category/commercial`
+- `https://dohaj.com/category/supply-chain-procurement`
+- `https://dohaj.com/category/bank-non-bank-fin-institution`
+- `https://dohaj.com/gov-jobs`
 
-The latest two active, unpublished jobs from the Government Jobs page are reserved for publication when available.
+The first five job-detail links from each approved page are considered. Government jobs are tracked separately so the latest two eligible government jobs can be reserved for each run without depending on the global ranking order.
 
-For Dohaj, the job-detail page is the Source. When a verified original application URL is present in the detail page, the button uses that URL. Otherwise the button is `READ MORE` and opens the Dohaj detail page.
+## AI roles
 
-## Audience filter
+- **Exa:** research/retrieval fallback only when a direct source page is blocked or too thin. It is not the primary Bdjobs discovery engine.
+- **Cerebras:** editorial relevance judge for BBA/MBA and early-career suitability.
+- **Python:** source discovery, page retrieval, field extraction, deadline validation, deduplication, application-link validation and selection rules.
 
-Priority is given to BBA/MBA, fresher, trainee, internship, graduate/management trainee, finance, accounting, banking, marketing, sales, HR, business development, management, commercial, operations and supply-chain roles.
+If Cerebras returns an incomplete batch, verified source-backed candidates have a conservative deterministic fallback so an AI/API parsing failure does not automatically turn a healthy source run into zero posts.
 
 ## Publishing
 
-A run can publish up to 15 verified jobs. The target is at least 5 when at least 5 genuine, active and publishable jobs are available. No filler jobs are invented.
+- Target: 5–15 verified jobs per run when enough genuine jobs are available.
+- Maximum: 15.
+- No invented jobs to satisfy the minimum.
+- Two latest eligible Dohaj government jobs are reserved separately.
+- Exactly one native inline button:
+  - `APPLY NOW` when a verified application destination exists.
+  - `READ MORE` otherwise, linking to the source job page.
 
 ## Post format
 
-- Optional real image only. If no usable photo exists, the post is text-only.
-- Job title
-- `🏢 Company Name`
-- Compact `JOB SNAPSHOT` table with high-impact fields only
-- Job-related hashtags only
-- `Source: Bdjobs` or `Source: Dohaj`
-- One native inline button: `APPLY NOW` or `READ MORE`
+- `📣` job title
+- `🏢` company name without a `Company:` prefix
+- compact high-impact information table
+- job-specific hashtags
+- `Source:` linked to the source job page
+- no `🔎`
+- no `Official Source`
+- no `#BBA_MBA`
+- if a genuine source image exists, it may be attached
+- if no genuine image exists, the bot sends rich text only; it does not create a placeholder image
 
-## Required GitHub secrets
+## State
+
+- `news_state.json` stores queue and publication state.
+- `posted_urls.txt` prevents direct URL duplication.
+
+## GitHub Actions secrets
+
+Required:
 
 - `EXA_API_KEY`
 - `CEREBRAS_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 
-The workflow sets the production channel to `@CareerNewsroom`.
+The workflow runs on the Asia/Dhaka schedule and can also be started manually with **Run workflow**.
