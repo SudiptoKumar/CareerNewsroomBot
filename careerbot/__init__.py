@@ -1,1 +1,0 @@
-"""BDjobs-only CareerNewsBot package."""
