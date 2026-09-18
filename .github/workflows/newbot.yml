@@ -1,4 +1,4 @@
-name: CareerNewsroom Polish 1.2
+name: Career News Bot 1.5
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-polish-1-2
+  group: career-news-bot-1-5
   cancel-in-progress: false
 
 jobs:
@@ -53,13 +53,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Verify Career News Bot version
+        run: |
+          grep -q 'PIPELINE_VERSION = "Polish-1.5"' main.py
+          grep -q 'name: Career News Bot 1.5' .github/workflows/newbot.yml
+          echo "Career News Bot 1.5 source/workflow verified."
+
       - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Run Polish 1.2 self-test
+      - name: Run Career News Bot 1.5 self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsroom Polish 1.2
+      - name: Run Career News Bot 1.5
         run: python main.py
 
       - name: Save state
@@ -71,7 +77,31 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
-          else
-            git commit -m "Update CareerNewsroom Polish 1.2 state"
-            git push
+            exit 0
           fi
+
+          git commit -m "Update Career News Bot 1.5 state"
+
+          # The bot has already published successfully before this step.
+          # Retry state persistence so a transient GitHub commit_refs/remote
+          # error does not leave the runner's duplicate-protection state behind.
+          for attempt in 1 2 3; do
+            echo "State push attempt $attempt/3"
+            git fetch origin main
+            git rebase origin/main || {
+              echo "Rebase failed on attempt $attempt; aborting rebase."
+              git rebase --abort || true
+            }
+
+            if git push origin HEAD:main; then
+              echo "State push succeeded on attempt $attempt."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 5))
+            fi
+          done
+
+          echo "ERROR: State push failed after 3 attempts."
+          exit 1
