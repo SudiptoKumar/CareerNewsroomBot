@@ -1,0 +1,1 @@
+"""CareerNewsBot job intelligence package."""

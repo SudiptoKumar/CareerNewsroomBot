@@ -1,8 +1,11 @@
-name: CareerNewsroom V1
+name: CareerNewsroom
+
 
 on:
   schedule:
-    - cron: "0 7-23 * * *"
+    - cron: "0,30 8-23 * * *"
+      timezone: "Asia/Dhaka"
+    - cron: "0,30 0-2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -10,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v1
+  group: careernewsroom-2
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +26,8 @@ jobs:
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
-      NEWS_MODE: "update"
+      CEREBRAS_MODEL: "gpt-oss-120b"
+      JINA_READER_BASE: "https://r.jina.ai"
       PYTHONUNBUFFERED: "1"
 
     steps:
@@ -44,13 +48,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Python source
-        run: python -m py_compile main.py
+      - name: Compile source
+        run: python -m compileall -q main.py careerbot
 
       - name: Run self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsBot V1 V1 V1
+      - name: Run CareerNewsBot
         run: python main.py
 
       - name: Save state
@@ -59,10 +63,9 @@ jobs:
           git config user.name "Career News Bot"
           git config user.email "actions@github.com"
           git add news_state.json posted_urls.txt
-
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsBot V1 state"
+            git commit -m "Update CareerNewsBot state"
             git push
           fi
