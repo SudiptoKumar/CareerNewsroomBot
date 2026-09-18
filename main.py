@@ -39,7 +39,7 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Polish-1.0"
+PIPELINE_VERSION = "Polish-1.1"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -78,6 +78,9 @@ FAST_DETAIL_WORKERS = int(os.environ.get("FAST_DETAIL_WORKERS", "8"))
 FAST_AI_CANDIDATE_LIMIT = int(os.environ.get("FAST_AI_CANDIDATE_LIMIT", "20"))
 FAST_DISCOVERY_TIMEOUT = int(os.environ.get("FAST_DISCOVERY_TIMEOUT", "15"))
 FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
+# Private-channel experience gate: BBA/MBA students, freshers and early-career candidates.
+# 3 years is the maximum accepted experience band; 3-7 years / 7+ years are rejected.
+MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 
 BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
@@ -643,6 +646,58 @@ def discover_dohaj():
     return government+private
 
 
+
+BDJOBS_NATIVE_CATEGORY_HINTS = (
+    "account", "finance", "bank", "commercial", "management", "admin", "hr",
+    "human resource", "marketing", "sales", "business development", "supply chain",
+    "procurement", "operation", "relationship", "credit", "customer service",
+    "audit", "tax", "treasury", "merchandising", "corporate affairs", "analyst",
+    "trainee", "intern", "executive", "officer",
+)
+
+def _bdjobs_pagination_links(page_html, base_url):
+    soup = BeautifulSoup(page_html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        label = safe_text(a.get_text(" ", strip=True))
+        href = urljoin(base_url, safe_text(a.get("href")))
+        if label.isdigit() and 1 <= int(label) <= MAX_BDJOBS_DISCOVERY_PAGES and is_domain_allowed(href, BDJOBS_DOMAINS):
+            links.append((int(label), href))
+    return sorted(dict(links).items())
+
+def _bdjobs_listing_candidates(page_html, page_url):
+    """Extract current Bdjobs vacancy links from the official listing page."""
+    soup = BeautifulSoup(page_html, "html.parser")
+    found = []
+    seen = set()
+    for a in soup.find_all("a", href=True):
+        href = urljoin(page_url, safe_text(a.get("href")))
+        if not is_bdjobs_job_url(href):
+            continue
+        canonical = canonical_url(href)
+        if not canonical or canonical in seen:
+            continue
+        title = _clean_one_line(a.get_text(" ", strip=True))
+        if not title or is_noise_title(title, href):
+            continue
+        parent = a.find_parent(["li", "div", "article", "section", "tr"])
+        card_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
+        blob = f"{title} {card_text}".lower()
+        if not any(term in blob for term in BDJOBS_NATIVE_CATEGORY_HINTS):
+            continue
+        seen.add(canonical)
+        found.append({
+            "title": title,
+            "url": href,
+            "canonical": canonical,
+            "source": "Bdjobs",
+            "source_url": href,
+            "discovery": "bdjobs_direct",
+            "excerpt": trim_source_text(card_text, 2200),
+            "discovered_at": now_iso(),
+        })
+    return found
+
 def discover_bdjobs():
     """Read only the newest Bdjobs page, using page 2 only if the private pool is short."""
     discovered=[]; seen=set(); pages=[(1,BDJOBS_SEARCH_URL)]
@@ -812,7 +867,7 @@ def _normalized_line_label(line):
 
 
 def _label_value(text, labels):
-    """Extract one labelled block without swallowing the next labelled field."""
+    """Extract one labelled field without swallowing the next labelled field."""
     raw = safe_text(text)
     if not raw:
         return ""
@@ -820,11 +875,12 @@ def _label_value(text, labels):
     wanted = {re.sub(r"\s+", " ", safe_text(label).lower().rstrip(":")).strip() for label in labels}
     lines = [re.sub(r"\s+", " ", x).strip() for x in raw.splitlines() if x.strip()]
 
+    # First pass: line-oriented extraction, including optional whitespace before ':'.
     for i, line in enumerate(lines):
-        # Inline form: Experience: 2 years
+        lower_line = line.lower()
         for label in sorted(wanted, key=len, reverse=True):
-            if line.lower().startswith(label + ":"):
-                value = line.split(":", 1)[1].strip()
+            if re.match(rf"^{re.escape(label)}\s*:", lower_line):
+                value = re.sub(rf"^{re.escape(label)}\s*:\s*", "", line, count=1, flags=re.I).strip()
                 if value:
                     return value
 
@@ -832,28 +888,28 @@ def _label_value(text, labels):
         if normalized not in wanted:
             continue
 
-        # A bare field label gets a block until the next known source label.
         collected = []
         for nxt in lines[i + 1:]:
             nxt_norm = _normalized_line_label(nxt)
             if nxt_norm in JOB_LABEL_NORMALIZED:
                 break
-            # Stop on common section headings that are visually equivalent to labels.
             if re.match(r"^(responsibilities|requirements|additional requirements|benefits|company information)\s*:?$", nxt, re.I):
                 break
             collected.append(nxt)
         return " ".join(collected).strip()
 
-    # Flattened pages: stop at the next explicit known job label, not an arbitrary
-    # word followed by a colon. This avoids the V2 bug where Experience became Published.
-    label_pattern = "|".join(re.escape(x) for x in sorted(labels, key=len, reverse=True))
-    all_label_pattern = "|".join(re.escape(x) for x in sorted(JOB_LABELS, key=len, reverse=True))
-    if label_pattern:
-        match = re.search(
-            rf"(?:^|[\n|])\s*(?:{label_pattern})\s*[:\-]\s*(.*?)(?=\s+(?:{all_label_pattern})\s*[:\-]|[\n|]\s*(?:{all_label_pattern})\s*[:\-]|$)",
-            raw,
-            flags=re.I | re.S,
+    # Second pass: flattened/HTML-text extraction. Unlike the old implementation,
+    # the target label does not need to be at the start of a line. This matters for
+    # trafilatura/full-page text where several summary fields may be flattened.
+    all_labels = "|".join(
+        re.escape(x) for x in sorted(JOB_LABELS, key=len, reverse=True)
+    )
+    for label in sorted(wanted, key=len, reverse=True):
+        pattern = (
+            rf"(?<![\w]){re.escape(label)}\s*[:\-]\s*(.*?)"
+            rf"(?=(?:\s+|^)(?:{all_labels})\s*[:\-]|\Z)"
         )
+        match = re.search(pattern, raw, flags=re.I | re.S)
         if match:
             value = re.sub(r"\s+", " ", match.group(1)).strip(" \t|-:")
             if value:
@@ -895,7 +951,14 @@ def compact_experience(value, raw_text=""):
     if not found:
         return ""
     found = found.replace("–", "-")
-    return _clean_one_line(found)
+    cleaned = _clean_one_line(found)
+    if re.fullmatch(r"fresh(?:er|ers)", cleaned, flags=re.I):
+        return "Freshers"
+    if re.fullmatch(r"no\s+experience", cleaned, flags=re.I):
+        return "No Experience"
+    if re.fullmatch(r"entry[- ]level", cleaned, flags=re.I):
+        return "Entry Level"
+    return cleaned
 
 
 def compact_education(value, raw_text=""):
@@ -1339,21 +1402,41 @@ def _html_h1(page_html):
 
 
 def _dohaj_summary_lines(text):
+    """Return the most likely Dohaj Job Summary block, not an arbitrary page section."""
     lines = [re.sub(r"\s+", " ", x).strip() for x in safe_text(text).splitlines() if safe_text(x)]
-    starts = []
-    for i, line in enumerate(lines):
-        if line.lower() in {"job summary", "চাকরির সারসংক্ষেপ"}:
-            starts.append(i)
-    if not starts:
+    start_indexes = [i for i, line in enumerate(lines)
+                     if line.lower() in {"job summary", "চাকরির সারসংক্ষেপ"}]
+    if not start_indexes:
         return lines
-    start_idx = starts[-1]
-    stop_terms = {"for candidates", "চাকরির খবর ইউটিউবে", "copyright"}
-    out=[]
-    for line in lines[start_idx+1:]:
-        if line.lower() in stop_terms:
-            break
-        out.append(line)
-    return out
+
+    summary_markers = {
+        "company name", "company", "organization name", "employer",
+        "job location", "location", "salary", "vacancy", "age",
+        "job type", "employment status", "published", "deadline",
+        "প্রতিষ্ঠানের নাম", "চাকুরি স্থান", "চাকরি স্থান", "বেতন",
+        "পদ সংখ্যা", "পদসংখ্যা", "বয়সসীমা", "বয়সসীমা", "প্রকাশিত", "শেষ তারিখ",
+        "চাকরির ধরন",
+    }
+    stop_terms = {
+        "for candidates", "চাকরির খবর ইউটিউবে", "copyright",
+        "apply by bdjobs",
+    }
+
+    candidates = []
+    for start_idx in start_indexes:
+        out = []
+        for line in lines[start_idx + 1:start_idx + 100]:
+            if line.lower() in stop_terms:
+                break
+            out.append(line)
+        normalized = {_normalized_line_label(x) for x in out}
+        score = sum(1 for marker in summary_markers if marker in normalized)
+        candidates.append((score, len(out), start_idx, out))
+
+    # Prefer the block with the strongest concentration of actual summary labels.
+    # Break ties toward the later block, matching current Dohaj page structure.
+    candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return candidates[0][3] if candidates else lines
 
 
 def _dohaj_summary_value(text, labels):
@@ -1414,21 +1497,21 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "কার্যালয়ের নাম", "কার্যালয়ের নাম"
     ]))
 
-    location = _dohaj_summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"])
-    salary = _dohaj_summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"])
-    age = _dohaj_summary_value(text, ["বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"])
-    employment = _dohaj_summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"])
-    published = _dohaj_summary_value(text, ["প্রকাশিত", "Published", "Posted", "Date Posted", "Publication Date"])
-    deadline = _dohaj_summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"])
+    location = _dohaj_summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান"])
+    salary = _dohaj_summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
+    age = _dohaj_summary_value(text, ["বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়সসীমা", "বয়সসীমা"])
+    employment = _dohaj_summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
+    published = _dohaj_summary_value(text, ["প্রকাশিত", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত"])
+    deadline = _dohaj_summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
 
-    # Detail-section fields. Keep them separate from Job Summary to avoid taking an
-    # unrelated mention from the page header, related-jobs sidebar or footer.
-    experience = _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
-    education = _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
-    vacancy = _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"])
+    # Detail-section fields. Use the same source text as a fallback because some
+    # Dohaj templates expose the value outside the Job Summary card.
+    experience = _dohaj_summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
+    education = _dohaj_summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
+    vacancy = _dohaj_summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
-    workplace = _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
+    workplace = _dohaj_summary_value(text, ["Job Work Place", "Workplace", "Work Place"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
     category = _label_value(text, ["Category", "Job Category"])
     application_method = _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
@@ -1551,18 +1634,46 @@ def request_safe_url(url):
 
 
 def retrieve_job_content(item):
-    """Fast direct source retrieval. V1 does not use external search as a fallback."""
-    url=item["url"]; request_url=request_safe_url(url)
+    url=request_safe_url(item["url"])
     try:
-        response=session.get(request_url,headers={**HEADERS,"Referer":request_url},timeout=FAST_DETAIL_TIMEOUT)
-        if response.status_code>=400: return None
+        response=session.get(url,headers=HEADERS,timeout=FAST_DETAIL_TIMEOUT,allow_redirects=True)
+        response.raise_for_status()
         page_html=response.text
-        text=trafilatura.extract(page_html,include_comments=False,include_tables=True,favor_precision=True) if trafilatura else None
-        raw_text=text or _text_from_html(page_html)
-        if not raw_text or len(raw_text)<250: return None
-        return {"text":raw_text[:MAX_JOB_CONTENT_CHARS],"html":page_html,"final_url":response.url,"apply_url":extract_apply_url(page_html,response.url,item.get("source","")),"backend":"direct_http"}
+
+        # Dohaj keeps a large portion of the authoritative Job Summary in a page
+        # block that high-precision article extraction can omit. For source-backed
+        # structured fields, always use the full visible HTML text first.
+        full_text = _text_from_html(page_html)
+        article_text = trafilatura.extract(
+            page_html,
+            include_comments=False,
+            include_tables=True,
+            favor_precision=True,
+        ) if trafilatura else None
+
+        if is_domain_allowed(response.url, [DOHAJ_DOMAIN]):
+            raw_text = full_text
+        else:
+            raw_text = article_text or full_text
+
+        if not raw_text or len(raw_text) < 250:
+            return None
+
+        # Add article text only when it contributes content missing from the full page
+        # extraction. This preserves responsibilities/details without losing the summary.
+        if article_text and len(article_text) > len(raw_text) * 0.35 and article_text not in raw_text:
+            raw_text = raw_text + "\n" + article_text
+
+        return {
+            "text": raw_text[:MAX_JOB_CONTENT_CHARS],
+            "html": page_html,
+            "final_url": response.url,
+            "apply_url": extract_apply_url(page_html, response.url, item.get("source", "")),
+            "backend": "direct_http",
+        }
     except Exception as exc:
-        logger.warning("DETAIL retrieval failed %s: %s",url,exc); return None
+        logger.warning("DETAIL retrieval failed %s: %s",url,exc)
+        return None
 
 
 def research_job(item):
@@ -1728,6 +1839,36 @@ def government_rank_score(job):
     return round(freshness + deadline + quality, 3)
 
 
+def experience_upper_bound(value):
+    """Return the strictest numeric upper bound represented by an experience field."""
+    blob=_clean_one_line(value).lower()
+    if not blob:
+        return None
+    if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level")):
+        return 0
+
+    m=re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob, flags=re.I)
+    if m:
+        return int(m.group(2))
+
+    m=re.search(r"(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than)\s*(\d+)\s*years?", blob, flags=re.I)
+    if m:
+        return int(m.group(1))
+
+    m=re.search(r"(\d+)\s*\+\s*years?", blob, flags=re.I)
+    if m:
+        return int(m.group(1))
+
+    m=re.search(r"(\d+)\s*years?", blob, flags=re.I)
+    if m:
+        return int(m.group(1))
+    return None
+
+def private_experience_too_high(job):
+    """Hard gate any private role whose explicit experience band exceeds the early-career cap."""
+    upper=experience_upper_bound(job.get("experience",""))
+    return upper is not None and upper > MAX_PRIVATE_EXPERIENCE_YEARS
+
 def deterministic_job_gate(job):
     if not job.get("title"):
         return False, "missing_title"
@@ -1745,6 +1886,8 @@ def deterministic_job_gate(job):
         return False, "expired"
     if not (is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS) or is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN])):
         return False, "source_not_allowed"
+    if private_experience_too_high(job):
+        return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
     target_score=bba_mba_candidate_score(job)
     job["bba_mba_target_score"]=target_score
     if target_score < 25:
@@ -2048,7 +2191,7 @@ def store_selected_event(job, published=False, message_id=None):
 # ============================================================
 # PHOTO FEATURE
 # ============================================================
-# V4 deliberately has NO photo pipeline. Job posts are always text-only Rich Messages.
+# Polish deliberately has NO photo pipeline. Job posts are always text-only Rich Messages.
 # This avoids source placeholders, black cards and mismatched media entirely.
 
 # ============================================================
@@ -2161,14 +2304,32 @@ def _field_icon(label):
 
 
 def job_snapshot_rows(job):
-    """Fixed compact snapshot: every post uses the same rows and one date per row."""
+    """Return only source-backed available fields, in one consistent order."""
     mapping=[
-        ("Location","location"),("Employment","employment_type"),("Workplace","workplace"),
-        ("Education","education"),("Experience","experience"),("Salary","salary"),("Vacancy","vacancy"),
-        ("Age","age"),("Application","application_method"),("Application Start","application_start"),
-        ("Application End","application_end"),("Deadline","deadline"),("Posted","posted_date"),
+        ("Location","location"),
+        ("Employment","employment_type"),
+        ("Workplace","workplace"),
+        ("Education","education"),
+        ("Experience","experience"),
+        ("Salary","salary"),
+        ("Vacancy","vacancy"),
+        ("Age","age"),
+        ("Application","application_method"),
+        ("Application Start","application_start"),
+        ("Application End","application_end"),
+        ("Deadline","deadline"),
+        ("Posted","posted_date"),
     ]
-    return [(label,format_table_value(label,job.get(key))) for label,key in mapping]
+    rows=[]
+    for label,key in mapping:
+        raw=_clean_one_line(job.get(key))
+        if not raw or raw.lower() in {"—","--","n/a","na","not available","not specified","none","null"}:
+            continue
+        value=format_table_value(label,raw)
+        if not value or value=="—":
+            continue
+        rows.append((label,value))
+    return rows
 
 
 def _rich_bold(text):
@@ -2205,7 +2366,7 @@ def rich_message_blocks(job):
         "cells":cells,
         "is_bordered":True,
         "is_striped":True,
-        "is_compact":True,
+        "is_compact":False,
     })
 
     tags=" ".join(job_hashtags(job))
@@ -2257,7 +2418,7 @@ def plain_job_text(job):
         lines.append(f"{_field_icon(label)} {label}: {value}")
     tags=" ".join(job_hashtags(job))
     if tags: lines.extend(["",tags])
-    source="Dohaj" if job.get("is_government") else job.get("source","Source")
+    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else job.get("source","Source")
     lines.append(f"Source: {source}")
     return "\n".join(lines)
 
@@ -2388,7 +2549,7 @@ def self_test():
     fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
     assert fields["title"]=="Management Trainee"
     assert fields["company"]=="Example Bank"
-    assert fields["education"]=="BBA/MBA"
+    assert "BBA" in fields["education"] and "MBA" in fields["education"]
     assert fields["experience"]=="Freshers"
     assert fields["vacancy"]=="10"
     assert fields["posted_date"]=="2026-09-18"
@@ -2398,18 +2559,32 @@ def self_test():
     rows=job_snapshot_rows(fields)
     assert "Experience" in [x[0] for x in rows]
     assert all("\n" not in v for _,v in rows)
-    assert {label for label,_ in rows} >= {"Application Start","Application End","Deadline","Posted"}
+    assert {label for label,_ in rows} >= {"Deadline","Posted"}
+    assert "Application Start" not in {label for label,_ in rows} and "Application End" not in {label for label,_ in rows}
+    empty_fields=dict(fields)
+    for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_start","application_end","posted_date"):
+        empty_fields[key]=""
+    empty_rows=job_snapshot_rows(empty_fields)
+    assert all(v!="—" for _,v in empty_rows)
+    assert {label for label,_ in empty_rows} == {"Application","Deadline"}
     assert format_date_display("2026-09-18")=="18-09-2026"
     assert format_date_display("18 Oct 2026")=="18-10-2026"
+    period_fields=dict(fields)
+    period_fields["application_start"]="2026-09-15"
+    period_fields["application_end"]="2026-10-06"
+    period_rows=job_snapshot_rows(period_fields)
+    period_map=dict(period_rows)
+    assert period_map["Application Start"]=="15-09-2026"
+    assert period_map["Application End"]=="06-10-2026"
     assert compact_age("at least 25 years")=="25 Years"
     assert compact_age("18 to 30 years")=="18-30 Years"
     assert smart_title_case("global asia bangladesh limited")=="Global Asia Bangladesh Limited"
     blocks=rich_message_blocks(fields)
     table=next(b for b in blocks if b.get("type")=="table")
-    assert len(table["cells"])==14  # header + 13 fixed data rows
+    assert len(table["cells"])==len(job_snapshot_rows(fields))+1  # header + available data rows
     assert table["is_bordered"] is True
     assert table["is_striped"] is True
-    assert table["is_compact"] is True
+    assert table["is_compact"] is False
     assert not any(b.get("type")=="photo" for b in blocks)
 
     # Experience must not absorb technical responsibilities.
@@ -2493,17 +2668,93 @@ def self_test():
     assert sum(1 for x in selected if x.get("is_government"))==5
     assert all(x.get("is_government") for x in selected[:5])
 
-    # Photo feature is fully disabled in V4.
+    # Photo feature is fully disabled.
     assert not any(b.get("type")=="photo" for b in rich_message_blocks(fresh))
+
+    # Dohaj full-page Job Summary must supply the authoritative private fields.
+    dohaj_fixture="""
+    <html><body>
+    <h1>HR &amp; Admin Officer</h1>
+    <div>Job Description</div>
+    <div>Company Name: Global Asia Bangladesh Limited</div>
+    <div>Vacancy: --</div>
+    <div>Age: At least 18 years</div>
+    <div>Job Location: Dhaka (Uttara)</div>
+    <div>Salary: Negotiable</div>
+    <div>Experience:</div>
+    <div>At least 3 years</div>
+    <div>Published: 2026-09-16</div>
+    <div>Application Deadline: 2026-09-26</div>
+    <div>Education:</div>
+    <div>HSC</div>
+    <div>HSC/BBA/ Hon's/ Masters in business background</div>
+    <div>Employment Status: Full Time</div>
+    <div>Job Work Place: Work at office</div>
+    <div>Job Summary</div>
+    <div>Company Name</div><div>Global Asia Bangladesh Limited</div>
+    <div>Job Location</div><div>Dhaka (Uttara)</div>
+    <div>Vacancy</div><div>--</div>
+    <div>Job Type</div><div>Full Time</div>
+    <div>Salary</div><div>Negotiable</div>
+    <div>Published</div><div>16 Sep 2026</div>
+    <div>Deadline</div><div>26 Sep 2026</div>
+    </body></html>
+    """
+    dohaj_text=_text_from_html(dohaj_fixture)
+    dohaj_item={"title":"HR & Admin Officer","url":"https://dohaj.com/job-details/hr-admin-officer","is_government":False,"source":"Dohaj","listing_posted":"","listing_deadline":""}
+    dohaj_fields=extract_job_fields(dohaj_text,dohaj_fixture,dohaj_item["url"],dohaj_item)
+    assert dohaj_fields["company"]=="Global Asia Bangladesh Limited"
+    assert dohaj_fields["location"]=="Dhaka (Uttara)"
+    assert dohaj_fields["salary"]=="Negotiable"
+    assert dohaj_fields["experience"]=="At least 3 years"
+    assert "BBA" in dohaj_fields["education"]
+    assert dohaj_fields["employment_type"]=="Full Time"
+    assert dohaj_fields["workplace"]=="On-site"
+    assert dohaj_fields["age"]=="18 Years"
+    assert dohaj_fields["vacancy"]==""
+    assert dohaj_fields["deadline"]=="2026-09-26"
+
+    # Private early-career gate: reject 3-7 years and 7+ years before AI ranking.
+    over_range=dict(dohaj_fields)
+    over_range["experience"]="3 to 7 years"
+    assert experience_upper_bound(over_range["experience"])==7
+    ok,reason=deterministic_job_gate(over_range)
+    assert not ok and reason=="experience_above_3_years"
+
+    over_plus=dict(dohaj_fields)
+    over_plus["experience"]="7+ years"
+    ok,reason=deterministic_job_gate(over_plus)
+    assert not ok and reason=="experience_above_3_years"
+
+    allowed_three=dict(dohaj_fields)
+    allowed_three["experience"]="3 years"
+    ok,reason=deterministic_job_gate(allowed_three)
+    assert ok and reason=="ok_bba_mba_target"
+
+    # Bdjobs parser regression test: official listing candidates are no longer silently dropped.
+    bd_fixture="""
+    <html><body>
+      <a href="/jobdetails.asp?id=101"><span>Accounts Executive</span></a>
+      <div>Accounts Executive Example Bank Finance Dhaka</div>
+      <a href="/jobdetails.asp?id=102"><span>Software Engineer</span></a>
+      <div>Software Engineer Tech Ltd Engineering Dhaka</div>
+      <a href="/jobdetails.asp?id=103"><span>HR Executive</span></a>
+      <div>HR Executive Example Group Human Resource Dhaka</div>
+    </body></html>
+    """
+    bd_candidates=_bdjobs_listing_candidates(bd_fixture,"https://jobs.bdjobs.com/jobsearch-cache.asp")
+    assert any(x["url"].endswith("id=101") for x in bd_candidates)
+    assert any(x["url"].endswith("id=103") for x in bd_candidates)
 
     translated={**gov_fields,"title":"কর অঞ্চল-১৬, ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬","company":"ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়","location":"ঢাকা"}
     # Without Cerebras this must still produce non-Bengali publishable text.
     translated=translate_government_jobs([translated])[0]
     assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
 
-    assert PIPELINE_VERSION == "Polish-1.0"
+    assert PIPELINE_VERSION == "Polish-1.1"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
+    assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
     assert MAX_GOVERNMENT_POSTS_PER_RUN == 5
     assert FAST_DETAIL_WORKERS >= 1
     assert FAST_AI_CANDIDATE_LIMIT <= 20

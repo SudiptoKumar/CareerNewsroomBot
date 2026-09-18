@@ -44,7 +44,8 @@ Telegram Rich Message
 - **3–5 government jobs first** whenever at least 3 valid new government jobs are available.
 - Government jobs have **no BBA/MBA filter**.
 - Private jobs must be relevant to BBA/MBA/business candidates.
-- Private ranking priority:
+- Private jobs must also pass a hard early-career experience gate. By default, the maximum accepted explicit experience band is **3 years**. Examples such as `3-7 years` and `7+ years` are rejected before AI ranking.
+- Private ranking priority after the hard gate:
   1. BBA/MBA and related business education fit
   2. Fresher/no-experience/early-career suitability
   3. Role relevance
@@ -52,7 +53,6 @@ Telegram Rich Message
   5. Deadline usefulness
   6. Job-information quality
   7. Optional AI editorial fit
-- More years of experience are not automatically ranked higher. Early-career roles are favored for the channel audience.
 - Photo feature is completely disabled.
 
 ## Source discovery
@@ -84,13 +84,15 @@ Only the latest listing windows are read. Discovery stops when the private candi
 
 ### Bdjobs
 
-The official Bdjobs search page is used as the source. Page 1 is read first; page 2 is used only when the private pool is still too small.
+The official Bdjobs search page is used as the source. Page 1 is read first; later pages are used only when the private pool is still too small. The listing-link parser is part of the Polish build and is regression-tested so a missing helper cannot silently turn Bdjobs discovery into zero candidates.
 
 ## Detail retrieval
 
 Only shortlisted jobs receive detail-page requests.
 
 Detail pages are fetched concurrently with a bounded worker pool. Default: **8 workers**.
+
+For Dohaj, the extractor uses the **full visible page text first** because important Job Summary fields can be outside the article text selected by high-precision extraction. It then supplements that text with the article extraction when useful. This preserves authoritative fields such as vacancy, age, location, salary, employment type and workplace.
 
 V1 does not use Exa search or Exa content retrieval. Direct source retrieval is authoritative and faster. If a detail page fails, that candidate is skipped rather than starting a slow external search workflow.
 
@@ -136,7 +138,7 @@ This prevents mismatches such as one job's vacancy appearing in another job, sal
 
 ### Table fields
 
-The polished format uses the same 13 data rows on every post, so the table structure stays consistent across private and government jobs:
+The polished format keeps one fixed field order across private and government jobs:
 
 - Location
 - Employment
@@ -152,7 +154,7 @@ The polished format uses the same 13 data rows on every post, so the table struc
 - Deadline
 - Posted
 
-Unavailable fields use a compact `—` placeholder instead of changing the table structure. Application Start and Application End are separate rows, with one date per row.
+Only source-backed fields that actually exist are shown. **Unavailable fields are omitted**, not displayed as `—`. Application Start and Application End are separate rows, with one date per row.
 
 Experience appears only for real duration/fresher status. Technical skills, responsibilities and `Area of Experience` text are not treated as Experience.
 
@@ -171,7 +173,7 @@ The polished version uses Telegram Bot API `sendRichMessage` with native Rich Me
 
 - bordered
 - striped
-- compact for mobile
+- non-compact, matching the previous wider table presentation
 
 No photo block, logo fallback, placeholder image or generated image is used.
 
@@ -191,6 +193,7 @@ FAST_AI_CANDIDATE_LIMIT=20
 FAST_DISCOVERY_TIMEOUT=15
 FAST_DETAIL_TIMEOUT=18
 POST_DELAY_SECONDS=1.0
+MAX_PRIVATE_EXPERIENCE_YEARS=3
 ```
 
 ## GitHub secrets
@@ -209,6 +212,15 @@ CEREBRAS_MODEL
 ```
 
 `EXA_API_KEY` is not required in V1.
+
+## Regression fixes in Polish 1.1
+
+- Restored the Bdjobs official-listing candidate parser that was missing from the previous Polish package.
+- Switched Dohaj structured-field extraction to full visible page text with label fallbacks.
+- Removed unavailable table rows instead of rendering `—` placeholders.
+- Restored the previous wider Rich Message table setting (`is_compact=false`).
+- Added a hard private-job experience cap of 3 years.
+- Added self-tests for missing-field behavior, Dohaj field extraction, Bdjobs discovery, and 7+ years rejection.
 
 ## Validation
 
