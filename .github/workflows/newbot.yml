@@ -1,10 +1,10 @@
-name: Career News Bot 1.5
+name: Career News Bot
 
 on:
   schedule:
-    - cron: "0,30 8-23 * * *"
+    - cron: "0 8,11,14,17,20,23 * * *"
       timezone: "Asia/Dhaka"
-    - cron: "0,30 0-2 * * *"
+    - cron: "0 2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-news-bot-1-5
+  group: career-news-bot
   cancel-in-progress: false
 
 jobs:
@@ -53,19 +53,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Career News Bot version
+      - name: Verify Career News Bot source
         run: |
           grep -q 'PIPELINE_VERSION = "Polish-1.5"' main.py
-          grep -q 'name: Career News Bot 1.5' .github/workflows/newbot.yml
+          grep -q 'name: Career News Bot' .github/workflows/newbot.yml
           echo "Career News Bot 1.5 source/workflow verified."
 
       - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Run Career News Bot 1.5 self-test
+      - name: Run Career News Bot self-test
         run: python main.py --self-test
 
-      - name: Run Career News Bot 1.5
+      - name: Run Career News Bot
         run: python main.py
 
       - name: Save state
@@ -80,7 +80,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Career News Bot 1.5 state"
+          git commit -m "Update Career News Bot state"
 
           # The bot has already published successfully before this step.
           # Retry state persistence so a transient GitHub commit_refs/remote
