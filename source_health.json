@@ -1,1 +1,263 @@
-{}
+{
+  "BDJobs Live New": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:45.621794+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Bdjobs New": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:45.685951+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Internship": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.173992+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Banking": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.223500+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Fresher": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.225000+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Finance": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.236282+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Management": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.511523+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Marketing": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.689989+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Bdjobs Main": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.702180+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live HR": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.782619+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Supply Chain": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:46.886968+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Dohaj": {
+    "checks": 1,
+    "ok": 0,
+    "failures": 1,
+    "last_status": "http_error",
+    "last_checked": "2026-09-18T06:06:46.955423+06:00",
+    "fail_streak": 1,
+    "last_detail": "404"
+  },
+  "Bdjobs Internship": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:47.119749+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BDJobs Live Government": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:47.368257+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "JobFeeds": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:47.486182+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Job.com.bd": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:47.541323+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "JobsNoticeBD": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:47.621700+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Alljobs Teletalk": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:48.185900+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Dhaka Tribune": {
+    "checks": 1,
+    "ok": 0,
+    "failures": 1,
+    "last_status": "http_error",
+    "last_checked": "2026-09-18T06:06:48.278878+06:00",
+    "fail_streak": 1,
+    "last_detail": "403"
+  },
+  "Bangla Tribune": {
+    "checks": 1,
+    "ok": 0,
+    "failures": 1,
+    "last_status": "http_error",
+    "last_checked": "2026-09-18T06:06:48.334270+06:00",
+    "fail_streak": 1,
+    "last_detail": "403"
+  },
+  "JagoNews24": {
+    "checks": 1,
+    "ok": 0,
+    "failures": 1,
+    "last_status": "http_error",
+    "last_checked": "2026-09-18T06:06:48.386877+06:00",
+    "fail_streak": 1,
+    "last_detail": "403"
+  },
+  "JobsInfo": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:48.508820+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Prothom Alo": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:48.617452+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BPSC": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:48.719266+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "BCC e-Recruitment": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:49.100102+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Dhaka Post": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:49.369067+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Bangladesher Khabor": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:49.846553+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "CircularBD": {
+    "checks": 1,
+    "ok": 1,
+    "failures": 0,
+    "last_status": "ok",
+    "last_checked": "2026-09-18T06:06:51.041630+06:00",
+    "fail_streak": 0,
+    "last_detail": "200"
+  },
+  "Smart Job": {
+    "checks": 1,
+    "ok": 0,
+    "failures": 1,
+    "last_status": "error",
+    "last_checked": "2026-09-18T06:07:04.986709+06:00",
+    "fail_streak": 1,
+    "last_detail": "HTTPSConnectionPool(host='smartjob.portal.gov.bd', port=443): Max retries exceeded with url: / (Caused by ConnectTimeoutError(<HTTPSConnection(host='smartjob.portal.gov.bd', port=4"
+  }
+}
