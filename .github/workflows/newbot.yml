@@ -1,4 +1,4 @@
-name: CareerNewsroom V4
+name: CareerNewsroom V1
 
 on:
   schedule:
@@ -12,20 +12,27 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v4
+  group: careernewsroom-v1
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 7
 
     env:
-      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       PYTHONUNBUFFERED: "1"
+      FAST_PRIVATE_CANDIDATE_TARGET: "60"
+      FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
+      FAST_DETAIL_WORKERS: "8"
+      FAST_AI_CANDIDATE_LIMIT: "20"
+      FAST_DISCOVERY_TIMEOUT: "15"
+      FAST_DETAIL_TIMEOUT: "18"
+      POST_DELAY_SECONDS: "1.0"
 
     steps:
       - name: Checkout repository
@@ -48,10 +55,10 @@ jobs:
       - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Run self-test
+      - name: Run V1 self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsroom
+      - name: Run CareerNewsroom V1
         run: python main.py
 
       - name: Save state
@@ -64,6 +71,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom state"
+            git commit -m "Update CareerNewsroom V1 state"
             git push
           fi
