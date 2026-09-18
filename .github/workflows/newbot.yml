@@ -50,7 +50,7 @@ jobs:
       - name: Run self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsBot
+      - name: Run CareerNewsBot V1
         run: python main.py
 
       - name: Save state
@@ -58,7 +58,7 @@ jobs:
         run: |
           git config user.name "Career News Bot"
           git config user.email "actions@github.com"
-          git add news_state.json posted_urls.txt source_health.json
+          git add news_state.json posted_urls.txt
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
