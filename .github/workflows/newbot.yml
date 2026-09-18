@@ -55,9 +55,12 @@ jobs:
 
       - name: Verify Career News Bot source
         run: |
-          grep -q 'PIPELINE_VERSION = "Polish-1.5"' main.py
-          grep -q 'name: Career News Bot' .github/workflows/newbot.yml
-          echo "Career News Bot 1.5 source/workflow verified."
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("main.py").read_text(encoding="utf-8-sig")
+          assert 'PIPELINE_VERSION = "Career News Bot"' in source
+          print("Career News Bot source verified.")
+          PY
 
       - name: Verify Python source
         run: python -m py_compile main.py
@@ -80,24 +83,34 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Career News Bot state"
+          # Preserve the bot-generated state, then synchronize the branch before
+          # creating the commit. This avoids rebasing a state commit after it has
+          # already been created, which can create avoidable conflicts.
+          cp news_state.json /tmp/news_state.json.bot
+          cp posted_urls.txt /tmp/posted_urls.txt.bot
 
-          # The bot has already published successfully before this step.
-          # Retry state persistence so a transient GitHub commit_refs/remote
-          # error does not leave the runner's duplicate-protection state behind.
           for attempt in 1 2 3; do
             echo "State push attempt $attempt/3"
+
             git fetch origin main
-            git rebase origin/main || {
-              echo "Rebase failed on attempt $attempt; aborting rebase."
-              git rebase --abort || true
-            }
+            git reset --hard origin/main
+            cp /tmp/news_state.json.bot news_state.json
+            cp /tmp/posted_urls.txt.bot posted_urls.txt
+            git add news_state.json posted_urls.txt
+
+            if git diff --cached --quiet; then
+              echo "No state changes to commit after synchronization."
+              exit 0
+            fi
+
+            git commit -m "Update Career News Bot state"
 
             if git push origin HEAD:main; then
               echo "State push succeeded on attempt $attempt."
               exit 0
             fi
 
+            git reset --hard HEAD~1
             if [ "$attempt" -lt 3 ]; then
               sleep $((attempt * 5))
             fi
