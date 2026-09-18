@@ -1,4 +1,4 @@
-name: CareerNewsroom V3
+name: CareerNewsroom V1
 
 on:
   schedule:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v3
+  group: careernewsroom-v1
   cancel-in-progress: false
 
 jobs:
@@ -28,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
