@@ -1,0 +1,5 @@
+requests>=2.32,<3
+beautifulsoup4>=4.13,<5
+Pillow>=12,<13
+pypdf>=5,<7
+cerebras_cloud_sdk>=1,<3

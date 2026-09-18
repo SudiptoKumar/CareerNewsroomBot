@@ -1,29 +1,19 @@
-name: CareerNewsroom BDjobs
+name: Test CareerNewsBot BDjobs
 
 on:
-  schedule:
-    - cron: "0,30 8-23 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "0,30 0-2 * * *"
-      timezone: "Asia/Dhaka"
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: careernewsroom-bdjobs
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  run-news-bot:
+  test-bdjobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     env:
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       CEREBRAS_MODEL: "gpt-oss-120b"
       PYTHONUNBUFFERED: "1"
@@ -32,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -49,21 +39,8 @@ jobs:
       - name: Compile source
         run: python -m compileall -q main.py careerbot
 
-      - name: Run self-test
+      - name: Run offline self-test
         run: python main.py --self-test
 
-      - name: Run BDjobs-only pipeline
-        run: python main.py
-
-      - name: Save state
-        if: always()
-        run: |
-          git config user.name "Career News Bot"
-          git config user.email "actions@github.com"
-          git add news_state.json posted_urls.txt
-          if git diff --cached --quiet; then
-            echo "No state changes to commit."
-          else
-            git commit -m "Update CareerNewsBot state"
-            git push
-          fi
+      - name: Live Exa + Cerebras dry run
+        run: python main.py --dry-run
