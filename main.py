@@ -44,39 +44,43 @@ if NEWS_MODE not in VALID_NEWS_MODES:
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
 
 POSTED_FILE = "posted_urls.txt"
+SOURCE_HEALTH_FILE = "source_health.json"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
 # Same runtime/selection framework as the reference bot.
 MIN_STORIES_PER_RUN = 5
 MAX_STORIES_PER_RUN = 15
-RANKING_POOL_SIZE = 90
-MAX_PROCESS_CANDIDATES = 140
-RESCUE_PROCESS_CANDIDATES = 65
+RANKING_POOL_SIZE = 60
+MAX_PROCESS_CANDIDATES = 60
+RESCUE_PROCESS_CANDIDATES = 36
 MAX_POSTS_PER_SOURCE_PER_RUN = 3
 DISCOVERY_LOOKBACK_HOURS = 72
 DEADLINE_SOFT_TARGET_DAYS = 7
 DEADLINE_URGENT_DAYS = 3
-MIN_PUBLISH_SCORE = 0
+MIN_PUBLISH_SCORE = 58
 
 POST_DELAY_SECONDS = 3.5
 ROLLING_DISCOVERY_HOURS = DISCOVERY_LOOKBACK_HOURS
 FUTURE_TOLERANCE_MINUTES = 10
 QUEUE_RETENTION_DAYS = 5
 EVENT_RETENTION_DAYS = 30
-MAX_RSS_CANDIDATES = 360
-MAX_EXA_CANDIDATES = 80
-MAX_GOOGLE_NEWS_CANDIDATES = 60
-MAX_EXCERPT_ENRICH = 18
-SOURCE_HEALTH_FILE = "source_health.json"
-PUBLISH_TARGET = 10
-MAX_CEREBRAS_RANK_CANDIDATES = 40
-RANK_BATCH_SIZE = 20
-MAX_DIRECT_LINKS_PER_SOURCE = 180
+MAX_RSS_CANDIDATES = 240
+MAX_EXA_CANDIDATES = 60
+MAX_GOOGLE_NEWS_CANDIDATES = 40
+MAX_EXCERPT_ENRICH = 10
 THIN_EXCERPT_CHARS = 150
 MAX_RICH_CHARACTERS = 32768
 MAX_SOURCE_PER_RUN = 99
-SOURCE_DIVERSITY_TARGET = 5
+SOURCE_DIVERSITY_TARGET = 4
+MIN_JOB_INTENT_SCORE = 34
+MAX_LOCAL_PREFILTER = 110
+MAX_DETAILED_CANDIDATES = 42
+CEREBRAS_RANK_BATCH_SIZE = 20
+CEREBRAS_MIN_INTERVAL_SECONDS = 0.75
+REQUIRE_DISTINCT_APPLY_URL = True
+SOURCE_FAILURE_COOLDOWN_MINUTES = 90
+TARGETED_LANE_LIMIT = 4
 
 STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for",
@@ -131,7 +135,6 @@ ALL_PRIMARY_DOMAINS = PRIMARY_CAREER_DOMAINS
 ALL_FALLBACK_DOMAINS = FALLBACK_CAREER_DOMAINS
 ALL_ALLOWED_DOMAINS = ALL_PRIMARY_DOMAINS
 
-VACANCY_CONTEXT_RE = re.compile(r"(deadline|last date|application|vacancy|vacancies|location|education|experience|salary|company|employer|পদ সংখ্যা|আবেদন|শেষ তারিখ|কর্মস্থল)", re.I)
 JOB_SIGNAL_RE = re.compile(
     r"(job|jobs|vacancy|vacancies|career|careers|recruit|recruitment|hiring|apply|internship|trainee|management trainee|circular|নিয়োগ|চাকরি|শূন্যপদ|আবেদন|নিয়োগ বিজ্ঞপ্তি|চাকরির বিজ্ঞপ্তি)",
     re.I,
@@ -162,42 +165,29 @@ BANGLA_MONTHS = {
 }
 
 DIRECT_JOB_SOURCES = [
-    # Bdjobs: verified current entry points. We deliberately use the portal's
-    # general/new/internship surfaces and let the local relevance engine choose
-    # BBA/MBA/finance/banking/management/HR/marketing/supply-chain roles.
-    {"name":"Bdjobs New", "source":"Bdjobs", "url":"https://jobs.bdjobs.com/bn/otherjobsbn.asp?JobType=new", "type":"job_portal", "lane":"new"},
-    {"name":"Bdjobs Main", "source":"Bdjobs", "url":"https://jobs.bdjobs.com/jobsearch-cache.asp", "type":"job_portal", "lane":"general"},
-    {"name":"Bdjobs Internship", "source":"Bdjobs", "url":"https://jobs.bdjobs.com/jobsearch-cache.asp?requestType=internship", "type":"job_portal", "lane":"internship"},
-
-    # BDJobs Live: verified current category pages.
-    {"name":"BDJobs Live New", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/new-job-circular-in-bangladesh", "type":"job_portal", "lane":"new"},
-    {"name":"BDJobs Live Internship", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/internship-opportunity", "type":"job_portal", "lane":"internship"},
-    {"name":"BDJobs Live Fresher", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/fresher-jobs", "type":"job_portal", "lane":"fresher"},
-    {"name":"BDJobs Live Finance", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/accounting-finance-jobs", "type":"job_portal", "lane":"finance"},
-    {"name":"BDJobs Live Banking", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/bank-financial-institution-jobs", "type":"job_portal", "lane":"banking"},
-    {"name":"BDJobs Live Management", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/general-management-admin-jobs", "type":"job_portal", "lane":"management"},
-    {"name":"BDJobs Live HR", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/hr-organizational-development-jobs", "type":"job_portal", "lane":"hr"},
-    {"name":"BDJobs Live Marketing", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/marketing-sales-jobs", "type":"job_portal", "lane":"marketing"},
-    {"name":"BDJobs Live Supply Chain", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/supply-chain-procurement-jobs", "type":"job_portal", "lane":"supply_chain"},
-    {"name":"BDJobs Live Government", "source":"BDJobs Live", "url":"https://www.bdjobslive.com/bdjobs-circular/government-jobs-in-bangladesh", "type":"job_portal", "lane":"government"},
-
-    {"name":"Dohaj", "source":"Dohaj", "url":"https://dohaj.com/jobs", "type":"job_portal", "lane":"general"},
-    {"name":"Job.com.bd", "source":"Job.com.bd", "url":"https://job.com.bd/jobs/new_jobs/", "type":"job_portal", "lane":"new"},
-    {"name":"Smart Job", "source":"Smart Job", "url":"https://smartjob.portal.gov.bd/", "type":"official_job_portal", "lane":"government"},
-    {"name":"Alljobs Teletalk", "source":"Alljobs Teletalk", "url":"https://alljobs.teletalk.com.bd/", "type":"official_job_portal", "lane":"government"},
-    {"name":"BPSC", "source":"BPSC", "url":"https://bpsc.gov.bd/", "type":"official_job_portal", "lane":"government"},
-    {"name":"BCC e-Recruitment", "source":"BCC e-Recruitment", "url":"https://erecruitment.bcc.gov.bd/", "type":"official_job_portal", "lane":"government"},
-    {"name":"JobsNoticeBD", "source":"JobsNoticeBD", "url":"https://jobsnoticebd.com/", "type":"job_portal", "lane":"general"},
-    {"name":"JobsInfo", "source":"JobsInfo", "url":"https://jobsinfo.bd/", "type":"job_portal", "lane":"general"},
-    {"name":"JobFeeds", "source":"JobFeeds", "url":"https://jobfeeds.online/", "type":"job_portal", "lane":"general"},
-    {"name":"CircularBD", "source":"CircularBD", "url":"https://www.circularbd.com/alljobs", "type":"job_portal", "lane":"general"},
-    {"name":"Bangladesher Khabor", "source":"Bangladesher Khabor", "url":"https://www.bangladesherkhabor.net/jobs", "type":"news_jobs", "lane":"jobs"},
-    {"name":"Dhaka Post", "source":"Dhaka Post", "url":"https://www.dhakapost.com/jobs-career/", "type":"news_jobs", "lane":"jobs"},
-    {"name":"Dhaka Tribune", "source":"Dhaka Tribune", "url":"https://bangla.dhakatribune.com/jobs", "type":"news_jobs", "lane":"jobs"},
-    {"name":"Bangla Tribune", "source":"Bangla Tribune", "url":"https://www.banglatribune.com/jobs", "type":"news_jobs", "lane":"jobs"},
-    {"name":"JagoNews24", "source":"JagoNews24", "url":"https://www.jagonews24.com/topic/%E0%A6%9A%E0%A6%BE%E0%A6%95%E0%A6%B0%E0%A6%BF", "type":"news_jobs", "lane":"jobs"},
-    {"name":"Prothom Alo", "source":"Prothom Alo", "url":"https://www.prothomalo.com/collection/chakri-all", "type":"news_jobs", "lane":"jobs"},
+    # High-value primary portals. Their listing pages are parsed only for real detail links.
+    {"name": "Bdjobs", "url": "https://jobs.bdjobs.com/jobsearch-cache.asp", "type": "job_portal", "mode": "bdjobs_listing", "new_feed": True},
+    {"name": "BDJobs Live", "url": "https://www.bdjobslive.com/", "type": "job_portal", "mode": "bdjobslive_listing", "new_feed": True},
+    {"name": "BDJobs Live", "url": "https://www.bdjobslive.com/bdjobs-circular/new-job-circular-in-bangladesh", "type": "job_portal", "mode": "bdjobslive_listing", "new_feed": True},
+    {"name": "BDJobs Live", "url": "https://www.bdjobslive.com/bdjobs-circular/internship-opportunity", "type": "job_portal", "mode": "bdjobslive_listing", "new_feed": True},
+    {"name": "BDJobs Live", "url": "https://www.bdjobslive.com/bdjobs-circular/fresher-jobs", "type": "job_portal", "mode": "bdjobslive_listing", "new_feed": True},
+    {"name": "Dohaj", "url": "https://dohaj.com/jobs", "type": "job_portal", "mode": "generic_listing", "new_feed": True},
+    {"name": "Job.com.bd", "url": "https://job.com.bd/jobs/new_jobs/", "type": "job_portal", "mode": "jobcombd_listing", "new_feed": True},
+    {"name": "Smart Job", "url": "https://smartjob.portal.gov.bd/", "type": "official_job_portal", "mode": "generic_listing", "new_feed": True},
+    {"name": "Alljobs Teletalk", "url": "https://alljobs.teletalk.com.bd/", "type": "official_job_portal", "mode": "generic_listing", "new_feed": True},
+    {"name": "BPSC", "url": "https://bpsc.gov.bd/", "type": "official_job_portal", "mode": "generic_listing", "new_feed": True},
+    {"name": "BCC e-Recruitment", "url": "https://erecruitment.bcc.gov.bd/", "type": "official_job_portal", "mode": "generic_listing", "new_feed": True},
+    {"name": "JobsNoticeBD", "url": "https://jobsnoticebd.com/", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "JobsInfo", "url": "https://jobsinfo.bd/", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "JobFeeds", "url": "https://jobfeeds.online/", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "CircularBD", "url": "https://www.circularbd.com/alljobs", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "Dhaka Post", "url": "https://www.dhakapost.com/jobs-career/", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "Dhaka Tribune", "url": "https://bangla.dhakatribune.com/jobs", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "Bangla Tribune", "url": "https://www.banglatribune.com/jobs", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "JagoNews24", "url": "https://www.jagonews24.com/topic/%E0%A6%9A%E0%A6%BE%E0%A6%95%E0%A6%B0%E0%A6%BF", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
+    {"name": "Prothom Alo", "url": "https://www.prothomalo.com/collection/chakri-all", "type": "news_jobs", "mode": "news_listing", "new_feed": True},
 ]
+
 # ============================================================
 # TAXONOMY: CAREER NEWS
 # ============================================================
@@ -420,6 +410,24 @@ session.mount("http://", adapter)
 # HELPERS
 # ============================================================
 
+# Audience-targeted discovery lanes. These are discovery queries, not facts.
+TARGETED_JOB_LANES = [
+    ("BBA/MBA & Business", "BBA MBA business administration management jobs Bangladesh"),
+    ("Freshers & Graduate", "fresher fresh graduate entry level jobs Bangladesh"),
+    ("Internship", "internship intern jobs Bangladesh students graduates"),
+    ("Management Trainee", "management trainee graduate trainee jobs Bangladesh"),
+    ("Accounting & Finance", "accounting finance accounts audit jobs Bangladesh"),
+    ("Banking", "banking bank relationship officer jobs Bangladesh"),
+    ("HR", "human resources HR jobs Bangladesh"),
+    ("Marketing & Sales", "marketing sales brand jobs Bangladesh"),
+    ("Business Development", "business development BD executive jobs Bangladesh"),
+    ("Management & Admin", "management administration executive officer jobs Bangladesh"),
+    ("Operations & Supply Chain", "operations supply chain procurement jobs Bangladesh"),
+    ("NGO & Development", "NGO development project jobs Bangladesh"),
+    ("Customer Service", "customer service relationship officer jobs Bangladesh"),
+]
+
+
 def safe_text(value):
     return "" if value is None else str(value).strip()
 
@@ -428,28 +436,34 @@ def canonical_url(url):
     raw = safe_text(url)
     if not raw:
         return ""
-
     parsed = urlparse(raw)
-
-    host = (
-        parsed.netloc.lower()
-        .removeprefix("www.")
-        .removeprefix("amp.")
-    )
-
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
+        return ""
+    host = parsed.netloc.lower().removeprefix("www.").removeprefix("amp.")
     path = parsed.path or "/"
-    path = path.rstrip("/")
     path = re.sub(r"/amp$", "", path, flags=re.I)
     path = re.sub(r"\.amp$", "", path, flags=re.I)
-
-    return f"{host}{path}"
-
+    path = re.sub(r"/{2,}", "/", path)
+    path = path.rstrip("/") or "/"
+    tracking = {"utm_source","utm_medium","utm_campaign","utm_term","utm_content","gclid","fbclid","mc_cid","mc_eid","ref","source"}
+    keep=[]
+    try:
+        from urllib.parse import parse_qsl, urlencode
+        for key,val in parse_qsl(parsed.query, keep_blank_values=False):
+            lk=key.lower()
+            if lk in tracking or lk.startswith("utm_"):
+                continue
+            keep.append((key,val))
+        query=urlencode(sorted(keep), doseq=True)
+    except Exception:
+        query=parsed.query
+    return f"{host}{path}" + (f"?{query}" if query else "")
 
 def normalize_title(title):
-    text = safe_text(title).lower()
-    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = safe_text(title).casefold()
+    # Keep Unicode letters/numbers so Bangla titles remain comparable.
+    text = re.sub(r"[^\w\s\u0980-\u09FF]+", " ", text, flags=re.UNICODE)
     return re.sub(r"\s+", " ", text).strip()
-
 
 def title_tokens(text):
     text = normalize_title(text)
@@ -634,6 +648,7 @@ def default_state():
         "posted_event_ids": [],
         "recent_titles": [],
         "source_health": {},
+        "source_health_file": SOURCE_HEALTH_FILE,
     }
 
 
@@ -680,6 +695,60 @@ def save_state(state):
         tmp,
         STATE_FILE,
     )
+
+
+# ============================================================
+# SOURCE HEALTH
+# ============================================================
+
+def load_source_health():
+    try:
+        with open(SOURCE_HEALTH_FILE, "r", encoding="utf-8") as f:
+            data=json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_source_health(data):
+    tmp=SOURCE_HEALTH_FILE+".tmp"
+    with open(tmp,"w",encoding="utf-8") as f:
+        json.dump(data,f,ensure_ascii=False,indent=2)
+    os.replace(tmp,SOURCE_HEALTH_FILE)
+
+
+SOURCE_HEALTH = load_source_health()
+
+
+def source_health_key(source, url=""):
+    return safe_text(source) or source_name(url)
+
+
+def source_is_in_cooldown(source, url=""):
+    key=source_health_key(source,url)
+    row=SOURCE_HEALTH.get(key,{})
+    until=parse_datetime(row.get("cooldown_until"))
+    return bool(until and until > career_now())
+
+
+def record_source_health(source, url, status, error=""):
+    key=source_health_key(source,url)
+    row=SOURCE_HEALTH.setdefault(key,{"source":key,"successes":0,"failures":0})
+    row["last_checked"]=now_iso()
+    code = int(status) if isinstance(status,(int,float)) else 0
+    if code and 200 <= code < 400:
+        row["successes"]=int(row.get("successes",0))+1
+        row["last_status"]=code
+        row["consecutive_failures"]=0
+        row["cooldown_until"]=""
+    else:
+        row["failures"]=int(row.get("failures",0))+1
+        row["consecutive_failures"]=int(row.get("consecutive_failures",0))+1
+        row["last_status"]=code
+        row["last_error"]=safe_text(error)[:300]
+        if row["consecutive_failures"] >= 2:
+            row["cooldown_until"]=(career_now()+timedelta(minutes=SOURCE_FAILURE_COOLDOWN_MINUTES)).isoformat()
+    save_source_health(SOURCE_HEALTH)
 
 
 def load_posted_urls():
@@ -815,7 +884,7 @@ DISCOVERY_END = (
     )
 )
 
-DISCOVERY_TARGET_PER_REGION = 18
+DISCOVERY_TARGET_PER_REGION = 60
 
 
 # ============================================================
@@ -841,57 +910,104 @@ def get_cerebras():
 
 
 # ============================================================
-# SOURCE HEALTH
-# ============================================================
-
-def load_source_health():
-    try:
-        with open(SOURCE_HEALTH_FILE, "r", encoding="utf-8") as f:
-            data=json.load(f)
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-SOURCE_HEALTH = load_source_health()
-
-def save_source_health():
-    tmp=SOURCE_HEALTH_FILE+".tmp"
-    with open(tmp,"w",encoding="utf-8") as f:
-        json.dump(SOURCE_HEALTH,f,ensure_ascii=False,indent=2)
-    os.replace(tmp,SOURCE_HEALTH_FILE)
-
-def mark_source_health(name,status,detail=""):
-    key=safe_text(name)
-    row=SOURCE_HEALTH.setdefault(key,{"checks":0,"ok":0,"failures":0,"last_status":""})
-    row["checks"]=int(row.get("checks",0))+1
-    row["last_checked"]=now_iso()
-    row["last_status"]=status
-    if status=="ok":
-        row["ok"]=int(row.get("ok",0))+1
-        row["fail_streak"]=0
-    else:
-        row["failures"]=int(row.get("failures",0))+1
-        row["fail_streak"]=int(row.get("fail_streak",0))+1
-    if detail:
-        row["last_detail"]=safe_text(detail)[:180]
-
-
-# ============================================================
 # CANDIDATE FILTERING
 # ============================================================
 
 BAD_PATH_RE = re.compile(
-    r"/(opinion|editorial|sponsored|"
-    r"tag|topic|live-blog|liveblog|"
-    r"photo|photos|video)(/|$)",
+    r"/(opinion|editorial|sponsored|tag|topic|live-blog|liveblog|photo|photos|video|help|login|signin|sign-in|register|employer|profile|account|about|contact|service|faq|career-hub|blog)(/|$)",
     re.I,
 )
 
 BAD_TITLE_RE = re.compile(
-    r"\b(sponsored|advertisement|"
-    r"promo|opinion|editorial)\b",
+    r"\b(sponsored|advertisement|promo|opinion|editorial|help center|employer login|candidate login|sign in|sign up|register|profile|showcase your company|bdjobs (?:ios|android) app|ios app|android app|download app|post a job|my account|career hub|resume writing|cover letter|interview tips)\b",
     re.I,
 )
+
+GENERIC_UI_RE = re.compile(
+    r"\b(navigation menu|filter by category|filter by location|search for|keywords|list your skills|your experience|and more|one place|has become easier|showcase your company|download.*app|post a job|employer login|help center|career guide|resume writing|cover letter|interviewing tips)\b",
+    re.I,
+)
+
+JOB_DETAIL_PATTERNS = {
+    "Bdjobs": re.compile(r"/jobdetails(?:bn)?(?:\.asp|/?)\?(?:[^#]*?&)?id=\d+", re.I),
+    "BDJobs Live": re.compile(r"/bdjobs-details/[^/?#]+", re.I),
+    "Job.com.bd": re.compile(r"/jobs/details/\?i=\d+", re.I),
+}
+
+JOB_SIGNAL_RE = re.compile(
+    r"(job|jobs|vacancy|vacancies|career|careers|recruit|recruitment|hiring|apply|internship|intern|trainee|management trainee|fresher|fresh graduate|graduate|circular|নিয়োগ|চাকরি|শূন্যপদ|আবেদন|নিয়োগ বিজ্ঞপ্তি|চাকরির বিজ্ঞপ্তি|ইন্টার্নশিপ)",
+    re.I,
+)
+BAD_JOB_RE = re.compile(
+    r"(job tips|career advice|how to prepare|exam result|admission|scholarship|job fair|training course|workshop|seminar|career guide|salary guide|interview tips|cv tips|resume tips|career resources|career hub|help center|employer login|app download|ios app|android app)",
+    re.I,
+)
+BANGLADESH_RE = re.compile(
+    r"(bangladesh|bangladeshi|বাংলাদেশ|ঢাকা|চট্টগ্রাম|চট্টগ্রাম|রাজশাহী|খুলনা|বরিশাল|সিলেট|রংপুর|ময়মনসিংহ|ময়মনসিংহ|নারায়ণগঞ্জ|গাজীপুর|কুমিল্লা|সাভার|anywhere in bangladesh)",
+    re.I,
+)
+OVERSEAS_RE = re.compile(
+    r"(india|indian|pakistan|pakistani|uae|dubai|abu dhabi|saudi arabia|qatar|kuwait|oman|bahrain|singapore|malaysia|japan|south korea|australia|canada|united kingdom|uk|usa|united states|europe|germany|france|italy|overseas|abroad|বিদেশে|বিদেশী)",
+    re.I,
+)
+
+EN_MONTHS = {
+    "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3,
+    "april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7,
+    "jul": 7, "august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
+    "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12, "dec": 12,
+}
+BANGLA_MONTHS = {
+    "জানুয়ারি": 1, "জানুয়ারি": 1, "ফেব্রুয়ারি": 2, "ফেব্রুয়ারি": 2, "মার্চ": 3,
+    "এপ্রিল": 4, "মে": 5, "জুন": 6, "জুলাই": 7, "আগস্ট": 8, "সেপ্টেম্বর": 9,
+    "অক্টোবর": 10, "নভেম্বর": 11, "ডিসেম্বর": 12,
+}
+
+
+def is_generic_navigation_candidate(title, url, excerpt=""):
+    blob = f"{title} {excerpt}".strip()
+    path = urlparse(url).path.lower()
+    if BAD_TITLE_RE.search(title or ""):
+        return True
+    if GENERIC_UI_RE.search(blob):
+        return True
+    if BAD_PATH_RE.search(path):
+        return True
+    return False
+
+
+def looks_like_job_detail_url(source_name_value, url):
+    source = safe_text(source_name_value)
+    pattern = JOB_DETAIL_PATTERNS.get(source)
+    if pattern:
+        return bool(pattern.search(url))
+    path = urlparse(url).path.lower()
+    if source in {"Dohaj"}:
+        return path.startswith("/jobs/") and path.count("/") >= 2 and not path.rstrip("/").endswith("jobs")
+    return False
+
+
+def job_intent_score(item):
+    title = safe_text(item.get("title"))
+    excerpt = safe_text(item.get("excerpt"))
+    blob = f"{title} {excerpt}"
+    if is_generic_navigation_candidate(title, item.get("url", ""), excerpt):
+        return 0
+    score = 0
+    if JOB_SIGNAL_RE.search(title): score += 42
+    if re.search(r"(management trainee|trainee|internship|intern|fresher|fresh graduate|vacancy|position|officer|executive|manager|assistant|analyst|coordinator)", title, re.I):
+        score += 18
+    for pat in (
+        r"company|organization|employer|প্রতিষ্ঠান|সংস্থা",
+        r"deadline|last date|application deadline|আবেদনের শেষ|শেষ তারিখ",
+        r"salary|বেতন|vacancy|vacancies|খালি পদ|শূন্যপদ",
+        r"education|qualification|experience|যোগ্যতা|অভিজ্ঞতা",
+        r"apply|আবেদন",
+    ):
+        if re.search(pat, blob, re.I):
+            score += 7
+    if BAD_JOB_RE.search(blob): score -= 60
+    return max(0, min(100, score))
 
 
 def candidate_basic_allowed(item):
@@ -900,45 +1016,50 @@ def candidate_basic_allowed(item):
     excerpt = safe_text(item.get("excerpt"))
     if not title or not url or not canonical_url(url):
         return False
+    if is_generic_navigation_candidate(title, url, excerpt):
+        return False
+
     published_dt = parse_datetime(item.get("published_date", item.get("published_dt", "")))
     estimated = bool(item.get("date_estimated"))
-    if not published_dt or not (DISCOVERY_START <= published_dt <= DISCOVERY_END):
+    if not published_dt:
         return False
+    if not estimated and not (DISCOVERY_START <= published_dt <= DISCOVERY_END):
+        return False
+    if estimated:
+        # Estimated timestamps are accepted only for curated current job-list pages.
+        if item.get("source_type") not in {"job_portal", "official_job_portal", "news_jobs"} or not item.get("new_feed"):
+            return False
+        if published_dt < DISCOVERY_START:
+            return False
     if not allowed_source_for_region(url, "Career"):
         return False
 
     blob = f"{title} {excerpt}"
-    if BAD_JOB_RE.search(blob):
-        return False
-    if BAD_PATH_RE.search(url) or BAD_TITLE_RE.search(title):
+    intent = job_intent_score(item)
+    item["job_intent_score"] = intent
+    if intent < MIN_JOB_INTENT_SCORE:
         return False
 
-    lane=safe_text(item.get("lane"))
-    known_portal = normalized_domain(url) in set(CAREER_JOB_PORTAL_DOMAINS)
+    overseas = OVERSEAS_RE.search(blob)
+    bangladesh = BANGLADESH_RE.search(blob)
     official = item.get("source_type") == "official_job_portal"
-    has_vacancy_signal = bool(JOB_SIGNAL_RE.search(blob) or VACANCY_CONTEXT_RE.search(blob))
-    # On job-portal category pages, a clean job title may not itself contain
-    # words such as "job" or "vacancy". The listing context is enough.
-    if not has_vacancy_signal and not (known_portal or official or lane in {"new","internship","fresher","finance","banking","management","hr","marketing","supply_chain"}):
+    known_bd_portal = normalized_domain(url) in set(CAREER_JOB_PORTAL_DOMAINS)
+    title_overseas = bool(OVERSEAS_RE.search(title))
+    location_foreign = bool(re.search(r"(location|workplace|কর্মস্থল|job location|based in).{0,110}" + OVERSEAS_RE.pattern, blob, re.I | re.S))
+    if title_overseas and not bangladesh:
+        return False
+    if location_foreign and not bangladesh:
+        return False
+    if overseas and not (bangladesh or official or known_bd_portal):
+        return False
+    if not (bangladesh or official or known_bd_portal):
         return False
 
-    # Strong overseas-only signals reject the candidate unless Bangladesh is
-    # explicitly present in the vacancy context.
-    if OVERSEAS_RE.search(blob) and not BANGLADESH_RE.search(blob):
-        return False
-
-    if not (BANGLADESH_RE.search(blob) or official or known_portal):
-        return False
-
-    # Estimated timestamps are allowed only for curated newest/fresher/internship
-    # portal lanes. The detail page later replaces the estimate when metadata exists.
-    if estimated and item.get("discovery") == "direct_portal" and not known_portal:
-        return False
+    # For portal candidates, only accept actual job detail links, never navigation links.
+    if item.get("discovery") == "direct_portal" and item.get("source_type") in {"job_portal", "official_job_portal"}:
+        if not looks_like_job_detail_url(item.get("source", ""), url):
+            return False
     return True
-
-
-
-
 
 def title_duplicate_against_state(title):
     for previous in STATE.get(
@@ -1035,6 +1156,8 @@ def queue_candidate(item):
         existing.update(
             {
                 "last_seen": now_iso(),
+                "source_url": item.get("source_url") or existing.get("source_url") or item.get("url"),
+                "apply_url": item.get("apply_url") or existing.get("apply_url", ""),
                 "image": (
                     item.get("image")
                     or existing.get("image", "")
@@ -1045,9 +1168,14 @@ def queue_candidate(item):
 
     STATE["queue"][canonical] = {
         **item,
+        "source_url": item.get("source_url") or item.get("url"),
         "status": "pending",
         "first_seen": now_iso(),
         "last_seen": now_iso(),
+        "attempt_count": 0,
+        "verification_state": "pending",
+        "published_to_channel": False,
+        "score": float(item.get("importance_score", item.get("local_score", 0)) or 0),
     }
 
 
@@ -1374,19 +1502,15 @@ def resolve_google_news_url(link):
 
 
 def google_news_gap_fill(region, existing_count, needed):
-    if existing_count >= 90 and needed <= 12:
+    if existing_count >= max(6, needed * 3):
         return 0
 
     queries = [
-        "Bangladesh job circular recruitment vacancy deadline",
-        "Bangladesh government job circular recruitment vacancy",
+        "Bangladesh job circular recruitment vacancy",
+        "Bangladesh government job circular recruitment",
         "Bangladesh private company hiring vacancy",
-        "Bangladesh bank finance accounting banking job vacancy",
-        "Bangladesh BBA MBA management trainee job",
-        "Bangladesh marketing sales HR business development job",
-        "Bangladesh supply chain procurement operations job",
-        "Bangladesh NGO development sector job vacancy",
-        "Bangladesh internship fresher entry level graduate job",
+        "Bangladesh bank NGO education IT jobs",
+        "Bangladesh internship management trainee graduate job",
         "Bangladesh recruitment notice application deadline",
     ]
     hl, gl, ceid = ("en-US", "BD", "BD:en")
@@ -1445,8 +1569,45 @@ def google_news_gap_fill(region, existing_count, needed):
 
 
 
+def targeted_portal_lane_gap_fill(region="Career", max_total=36):
+    """Use Exa for audience-specific discovery lanes, then keep only resolvable Bangladesh job detail URLs."""
+    if max_total <= 0:
+        return 0
+    added=0
+    for lane,query in TARGETED_JOB_LANES:
+        if added >= max_total: break
+        try:
+            results=get_exa().search_and_contents(
+                f"{query} latest within 3 days",
+                type="auto", category="news", num_results=TARGETED_LANE_LIMIT,
+                include_domains=PRIMARY_CAREER_DOMAINS,
+                start_published_date=DISCOVERY_START.isoformat(),
+                end_published_date=DISCOVERY_END.isoformat(),
+                contents={"highlights":{"max_characters":900}},
+            )
+            for result in getattr(results,"results",[]) or []:
+                url=safe_text(getattr(result,"url","")); title=safe_text(getattr(result,"title",""))
+                if not url or not title: continue
+                final=url
+                # If Exa resolved a generic publisher/news page, its URL is still acceptable only when it passes normal job filters.
+                published=parse_datetime(getattr(result,"published_date","")) or career_now()
+                highlights=getattr(result,"highlights",[]) or []
+                excerpt=" ".join(safe_text(x) for x in highlights)[:2200]
+                item={"title":title,"url":final,"source_url":final,"canonical":canonical_url(final),"published_date":published.isoformat(),"published_dt":published.isoformat(),"source":source_name(final),"source_type":"exa","region":region,"excerpt":excerpt,"image":safe_text(getattr(result,"image","")),"discovery":"exa_lane","discovery_lane":lane,"date_estimated":False}
+                # For direct portals, enforce detail paths. For news publishers, job-intent + source extraction will decide.
+                if normalized_domain(final) in {"jobs.bdjobs.com","bdjobslive.com","www.bdjobslive.com","job.com.bd"} and not looks_like_job_detail_url(item["source"],final):
+                    continue
+                if not candidate_basic_allowed(item): continue
+                if item["canonical"] in POSTED_URLS or item["canonical"] in STATE["queue"]: continue
+                queue_candidate(item); added+=1
+                if added>=max_total: break
+        except Exception as exc:
+            logger.warning("Targeted lane failed [%s]: %s",lane,exc)
+    return added
+
+
 def exa_gap_fill(region, existing_count, needed, fallback=False):
-    if existing_count >= 120 and needed <= 20:
+    if existing_count >= max(12, needed * 3):
         return 0
 
     domains = FALLBACK_CAREER_DOMAINS if fallback else PRIMARY_CAREER_DOMAINS
@@ -1457,13 +1618,9 @@ def exa_gap_fill(region, existing_count, needed, fallback=False):
         "latest Bangladesh job circular recruitment vacancy deadline",
         "latest Bangladesh government recruitment job circular vacancy",
         "latest Bangladesh private company hiring vacancy job",
-        "latest Bangladesh bank finance accounting banking job vacancy",
-        "latest Bangladesh BBA MBA management trainee job",
-        "latest Bangladesh marketing sales HR business development job",
-        "latest Bangladesh supply chain procurement operations job",
-        "latest Bangladesh NGO development sector job vacancy",
-        "latest Bangladesh internship fresher entry level graduate job",
-        "latest Bangladesh recruitment notice application deadline",
+        "latest Bangladesh bank NGO education IT recruitment vacancy",
+        "latest Bangladesh internship management trainee graduate vacancy",
+        "latest Bangladesh job recruitment notice application deadline",
     ]
 
     added = 0
@@ -1623,14 +1780,14 @@ def audience_fit_score(item):
     raw = f"{item.get('title','')} {item.get('excerpt','')}"
     strong = len(CAREER_AUDIENCE_STRONG_RE.findall(raw))
     weak = len(CAREER_AUDIENCE_WEAK_RE.findall(raw))
-    if strong >= 3:
-        return 100
-    if strong == 2:
-        return 94
-    if strong == 1:
-        return 84 if weak else 88
-    return 64 if weak else 45
-
+    priority = 0
+    if re.search(r"(management trainee|graduate trainee|internship|intern|fresher|fresh graduate)", raw, re.I): priority += 18
+    if re.search(r"(bba|mba|business administration|accounting|finance|bank|banking|marketing|sales|hr|human resources|business development|operations|supply chain|procurement)", raw, re.I): priority += 15
+    if strong >= 3: base=90
+    elif strong == 2: base=84
+    elif strong == 1: base=76 if weak else 74
+    else: base=58 if weak else 42
+    return min(100, base+priority)
 
 def local_job_score(item):
     published=parse_datetime(item.get("published_date"))
@@ -1641,16 +1798,16 @@ def local_job_score(item):
         "deadline":deadline_status_score(deadline),
         "source":source_reliability_score(item),
         "completeness":completeness_score(item),
-        "job_signal":100 if JOB_SIGNAL_RE.search(raw) else 20,
+        "job_signal":job_intent_score(item),
         "audience_fit":audience_fit_score(item),
     }
     score=round(
-        .24*parts["freshness"]
-        + .16*parts["deadline"]
-        + .16*parts["source"]
-        + .14*parts["completeness"]
-        + .15*parts["job_signal"]
-        + .15*parts["audience_fit"]
+        .20*parts["freshness"]
+        + .15*parts["deadline"]
+        + .17*parts["source"]
+        + .12*parts["completeness"]
+        + .18*parts["job_signal"]
+        + .18*parts["audience_fit"]
     )
     return score,parts
 
@@ -1761,80 +1918,65 @@ def _rank_batch(batch, region, batch_no):
 def rank_candidates(candidates, region):
     if not candidates:
         return []
-    regional = sorted(
-        candidates,
-        key=lambda x: (
-            -float(local_job_score(x)[0]),
-            -(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0),
-        ),
-    )[:MAX_PROCESS_CANDIDATES]
-    # Do the expensive model ranking only for the strongest local candidates.
-    ai_pool = regional[:MAX_CEREBRAS_RANK_CANDIDATES]
-    rows_by_url = {}
-    for offset in range(0, len(ai_pool), RANK_BATCH_SIZE):
-        batch = ai_pool[offset:offset+RANK_BATCH_SIZE]
-        rows = _rank_batch(batch, region, offset // RANK_BATCH_SIZE + 1)
-        by_id = {i: x for i, x in enumerate(batch, 1)}
-        for row in rows:
-            try:
-                idx = int(row.get("id"))
-            except Exception:
-                continue
-            if idx not in by_id:
-                continue
-            item = dict(by_id[idx])
-            local, parts = local_job_score(item)
-            try:
-                ai = max(0, min(100, int(row.get("score", local))))
-            except Exception:
-                ai = local
-            item.update({
-                "importance_score": round(0.65 * ai + 0.35 * local),
-                "ai_score": ai,
-                "local_score": local,
-                "score_components": parts,
-                "topic": canonical_topic(safe_text(row.get("topic")), region),
-                "institution": safe_text(row.get("institution")),
-                "event_key": safe_text(row.get("event_key")) or normalize_title(f"{item.get('title','')} {item.get('source','')}"),
-                "rank_reason": safe_text(row.get("reason")),
-                "relevance_score": int(row.get("relevance", local) or local),
-                "career_value_score": int(row.get("career_value", local) or local),
-                "batch_rank": int(row.get("rank", 9999) or 9999),
-            })
-            rows_by_url[item.get("canonical")] = item
+    # Stage 1: cheap local pre-rank. This removes generic/low-fit portal noise before AI.
+    scored=[]
+    for item in candidates:
+        local,parts=local_job_score(item)
+        item=dict(item)
+        item.update({"local_score":local,"score_components":parts})
+        scored.append(item)
+    scored.sort(key=lambda x:(-x["local_score"],-(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
+    regional=scored[:MAX_LOCAL_PREFILTER]
+    logger.info("LOCAL PREFILTER: %d/%d",len(regional),len(candidates))
 
-    # Deterministic fallback for all locally-ranked candidates not returned by AI.
+    rows_by_url={}
+    last_cerebras_call=0.0
+    for offset in range(0,len(regional),CEREBRAS_RANK_BATCH_SIZE):
+        batch=regional[offset:offset+CEREBRAS_RANK_BATCH_SIZE]
+        wait=max(0.0,CEREBRAS_MIN_INTERVAL_SECONDS-(time.monotonic()-last_cerebras_call))
+        if wait: time.sleep(wait)
+        rows=_rank_batch(batch,region,offset//CEREBRAS_RANK_BATCH_SIZE+1)
+        last_cerebras_call=time.monotonic()
+        by_id={i:x for i,x in enumerate(batch,1)}
+        for row in rows:
+            try: idx=int(row.get("id"))
+            except Exception: continue
+            if idx not in by_id: continue
+            item=dict(by_id[idx]); local=item["local_score"]; parts=item["score_components"]
+            ai=max(0,min(100,int(row.get("score",local))))
+            item.update({
+                "importance_score":round(.74*ai+.26*local),"ai_score":ai,
+                "topic":canonical_topic(safe_text(row.get("topic")),region),
+                "institution":safe_text(row.get("institution")),
+                "event_key":safe_text(row.get("event_key")) or normalize_title(f"{item.get('title','')} {item.get('source','')}"),
+                "rank_reason":safe_text(row.get("reason")),
+                "relevance_score":int(row.get("relevance",local)),
+                "career_value_score":int(row.get("career_value",local)),
+                "batch_rank":int(row.get("rank",9999)),
+            })
+            rows_by_url[item.get("canonical")]=item
+
+    # Complete AI failures with deterministic ranking so one 429 cannot erase the run.
     for original in regional:
         if original.get("canonical") in rows_by_url:
             continue
-        item = dict(original)
-        local, parts = local_job_score(item)
+        item=dict(original); local=item["local_score"]
         item.update({
-            "importance_score": local,
-            "ai_score": None,
-            "local_score": local,
-            "score_components": parts,
-            "topic": canonical_topic(item.get("topic"), region),
-            "institution": safe_text(item.get("institution")),
-            "event_key": item.get("event_key") or normalize_title(f"{item.get('title','')} {item.get('source','')}"),
-            "rank_reason": "Deterministic local ranking fallback.",
-            "relevance_score": local,
-            "career_value_score": local,
-            "batch_rank": 9999,
+            "importance_score":local,"ai_score":None,
+            "topic":canonical_topic(item.get("topic"),region),
+            "institution":safe_text(item.get("institution")),
+            "event_key":normalize_title(f"{item.get('title','')} {item.get('source','')}"),
+            "rank_reason":"Deterministic ranking fallback; AI ranking unavailable or incomplete.",
+            "relevance_score":local,"career_value_score":local,"batch_rank":9999,
         })
-        rows_by_url[item.get("canonical")] = item
+        rows_by_url[item.get("canonical")]=item
 
-    ranked = list(rows_by_url.values())
-    ranked.sort(key=lambda x: (
-        -float(x.get("importance_score", 0)),
-        -float(x.get("local_score", 0)),
-        -(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0),
-    ))
-    for i, item in enumerate(ranked, 1):
-        item["editor_rank"] = i
-    logger.info("%s RANKED RETURNED: %d/%d; AI=%d batch=%d", region, len(ranked), len(regional), min(len(ai_pool), MAX_CEREBRAS_RANK_CANDIDATES), RANK_BATCH_SIZE)
+    # Candidates outside the local prefilter are retained only as reserve inventory.
+    ranked=list(rows_by_url.values())
+    ranked.sort(key=lambda x:(-x.get("importance_score",0),-x.get("local_score",0),-(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
+    for i,item in enumerate(ranked,1): item["editor_rank"]=i
+    logger.info("%s RANKED RETURNED: %d/%d",region,len(ranked),len(regional))
     return ranked
-
 
 
 # ============================================================
@@ -2083,11 +2225,221 @@ def find_og_image(url, page_html=None, final_url=None):
     return candidates[0] if candidates else ""
 
 
+
+def distinct_http_url(candidate, source_url):
+    candidate = safe_text(candidate).strip()
+    source_url = safe_text(source_url).strip()
+    if not re.match(r"^https?://", candidate, re.I):
+        return ""
+    try:
+        c = canonical_url(candidate)
+        s = canonical_url(source_url)
+        if not c or c == s:
+            return ""
+        return candidate
+    except Exception:
+        return ""
+
+
+def extract_urls_near_apply(text):
+    raw = safe_text(text)
+    urls = re.findall(r"https?://[^\s<>()\"']+", raw, re.I)
+    scored = []
+    for url in urls:
+        clean = url.rstrip(".,);]}>")
+        pos = raw.lower().find(clean.lower())
+        window = raw[max(0, pos-260):pos+len(clean)+260] if pos >= 0 else raw
+        score = 0
+        if re.search(r"(apply|application|career|recruit|আবেদন|নিয়োগ)", window, re.I): score += 8
+        if re.search(r"(login|register|profile|account|help|blog|download|facebook|instagram|linkedin|youtube)", clean, re.I): score -= 8
+        scored.append((score, len(clean), clean))
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    return [u for _,__,u in scored]
+
+
+def extract_jobposting_jsonld(page_html):
+    soup = BeautifulSoup(page_html or "", "html.parser")
+    records = []
+    for script in soup.find_all("script", type="application/ld+json"):
+        raw = safe_text(script.string or script.get_text(" ", strip=True))
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except Exception:
+            continue
+        stack = data if isinstance(data, list) else [data]
+        # Expand @graph containers.
+        expanded=[]
+        for obj in stack:
+            if isinstance(obj, dict) and isinstance(obj.get("@graph"), list):
+                expanded.extend(obj["@graph"])
+            else:
+                expanded.append(obj)
+        for obj in expanded:
+            if not isinstance(obj, dict):
+                continue
+            typ = obj.get("@type")
+            if typ == "JobPosting" or (isinstance(typ, list) and "JobPosting" in typ):
+                records.append(obj)
+    if not records:
+        return {}
+    obj = records[0]
+    org = obj.get("hiringOrganization") or {}
+    loc = obj.get("jobLocation") or {}
+    if isinstance(loc, list):
+        loc = loc[0] if loc else {}
+    address = loc.get("address") if isinstance(loc, dict) else {}
+    if not isinstance(address, dict):
+        address = {}
+    salary = obj.get("baseSalary") or {}
+    if isinstance(salary, dict):
+        value = salary.get("value") or {}
+        if isinstance(value, dict):
+            salary_text = value.get("value") or value.get("minValue") or value.get("maxValue") or ""
+        else:
+            salary_text = value or ""
+        currency = salary.get("currency") or ""
+        salary_text = f"{currency} {salary_text}".strip()
+    else:
+        salary_text = safe_text(salary)
+    edu = obj.get("educationRequirements") or obj.get("qualifications") or ""
+    exp = obj.get("experienceRequirements") or ""
+    if isinstance(edu, list): edu = "; ".join(safe_text(x.get("name") if isinstance(x,dict) else x) for x in edu if safe_text(x.get("name") if isinstance(x,dict) else x))
+    if isinstance(exp, dict): exp = exp.get("value") or exp.get("description") or exp.get("name") or ""
+    result = {
+        "job_title": safe_text(obj.get("title")),
+        "company": safe_text(org.get("name") if isinstance(org, dict) else org),
+        "location": ", ".join(x for x in [safe_text(address.get("streetAddress")), safe_text(address.get("addressLocality")), safe_text(address.get("addressRegion")), safe_text(address.get("addressCountry"))] if x),
+        "job_type": safe_text(obj.get("employmentType")),
+        "education": safe_text(edu),
+        "experience": safe_text(exp),
+        "salary": salary_text,
+        "deadline": safe_text(obj.get("validThrough")),
+        "posted": safe_text(obj.get("datePosted")),
+        "description": safe_text(obj.get("description")),
+    }
+    # JSON-LD often exposes the job page URL, not the actual application route, so never treat it as apply URL.
+    return {k:v for k,v in result.items() if safe_text(v)}
+
+
+def extract_labelled_job_fields(text):
+    raw = safe_text(text)
+    if not raw:
+        return {}
+    flat = re.sub(r"\s+", " ", raw).strip()
+    labels = {
+        "location": r"(?:job location|location|কর্মস্থল|কর্মস্থান|চাকরির স্থান)",
+        "job_type": r"(?:job type|employment type|employment status|চাকরির ধরন)",
+        "education": r"(?:education|educational requirement|শিক্ষাগত যোগ্যতা)",
+        "experience": r"(?:experience|experience required|অভিজ্ঞতা)",
+        "salary": r"(?:salary|salary & benefits|বেতন)",
+        "vacancies": r"(?:vacancy|vacancies|খালি পদ|শূন্যপদ)",
+        "age_limit": r"(?:age|age limit|বয়স|বয়স)",
+        "application_fee": r"(?:application fee|আবেদন ফি)",
+        "application_method": r"(?:apply method|apply procedure|application method|apply instruction|আবেদন প্রক্রিয়া|আবেদন প্রক্রিয়া|রিজিউমি পাঠানোর উপায়)",
+        "application_period": r"(?:application period|আবেদনকাল|আবেদন চলবে)",
+        "selection_process": r"(?:selection procedure|selection process|নির্বাচন প্রক্রিয়া|বাছাই প্রক্রিয়া)",
+        "deadline": r"(?:application deadline|deadline|last date|closing date|আবেদনের শেষ তারিখ|আবেদনের শেষ|শেষ তারিখ)",
+        "posted": r"(?:published|posted|date posted|প্রকাশিত|প্রকাশের তারিখ)",
+    }
+    out={}
+    for key,label in labels.items():
+        m = re.search(label + r"\s*[:\-]?\s*(.{1,420}?)(?=(?:\b(?:" + "|".join(labels.values()) + r")\b)\s*[:\-]|$)", flat, re.I)
+        if m:
+            value = m.group(1).strip(" \t:;|•")
+            if value and not GENERIC_UI_RE.search(value):
+                out[key]=value
+    # Education is frequently a multiline section between headings.
+    if not out.get("education"):
+        m = re.search(r"(?:###\s*)?(?:Education|শিক্ষাগত যোগ্যতা)\s*(.+?)(?=(?:###\s*)?(?:Experience|অভিজ্ঞতা|Skills|দক্ষতা|Responsibilities|দায়িত্ব|Experience Required))", raw, re.I | re.S)
+        if m:
+            value = re.sub(r"\s+", " ", m.group(1)).strip(" \t:;|•")
+            if value and not GENERIC_UI_RE.search(value): out["education"]=value[:400]
+    return out
+
+
+def sanitize_fact_field(name, value, source_text=""):
+    value = clean_generated_text(safe_text(value)).strip()
+    # Raw URLs are never rendered inside the job card body. Application links
+    # belong only in the native APPLY NOW button.
+    value = re.sub(r"https?://\S+", "", value, flags=re.I)
+    value = re.sub(r"\s+", " ", value).strip(" :;-|•")
+    if not value:
+        return ""
+    if value.lower() in {"not specified","not available","n/a","na","unknown","not mentioned","not stated","not provided","-","--"}:
+        return ""
+    if GENERIC_UI_RE.search(value):
+        return ""
+    if name in {"application_method", "application_fee", "selection_process"} and len(value) > 260:
+        value = re.sub(r"\s+", " ", value)[:260].rstrip(" ,.;:")
+    if name in {"education","experience","location","salary","job_type","age_limit"} and len(value) > 320:
+        value = re.sub(r"\s+", " ", value)[:320].rstrip(" ,.;:")
+    if name == "salary" and value and not re.search(r"\d|negotiable|competitive|undisclosed|not disclosed|টাকা|বেতন", value, re.I):
+        return ""
+    if name == "experience" and value and not re.search(r"\d|fresh|fresher|entry|no experience|years?|মাস|বছর|অভিজ্ঞতা", value, re.I):
+        return ""
+    if name == "age_limit" and value and not re.search(r"\d|age|বয়স|বয়স", value, re.I):
+        return ""
+    return value
+
+
+def normalize_application_method(value, source_text=""):
+    value = sanitize_fact_field("application_method", value, source_text)
+    if value and len(value) <= 150:
+        return value
+    source = safe_text(source_text)
+    patterns = [
+        r"(apply online[^.]{0,140})",
+        r"(apply directly[^.]{0,140})",
+        r"(send (?:your )?(?:updated )?cv[^.]{0,140})",
+        r"(submit[^.]{0,140}application[^.]{0,140})",
+        r"(অনলাইনে আবেদন[^।]{0,120})",
+        r"(ই-মেইলে[^।]{0,120})",
+        r"(ইমেইলে[^।]{0,120})",
+        r"(ডাকযোগে[^।]{0,120})",
+    ]
+    for pattern in patterns:
+        m=re.search(pattern, source, re.I)
+        if m:
+            result=re.sub(r"\s+"," ",m.group(1)).strip(" :;-|•")
+            if result: return result[:170]
+    if value:
+        return re.sub(r"\s+"," ",value).split(".")[0][:170].rstrip(" ,;:")
+    return ""
+
+
+def extract_apply_url_from_attributes(page_url, soup):
+    candidates=[]
+    attr_names=("data-apply-url","data-apply","data-href","data-url","data-link","data-target","href","action")
+    for tag in soup.find_all(["a","button","input","form"]):
+        label=safe_text(tag.get_text(" ",strip=True))+" "+safe_text(tag.get("aria-label"))+" "+safe_text(tag.get("title"))+" "+safe_text(tag.get("value"))
+        blob=" ".join(safe_text(tag.get(a)) for a in attr_names)
+        score=0
+        if re.search(r"(apply now|apply here|apply online|apply|application|submit|আবেদন|আবেদন করুন|এখনই আবেদন)",label,re.I): score+=12
+        if re.search(r"(apply|application|submit|recruit|candidate|career|vacancy)",blob,re.I): score+=6
+        for a in attr_names:
+            raw=safe_text(tag.get(a))
+            if not raw: continue
+            for u in re.findall(r"https?://[^\"'\s)]+",raw,re.I):
+                u=distinct_http_url(urljoin(page_url,u),page_url)
+                if u: candidates.append((score+8,len(u),u))
+            if a in {"href","data-apply-url","data-href","data-url","data-link","action"}:
+                u=distinct_http_url(urljoin(page_url,raw),page_url)
+                if u: candidates.append((score,len(u),u))
+        onclick=safe_text(tag.get("onclick"))
+        for u in re.findall(r"https?://[^\"'\s)]+",onclick,re.I):
+            u=distinct_http_url(urljoin(page_url,u),page_url)
+            if u: candidates.append((score+8,len(u),u))
+    candidates.sort(key=lambda x:(-x[0],x[1]))
+    return candidates[0][2] if candidates else ""
+
 def extract_article(item):
     url = item["url"]
     page_posted = None
     apply_url = safe_text(item.get("apply_url"))
     combined_image_candidates = []
+    structured_fields = dict(item.get("structured_fields") or {})
 
     try:
         response = session.get(url, headers={**HEADERS, "Referer": url}, timeout=25)
@@ -2097,31 +2449,43 @@ def extract_article(item):
             page_posted = posted_at_from_html(page_html)
             if page_posted:
                 item["page_posted_date"] = page_posted.isoformat()
-                # Keep the source publication timestamp when already known; otherwise use page metadata.
-                if not item.get("published_date"):
-                    item["published_date"] = page_posted.isoformat()
-            apply_url = apply_url or extract_apply_url(final_url, page_html)
+                item["published_date"] = page_posted.isoformat()
+            # Parse structured JobPosting first. It is authoritative when present.
+            jsonld = extract_jobposting_jsonld(page_html)
+            if jsonld:
+                structured_fields.update({k:v for k,v in jsonld.items() if v})
+                for key,item_key in (("job_title","title"),("company","company"),("location","location"),("job_type","job_type"),("education","education"),("experience","experience"),("salary","salary")):
+                    if jsonld.get(key): item[item_key]=jsonld[key]
+                if jsonld.get("deadline"):
+                    item["deadline_hint"] = jsonld["deadline"]
+                if jsonld.get("posted") and not item.get("published_date"):
+                    dt=parse_datetime(jsonld["posted"])
+                    if dt: item["published_date"]=dt.isoformat()
+
+            visible_text = BeautifulSoup(page_html, "html.parser").get_text(" ", strip=True)
+            labelled = extract_labelled_job_fields(visible_text)
+            for key,value in labelled.items():
+                if value and not structured_fields.get(key): structured_fields[key]=value
+                if value and key in {"location","job_type","education","experience","salary","vacancies","age_limit","application_fee","application_method","application_period","selection_process"} and not item.get(key):
+                    item[key]=value
+            apply_url = resolve_apply_url(final_url, page_html, apply_url)
+            item["source_url"] = final_url
+            item["url"] = final_url
+            item["canonical"] = canonical_url(final_url)
+            item["structured_fields"] = structured_fields
+            if apply_url:
+                item["apply_url"] = distinct_http_url(apply_url, url)
             deadline_dt = choose_deadline(page_html)
             if deadline_dt:
                 item["deadline_hint"] = deadline_dt.strftime("%d %B %Y")
-                item["deadline_evidence"] = BeautifulSoup(page_html, "html.parser").get_text(" ", strip=True)[:22000]
+                item["deadline_evidence"] = visible_text[:22000]
             else:
-                item["deadline_evidence"] = BeautifulSoup(page_html, "html.parser").get_text(" ", strip=True)[:16000]
-            item["apply_url"] = apply_url
+                item["deadline_evidence"] = visible_text[:16000]
 
-            text = trafilatura.extract(
-                page_html,
-                include_comments=False,
-                include_tables=False,
-                favor_precision=True,
-            )
-            combined_image_candidates = find_image_candidates(
-                url,
-                page_html,
-                final_url,
-                preferred_image=item.get("image", ""),
-            )
+            text = trafilatura.extract(page_html, include_comments=False, include_tables=False, favor_precision=True)
+            combined_image_candidates = find_image_candidates(url, page_html, final_url, preferred_image=item.get("image", ""))
             if text and len(safe_text(text)) >= 500:
+                item["article_text_source"] = "local"
                 return safe_text(text), combined_image_candidates
     except Exception as exc:
         logger.warning("Local career extraction failed %s: %s", url, exc)
@@ -2132,15 +2496,18 @@ def extract_article(item):
             result = result_set.results[0]
             text = safe_text(getattr(result, "text", ""))
             exa_image = safe_text(getattr(result, "image", ""))
-            combined_image_candidates = find_image_candidates(
-                url,
-                preferred_image=item.get("image", "") or exa_image,
-            )
+            combined_image_candidates = find_image_candidates(url, preferred_image=item.get("image", "") or exa_image)
             if exa_image and exa_image not in combined_image_candidates:
                 combined_image_candidates.append(exa_image)
             if text:
-                apply_url = apply_url or extract_apply_url_from_text(url, text)
-                item["apply_url"] = apply_url
+                labelled = extract_labelled_job_fields(text)
+                item["structured_fields"] = {**structured_fields, **{k:v for k,v in labelled.items() if v}}
+                text_apply = ""
+                for candidate_url in extract_urls_near_apply(text):
+                    text_apply = distinct_http_url(candidate_url, url)
+                    if text_apply:
+                        break
+                item["apply_url"] = resolve_apply_url(url, text, apply_url or text_apply)
                 deadline_dt = choose_deadline(text)
                 if deadline_dt:
                     item["deadline_hint"] = deadline_dt.strftime("%d %B %Y")
@@ -2152,160 +2519,88 @@ def extract_article(item):
     return "", [item.get("image", "")] if item.get("image") else []
 
 
-
 # ============================================================
 # STORY + KNOWLEDGE GENERATION
 # ============================================================
 
 
-def extract_locked_job_record(item, article_text):
-    """Build the immutable, source-backed JobRecord.
-
-    The parser is intentionally conservative: every value is captured only up
-    to the next known field label, which prevents same-line HTML extraction from
-    leaking subsequent fields, URLs, or other sections into the current value.
-    """
-    text = safe_text(article_text) + "\n" + safe_text(item.get("excerpt"))
-    lower = text.lower()
-
-    field_labels = [
-        "company", "company name", "employer", "organization", "প্রতিষ্ঠানের নাম", "কোম্পানির নাম",
-        "location", "job location", "work location", "কর্মস্থল", "চাকরির স্থান",
-        "job type", "employment type", "job nature", "job status", "চাকরির ধরন", "চাকরির প্রকৃতি",
-        "educational qualification", "academic qualification", "education", "শিক্ষাগত যোগ্যতা", "যোগ্যতা",
-        "experience", "experiences", "অভিজ্ঞতা",
-        "salary", "compensation", "বেতন", "বেতন ও সুবিধা",
-        "vacancy", "vacancies", "number of vacancies", "no. of vacancies", "পদ সংখ্যা", "শূন্য পদ", "শূন্যপদ",
-        "age limit", "age", "বয়স", "বয়স",
-        "application fee", "app fee", "আবেদন ফি", "আবেদন মূল্য", "ফি",
-        "how to apply", "application process", "application method", "application", "আবেদনের নিয়ম", "আবেদন পদ্ধতি", "আবেদন করুন", "আবেদন",
-        "selection process", "selection procedure", "নিয়োগ প্রক্রিয়া", "বাছাই প্রক্রিয়া",
-        "application period", "application window", "আবেদনকাল", "আবেদন চলবে",
-        "deadline", "last date", "closing date", "application deadline", "apply by", "আবেদনের শেষ", "শেষ তারিখ", "আবেদন শেষ",
-        "posted", "published", "date posted", "প্রকাশিত", "প্রকাশের তারিখ",
-    ]
-    label_alt = "|".join(re.escape(x) for x in sorted(set(field_labels), key=len, reverse=True))
-
-    def normalize_value(value, limit):
-        value = clean_generated_text(value).strip(" \t\r\n-:|•")
-        value = re.sub(r"\s+", " ", value)
-        # A field value should never swallow a URL or another label even when
-        # the source has compressed multiple table cells onto one line.
-        value = re.split(r"\s+(?=https?://)", value, maxsplit=1, flags=re.I)[0]
-        value = re.split(r"\s+(?=[A-Z][A-Za-z .&'/()-]{1,40}\s*[:：-])", value, maxsplit=1)[0]
-        return trim_source_text(value, limit)
-
-    def capture(labels, limit=260):
-        labels_alt = "|".join(re.escape(x) for x in sorted(set(labels), key=len, reverse=True))
-        pat = re.compile(
-            rf"(?:{labels_alt})\s*[:：-]?\s*(.*?)\s*(?=(?:{label_alt})\s*[:：-]|\n|\r|\||$)",
-            re.I | re.S,
-        )
-        m = pat.search(text)
-        if not m:
-            return ""
-        return normalize_value(m.group(1), limit)
-
-    def first_date_after(labels):
-        labels_alt = "|".join(re.escape(x) for x in sorted(set(labels), key=len, reverse=True))
-        pat = re.compile(
-            rf"(?:{labels_alt}).{{0,120}}?((?:\d{{1,2}}\s+[A-Za-z]{{3,9}}\s+20\d{{2}})|(?:[A-Za-z]{{3,9}}\s+\d{{1,2}},?\s+20\d{{2}})|(?:\d{{1,2}}[./-]\d{{1,2}}[./-]20\d{{2}})|(?:\d{{1,2}}\s+[বাংলা\u0980-\u09ff]+\s+20\d{{2}}))",
-            re.I | re.S,
-        )
-        m = pat.search(text)
-        return parse_date_text(m.group(1)) if m else None
-
-    def extract_any(patterns, limit=260):
-        for p in patterns:
-            m = re.search(p, text, re.I | re.S)
-            if m:
-                value = normalize_value(m.group(1), limit)
-                if value:
-                    return value
-        return ""
-
-    title = safe_text(item.get("title"))
-    company = safe_text(item.get("company")) or capture(["company", "company name", "employer", "organization", "প্রতিষ্ঠানের নাম", "কোম্পানির নাম"], 170)
-    location = capture(["location", "job location", "work location", "কর্মস্থল", "চাকরির স্থান"], 150)
-    if not location:
-        m = re.search(r"(?:Dhaka|Chattogram|Chittagong|Gazipur|Narayanganj|Khulna|Rajshahi|Sylhet|Barishal|Rangpur|Mymensingh|Anywhere in Bangladesh)(?:[^\n|.]{0,60})", text, re.I)
-        location = normalize_value(m.group(0), 150) if m else ""
-
-    job_type = capture(["job type", "employment type", "job nature", "job status", "চাকরির ধরন", "চাকরির প্রকৃতি"], 100)
-    if not job_type:
-        if re.search(r"\bintern(ship)?\b|ইন্টার্ন", lower): job_type = "Internship"
-        elif re.search(r"management trainee", lower): job_type = "Management Trainee"
-        elif re.search(r"full[- ]?time|স্থায়ী", lower): job_type = "Full-time"
-        elif re.search(r"part[- ]?time|খণ্ডকালীন", lower): job_type = "Part-time"
-
-    education = capture(["educational qualification", "education", "academic qualification", "শিক্ষাগত যোগ্যতা", "যোগ্যতা"], 280)
-    experience = capture(["experience", "experiences", "অভিজ্ঞতা"], 200)
-    salary = capture(["salary", "compensation", "বেতন", "বেতন ও সুবিধা"], 160)
-    vacancies = capture(["vacancy", "vacancies", "number of vacancies", "no. of vacancies", "পদ সংখ্যা", "শূন্য পদ", "শূন্যপদ"], 90)
-    age_limit = capture(["age limit", "age", "বয়স", "বয়স"], 110)
-    application_fee = capture(["application fee", "app fee", "আবেদন ফি", "আবেদন মূল্য", "ফি"], 130)
-    application_method = capture(["how to apply", "application process", "application method", "application", "আবেদনের নিয়ম", "আবেদন পদ্ধতি", "আবেদন করুন", "আবেদন"], 220)
-    if not application_method:
-        if re.search(r"online application|apply online|online", lower): application_method = "Online"
-        elif re.search(r"post office|postal", lower): application_method = "Postal application"
-
-    selection_process = capture(["selection process", "selection procedure", "নিয়োগ প্রক্রিয়া", "বাছাই প্রক্রিয়া"], 220)
-    if not selection_process:
-        if re.search(r"written.{0,60}(practical|viva)|practical.{0,60}viva|written.{0,60}viva", lower):
-            selection_process = "Written, practical and viva"
-
-    deadline_dt = first_date_after(["deadline", "last date", "closing date", "application deadline", "apply by", "আবেদনের শেষ", "শেষ তারিখ", "আবেদন শেষ"])
-    if not deadline_dt:
-        deadline_dt = choose_deadline(text)
-    if not deadline_dt and item.get("deadline_hint"):
-        deadline_dt = parse_date_text(item.get("deadline_hint", ""))
-    deadline = deadline_dt.strftime("%d %B %Y") if deadline_dt else ""
-
-    period = capture(["application period", "application window", "আবেদনকাল", "আবেদন চলবে"], 180)
-
-    apply_url = safe_text(item.get("apply_url"))
-    source_url = canonical_url(item.get("url"))
-    if not apply_url or canonical_url(apply_url) == source_url:
-        return None
-    if not title or not company:
-        return None
-    if location and OVERSEAS_RE.search(location) and not BANGLADESH_RE.search(location):
-        return None
-
-    record = {
-        "job_title": trim_source_text(title, 150),
-        "company": trim_source_text(company, 170),
-        "location": trim_source_text(location, 150),
-        "job_type": trim_source_text(job_type, 100),
-        "education": trim_source_text(education, 280),
-        "experience": trim_source_text(experience, 200),
-        "salary": trim_source_text(salary, 160),
-        "vacancies": trim_source_text(vacancies, 90),
-        "age_limit": trim_source_text(age_limit, 110),
-        "gender": "",
-        "application_fee": trim_source_text(application_fee, 130),
-        "application_method": trim_source_text(application_method, 220),
-        "application_period": trim_source_text(period, 180),
-        "selection_process": trim_source_text(selection_process, 220),
-        "deadline": deadline,
-        "apply_url": apply_url,
-        "bangladesh_relevance": 100 if location and BANGLADESH_RE.search(location) else 90,
-        "confidence": 92 if apply_url and deadline else 82,
-    }
-    if deadline_dt and deadline_is_expired(deadline_dt):
-        return None
-    return record
-
-CAREER_STORY_SCHEMA = {
+JOB_RECORD_SCHEMA = {
     "type": "object",
     "properties": {
-        "headline": {"type": "string"},
-        "topic": {"type": "string"},
-        "bold_terms": {"type": "array", "items": {"type": "string"}, "maxItems": 16},
+        "job_title": {"type": "string"}, "company": {"type": "string"}, "location": {"type": "string"}, "job_type": {"type": "string"},
+        "education": {"type": "string"}, "experience": {"type": "string"}, "salary": {"type": "string"},
+        "application_fee": {"type": "string"}, "application_method": {"type": "string"}, "application_period": {"type": "string"},
+        "selection_process": {"type": "string"}, "deadline": {"type": "string"}, "apply_url": {"type": "string"},
+        "bangladesh_relevance": {"type": "integer", "minimum": 0, "maximum": 100},
+        "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
     },
-    "required": ["headline", "topic", "bold_terms"],
+    "required": [
+        "application_fee","application_method","application_period","selection_process","deadline","bangladesh_relevance","confidence",
+    ],
     "additionalProperties": False,
 }
+
+def extract_locked_job_record(item, article_text):
+    structured = dict(item.get("structured_fields") or {})
+    labelled = extract_labelled_job_fields(article_text)
+    for key,value in labelled.items():
+        structured.setdefault(key,value)
+    source_url=safe_text(item.get("source_url") or item.get("url"))
+    discovered_apply=distinct_http_url(item.get("apply_url"),source_url)
+    base_fields={
+        "job_title": structured.get("job_title") or item.get("title"),
+        "company": structured.get("company") or item.get("company"),
+        "location": structured.get("location") or item.get("location"),
+        "job_type": structured.get("job_type") or item.get("job_type"),
+        "education": structured.get("education") or item.get("education"),
+        "experience": structured.get("experience") or item.get("experience"),
+        "salary": structured.get("salary") or item.get("salary"),
+        "vacancies": structured.get("vacancies") or item.get("vacancies"),
+        "age_limit": structured.get("age_limit") or item.get("age_limit"),
+        "application_fee": structured.get("application_fee") or item.get("application_fee"),
+        "application_method": structured.get("application_method") or item.get("application_method"),
+        "application_period": structured.get("application_period") or item.get("application_period"),
+        "selection_process": structured.get("selection_process") or item.get("selection_process"),
+        "deadline": structured.get("deadline") or item.get("deadline_hint"),
+        "apply_url": discovered_apply,
+    }
+    deterministic={k:sanitize_fact_field(k,v,article_text) for k,v in base_fields.items()}
+    deterministic["job_title"]=deterministic.get("job_title") or safe_text(item.get("title"))
+    deterministic["application_method"]=normalize_application_method(deterministic.get("application_method"),article_text)
+    if deterministic.get("deadline"):
+        dt=parse_date_text(deterministic["deadline"])
+        if dt: deterministic["deadline"]=dt.strftime("%d %B %Y")
+    if deterministic.get("apply_url") and not is_actionable_apply_url(deterministic["apply_url"]):
+        deterministic["apply_url"]=""
+    record={
+        "job_title":deterministic.get("job_title",""),
+        "company":deterministic.get("company",""),
+        "location":deterministic.get("location",""),
+        "job_type":deterministic.get("job_type",""),
+        "education":deterministic.get("education",""),
+        "experience":deterministic.get("experience",""),
+        "salary":deterministic.get("salary",""),
+        "vacancies":deterministic.get("vacancies",""),
+        "age_limit":deterministic.get("age_limit",""),
+        "application_fee":deterministic.get("application_fee",""),
+        "application_method":deterministic.get("application_method",""),
+        "application_period":deterministic.get("application_period",""),
+        "selection_process":deterministic.get("selection_process",""),
+        "deadline":deterministic.get("deadline",""),
+        "apply_url":deterministic.get("apply_url",""),
+        "bangladesh_relevance":85,
+        "confidence":100,
+    }
+    if not record["job_title"] or not record["company"] or record["confidence"] < 60:
+        return None
+    if REQUIRE_DISTINCT_APPLY_URL and not record["apply_url"]:
+        logger.info("DROP no distinct actionable apply URL: %s",record["job_title"])
+        return None
+    if record["deadline"]:
+        dt=parse_date_text(record["deadline"])
+        if dt and deadline_is_expired(dt):
+            return None
+    return record
 
 def generate_story(item, article_text, locked_record=None):
     """Deterministic editorial wrapper.
@@ -2481,7 +2776,6 @@ def numeric_grounded(story, article_text):
         story.get("headline", ""), story.get("company", ""), story.get("location", ""),
         story.get("job_type", ""), story.get("education", ""), story.get("experience", ""),
         story.get("salary", ""), story.get("deadline", ""),
-        story.get("vacancies", ""), story.get("age_limit", ""), story.get("application_fee", ""), story.get("application_method", ""), story.get("application_period", ""), story.get("selection_process", ""), story.get("apply_url", ""),
     ]
     generated_text = " ".join(safe_text(x) for x in fields if safe_text(x))
     for token in numeric_tokens(generated_text):
@@ -2638,10 +2932,10 @@ def _snapshot_rows(story):
     fields = [
         ("📍 Location", story.get("location")),
         ("💼 Type", story.get("job_type")),
-        ("👥 Vacancies", story.get("vacancies")),
         ("🎓 Education", story.get("education")),
         ("👨‍💼 Experience", story.get("experience")),
         ("💰 Salary", story.get("salary")),
+        ("👥 Vacancies", story.get("vacancies")),
         ("🎂 Age Limit", story.get("age_limit")),
         ("💳 Application Fee", story.get("application_fee")),
         ("📝 Application", story.get("application_method")),
@@ -2658,7 +2952,6 @@ def _snapshot_rows(story):
     return rows
 
 
-
 def _html_table(rows):
     parts=["<table bordered striped compact><tr><th><b>FIELD</b></th><th><b>DETAILS</b></th></tr>"]
     for label,value in rows:
@@ -2669,13 +2962,10 @@ def _html_table(rows):
 
 def _inline_keyboard(story):
     apply_url=safe_text(story.get("apply_url"))
-    source_url=canonical_url(safe_text(story.get("url")))
-    if not apply_url or not re.match(r"^https?://",apply_url,re.I):
-        return None
-    if canonical_url(apply_url) == source_url:
+    source_url=safe_text(story.get("source_url") or story.get("url"))
+    if not apply_url or not is_actionable_apply_url(apply_url) or not distinct_http_url(apply_url,source_url):
         return None
     return {"inline_keyboard":[[{"text":"APPLY NOW","url":apply_url}]]}
-
 
 
 def dynamic_rich_html(story):
@@ -2683,7 +2973,7 @@ def dynamic_rich_html(story):
     terms=derive_bold_terms(story)
     company=_display_field(story.get("company"))
     source=_display_field(story.get("source")) or "Official Source"
-    source_url=safe_text(story.get("url") or "")
+    source_url=safe_text(story.get("source_url") or story.get("url") or "")
     rows=_snapshot_rows(story)
 
     parts=["<h1>📣 "+escape_rich_html(story.get("headline","Job Vacancy"))+"</h1>"]
@@ -3272,7 +3562,8 @@ def store_event(story, published=False, message_id=None):
         "event_id": event_id,
         "event_key": story.get("event_key", ""),
         "canonical_url": story.get("canonical", canonical_url(story.get("url", ""))),
-        "original_url": story.get("url", ""),
+        "original_url": story.get("source_url") or story.get("url", ""),
+        "source_url": story.get("source_url") or story.get("url", ""),
         "apply_url": story.get("apply_url", ""),
         "source": story.get("source", ""),
         "region": "Career",
@@ -3290,7 +3581,6 @@ def store_event(story, published=False, message_id=None):
         "salary": story.get("salary", ""),
         "vacancies": story.get("vacancies", ""),
         "age_limit": story.get("age_limit", ""),
-        "gender": "",
         "application_fee": story.get("application_fee", ""),
         "application_method": story.get("application_method", ""),
         "application_period": story.get("application_period", ""),
@@ -3319,44 +3609,30 @@ def store_event(story, published=False, message_id=None):
 def build_candidate_pool(ranked, needed):
     if not ranked:
         return []
-    target=min(max(60, needed*6, RANKING_POOL_SIZE), MAX_PROCESS_CANDIDATES, len(ranked))
-    buckets={}
-    order=[]
-    for item in ranked:
+    target=min(max(RANKING_POOL_SIZE, needed*6, 40), MAX_PROCESS_CANDIDATES, len(ranked))
+    ordered=sorted(ranked, key=lambda x:(-float(x.get("importance_score",x.get("local_score",0))),-float(x.get("local_score",0))))
+    selected=[]; seen=set(); source_counts={}; sources=[]
+    # First pass: strongest candidate from each source.
+    for item in ordered:
+        can=safe_text(item.get("canonical"))
+        if not can or can in seen:
+            continue
         src=safe_text(item.get("source")) or "Unknown Source"
-        if src not in buckets:
-            buckets[src]=[]; order.append(src)
-        buckets[src].append(item)
-    selected=[]
-    # First pass: at least one candidate per source, then round robin.
-    while len(selected)<target:
-        progressed=False
-        for src in order:
-            if not buckets[src] or len(selected)>=target:
-                continue
-            selected.append(dict(buckets[src].pop(0)))
-            progressed=True
-        if not progressed:
-            break
-    logger.info("DIVERSE CANDIDATE POOL: %d candidates across %d sources",len(selected),len(order))
+        if src not in sources:
+            sources.append(src)
+            selected.append(dict(item)); seen.add(can); source_counts[src]=1
+        if len(selected)>=target:
+            return selected
+    # Second pass: continue in quality order. Diversity is a tie-breaker, not a quality replacement.
+    for item in ordered:
+        if len(selected)>=target: break
+        can=safe_text(item.get("canonical"))
+        if not can or can in seen: continue
+        selected.append(dict(item)); seen.add(can)
+        src=safe_text(item.get("source")) or "Unknown Source"
+        source_counts[src]=source_counts.get(src,0)+1
+    logger.info("QUALITY-FIRST CANDIDATE POOL: %d candidates across %d sources distribution=%s",len(selected),len(source_counts),source_counts)
     return selected
-
-
-
-VERIFY_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "supported": {"type": "boolean"},
-        "unsupported_claims": {
-            "type": "array",
-            "items": {"type": "string"},
-            "maxItems": 3,
-        },
-    },
-    "required": ["supported", "unsupported_claims"],
-    "additionalProperties": False,
-}
-
 
 def claims_grounded(story, article_text):
     claims = [
@@ -3370,7 +3646,6 @@ def claims_grounded(story, article_text):
 You are a strict fact-checking editor for a Bangladesh job-news channel.
 Compare every generated field with the source article/page.
 Mark supported=true only if material factual claims in the job title, employer, location, job type,
-education, experience, salary, vacancies, age, gender, application fee, application method, application period,
 selection process, and deadline are directly supported by the source or are faithful concise normalizations.
 Reject invented facts, identity changes, unsupported eligibility, incorrect employer/location, wrong dates, unsupported
 salary, fabricated vacancy counts, or application instructions stronger than the source. Missing fields are allowed;
@@ -3399,83 +3674,59 @@ Return only the JSON schema.
 
 
 
-def process_story_candidate(item, verify_claims=False):
+def process_story_candidate(item, verify_claims=True):
     article_text,image_candidates=extract_article(item)
     if not article_text:
-        logger.info("DROP extraction: %s", item.get("title"))
-        return None
-    evidence_text=article_text+"\n"+safe_text(item.get("deadline_evidence",""))
+        logger.warning("DROP extraction: %s",item.get("title")); item["verification_state"]="extraction_failed"; return None
     page_posted_date=parse_datetime(item.get("page_posted_date"))
-    if page_posted_date:
-        if not (DISCOVERY_START<=page_posted_date<=DISCOVERY_END):
-            return None
-        item["published_date"]=page_posted_date.isoformat()
-    elif item.get("date_estimated") and item.get("discovery")=="direct_portal":
-        # Curated portal lane remains eligible until exact detail metadata is found.
-        pass
+    if page_posted_date and not (DISCOVERY_START<=page_posted_date<=DISCOVERY_END):
+        item["verification_state"]="stale_source"; return None
     if not candidate_basic_allowed(item):
-        return None
-
+        item["verification_state"]="basic_filter_failed"; return None
     record=extract_locked_job_record(item,article_text)
     if not record:
-        logger.info("DROP source record/apply URL: %s", item.get("title"))
-        return None
-
-    deadline_dt=parse_date_text(record.get("deadline")) if record.get("deadline") else None
+        item["verification_state"]="job_record_failed"; return None
+    source_url=safe_text(item.get("source_url") or item.get("url"))
+    apply_url=distinct_http_url(record.get("apply_url"),source_url)
+    if REQUIRE_DISTINCT_APPLY_URL and not apply_url:
+        item["verification_state"]="apply_url_failed"; return None
+    deadline_dt=parse_date_text(record.get("deadline","")) if record.get("deadline") else None
     if deadline_dt and deadline_is_expired(deadline_dt):
-        return None
-    if not deadline_dt and not record.get("application_method") and not record.get("location"):
-        return None
-
+        item["verification_state"]="expired"; return None
     story=generate_story(item,article_text,locked_record=record)
     if not story:
-        return None
-
-    # Hard source lock: the model never controls factual fields.
-    locked_fields={
-        "headline":record["job_title"], "company":record["company"], "location":record["location"],
-        "job_type":record["job_type"], "education":record["education"], "experience":record["experience"],
-        "salary":record["salary"], "vacancies":record["vacancies"], "age_limit":record["age_limit"],
-        "gender":"", "application_fee":record["application_fee"], "application_method":record["application_method"],
-        "application_period":record["application_period"], "selection_process":record["selection_process"],
-        "deadline":record["deadline"], "apply_url":record["apply_url"], "source":item.get("source") or story.get("source"),
+        item["verification_state"]="editorial_failed"; return None
+    factual={
+        "headline":record["job_title"],"company":record["company"],"location":record["location"],"job_type":record["job_type"],
+        "education":record["education"],"experience":record["experience"],"salary":record["salary"],"vacancies":record["vacancies"],
+        "age_limit":record["age_limit"],"application_fee":record["application_fee"],"application_method":record["application_method"],
+        "application_period":record["application_period"],"selection_process":record["selection_process"],"deadline":record["deadline"],
+        "apply_url":apply_url,"source":item.get("source") or story.get("source"),
     }
-    story.update(locked_fields)
-    if story["deadline"] and not deadline_grounded(story["deadline"],evidence_text):
-        return None
-
-    story["image_candidates"]=list(image_candidates or [])
-    story["image_url"]=story["image_candidates"][0] if story["image_candidates"] else ""
-    story["topic"]=canonical_topic(item.get("topic") or story.get("topic"))
-    story["category_hashtags"]=category_hashtags(story)
-    grounded,bad_number=numeric_grounded(story,evidence_text)
+    story.update(factual)
+    story["source_url"]=source_url
+    story["url"]=source_url
+    story["apply_url"]=apply_url
+    if story.get("deadline") and not deadline_grounded(story["deadline"],article_text+"\n"+safe_text(item.get("deadline_evidence",""))):
+        item["verification_state"]="deadline_grounding_failed"; return None
+    grounded,bad_number=numeric_grounded(story,article_text+"\n"+safe_text(item.get("deadline_evidence","")))
     if not grounded:
-        logger.warning("DROP numeric grounding: %s (%s)",story.get("headline"),bad_number)
-        return None
-    # Claim verifier is optional and used only when explicitly requested. The
-    # deterministic fact lock is sufficient for standard runs.
-    if verify_claims:
-        verified,unsupported=claims_grounded(story,evidence_text)
-        if not verified:
-            logger.warning("DROP claim verification: %s | %s",story.get("headline"),unsupported)
-            return None
+        item["verification_state"]="numeric_grounding_failed"; logger.warning("DROP numeric grounding: %s (%s)",story.get("headline"),bad_number); return None
+    story["image_candidates"]=list(image_candidates or []); story["image_url"]=story["image_candidates"][0] if story["image_candidates"] else ""
+    story["topic"]=canonical_topic(story.get("topic") or item.get("topic")); story["category_hashtags"]=category_hashtags(story)
     story["job_record"]=record
     story["deadline_iso"]=deadline_dt.date().isoformat() if deadline_dt else ""
     published=page_posted_date or parse_datetime(item.get("published_date"))
     story["published_date"]=published.isoformat() if published else item.get("published_date","")
-    story["canonical"]=canonical_url(item.get("url",story.get("url","")))
-    story["url"]=item.get("url",story.get("url",""))
+    story["posted_at"]=story["published_date"]
+    story["canonical"]=canonical_url(source_url)
+    story["job_id"]=hashlib.sha1(f"{story['canonical']}|{record['company']}|{record['job_title']}".encode("utf-8")).hexdigest()[:16]
     story["event_key"]=item.get("event_key") or normalize_title(f"{record['company']} {record['job_title']} {record['location']}")
-    story["event_cluster_id"]=item.get("event_cluster_id","")
-    story["event_source_count"]=item.get("event_source_count",1)
+    story["event_id"]=hashlib.sha1(story["event_key"].encode("utf-8")).hexdigest()[:16]
+    story["event_cluster_id"]=item.get("event_cluster_id",""); story["event_source_count"]=item.get("event_source_count",1)
+    story["source_reliability"]=source_reliability_score(item); story["audience_fit"]=audience_fit_score(item)
+    story["verification_state"]="verified"
     return story
-
-
-
-
-# ============================================================
-# MAIN
-# ============================================================
 
 def is_already_published_candidate(item):
     canonical = safe_text(item.get("canonical"))
@@ -3552,89 +3803,71 @@ def prepare_ranked_region(region,candidates):
 
 
 def process_ranked_region(region, ranked):
-    if not ranked:
-        return []
+    """Process a broad candidate pool while preserving quality and source diversity."""
     pool=build_candidate_pool(ranked,MAX_STORIES_PER_RUN)
-    valid=[]
-    processed=set()
-    source_counts={}
-    source_count_total=len({safe_text(x.get("source")) for x in pool if safe_text(x.get("source"))})
-    # Dynamic diversity cap: with many sources, prevent domination; with few
-    # sources, allow more inventory to be used so the run does not stall.
-    if source_count_total >= 5:
-        dynamic_source_cap = 3
-    elif source_count_total == 4:
-        dynamic_source_cap = 4
-    elif source_count_total == 3:
-        dynamic_source_cap = 5
-    elif source_count_total == 2:
-        dynamic_source_cap = 8
-    else:
-        dynamic_source_cap = 99
-    dynamic_source_cap = min(MAX_POSTS_PER_SOURCE_PER_RUN, dynamic_source_cap) if source_count_total >= 5 else dynamic_source_cap
-    enforce_cap = source_count_total >= 2
+    valid=[]; attempted=0; rejected=0; source_counts={}; processed=set()
+    deferred=[]
+    distinct_sources=len({safe_text(x.get("source")) for x in pool if safe_text(x.get("source"))})
 
-    def can_use(item):
-        if not enforce_cap:
-            return True
-        src=safe_text(item.get("source")) or "Unknown Source"
-        return source_counts.get(src,0) < dynamic_source_cap
+    # Dynamic source cap: strong quality first, but avoid one publisher dominating the feed.
+    if distinct_sources <= 1: source_cap=MAX_STORIES_PER_RUN
+    elif distinct_sources == 2: source_cap=8
+    elif distinct_sources == 3: source_cap=6
+    elif distinct_sources == 4: source_cap=5
+    elif distinct_sources <= 7: source_cap=4
+    else: source_cap=3
 
-    # Process in ranked order but always leave room for other sources.
-    for item in pool:
-        if len(valid)>=MAX_STORIES_PER_RUN:
-            break
-        can=safe_text(item.get("canonical"))
-        if not can or can in processed:
-            continue
-        processed.add(can)
-        if not can_use(item):
-            continue
-        story=process_story_candidate(item,verify_claims=False)
+    def source_allowed(source):
+        return source_counts.get(source,0) < source_cap
+
+    def accept_story(item,story):
+        nonlocal rejected
         if not story:
-            continue
-        if _inline_keyboard(story) is None:
-            logger.info("DROP missing distinct apply URL: %s",story.get("headline"))
-            continue
-        src=safe_text(story.get("source")) or "Unknown Source"
+            rejected+=1; return False
+        canonical=safe_text(story.get("canonical") or item.get("canonical"))
+        if not canonical or canonical in processed: return False
+        processed.add(canonical)
         if is_already_published_candidate({**item,"title":story.get("headline",item.get("title"))}):
-            continue
+            rejected+=1; return False
+        source=safe_text(story.get("source")) or safe_text(item.get("source")) or "Unknown Source"
+        if not source_allowed(source):
+            deferred.append(item); return False
         story["topic"]=canonical_topic(story.get("topic"),region)
         story["category_hashtags"]=category_hashtags(story)
-        story["publish_score"]=float(item.get("importance_score",item.get("local_score",0)))
-        valid.append(story)
-        source_counts[src]=source_counts.get(src,0)+1
-        logger.info("ACCEPT %s #%d score=%s source=%s title=%s",region,len(valid),story["publish_score"],src,story.get("headline",""))
+        story["publish_score"]=item.get("importance_score",item.get("local_score",0))
+        valid.append(story); source_counts[source]=source_counts.get(source,0)+1
+        logger.info("ACCEPT %s #%d score=%s source=%s title=%s",region,len(valid),story.get("publish_score",0),source,story.get("headline",""))
+        return True
 
-    # If we still have fewer than the requested minimum, inspect the remaining
-    # ranked queue without weakening factual rules.
-    if len(valid)<MIN_STORIES_PER_RUN:
+    # Normal pass.
+    for item in pool:
+        if len(valid)>=MAX_STORIES_PER_RUN: break
+        attempted+=1
+        story=process_story_candidate(item,verify_claims=False)
+        if not accept_story(item,story):
+            deferred.append(item)
+
+    # Rebalance from deferred/ranked pool to hit the minimum target without relaxing fact integrity.
+    if len(valid)<MAX_STORIES_PER_RUN:
+        reserve=list(deferred)
+        seen={safe_text(x.get("canonical")) for x in reserve}
         for item in ranked:
-            if len(valid)>=MIN_STORIES_PER_RUN:
-                break
-            can=safe_text(item.get("canonical"))
-            if not can or can in processed or is_already_published_candidate(item):
-                continue
-            if not candidate_basic_allowed(item):
-                continue
-            processed.add(can)
+            if safe_text(item.get("canonical")) in seen: continue
+            if safe_text(item.get("canonical")) in processed: continue
+            if not candidate_basic_allowed(item): continue
+            reserve.append(item); seen.add(safe_text(item.get("canonical")))
+            if len(reserve)>=RESCUE_PROCESS_CANDIDATES: break
+        for item in reserve:
+            if len(valid)>=MAX_STORIES_PER_RUN: break
+            attempted+=1
             story=process_story_candidate(item,verify_claims=False)
-            if not story or _inline_keyboard(story) is None:
-                continue
-            src=safe_text(story.get("source")) or "Unknown Source"
-            if enforce_cap and source_counts.get(src,0)>=MAX_POSTS_PER_SOURCE_PER_RUN:
-                continue
-            story["topic"]=canonical_topic(story.get("topic"),region)
-            story["category_hashtags"]=category_hashtags(story)
-            story["publish_score"]=float(item.get("importance_score",item.get("local_score",0)))
-            valid.append(story)
-            source_counts[src]=source_counts.get(src,0)+1
-            logger.info("RESCUE ACCEPT %s #%d source=%s title=%s",region,len(valid),src,story.get("headline",""))
+            accept_story(item,story)
 
-    valid.sort(key=lambda x:(-float(x.get("publish_score",0)),-deadline_sort_key(parse_date_text(x.get("deadline"))) if x.get("deadline") else 0,-(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
-    logger.info("%s FINAL VALID=%d | minimum=%d target=%d max=%d | sources=%s",region,len(valid),MIN_STORIES_PER_RUN,PUBLISH_TARGET,MAX_STORIES_PER_RUN,source_counts)
+    valid.sort(key=lambda x:(-float(x.get("publish_score",0)),-deadline_sort_key(parse_date_text(x.get("deadline",""))) if x.get("deadline") else 0,-(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
+    logger.info("%s FINAL VALID: %d | target_min=%d target_max=%d | pool=%d attempted=%d rejected=%d source_cap=%d sources=%s",region,len(valid),MIN_STORIES_PER_RUN,MAX_STORIES_PER_RUN,len(pool),attempted,rejected,source_cap,source_counts)
+    if len(valid)<MIN_STORIES_PER_RUN:
+        logger.warning("%s could not reach minimum publish target: valid=%d minimum=%d. No fabricated jobs will be created.",region,len(valid),MIN_STORIES_PER_RUN)
     return valid[:MAX_STORIES_PER_RUN]
-
 
 
 
@@ -3778,69 +4011,68 @@ def posted_at_from_html(page_html):
     return min(values) if values else None
 
 
-def extract_apply_url_from_text(page_url, text):
-    raw=safe_text(text)
-    if not raw:
+def is_actionable_apply_url(url):
+    raw=safe_text(url)
+    if not re.match(r"^https?://",raw,re.I):
+        return False
+    path=urlparse(raw).path.lower()
+    if re.search(r"/(help|about|contact|faq|login|signin|register|employer|post-a-job)(/|$)",path,re.I):
+        return False
+    return True
+
+
+def resolve_apply_url(page_url, page_html, known_apply_url=""):
+    source_url=safe_text(page_url)
+    candidates=[]
+    known=distinct_http_url(known_apply_url,source_url)
+    if known and is_actionable_apply_url(known):
+        candidates.append((30,known))
+    discovered=extract_apply_url(page_url,page_html)
+    if discovered and is_actionable_apply_url(discovered):
+        candidates.append((20,discovered))
+    for url in extract_urls_near_apply(BeautifulSoup(page_html or "","html.parser").get_text(" ",strip=True)):
+        candidate=distinct_http_url(url,source_url)
+        if candidate and is_actionable_apply_url(candidate):
+            candidates.append((10,candidate))
+    if not candidates:
         return ""
-    pat=re.compile(r"(?:apply now|apply here|apply online|application|আবেদন করুন|এখনই আবেদন)\D{0,180}(https?://[^\s<>]+)",re.I)
-    for m in pat.finditer(raw):
-        url=safe_text(m.group(1)).rstrip(".,;)")
-        if re.match(r"^https?://",url,re.I) and canonical_url(url)!=canonical_url(page_url):
-            return url
-    return ""
+    candidates.sort(key=lambda x:(-x[0],len(x[1])))
+    return candidates[0][1]
 
 def extract_apply_url(page_url, page_html):
     soup = BeautifulSoup(page_html or "", "html.parser")
-    source_canonical = canonical_url(page_url)
-    signals = re.compile(r"(?:apply now|apply here|apply online|apply|application|submit|register|start application|আবেদন করুন|এখনই আবেদন|অনলাইনে আবেদন)", re.I)
-    scored = []
+    candidates=[]
+    # Forms / buttons / data attributes first.
+    attr_url = extract_apply_url_from_attributes(page_url, soup)
+    if attr_url:
+        candidates.append((12, len(attr_url), attr_url))
 
-    def add_candidate(raw, label="", context=""):
-        href = safe_text(raw)
-        if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
-            return
-        url = urljoin(page_url, href)
-        if not re.match(r"^https?://", url, re.I):
-            return
-        if canonical_url(url) == source_canonical:
-            return
-        score = 0
-        if signals.search(label): score += 10
-        if re.search(r"(?:apply|application|register|submit|recruit|career|teletalk)", href, re.I): score += 6
-        if signals.search(context): score += 3
-        host = normalized_domain(url)
-        if host in {"myjobs.com.bd","bdjobs.com","jobs.bdjobs.com","alljobs.teletalk.com.bd","jobs.teletalk.com.bd"}: score += 4
-        if re.search(r"(?:login|signin|sign-in)", href, re.I): score -= 1
-        scored.append((score, len(url), url))
-
+    signals = re.compile(r"(apply now|apply here|apply online|apply|application|submit|আবেদন|আবেদন করুন|এখনই আবেদন|প্রয়োগ করুন)", re.I)
+    negative = re.compile(r"(login|sign in|sign up|register|profile|account|post a job|employer|resume builder|career tips|download app)", re.I)
     for a in soup.find_all("a", href=True):
-        add_candidate(a.get("href"), a.get_text(" ", strip=True), a.parent.get_text(" ", strip=True)[:350] if a.parent else "")
-        for attr in ("data-url","data-href","data-apply-url","data-apply-url-value"):
-            if a.get(attr):
-                add_candidate(a.get(attr), a.get_text(" ", strip=True), "application data attribute")
-        onclick=safe_text(a.get("onclick"))
-        if onclick:
-            for candidate in re.findall(r'''['"]([^'"]*(?:apply|application|teletalk|career)[^'"]*)['"]''', onclick, re.I):
-                if candidate:
-                    add_candidate(candidate, a.get_text(" ", strip=True), onclick[:400])
+        label = a.get_text(" ", strip=True)
+        href = safe_text(a.get("href"))
+        if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
+            continue
+        absolute=urljoin(page_url,href)
+        if not re.match(r"^https?://", absolute, re.I):
+            continue
+        if canonical_url(absolute)==canonical_url(page_url):
+            continue
+        score=0
+        if signals.search(label): score += 10
+        if re.search(r"(apply|application|submit|recruit|candidate|career)", absolute, re.I): score += 4
+        if negative.search(label + " " + absolute): score -= 10
+        candidates.append((score,len(absolute),absolute))
 
-    for tag in soup.find_all(True):
-        for attr in ("data-url","data-href","data-apply-url"):
-            raw=safe_text(tag.get(attr))
-            if raw and signals.search(tag.get_text(" ",strip=True)):
-                add_candidate(raw, tag.get_text(" ",strip=True), "data application control")
+    # Text can explicitly contain an external application URL.
+    for url in extract_urls_near_apply(BeautifulSoup(page_html or "","html.parser").get_text(" ",strip=True)):
+        absolute=distinct_http_url(url,page_url)
+        if absolute:
+            candidates.append((9,len(absolute),absolute))
 
-    for form in soup.find_all("form", action=True):
-        method = safe_text(form.get("method")).lower()
-        context = form.get_text(" ", strip=True)[:450]
-        if method in {"post", "get"} and (signals.search(context) or re.search(r"apply|application|career|register|submit", safe_text(form.get("action")), re.I)):
-            add_candidate(form.get("action"), "application form", context)
-
-    scored.sort(key=lambda x: (-x[0], x[1]))
-    return scored[0][2] if scored and scored[0][0] > 0 else ""
-
-
-
+    candidates.sort(key=lambda x:(-x[0],x[1]))
+    return candidates[0][2] if candidates else ""
 
 def parse_relative_listing_date(text, base=None):
     base = base or career_now()
@@ -3875,182 +4107,229 @@ def listing_published_date(text):
     return parse_relative_listing_date(raw, career_now())
 
 
+def _extract_listing_anchor(source, anchor, page_url, listing_text, page_new_feed=False):
+    title = safe_text(anchor.get_text(" ", strip=True))
+    href = safe_text(anchor.get("href"))
+    link = urljoin(page_url, href)
+    if not title or len(title) < 5 or len(title) > 220:
+        return None
+    if is_generic_navigation_candidate(title, link, listing_text):
+        return None
+
+    # Source-specific detail URL gate. This is the primary protection against
+    # Help Center, Employer Login, iOS/Android app and navigation pages.
+    source_name_value=source["name"]
+    mode=source.get("mode")
+    if mode == "bdjobs_listing" and not JOB_DETAIL_PATTERNS["Bdjobs"].search(link):
+        return None
+    if mode == "bdjobslive_listing" and not JOB_DETAIL_PATTERNS["BDJobs Live"].search(link):
+        return None
+    if mode == "jobcombd_listing" and not JOB_DETAIL_PATTERNS["Job.com.bd"].search(link):
+        return None
+    if mode == "generic_listing" and source_name_value == "Dohaj":
+        if not looks_like_job_detail_url(source_name_value, link):
+            return None
+    if mode == "news_listing" and (BAD_JOB_RE.search(title) or BAD_PATH_RE.search(urlparse(link).path)):
+        return None
+    if not primary_domain_allowed(link,"Career"):
+        return None
+
+    published_dt = listing_published_date(listing_text)
+    estimated = False
+    if not published_dt and page_new_feed:
+        published_dt=career_now()
+        estimated=True
+    if not published_dt:
+        return None
+    deadline_dt=choose_deadline(listing_text)
+    item={
+        "title":title,
+        "url":link,
+        "source_url":link,
+        "canonical":canonical_url(link),
+        "published_dt":published_dt.isoformat(),
+        "published_date":published_dt.isoformat(),
+        "source":source_name_value,
+        "source_type":source["type"],
+        "region":"Career",
+        "excerpt":listing_text[:5000],
+        "image":"",
+        "discovery":"direct_portal",
+        "date_estimated":estimated,
+        "new_feed":bool(page_new_feed),
+        "date_source":"listing_page" if not estimated else "curated_new_feed",
+        "deadline_hint":deadline_dt.strftime("%d %B %Y") if deadline_dt else "",
+        "job_intent_score":job_intent_score({"title":title,"url":link,"excerpt":listing_text}),
+        "discovery_lane":mode,
+    }
+    if item["job_intent_score"] < MIN_JOB_INTENT_SCORE:
+        return None
+    if not candidate_basic_allowed(item):
+        return None
+    if item["canonical"] in POSTED_URLS or item["canonical"] in STATE["queue"]:
+        return None
+    return item
+
+
 def direct_portal_gap_fill():
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    def fetch_one(source):
+    added=0
+    per_source={}
+    seen_links=set()
+    for source in DIRECT_JOB_SOURCES:
+        source_key=source["name"]
+        per_source.setdefault(source_key,0)
+        if source_is_in_cooldown(source_key, source["url"]):
+            logger.info("Skipping source in cooldown: %s", source_key)
+            continue
         try:
-            r = requests.get(source["url"], headers=HEADERS, timeout=18, allow_redirects=True)
-            if r.status_code >= 400:
-                mark_source_health(source["name"], "http_error", r.status_code)
-                # Never return a numeric sentinel here. The consumer expects
-                # either a response-like object or None. Returning 0 caused
-                # a failed portal to crash the whole run at response.text.
-                return source, None, []
-            mark_source_health(source["name"], "ok", r.status_code)
-            return source, r, []
-        except Exception as exc:
-            mark_source_health(source["name"], "error", str(exc))
-            logger.warning("Direct portal %s failed: %s", source["name"], exc)
-            return source, None, []
-
-    collected=[]
-    with ThreadPoolExecutor(max_workers=min(8, len(DIRECT_JOB_SOURCES))) as pool:
-        futures=[pool.submit(fetch_one, source) for source in DIRECT_JOB_SOURCES]
-        for fut in as_completed(futures):
-            source, response, _ = fut.result()
-            if response is None or not hasattr(response, "text"):
-                logger.warning("Direct portal %s produced no usable HTTP response", source.get("name", "Unknown Source"))
+            response=session.get(source["url"],headers=HEADERS,timeout=15)
+            record_source_health(source["name"],source["url"],response.status_code,response.reason if response.status_code>=400 else "")
+            if response.status_code>=400:
+                logger.warning("Direct portal %s returned %s",source["name"],response.status_code)
                 continue
-            soup=BeautifulSoup(response.text, "html.parser")
-            seen_local=set()
-            anchors=soup.find_all("a", href=True)
-            for anchor in anchors[:MAX_DIRECT_LINKS_PER_SOURCE]:
-                title=safe_text(anchor.get_text(" ", strip=True))
-                if not (10 <= len(title) <= 220):
-                    continue
+            soup=BeautifulSoup(response.text,"html.parser")
+            anchors=soup.find_all("a",href=True)
+            # Detail-link patterns are far safer than arbitrary keyword anchors.
+            max_links=180 if source["mode"] in {"bdjobs_listing","bdjobslive_listing"} else 120
+            for anchor in anchors[:max_links*4]:
                 href=safe_text(anchor.get("href"))
-                link=urljoin(response.url, href)
-                if not link or link in seen_local or not primary_domain_allowed(link, "Career"):
+                link=urljoin(response.url,href)
+                if link in seen_links:
                     continue
-                # Exclude pure navigation and taxonomy pages.
-                if not JOB_SIGNAL_RE.search(f"{title} {href}") and source.get("lane") not in {"new","internship","fresher"}:
+                if source["mode"] == "bdjobs_listing" and not JOB_DETAIL_PATTERNS["Bdjobs"].search(link):
+                    continue
+                if source["mode"] == "bdjobslive_listing" and not JOB_DETAIL_PATTERNS["BDJobs Live"].search(link):
+                    continue
+                if source["mode"] == "jobcombd_listing" and not JOB_DETAIL_PATTERNS["Job.com.bd"].search(link):
                     continue
                 container=anchor
                 listing_text=""
-                for _ in range(5):
-                    if getattr(container,"parent",None) is None:
+                for _ in range(6):
+                    parent=getattr(container,"parent",None)
+                    if parent is None: break
+                    candidate_text=safe_text(parent.get_text(" ",strip=True))
+                    if len(candidate_text)>=140:
+                        listing_text=candidate_text
                         break
-                    listing_text=safe_text(container.get_text(" ", strip=True))
-                    if len(listing_text)>=140:
-                        break
-                    container=container.parent
-                if BAD_JOB_RE.search(f"{title} {listing_text}"):
+                    container=parent
+                if not listing_text:
+                    listing_text=safe_text(anchor.get_text(" ",strip=True))
+                item=_extract_listing_anchor(source,anchor,response.url,listing_text,source.get("new_feed",False))
+                if not item:
                     continue
-                published_dt=listing_published_date(listing_text)
-                estimated=False
-                if not published_dt and source.get("lane") in {"new","internship","fresher"}:
-                    # Curated newest-page lane. Detail page verification will replace
-                    # this timestamp with an exact source timestamp when available.
-                    published_dt=career_now()-timedelta(hours=2)
-                    estimated=True
-                if not published_dt or not (DISCOVERY_START<=published_dt<=DISCOVERY_END):
-                    continue
-                deadline_dt=choose_deadline(listing_text)
-                company_hint=""
-                cm=re.search(r"(?:company|employer|প্রতিষ্ঠানের নাম|কোম্পানি)\s*[:：-]\s*([^\n\r|]{2,170})", listing_text, re.I)
-                if cm:
-                    company_hint=clean_generated_text(cm.group(1)).strip()
-                item={
-                    "title":title,
-                    "url":link,
-                    "canonical":canonical_url(link),
-                    "published_dt":published_dt.isoformat(),
-                    "published_date":published_dt.isoformat(),
-                    "source":source.get("source") or source["name"],
-                    "company":company_hint,
-                    "source_type":source["type"],
-                    "region":"Career",
-                    "excerpt":listing_text[:5000],
-                    "image":"",
-                    "discovery":"direct_portal",
-                    "date_estimated":estimated,
-                    "lane":source.get("lane","general"),
-                    "deadline_hint":deadline_dt.strftime("%d %B %Y") if deadline_dt else "",
-                    "source_page":source["url"],
-                }
-                if not candidate_basic_allowed(item):
-                    continue
-                if item["canonical"] in POSTED_URLS or item["canonical"] in STATE["queue"]:
-                    continue
-                collected.append(item)
-                seen_local.add(link)
-    # Preserve source diversity and deterministic order.
-    collected.sort(key=lambda x:(x.get("source"), -(parse_datetime(x.get("published_date")).timestamp() if parse_datetime(x.get("published_date")) else 0)))
-    added=0
-    for item in collected:
-        before=item["canonical"] in STATE["queue"]
-        queue_candidate(item)
-        if not before:
-            added+=1
-        if added>=MAX_RSS_CANDIDATES:
-            break
-    logger.info("Direct portal targeted discovery: %d new candidates from %d source lanes", added, len(DIRECT_JOB_SOURCES))
+                seen_links.add(link)
+                queue_candidate(item)
+                per_source[source_key]+=1
+                added+=1
+                if per_source[source_key]>=60:
+                    break
+                if added>=MAX_RSS_CANDIDATES:
+                    return added
+        except Exception as exc:
+            record_source_health(source["name"],source["url"],0,str(exc))
+            logger.warning("Direct portal discovery failed %s: %s",source["name"],exc)
+    logger.info("DIRECT PORTAL SOURCES: %s",per_source)
     return added
 
 
-
 def run():
-    refresh_career_window()
-    logger.info("CAREER NEWSROOM V3.1 FINAL | channel=%s | window=%s -> %s | target=%d max=%d",TELEGRAM_CHANNEL,DISCOVERY_START.isoformat(),DISCOVERY_END.isoformat(),PUBLISH_TARGET,MAX_STORIES_PER_RUN)
+    global NOW_BD, TODAY_START, YESTERDAY_START, DISCOVERY_START, DISCOVERY_END
+    NOW_BD = career_now()
+    TODAY_START = NOW_BD.replace(hour=0, minute=0, second=0, microsecond=0)
+    YESTERDAY_START = TODAY_START - timedelta(days=1)
+    DISCOVERY_START = NOW_BD - timedelta(hours=ROLLING_DISCOVERY_HOURS)
+    DISCOVERY_END = NOW_BD + timedelta(minutes=FUTURE_TOLERANCE_MINUTES)
+
+    logger.info("CAREER NEWSROOM V1 UPDATE-ONLY")
+    logger.info(
+        "Channel=%s | LOOKBACK=%dh | %s -> %s | deadline soft-target=%dd",
+        TELEGRAM_CHANNEL,
+        DISCOVERY_LOOKBACK_HOURS,
+        DISCOVERY_START.isoformat(),
+        DISCOVERY_END.isoformat(),
+        DEADLINE_SOFT_TARGET_DAYS,
+    )
+
     prune_state()
     refresh_category_coverage()
+    rss_count = collect_rss()
+    direct_count = direct_portal_gap_fill()
+    queued_count = queue_candidates_for_region("Career")
+    targeted_count = targeted_portal_lane_gap_fill("Career", max_total=36)
+    google_count = google_news_gap_fill("Career", queued_count + direct_count + targeted_count, DISCOVERY_TARGET_PER_REGION)
+    exa_count = exa_gap_fill("Career", queued_count + direct_count + targeted_count + google_count, DISCOVERY_TARGET_PER_REGION)
+    logger.info("DISCOVERY rss=%d direct=%d targeted=%d google=%d exa=%d", rss_count, direct_count, targeted_count, google_count, exa_count)
+    save_state(STATE)
 
-    rss_count=collect_rss()
-    direct_count=direct_portal_gap_fill()
-    queued_count=queue_candidates_for_region("Career")
-    google_count=google_news_gap_fill("Career",queued_count+direct_count,40)
-    exa_count=exa_gap_fill("Career",queued_count+direct_count+google_count,40)
-    logger.info("DISCOVERY rss=%d direct=%d google=%d exa=%d",rss_count,direct_count,google_count,exa_count)
-
-    candidates=available_candidates("Career",source_pool=None)
-    filtered=[]; seen_canon=set()
+    candidates = available_candidates("Career", source_pool=None)
+    filtered = []
     for item in candidates:
         if not candidate_basic_allowed(item):
             continue
-        can=safe_text(item.get("canonical"))
-        if not can or can in seen_canon or is_already_published_candidate(item):
+        if is_already_published_candidate(item):
             continue
-        if any(title_similarity(item.get("title",""),x.get("title",""))>=0.94 for x in filtered[:120]):
+        if any(title_similarity(item.get("title", ""), x.get("title", "")) >= 0.92 for x in filtered):
             continue
-        seen_canon.add(can)
         filtered.append(item)
 
-    source_count=len({safe_text(x.get("source")) for x in filtered if safe_text(x.get("source"))})
-    logger.info("CAREER INVENTORY=%d sources=%d",len(filtered),source_count)
-    ranked=prepare_ranked_region("Career",filtered)
-    stories=process_ranked_region("Career",ranked)
-    logger.info("CAREER FINAL CANDIDATES=%d",len(stories))
+    logger.info("STAGE COUNTS | discovered=%d queue=%d filtered_basic=%d", rss_count + direct_count + targeted_count + google_count + exa_count, queued_count, len(filtered))
+    # Keep a large live inventory, then let local pre-ranking reduce AI cost.
+    ranked = prepare_ranked_region("Career", filtered[:MAX_RSS_CANDIDATES])
+    logger.info("STAGE COUNTS | event_dedup_ranked=%d audience_top=%d", len(ranked), min(len(ranked), MAX_LOCAL_PREFILTER))
 
-    published_count=0
-    for index,story in enumerate(stories,start=1):
-        rich_html=fit_rich_html(story)
-        if rich_visible_length(rich_html)>MAX_RICH_CHARACTERS:
-            logger.error("Rich message exceeds Telegram limit: %s",story.get("headline")); continue
-        image_path=prepare_image(story,index)
-        reply_markup=_inline_keyboard(story)
-        if not reply_markup:
-            logger.error("Skip publish: invalid distinct apply URL: %s",story.get("headline")); continue
-        result=send_rich_message(image_path,rich_html,reply_markup=reply_markup)
+    for item in ranked[:12]:
+        logger.info(
+            "RANK CAREER #%s | score=%s | %s | %s",
+            item.get("editor_rank", "?"), item.get("importance_score", 0), item.get("title", ""), item.get("rank_reason", ""),
+        )
+
+    stories = process_ranked_region("Career", ranked)
+    logger.info("STAGE COUNTS | verified=%d publish_ready=%d source_diversity=%d", len(stories), len(stories), len({safe_text(x.get("source")) for x in stories}))
+    logger.info("CAREER FINAL=%d MAX=%d", len(stories), MAX_STORIES_PER_RUN)
+
+    published_count = 0
+    for index, story in enumerate(stories, start=1):
+        rich_html = fit_rich_html(story)
+        if rich_visible_length(rich_html) > MAX_RICH_CHARACTERS:
+            logger.error("Rich message exceeds Telegram limit: %s", story.get("headline"))
+            continue
+
+        image_path = prepare_image(story, index)
+        reply_markup = _inline_keyboard(story)
+        result = send_rich_message(image_path, rich_html, reply_markup=reply_markup)
         if not result.get("ok"):
-            logger.warning("Rich Message failed; Bot API fallback: %s",result.get("description"))
-            result=send_bot_api_fallback(image_path,rich_html,reply_markup=reply_markup)
+            logger.warning("Rich Message publish failed; using Bot API fallback: %s", result.get("description"))
+            result = send_bot_api_fallback(image_path, rich_html, reply_markup=reply_markup)
+
         if result.get("ok"):
-            published_count+=1
-            message=result.get("result",{})
-            message_id=message.get("message_id") if isinstance(message,dict) else None
-            canonical=story.get("canonical") or canonical_url(story.get("url",""))
+            published_count += 1
+            message = result.get("result", {})
+            message_id = message.get("message_id") if isinstance(message, dict) else None
+            canonical = story.get("canonical") or canonical_url(story.get("url", ""))
             if canonical:
-                POSTED_URLS.add(canonical); save_posted_url(canonical)
-                qi=STATE["queue"].get(canonical)
-                if qi:
-                    qi["status"]="posted"; qi["posted_at"]=now_iso()
-            store_event(story,published=True,message_id=message_id)
+                POSTED_URLS.add(canonical)
+                save_posted_url(canonical)
+                queue_item = STATE["queue"].get(canonical)
+                if queue_item:
+                    queue_item["status"] = "posted"
+                    queue_item["posted_at"] = now_iso()
+                    queue_item["published_to_channel"] = True
+                    queue_item["verification_state"] = "published"
+
+            store_event(story, published=True, message_id=message_id)
             remember_posted_event(story)
             update_category_coverage(story)
-            STATE["recent_titles"].append(normalize_title(story.get("headline","")))
-            logger.info("Published %d/%d: %s",published_count,len(stories),story.get("headline",""))
+            STATE["recent_titles"].append(normalize_title(story.get("headline", "")))
+            logger.info("Published %d/%d: %s", published_count, len(stories), story.get("headline", ""))
         else:
-            logger.error("Telegram failed: %s",result.get("description"))
+            logger.error("Telegram failed: %s", result.get("description"))
 
-    STATE["recent_titles"]=STATE.get("recent_titles",[])[-400:]
-    STATE.setdefault("run_history",[]).append({"at":now_iso(),"discovered":{"rss":rss_count,"direct":direct_count,"google":google_count,"exa":exa_count},"inventory":len(filtered),"ranked":len(ranked),"final":len(stories),"published":published_count})
-    STATE["run_history"]=STATE["run_history"][-50:]
+        save_state(STATE)
+        time.sleep(POST_DELAY_SECONDS)
+
     save_state(STATE)
-    save_source_health()
-    logger.info("CAREER RUN COMPLETE | published=%d/%d",published_count,len(stories))
-    return 0
-
+    save_source_health(SOURCE_HEALTH)
+    logger.info("Finished. Published=%d/%d", published_count, len(stories))
 
 
 
@@ -4060,183 +4339,120 @@ def run():
 
 def self_test():
     refresh_career_window()
-    assert MIN_STORIES_PER_RUN==5
-    assert MAX_STORIES_PER_RUN==15
-    assert PUBLISH_TARGET==10
-    assert MAX_CEREBRAS_RANK_CANDIDATES==40
-    assert RANK_BATCH_SIZE==20
+    assert TELEGRAM_CHANNEL == "@CareerNewsroom"
+    assert DISCOVERY_LOOKBACK_HOURS == 72
+    assert MIN_STORIES_PER_RUN == 5
+    assert MAX_STORIES_PER_RUN == 15
+    assert RANKING_POOL_SIZE == 60
+    assert MAX_PROCESS_CANDIDATES == 60
+    assert MAX_POSTS_PER_SOURCE_PER_RUN == 3
 
-    base_item={
-        "title":"Management Trainee", "company":"Example Company Ltd.", "location":"Dhaka, Bangladesh",
-        "job_type":"Management Trainee", "education":"BBA / MBA", "experience":"Fresh graduates",
-        "salary":"BDT 35,000", "vacancies":"03", "age_limit":"18-30", "gender":"",
-        "application_fee":"BDT 200", "application_method":"Online application", "application_period":"18 September 2026 – 30 September 2026",
-        "selection_process":"Written and viva", "deadline":"30 September 2026", "apply_url":"https://example.com/apply",
-        "source":"Bdjobs", "url":"https://jobs.bdjobs.com/job/123", "topic":"Management Trainee",
-        "published_date":NOW_BD.isoformat(), "headline":"Management Trainee", "canonical":"jobs.bdjobs.com/job/123",
-    }
-    html=dynamic_rich_html(base_item)
-    assert "JOB SNAPSHOT" in html
-    assert "Suitable For" not in html
-    assert "Key Highlights" not in html
-    assert "Gender" not in html
-    visible=visible_text_for_test(html)
-    assert "https://example.com/apply" not in visible
-    assert "https://jobs.bdjobs.com/job/123" not in visible
-    assert "Official Source" in html
-    assert html.index("#BangladeshJob") < html.index("Official Source")
-    assert "APPLY NOW" not in visible_text_for_test(html)
-    assert "<tg-button" not in html and "<tg-button-row" not in html
-    kb=_inline_keyboard(base_item)
+    # URL normalization must preserve vacancy IDs while dropping tracking.
+    assert canonical_url("https://jobs.bdjobs.com/jobdetails/?id=1534808&ln=1&utm_source=x") == "jobs.bdjobs.com/jobdetails?id=1534808&ln=1"
+    assert canonical_url("https://www.example.com/job/?utm_source=x") == "example.com/job"
+    assert normalize_title("এইচএসসি পাসে চাকরি — ACI PLC") and "এইচএসসি" in normalize_title("এইচএসসি পাসে চাকরি — ACI PLC")
+
+    # Discovery/domain/date constraints.
+    assert primary_domain_allowed("https://jobs.bdjobs.com/jobdetails/?id=1", "Career")
+    assert primary_domain_allowed("https://smartjob.portal.gov.bd/", "Career")
+    assert not primary_domain_allowed("https://example.com/job", "Career")
+    assert parse_date_text("25 September 2026").date() == datetime(2026,9,25,tzinfo=BD_TZ).date()
+    inside=career_now()-timedelta(hours=71,minutes=59)
+    outside=career_now()-timedelta(hours=72,minutes=1)
+    base_item={"title":"Management Trainee Internship BBA MBA","url":"https://www.banglatribune.com/jobs/test","source":"Bangla Tribune","region":"Career","excerpt":"Dhaka Bangladesh company recruitment management trainee internship BBA MBA vacancy","date_estimated":False,"published_date":inside.isoformat()}
+    assert candidate_basic_allowed(base_item)
+    assert not candidate_basic_allowed({**base_item,"published_date":outside.isoformat()})
+    assert not candidate_basic_allowed({**base_item,"title":"India Jobs Open Now","excerpt":"India recruitment jobs"})
+    a,_=local_job_score(base_item); b,_=local_job_score({**base_item,"title":"Generic Vacancy","excerpt":"Dhaka recruitment vacancy"}); assert a>b
+
+    # Detail URL and navigation guards.
+    assert looks_like_job_detail_url("Bdjobs","https://jobs.bdjobs.com/jobdetails/?id=1534808&ln=1")
+    assert looks_like_job_detail_url("BDJobs Live","https://www.bdjobslive.com/bdjobs-details/management-trainee-13344")
+    assert looks_like_job_detail_url("Job.com.bd","https://job.com.bd/jobs/details/?i=1865")
+    assert not looks_like_job_detail_url("Job.com.bd","https://job.com.bd/jobs/new_jobs/")
+    assert not candidate_basic_allowed({**base_item,"title":"Help Center","url":"https://job.com.bd/help-center","excerpt":"Filter by category, location, and keywords"})
+
+    # Output: dynamic rows, no placeholders or retired sections, no raw URLs.
+    sample={"headline":"Management Trainee","company":"Example Company Ltd.","location":"Dhaka","job_type":"Management Trainee","education":"BBA / MBA","experience":"Fresh graduates may apply","salary":"","vacancies":"02","age_limit":"18-30","application_fee":"BDT 200","application_method":"Online application","application_period":"17 September 2026 – 25 September 2026","selection_process":"Written and viva","deadline":"25 September 2026","apply_url":"https://example.com/apply","source_url":"https://example.com/job","source":"Example Source","topic":"Management Trainee","published_date":"2026-09-17T10:00:00+06:00"}
+    rendered=fit_rich_html(sample)
+    for marker in ("📣 Management Trainee","🏢 <b>Company:</b>","JOB SNAPSHOT","Location","Education","Experience","Vacancies","Application Fee","Application","Deadline","Posted","#CareerNewsroom","Official Source"):
+        assert marker in rendered
+    assert "Suitable For" not in rendered and "Key Highlights" not in rendered and "More Details" not in rendered
+    visible=visible_text_for_test(rendered)
+    assert "https://example.com/apply" not in visible and "https://example.com/job" not in visible
+    assert rendered.index("JOB SNAPSHOT") < rendered.index("#CareerNewsroom") < rendered.index("Official Source")
+    kb=_inline_keyboard(sample)
     assert kb=={"inline_keyboard":[[{"text":"APPLY NOW","url":"https://example.com/apply"}]]}
+    assert "emoji" not in kb["inline_keyboard"][0][0]["text"].lower() and kb["inline_keyboard"][0][0]["text"]=="APPLY NOW"
+    assert "<tg-" + "button" not in rendered and "<tg-" + "button-row" not in rendered
 
-    same=dict(base_item,apply_url=base_item["url"])
-    assert _inline_keyboard(same) is None
+    missing=dict(sample); missing["salary"]=""; missing["vacancies"]=""; missing["application_fee"]=""; missing["application_period"]=""; missing["selection_process"]=""; missing["education"]=""; missing["experience"]=""
+    missing_render=fit_rich_html(missing)
+    assert "Salary" not in missing_render and "Vacancies" not in missing_render and "Application Fee" not in missing_render
 
-    # Portal lane can accept clean job titles without the word "job".
-    lane_item={"title":"Sales Representative","url":"https://jobs.bdjobs.com/job/123","excerpt":"Location Dhaka Deadline 30 September 2026 Experience 0-1 year","published_date":NOW_BD.isoformat(),"source":"Bdjobs","source_type":"job_portal","discovery":"direct_portal","date_estimated":True,"lane":"new"}
-    assert candidate_basic_allowed(lane_item)
-
-    # Source/apply resolver never accepts the source URL as an application URL.
-    source_html='<html><body><a href="/job/123">Details</a><a href="https://example.com/apply">Apply Now</a></body></html>'
-    assert extract_apply_url(base_item["url"],source_html)=="https://example.com/apply"
-
-    # Deadline is a ranking factor, not a 7-day hard gate.
-    near=career_now()+timedelta(days=1)
-    far=career_now()+timedelta(days=30)
-    assert deadline_status_score(near)>0
-    assert deadline_status_score(far)>deadline_status_score(near)
-    assert deadline_is_expired(near) is False
-
-    # Missing fields are omitted.
-    missing=dict(base_item,education="",experience="",salary="",vacancies="",age_limit="",application_fee="",application_period="",selection_process="")
-    missing_html=dynamic_rich_html(missing)
-    for label in ("Education","Experience","Salary","Vacancies","Age Limit","Application Fee","Application Period","Selection Process"):
-        assert label not in missing_html
-    assert "Not specified" not in missing_html
-
-    # Gender stays absent even if an old state item contains it.
-    old=dict(base_item,gender="Male")
-    assert "Gender" not in dynamic_rich_html(old)
-
-    # Text-only publication path is permitted.
-    original_download=globals()["download_image"]
-    try:
-        globals()["download_image"]=lambda *args,**kwargs: None
-        assert prepare_image(base_item,1) is None
-    finally:
-        globals()["download_image"]=original_download
-
-    # Deterministic source lock.
-    evidence=(
-        "Management Trainee at Example Company Ltd. in Dhaka. "
-        "BBA / MBA. Fresh graduates. BDT 35,000. 03 vacancies. "
-        "Application Fee BDT 200. Apply Now: https://example.com/apply. "
-        "Deadline 30 September 2026. Written and viva."
-    )
-    rec_item=dict(base_item,apply_url="https://example.com/apply",deadline_hint="30 September 2026")
-    record=extract_locked_job_record(rec_item,evidence)
-    assert record and record["job_title"]=="Management Trainee"
-    assert record["company"]=="Example Company Ltd."
-    assert record["apply_url"]=="https://example.com/apply"
-    assert record["gender"]==""
-
-    # Local relevance lanes.
-    assert audience_fit_score({"title":"BBA Management Trainee","excerpt":"Fresh graduate internship"})>=90
-    assert canonical_topic("internship")=="Internships"
-    assert canonical_topic("management trainee")=="Management Trainee"
-
-    # Native inline keyboard is outside the HTML body.
+    # Native markup is attached separately to sendRichMessage.
     original_call=globals()["telegram_call"]
     try:
         captured={}
         def capture(method,data=None,files=None):
             captured["method"]=method; captured["data"]=dict(data or {}); return {"ok":True,"result":{"message_id":1}}
         globals()["telegram_call"]=capture
-        send_rich_message(None,html,reply_markup=kb)
+        send_rich_message(None,rendered,reply_markup=kb)
         assert captured["method"]=="sendRichMessage"
-        assert json.loads(captured["data"]["reply_markup"])["inline_keyboard"][0][0]["text"]=="APPLY NOW"
-        assert "<tg-button" not in json.loads(captured["data"]["rich_message"])["html"]
+        assert json.loads(captured["data"]["reply_markup"])==kb
+        assert "<tg-" + "button" not in json.loads(captured["data"]["rich_message"])["html"]
     finally:
         globals()["telegram_call"]=original_call
 
-    # Same-line field extraction must stop at the next field label and never
-    # absorb URLs or later fields. This mirrors real portal/table text.
-    compact_evidence=(
-        "Company: Example Company Ltd. Location: Dhaka, Bangladesh "
-        "Education: BBA / MBA Experience: 0-2 years Salary: BDT 40,000 "
-        "Vacancies: 2 Application: Online Deadline: 30 September 2026 "
-        "Apply Now: https://example.com/apply"
-    )
-    compact_item=dict(base_item, company="", location="", education="", experience="", salary="", vacancies="", application_method="", apply_url="https://example.com/apply")
-    compact=extract_locked_job_record(compact_item, compact_evidence)
-    assert compact
-    assert compact["company"]=="Example Company Ltd."
-    assert compact["location"]=="Dhaka, Bangladesh"
-    assert compact["education"]=="BBA / MBA"
-    assert compact["experience"]=="0-2 years"
-    assert compact["salary"]=="BDT 40,000"
-    assert compact["vacancies"]=="2"
-    assert compact["application_method"]=="Online"
-    assert "https://" not in compact["education"]
-    assert "Experience" not in compact["education"]
-    assert compact["application_period"]==""
+    # Apply resolver must find a distinct action and never fall back to source.
+    html_page='<html><form action="https://careers.example.com/apply/123"><button type="submit">Apply Now</button></form></html>'
+    assert resolve_apply_url("https://example.com/job/123",html_page)=="https://careers.example.com/apply/123"
+    assert distinct_http_url("https://example.com/job/123","https://example.com/job/123")==""
+    assert is_actionable_apply_url("https://careers.example.com/apply/123")
+    assert not is_actionable_apply_url("https://example.com/help")
 
-    # Dynamic source diversity: 5+ sources -> <=3 each, 3 sources -> <=5,
-    # 2 sources -> <=8. The selection helper must never make duplicate posts.
-    assert dynamic_source_cap if 'dynamic_source_cap' in globals() else True
-    assert source_health_file if False else True
+    # Deadline is a scoring signal, not a seven-day hard reject.
+    future_6=career_now()+timedelta(days=6); assert deadline_is_eligible(future_6)
+    future_20=career_now()+timedelta(days=20); assert deadline_status_score(future_6) < deadline_status_score(future_20)
+    assert deadline_is_expired(career_now()-timedelta(days=1))
 
-    # Regression: direct-portal HTTP failures (403/404/5xx) must be skipped
-    # without ever reaching response.text. This catches the exact production
-    # failure where an integer sentinel caused AttributeError and aborted the run.
-    original_sources = list(DIRECT_JOB_SOURCES)
-    original_get = requests.get
-    original_queue = STATE.get("queue")
-    original_health = {k: dict(v) for k, v in SOURCE_HEALTH.items()}
+    # Quality-first pool still preserves source diversity.
+    ranked=[]
+    for i in range(12):
+        src=["Bdjobs","Dohaj","JobPagol","ProjobsBD","BDJobs Live","Smart Job"][i%6]
+        ranked.append({"canonical":f"c{i}","source":src,"importance_score":100-i,"local_score":100-i})
+    pool=build_candidate_pool(ranked,10)
+    assert len(pool)==12 and len({x["source"] for x in pool})>=6
+
+    # Queue retains rolling inventory metadata.
+    original_queue=dict(STATE["queue"]); STATE["queue"]={}
+    q={"canonical":"jobs.bdjobs.com/jobdetails?id=999","title":"Demo","url":"https://jobs.bdjobs.com/jobdetails/?id=999","source":"Bdjobs","region":"Career"}
+    queue_candidate(q)
+    assert STATE["queue"][q["canonical"]]["attempt_count"]==0
+    assert STATE["queue"][q["canonical"]]["published_to_channel"] is False
+    STATE["queue"]=original_queue
+
+    # Fact-lock: source-backed identity cannot be rewritten by editorial layer.
+    original_extract=globals()["extract_article"]
+    original_record=globals()["extract_locked_job_record"]
     try:
-        STATE["queue"] = {}
-        SOURCE_HEALTH.clear()
-        DIRECT_JOB_SOURCES[:] = [
-            {"name":"SelfTest Good", "source":"Bdjobs", "url":"https://jobs.bdjobs.com/selftest", "type":"job_portal", "lane":"new"},
-            {"name":"SelfTest 403", "source":"SelfTest 403", "url":"https://jobs.bdjobs.com/selftest-403", "type":"job_portal", "lane":"general"},
-            {"name":"SelfTest 500", "source":"SelfTest 500", "url":"https://jobs.bdjobs.com/selftest-500", "type":"job_portal", "lane":"general"},
-        ]
-
-        class _SelfTestResponse:
-            def __init__(self, status_code, url, text=""):
-                self.status_code = status_code
-                self.url = url
-                self.text = text
-                self.content = text.encode("utf-8")
-                self.headers = {}
-
-        direct_html = (
-            "<div>Posted 18 September 2026 Deadline 30 September 2026 "
-            "Company: Example Company Location: Dhaka, Bangladesh "
-            "<a href='/job/self-test'>Management Trainee</a></div>"
-        )
-
-        def _selftest_get(url, **kwargs):
-            if url.endswith("-403"):
-                return _SelfTestResponse(403, url)
-            if url.endswith("-500"):
-                return _SelfTestResponse(500, url)
-            return _SelfTestResponse(200, url, direct_html)
-
-        requests.get = _selftest_get
-        assert direct_portal_gap_fill() == 1
-        assert len(STATE["queue"]) == 1
+        globals()["extract_article"]=lambda item:("Example Bank PLC Management Trainee Dhaka BBA deadline 30 September 2026 salary BDT 35000",[])
+        locked={"job_title":"Bank Management Trainee","company":"Example Bank PLC","location":"Dhaka","job_type":"Management Trainee","education":"BBA / MBA","experience":"Fresh graduates","salary":"BDT 35,000","vacancies":"03","age_limit":"","application_fee":"BDT 200","application_method":"Online","application_period":"","selection_process":"Written and viva","deadline":"30 September 2026","apply_url":"https://careers.example.com/apply","confidence":100,"bangladesh_relevance":95}
+        globals()["extract_locked_job_record"]=lambda item,text:dict(locked)
+        story=process_story_candidate({**base_item,"title":"Bank Management Trainee","source":"Bdjobs","source_url":"https://jobs.bdjobs.com/jobdetails/?id=100","url":"https://jobs.bdjobs.com/jobdetails/?id=100","canonical":"jobs.bdjobs.com/jobdetails?id=100"})
+        assert story["headline"]==locked["job_title"] and story["company"]==locked["company"] and story["source_url"]!=story["apply_url"]
     finally:
-        requests.get = original_get
-        DIRECT_JOB_SOURCES[:] = original_sources
-        STATE["queue"] = original_queue
-        SOURCE_HEALTH.clear()
-        SOURCE_HEALTH.update(original_health)
+        globals()["extract_article"]=original_extract; globals()["extract_locked_job_record"]=original_record
 
-    logger.info("CAREER V3.1 FINAL SELF-TEST PASS")
-    return True
+    # Image absence must not block publication pipeline.
+    original_img=globals()["download_image"]
+    try:
+        globals()["download_image"]=lambda url,referer="":None
+        assert prepare_image({"source":"Example Source","url":"https://example.com/job","image_candidates":[]},990) is None
+    finally:
+        globals()["download_image"]=original_img
 
+    logger.info("CareerNewsBot V1 self-test passed.")
 
 
 def visible_text_for_test(

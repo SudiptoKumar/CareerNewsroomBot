@@ -1,377 +1,155 @@
-# CareerNewsBot V3.1 Final
+# CareerNewsBot V1
 
-Telegram career-news bot for **@CareerNewsroom**. Built around the same proven runtime pattern as the reference TechNewsroom bot, with a career-specific discovery, scoring, fact-locking, application-link resolution, source diversity, and Telegram presentation layer.
+Production-oriented Bangladesh job discovery and publishing bot for `@CareerNewsroom`.
 
-## Mission
-
-Find recent Bangladesh job vacancies that are genuinely useful to young job seekers, with extra relevance for:
-
-- BBA / MBA / business roles
-- Finance, accounting, banking
-- Management trainee / graduate / fresher / entry-level
-- Marketing, sales, business development
-- HR, administration, operations
-- Supply chain / procurement / commercial
-- NGO / development
-- Internships and trainee roles
-
-The audience is already the Bangladesh career audience. The bot does **not** add generic “Bangladeshi applicants”, gender, or similar filler to posts unless such a source fact is directly useful and belongs in an allowed field.
-
-## Discovery window
-
-The active discovery inventory is a rolling **72-hour window**. New and previously discovered but unpublished jobs remain in the persistent queue while still inside that window.
-
-Expired vacancies are rejected. Deadline distance is a **ranking signal**, not a hard seven-day gate.
-
-## Publishing target
-
-```text
-Minimum target: 5
-Normal target:  10
-Maximum:        15
-```
-
-The bot never fabricates or weakens factual checks to force five posts. When fewer than five genuinely valid jobs exist, it publishes the valid jobs available.
-
-## Source diversity
-
-The selector uses round-robin source diversification before the final ranking pass.
-
-Dynamic per-source limits:
-
-```text
-5+ sources  -> 3 posts/source
-4 sources   -> 4 posts/source
-3 sources   -> 5 posts/source
-2 sources   -> 8 posts/source
-1 source    -> no diversity cap
-```
-
-This prevents a single portal from dominating a healthy multi-source run while still allowing a low-source run to produce useful volume.
-
-## Primary job sources
-
-### Bdjobs
-
-```text
-New Jobs
-https://jobs.bdjobs.com/bn/otherjobsbn.asp?JobType=new
-
-General job search
-https://jobs.bdjobs.com/jobsearch-cache.asp
-
-Internship search
-https://jobs.bdjobs.com/jobsearch-cache.asp?requestType=internship
-```
-
-Bdjobs discovery is scored heavily across the target audience lanes rather than blindly publishing all listings.
-
-### BDJobs Live
-
-```text
-New Jobs
-https://www.bdjobslive.com/bdjobs-circular/new-job-circular-in-bangladesh
-
-Internships
-https://www.bdjobslive.com/bdjobs-circular/internship-opportunity
-
-Freshers
-https://www.bdjobslive.com/bdjobs-circular/fresher-jobs
-
-Accounting / Finance
-https://www.bdjobslive.com/bdjobs-circular/accounting-finance-jobs
-
-Bank / Financial Institution
-https://www.bdjobslive.com/bdjobs-circular/bank-financial-institution-jobs
-
-General Management / Admin
-https://www.bdjobslive.com/bdjobs-circular/general-management-admin-jobs
-
-HR / Organizational Development
-https://www.bdjobslive.com/bdjobs-circular/hr-organizational-development-jobs
-
-Marketing / Sales
-https://www.bdjobslive.com/bdjobs-circular/marketing-sales-jobs
-
-Supply Chain / Procurement
-https://www.bdjobslive.com/bdjobs-circular/supply-chain-procurement-jobs
-
-Government Jobs
-https://www.bdjobslive.com/bdjobs-circular/government-jobs-in-bangladesh
-```
-
-### Additional portals / official sources
-
-```text
-Dohaj                 https://dohaj.com/jobs
-Job.com.bd            https://job.com.bd/jobs/new_jobs/
-Smart Job             https://smartjob.portal.gov.bd/
-Alljobs Teletalk      https://alljobs.teletalk.com.bd/
-BPSC                  https://bpsc.gov.bd/
-BCC e-Recruitment     https://erecruitment.bcc.gov.bd/
-JobsNoticeBD          https://jobsnoticebd.com/
-JobsInfo              https://jobsinfo.bd/
-JobFeeds              https://jobfeeds.online/
-CircularBD            https://www.circularbd.com/alljobs
-Bangladesher Khabor   https://www.bangladesherkhabor.net/jobs
-Dhaka Post            https://www.dhakapost.com/jobs-career/
-Dhaka Tribune         https://bangla.dhakatribune.com/jobs
-Bangla Tribune        https://www.banglatribune.com/jobs
-JagoNews24            https://www.jagonews24.com/topic/%E0%A6%9A%E0%A6%BE%E0%A6%95%E0%A6%B0%E0%A6%BF
-Prothom Alo            https://www.prothomalo.com/collection/chakri-all
-```
-
-## RSS discovery
-
-RSS sources include Bangladesh job publishers and major Bangladesh news/job feeds. Google News RSS and Exa are gap-fill sources, not the primary truth layer.
-
-The system can discover a large candidate pool before expensive processing. Candidate volume is deliberately separated from publication quality.
-
-## Advanced relevance model
-
-Every candidate receives local scoring for:
-
-```text
-Freshness
-Deadline usefulness
-Source reliability
-Data completeness
-Job signal
-Audience fit
-```
-
-Audience fit gives extra weight to:
-
-```text
-BBA / MBA
-Finance / Accounting
-Banking
-Management Trainee
-Graduate / Fresher / Entry Level
-Internship
-Marketing / Sales
-HR
-Business Development
-Operations
-Supply Chain / Procurement
-NGO / Development
-```
-
-Cerebras is used for batched ranking of the strongest candidates, with deterministic local fallback when the API is unavailable or rate-limited.
-
-## Source-first JobRecord
-
-Each accepted vacancy is converted into an immutable source-backed record before editorial rendering.
-
-Authoritative fields:
-
-```text
-Title
-Company
-Location
-Job type
-Education
-Experience
-Salary
-Vacancies
-Age limit
-Application fee
-Application method
-Application period
-Selection process
-Deadline
-Source URL
-Apply URL
-Posted date
-```
-
-AI does not replace those facts.
-
-AI is used for ranking and editorial emphasis, not for inventing or replacing the source vacancy identity.
-
-## Source URL vs Apply URL
-
-These are deliberately separate.
-
-**Source URL** = where the job details are read.
-
-**Apply URL** = the actual application destination.
-
-The Telegram body shows:
-
-```text
-🔎 Official Source: Source Name
-```
-
-with the source link attached to the source name.
-
-The body does not expose raw URLs.
-
-The final button uses only the actionable application URL:
-
-```text
-APPLY NOW
-```
-
-It is a real Telegram **InlineKeyboardMarkup** button, not a `<tg-button>` embedded in Rich HTML.
-
-When a distinct actionable application URL cannot be resolved, the candidate is not published.
+## V1 goals
+- Publish **5–15 high-value vacancies per run** when enough valid jobs exist.
+- Maintain a rolling **72-hour job inventory** so good jobs not published in one run remain eligible for the next run.
+- Prioritize jobs useful to young Bangladesh job seekers, especially BBA/MBA, finance/accounting, banking, business, management, HR, marketing/sales, operations, supply chain, graduate, fresher, trainee and internship roles.
+- Treat deadline distance as a ranking signal. Expired jobs are rejected, but there is no mandatory 7-day deadline gate.
+- Use source-backed facts only. AI ranks candidates only; factual vacancy identity and application routing are source-derived and fact-locked.
 
 ## Telegram post format
-
 ```text
-📣 Job Title
+📣 JOB TITLE
 
-🏢 Company: Company Name
+🏢 Company: ...
 
 JOB SNAPSHOT
 
 FIELD | DETAILS
-Location | Dhaka
-Type | Full-time
-Vacancies | 02
-Education | BBA / MBA
-Experience | 0–2 years
-Salary | BDT 40,000
-Deadline | 28 September 2026
-Posted | 18 September 2026
-Application | Online
+... dynamic factual rows ...
 
-#BBA #MBA #CareerNewsroom
+#hashtags
 
-🔎 Official Source: Bdjobs
+🔎 Official Source: Source Name
 
 [ APPLY NOW ]
 ```
 
-The table is dynamic. Missing fields are omitted completely. There is no `Not specified` placeholder.
+### Output rules
+- Missing information is omitted completely.
+- No `Not specified` placeholders.
+- The table contains only high-impact information.
+- `Application` is a short method such as `Online`, `Email`, `Via Bdjobs`, or `Hard copy`, not a copied paragraph.
+- `source_url` is the page used for details.
+- `apply_url` is the direct application destination.
+- `source_url` and `apply_url` are **never allowed to be the same**.
+- The `APPLY NOW` button is a single native Telegram inline keyboard button with no emoji.
+- The source name is clickable in the body and opens the details/source page.
+- A missing article image never blocks publication.
 
-Removed from the post:
-
+## Discovery architecture
 ```text
-Suitable For
-Key Highlights
-Gender
-Bangladeshi applicants
-raw URLs
+RSS / job portals / Google News / Exa
+                ↓
+         URL + navigation filter
+                ↓
+       Real job/detail detection
+                ↓
+      Bangladesh relevance filter
+                ↓
+        72-hour inventory queue
+                ↓
+      Event / URL deduplication
+                ↓
+         Local relevance score
+                ↓
+       Batched Cerebras ranking
+                ↓
+        Top detailed candidates
+                ↓
+  Source-backed JobRecord extraction
+                ↓
+      Distinct apply URL required
+                ↓
+      Numeric + deadline grounding
+                ↓
+       Dynamic JOB SNAPSHOT table
+                ↓
+     Image → text-only fallback
+                ↓
+ Telegram Rich Message + InlineKeyboard
+                ↓
+        Telegram Bot API fallback
 ```
 
-High-impact fields are kept; low-value repetition and long copied responsibilities are skipped.
+## Advanced portal strategy
 
-## Image behavior
+### Bdjobs
+Bdjobs exposes functional categories, organization/industry filters, Bangladesh location filters, posted-within filters, fresher/experience filters, and dedicated job-detail links. V1 uses the live listing as a discovery index and then follows only real job-detail URLs. This prevents navigation pages, app pages and employer tools from becoming candidates. citeturn924004search0turn236266view2
 
-A vacancy never fails because it has no photo.
+Priority lanes are derived from the target audience rather than blindly reposting every listing:
+- BBA/MBA/business/management
+- Accounting/finance/banking
+- Marketing/sales/business development
+- HR/operations/supply chain
+- Management trainee/graduate/fresher
+- Internship
 
-```text
-Usable article/source image -> publish with image
-No usable image            -> publish text-only
-```
+### BDJobs Live
+BDJobs Live currently exposes `New Jobs`, `Intern Jobs`, `Freshers Jobs`, `Deadline Tomorrow`, and category/industry groupings. Its job-detail pages expose fields such as vacancy, age, location, salary, experience, job type, education, application instructions and an `Apply Now` action. V1 monitors the job-detail URL pattern and its high-value current-job lanes rather than arbitrary navigation links. citeturn447637view0turn447637view1turn447637view2turn236266view0
 
-The existing 1200×675 image processing path is retained.
+## Source vs Apply URL
 
-## Verification
-
-The runtime retains the reference bot's protection layers where they are useful for career content:
-
-- canonical URL normalization
-- URL deduplication
-- event/vacancy deduplication
-- source validation
-- source-backed JobRecord
-- deadline grounding
-- numeric grounding
-- optional claim verification
-- immutable factual fields
-- Apply URL validation
-- Telegram Rich HTML size checking
-- publish-state persistence
-
-Missing information is not treated as false information. A source may omit salary, education, or experience; the field is simply omitted from the card unless the source provides it.
-
-## Persistent inventory
-
-`news_state.json` stores the rolling career inventory, events, publication state, category coverage, and run history.
-
-`posted_urls.txt` provides a durable URL-level duplicate barrier.
-
-`source_health.json` stores source success/failure information for later diagnostics.
-
-## GitHub Actions
-
-The scheduled workflow runs in `Asia/Dhaka` and supports manual dispatch.
-
-Required repository secrets:
+The separation is mandatory:
 
 ```text
-EXA_API_KEY
-CEREBRAS_API_KEY
-TELEGRAM_BOT_TOKEN
+Official Source → source_url
+Apply Now    → apply_url
 ```
 
-Optional:
+The resolver checks links, forms, data attributes, buttons, page text and external application URLs. If a distinct HTTP application destination cannot be established, the vacancy is not published instead of pointing the user back to the source page.
 
+## Ranking model
+
+The local ranking layer considers:
+- job intent / real vacancy confidence
+- audience relevance
+- freshness
+- deadline usefulness
+- source reliability
+- data completeness
+
+Cerebras then performs a batched editorial ranking over the strongest candidates. AI ranking failure falls back to deterministic ranking instead of aborting the run.
+
+## Source diversity
+
+Publication uses a dynamic per-source cap so one publisher does not dominate the run when several sources are available. Diversity is secondary to vacancy quality, but the selector actively rotates across sources.
+
+## Integrity rules
+Hard rejects are limited to data integrity problems:
+- clearly non-job content
+- clearly foreign-only vacancy
+- expired vacancy
+- duplicate vacancy/event
+- missing or invalid source URL
+- no distinct direct application destination
+- insufficient source confidence
+
+The old fixed 7-day deadline rejection is intentionally removed.
+
+## Technical framework
+V1 keeps the proven framework of the reference TechNewsroom bot:
+- RSS ingestion and persistent queue
+- Google News RSS gap filling
+- Exa gap filling
+- URL/event deduplication
+- source/article extraction
+- persistent JSON state
+- numeric/date grounding
+- Pillow image pipeline
+- article image and source-logo fallback
+- 1200×675 image processing
+- Telegram Rich Messages
+- native InlineKeyboard markup
+- Bot API fallback
+- GitHub Actions
+- self-test and compile gate
+
+## Project tree
 ```text
-TELEGRAM_ADMIN_CHAT_ID
-CEREBRAS_MODEL
-```
-
-Workflow steps:
-
-```text
-Checkout
-→ Python 3.12
-→ install requirements
-→ py_compile
-→ self-test
-→ CareerNewsBot run
-→ persist state
-```
-
-## Performance design
-
-The bot does not call the LLM once for every discovered vacancy.
-
-```text
-Many discoveries
-→ cheap deterministic filtering
-→ local scoring
-→ batched Cerebras ranking
-→ top candidate extraction
-→ fact-locking
-→ Telegram rendering
-```
-
-The ranking stage is batched to reduce Cerebras rate-limit pressure.
-
-## Expected healthy run
-
-The target is not an artificial fixed number of websites or API calls. A healthy run should be capable of producing 5–15 genuinely useful posts when the 72-hour inventory contains enough eligible vacancies.
-
-A typical funnel is:
-
-```text
-many discovered links
-→ URL dedup
-→ real job candidates
-→ Bangladesh-relevant vacancies
-→ event dedup
-→ local ranking
-→ batched AI ranking
-→ source-backed verification
-→ 5–15 publishable jobs
-```
-
-## Commands
-
-```bash
-python main.py --self-test
-python main.py
-```
-
-## Repository tree
-
-```text
-CareerNewsBot-main/
+CareerNewsBot-main-V1/
 ├── .github/
 │   └── workflows/
 │       ├── import-zip.yml
@@ -380,12 +158,13 @@ CareerNewsBot-main/
 ├── main.py
 ├── news_state.json
 ├── posted_urls.txt
-├── requirements.txt
-└── source_health.json
+└── requirements.txt
 ```
-## V3.1 reliability fixes
 
-- Direct portal HTTP errors (403/404/5xx) are treated as source failures and skipped without aborting the run.
-- The direct-portal consumer validates that a usable response object exists before reading `.text`.
-- GitHub Actions uses the current Node 24-compatible `actions/checkout@v7` and `actions/setup-python@v7` releases.
+## Verification
+```bash
+python -m py_compile main.py
+python main.py --self-test
+```
 
+The GitHub Action runs the compile gate, then the self-test, then the live bot. Runtime/API/portal failures are isolated per source wherever possible so one blocked site does not abort the entire run.
