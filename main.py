@@ -6,6 +6,7 @@ import html
 import argparse
 import logging
 import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse, urljoin, quote, unquote
@@ -13,27 +14,32 @@ from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 
 import requests
-import trafilatura
+try:
+    import trafilatura
+except ImportError:
+    trafilatura = None
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from exa_py import Exa
-from cerebras.cloud.sdk import Cerebras
+try:
+    from cerebras.cloud.sdk import Cerebras
+except ImportError:
+    Cerebras = None
 
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
-EXA_API_KEY = os.environ["EXA_API_KEY"]
-CEREBRAS_API_KEY = os.environ["CEREBRAS_API_KEY"]
-TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+CEREBRAS_API_KEY = os.environ.get("CEREBRAS_API_KEY", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").strip()
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
+PIPELINE_VERSION = "V1-fast-incremental"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -50,23 +56,28 @@ MIN_STORIES_PER_RUN = 5
 MAX_STORIES_PER_RUN = 20
 MIN_GOVERNMENT_POSTS_PER_RUN = 3
 MAX_GOVERNMENT_POSTS_PER_RUN = 5
-POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "2.5"))
+POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "1.0"))
 FUTURE_TOLERANCE_MINUTES = 20
 DISCOVERY_LOOKBACK_DAYS = int(os.environ.get("DISCOVERY_LOOKBACK_DAYS", "14"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
 MAX_EXA_CANDIDATES = int(os.environ.get("MAX_EXA_CANDIDATES", "100"))
 MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "8"))
 MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "160"))
-MAX_PRIVATE_JUDGE_CANDIDATES = int(os.environ.get("MAX_PRIVATE_JUDGE_CANDIDATES", "220"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
 
 # Dohaj has source-owned fixed category feeds. The categories below cover the
 # business-heavy areas where BBA/MBA candidates commonly search, plus the main
 # all-jobs feed for recent roles that may be filed under a changing category.
-DOHAJ_PRIVATE_PAGES_PER_SECTION = int(os.environ.get("DOHAJ_PRIVATE_PAGES_PER_SECTION", "3"))
-DOHAJ_GOVERNMENT_MAX_PAGES = int(os.environ.get("DOHAJ_GOVERNMENT_MAX_PAGES", "30"))
-DOHAJ_CATEGORY_LINKS_PER_PAGE = int(os.environ.get("DOHAJ_CATEGORY_LINKS_PER_PAGE", "40"))
+DOHAJ_PRIVATE_PAGES_PER_SECTION = int(os.environ.get("DOHAJ_PRIVATE_PAGES_PER_SECTION", "2"))
+DOHAJ_GOVERNMENT_MAX_PAGES = int(os.environ.get("DOHAJ_GOVERNMENT_MAX_PAGES", "3"))
+DOHAJ_CATEGORY_LINKS_PER_PAGE = int(os.environ.get("DOHAJ_CATEGORY_LINKS_PER_PAGE", "12"))
+FAST_PRIVATE_CANDIDATE_TARGET = int(os.environ.get("FAST_PRIVATE_CANDIDATE_TARGET", "60"))
+FAST_GOVERNMENT_CANDIDATE_TARGET = int(os.environ.get("FAST_GOVERNMENT_CANDIDATE_TARGET", "10"))
+FAST_DETAIL_WORKERS = int(os.environ.get("FAST_DETAIL_WORKERS", "8"))
+FAST_AI_CANDIDATE_LIMIT = int(os.environ.get("FAST_AI_CANDIDATE_LIMIT", "20"))
+FAST_DISCOVERY_TIMEOUT = int(os.environ.get("FAST_DISCOVERY_TIMEOUT", "15"))
+FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
 
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 DOHAJ_DOMAIN = "dohaj.com"
@@ -517,204 +528,139 @@ def prune_state():
 # CLIENTS
 # ============================================================
 
-exa = None
 cerebras = None
-
-
-def get_exa():
-    global exa
-    if exa is None:
-        exa = Exa(api_key=EXA_API_KEY)
-    return exa
 
 
 def get_cerebras():
     global cerebras
+    if Cerebras is None or not CEREBRAS_API_KEY:
+        return None
     if cerebras is None:
         cerebras = Cerebras(api_key=CEREBRAS_API_KEY)
     return cerebras
+
 
 
 # ============================================================
 # SOURCE DISCOVERY: DOHAJ TOP-5 ONLY
 # ============================================================
 
-def extract_dohaj_page(category_url, category_name, page_no=1, limit=40):
-    """Read one paginated Dohaj section page and collect job detail links."""
-    page_url = dohaj_page_url(category_url, page_no)
-    is_gov = category_name == "Government Jobs" or "/gov-job/" in urlparse(category_url).path.lower()
+def _listing_date_from_text(card_text):
+    return normalize_date_text(_first_match(card_text, [
+        r"(?:Posted|Published|প্রকাশিত|পোস্টেড)\s*[:：-]?\s*([^|]+?)(?=\s+(?:Deadline|শেষ তারিখ|View|দেখুন)\b|$)",
+    ]))
+
+
+def extract_dohaj_page(category_url, category_name, page_no=1, limit=12):
+    """Fetch one current Dohaj listing page and keep only a small latest window."""
+    page_url=dohaj_page_url(category_url,page_no)
+    is_gov=category_name=="Government Jobs" or "/gov-jobs" in urlparse(category_url).path.lower()
     try:
-        response = session.get(page_url, headers=HEADERS, timeout=30)
-        if response.status_code >= 400:
-            logger.warning("DOHAJ section failed %s HTTP=%s", page_url, response.status_code)
-            return []
-        soup = BeautifulSoup(response.text, "html.parser")
-        results, seen = [], set()
-        for anchor in soup.find_all("a", href=True):
-            href = urljoin(response.url, safe_text(anchor.get("href")))
-            if not is_dohaj_job_url(href):
-                continue
-            canonical = canonical_url(href)
-            if not canonical or canonical in seen:
-                continue
-            title = safe_text(anchor.get_text(" ", strip=True))
-            if not title or is_noise_title(title, href):
-                continue
-            parent = anchor.find_parent(["article", "li", "div", "section"])
-            card_text = safe_text(parent.get_text(" ", strip=True)) if parent else title
-            deadline_match = re.search(r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:View|দেখুন)\b|$)", card_text, flags=re.I)
-            listing_deadline = normalize_date_text(deadline_match.group(1)) if deadline_match else ""
+        response=session.get(request_safe_url(page_url),headers=HEADERS,timeout=FAST_DISCOVERY_TIMEOUT)
+        if response.status_code>=400:
+            logger.warning("DOHAJ listing failed %s HTTP=%s",page_url,response.status_code); return []
+        soup=BeautifulSoup(response.text,"html.parser")
+        results=[]; seen=set()
+        for anchor in soup.find_all("a",href=True):
+            href=urljoin(response.url,safe_text(anchor.get("href")))
+            if not is_dohaj_job_url(href): continue
+            canonical=canonical_url(href)
+            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
+            title=safe_text(anchor.get_text(" ",strip=True))
+            if not title or is_noise_title(title,href): continue
+            parent=anchor.find_parent(["article","li","div","section"])
+            card_text=safe_text(parent.get_text(" ",strip=True)) if parent else title
+            deadline_match=re.search(r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:View|দেখুন)\b|$)",card_text,flags=re.I)
             seen.add(canonical)
             results.append({
-                "title": title,
-                "url": href,
-                "canonical": canonical,
-                "source": "Dohaj",
-                "source_url": href,
-                "discovery": "dohaj_direct",
-                "dohaj_category": category_name,
-                "is_government": is_gov,
-                "excerpt": trim_source_text(card_text, 1800),
-                "listing_deadline": listing_deadline,
-                "discovered_at": now_iso(),
+                "title":title,"url":href,"canonical":canonical,"source":"Dohaj","source_url":href,
+                "discovery":"dohaj_direct_latest","dohaj_category":category_name,"is_government":is_gov,
+                "excerpt":trim_source_text(card_text,1200),
+                "listing_deadline":normalize_date_text(deadline_match.group(1)) if deadline_match else "",
+                "listing_posted":_listing_date_from_text(card_text),"discovered_at":now_iso(),
             })
-            if len(results) >= limit:
-                break
-        logger.info("DOHAJ DIRECT | %s | page=%d | %d", category_name, page_no, len(results))
+            if len(results)>=limit: break
+        logger.info("DOHAJ LATEST | %s | page=%d | %d",category_name,page_no,len(results))
         return results
     except Exception as exc:
-        logger.warning("DOHAJ section error %s page=%d: %s", category_name, page_no, exc)
-        return []
+        logger.warning("DOHAJ listing error %s page=%d: %s",category_name,page_no,exc); return []
 
 
 def _dohaj_private_title_signal(title):
-    blob = safe_text(title).lower()
-    if not blob:
-        return False
-    # BBA/MBA suitable jobs are broad, so retain common business-role titles even
-    # when the listing card itself does not expose the education requirement.
-    return any(term in blob for term in BUSINESS_ROLE_TERMS) and not any(term in blob for term in NON_BUSINESS_ROLE_TERMS)
+    blob=safe_text(title).lower()
+    return bool(blob) and any(term in blob for term in BUSINESS_ROLE_TERMS) and not any(term in blob for term in NON_BUSINESS_ROLE_TERMS)
+
+
+def _discover_private_section(url):
+    path=urlparse(url).path.rstrip("/"); slug=path.split("/")[-1]
+    category_name="All Jobs" if path=="/jobs/all" else DOHAJ_CATEGORY_NAMES.get(slug,slug)
+    items=extract_dohaj_page(url,category_name,1,DOHAJ_CATEGORY_LINKS_PER_PAGE)
+    return [x for x in items if _dohaj_private_title_signal(x["title"])]
 
 
 def discover_dohaj():
-    results, seen = [], set()
-
-    # Government feed: scan the full currently exposed feed window, not only the
-    # first page. This lets the persistent queue cover all government entries over
-    # repeated runs while publication is capped at 3-5 per run.
-    for page_no in range(1, DOHAJ_GOVERNMENT_MAX_PAGES + 1):
-        page_items = extract_dohaj_page(DOHAJ_GOVERNMENT_URL, "Government Jobs", page_no, DOHAJ_CATEGORY_LINKS_PER_PAGE)
-        if not page_items:
-            break
-        for item in page_items:
+    government=[]; private=[]; seen=set()
+    # Government pagination is sequential because page 2 is only needed if page 1 is short.
+    for page_no in range(1,DOHAJ_GOVERNMENT_MAX_PAGES+1):
+        items=extract_dohaj_page(DOHAJ_GOVERNMENT_URL,"Government Jobs",page_no,FAST_GOVERNMENT_CANDIDATE_TARGET)
+        for item in items:
             if item["canonical"] not in seen:
-                seen.add(item["canonical"])
-                results.append(item)
+                seen.add(item["canonical"]); government.append(item)
+        if len(government)>=FAST_GOVERNMENT_CANDIDATE_TARGET or (page_no>=2 and len(government)>=MIN_GOVERNMENT_POSTS_PER_RUN): break
 
-    # Private business-oriented feeds. We intentionally use fixed source pages rather
-    # than generic search URLs. Each detail page still receives the authoritative BBA/MBA
-    # relevance gate after retrieval.
-    for url in DOHAJ_PRIVATE_SECTION_URLS:
-        path = urlparse(url).path.rstrip("/")
-        slug = path.split("/")[-1]
-        category_name = "All Jobs" if path == "/jobs/all" else DOHAJ_CATEGORY_NAMES.get(slug, slug)
-        for page_no in range(1, DOHAJ_PRIVATE_PAGES_PER_SECTION + 1):
-            page_items = extract_dohaj_page(url, category_name, page_no, DOHAJ_CATEGORY_LINKS_PER_PAGE)
-            if not page_items:
-                break
-            for item in page_items:
-                if not _dohaj_private_title_signal(item["title"]):
-                    continue
-                if item["canonical"] in seen:
-                    continue
-                seen.add(item["canonical"])
-                results.append(item)
+    # Private dedicated sections are independent, so fetch page 1 concurrently.
+    with ThreadPoolExecutor(max_workers=min(8,len(DOHAJ_PRIVATE_SECTION_URLS))) as executor:
+        futures=[executor.submit(_discover_private_section,url) for url in DOHAJ_PRIVATE_SECTION_URLS]
+        for future in as_completed(futures):
+            try: items=future.result()
+            except Exception as exc:
+                logger.warning("DOHAJ private section worker failed: %s",exc); continue
+            for item in items:
+                if item["canonical"] in seen: continue
+                seen.add(item["canonical"]); private.append(item)
 
-    gov_count = sum(1 for x in results if x.get("is_government"))
-    logger.info("DOHAJ TOTAL DISCOVERY: %d | government=%d | private=%d", len(results), gov_count, len(results)-gov_count)
-    return results
+    # If page 1 did not provide enough private candidates, use page 2 only for the
+    # few sections most likely to contain business roles, still concurrently.
+    if len(private)<FAST_PRIVATE_CANDIDATE_TARGET and DOHAJ_PRIVATE_PAGES_PER_SECTION>=2:
+        priority_urls=DOHAJ_PRIVATE_SECTION_URLS[:8]
+        def page2(url):
+            path=urlparse(url).path.rstrip("/"); slug=path.split("/")[-1]
+            category_name="All Jobs" if path=="/jobs/all" else DOHAJ_CATEGORY_NAMES.get(slug,slug)
+            return [x for x in extract_dohaj_page(url,category_name,2,DOHAJ_CATEGORY_LINKS_PER_PAGE) if _dohaj_private_title_signal(x["title"])]
+        with ThreadPoolExecutor(max_workers=min(8,len(priority_urls))) as executor:
+            futures=[executor.submit(page2,url) for url in priority_urls]
+            for future in as_completed(futures):
+                try: items=future.result()
+                except Exception: continue
+                for item in items:
+                    if item["canonical"] in seen: continue
+                    seen.add(item["canonical"]); private.append(item)
+                    if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
+                if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
 
+    logger.info("DOHAJ FAST DISCOVERY: government=%d private=%d",len(government),len(private))
+    return government+private
 
-# ============================================================
-# SOURCE DISCOVERY: BDJOBS DIRECT WEBSITE
-# ============================================================
-
-BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
-BDJOBS_NATIVE_CATEGORY_HINTS = (
-    "account", "finance", "bank", "commercial", "management", "admin", "hr",
-    "human resource", "marketing", "sales", "business development", "supply chain",
-    "procurement", "operation", "relationship", "credit", "customer service",
-    "audit", "tax", "treasury", "merchandising", "corporate affairs", "analyst",
-    "trainee", "intern", "executive", "officer",
-)
-
-def _bdjobs_pagination_links(page_html, base_url):
-    soup = BeautifulSoup(page_html, "html.parser")
-    links = []
-    for a in soup.find_all("a", href=True):
-        label = safe_text(a.get_text(" ", strip=True))
-        href = urljoin(base_url, safe_text(a.get("href")))
-        if label.isdigit() and 1 <= int(label) <= MAX_BDJOBS_DISCOVERY_PAGES:
-            if is_domain_allowed(href, BDJOBS_DOMAINS):
-                links.append((int(label), href))
-    return sorted(dict(links).items())
-
-def _bdjobs_listing_candidates(page_html, page_url):
-    soup = BeautifulSoup(page_html, "html.parser")
-    found = []
-    seen = set()
-    for a in soup.find_all("a", href=True):
-        href = urljoin(page_url, safe_text(a.get("href")))
-        if not is_bdjobs_job_url(href):
-            continue
-        canonical = canonical_url(href)
-        if not canonical or canonical in seen:
-            continue
-        title = safe_text(a.get_text(" ", strip=True))
-        if not title or is_noise_title(title, href):
-            continue
-        parent = a.find_parent(["li", "div", "article", "section"])
-        card_text = safe_text(parent.get_text(" ", strip=True)) if parent else title
-        blob = f"{title} {card_text}".lower()
-        if not any(term in blob for term in BDJOBS_NATIVE_CATEGORY_HINTS):
-            continue
-        seen.add(canonical)
-        found.append({
-            "title": title, "url": href, "canonical": canonical,
-            "source": "Bdjobs", "source_url": href,
-            "discovery": "bdjobs_direct",
-            "excerpt": trim_source_text(card_text, 2200),
-            "discovered_at": now_iso(),
-        })
-    return found
 
 def discover_bdjobs():
-    discovered, seen = [], set()
-    pages_to_visit = [(1, BDJOBS_SEARCH_URL)]
+    """Read only the newest Bdjobs page, using page 2 only if the private pool is short."""
+    discovered=[]; seen=set(); pages=[(1,BDJOBS_SEARCH_URL)]
     try:
-        while pages_to_visit and len(discovered) < MAX_BDJOBS_DETAIL_CANDIDATES:
-            page_no, page_url = pages_to_visit.pop(0)
-            response = session.get(page_url, headers=HEADERS, timeout=30)
-            if response.status_code >= 400:
-                logger.warning("BDJOBS direct page failed %s HTTP=%s", page_url, response.status_code)
-                continue
-            candidates = _bdjobs_listing_candidates(response.text, response.url)
-            for item in candidates:
-                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
-                    continue
-                seen.add(item["canonical"])
-                discovered.append(item)
-                if len(discovered) >= MAX_BDJOBS_DETAIL_CANDIDATES:
-                    break
-            if page_no == 1:
-                for n, href in _bdjobs_pagination_links(response.text, response.url):
-                    if n > 1 and n <= MAX_BDJOBS_DISCOVERY_PAGES:
-                        pages_to_visit.append((n, href))
-        logger.info("BDJOBS DIRECT DISCOVERY: %d", len(discovered))
-        return discovered
+        while pages and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
+            page_no,page_url=pages.pop(0)
+            response=session.get(page_url,headers=HEADERS,timeout=FAST_DISCOVERY_TIMEOUT)
+            if response.status_code>=400: continue
+            for item in _bdjobs_listing_candidates(response.text,response.url):
+                if item["canonical"] in seen or item["canonical"] in POSTED_URLS: continue
+                seen.add(item["canonical"]); discovered.append(item)
+                if len(discovered)>=FAST_PRIVATE_CANDIDATE_TARGET: break
+            if page_no==1 and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
+                for n,href in _bdjobs_pagination_links(response.text,response.url):
+                    if n==2: pages.append((n,href)); break
     except Exception as exc:
-        logger.warning("BDJOBS direct discovery failed: %s", exc)
-        return discovered
+        logger.warning("BDJOBS latest discovery failed: %s",exc)
+    logger.info("BDJOBS LATEST DISCOVERY: %d",len(discovered))
+    return discovered
 
 
 def discover_all():
@@ -1364,57 +1310,22 @@ def request_safe_url(url):
 
 
 def retrieve_job_content(item):
-    url = item["url"]
-    request_url = request_safe_url(url)
-    # First use the exact working architecture: direct HTTP + Trafilatura.
+    """Fast direct source retrieval. V1 does not use external search as a fallback."""
+    url=item["url"]; request_url=request_safe_url(url)
     try:
-        response = session.get(request_url, headers={**HEADERS, "Referer": request_url}, timeout=30)
-        if response.status_code < 400:
-            page_html = response.text
-            text = trafilatura.extract(
-                page_html,
-                include_comments=False,
-                include_tables=True,
-                favor_precision=True,
-            )
-            raw_text = text or _text_from_html(page_html)
-            if raw_text and len(raw_text) >= 400:
-                apply_url = extract_apply_url(page_html, response.url, item.get("source", ""))
-                return {
-                    "text": raw_text[:MAX_JOB_CONTENT_CHARS],
-                    "html": page_html,
-                    "final_url": response.url,
-                    "apply_url": apply_url,
-                    "backend": "direct_http",
-                }
+        response=session.get(request_url,headers={**HEADERS,"Referer":request_url},timeout=FAST_DETAIL_TIMEOUT)
+        if response.status_code>=400: return None
+        page_html=response.text
+        text=trafilatura.extract(page_html,include_comments=False,include_tables=True,favor_precision=True) if trafilatura else None
+        raw_text=text or _text_from_html(page_html)
+        if not raw_text or len(raw_text)<250: return None
+        return {"text":raw_text[:MAX_JOB_CONTENT_CHARS],"html":page_html,"final_url":response.url,"apply_url":extract_apply_url(page_html,response.url,item.get("source","")),"backend":"direct_http"}
     except Exception as exc:
-        logger.warning("Direct retrieval failed %s: %s", url, exc)
-
-    # Exa fallback for blocked/thin pages.
-    try:
-        result_set = get_exa().get_contents(
-            [request_url],
-            text={"max_characters": MAX_JOB_CONTENT_CHARS},
-            max_age_hours=24,
-        )
-        if getattr(result_set, "results", None):
-            result = result_set.results[0]
-            text = safe_text(getattr(result, "text", ""))
-            if text:
-                return {
-                    "text": text[:MAX_JOB_CONTENT_CHARS],
-                    "html": "",
-                    "final_url": safe_text(getattr(result, "url", "")) or url,
-                    "apply_url": "",
-                    "backend": "exa_contents",
-                }
-    except Exception as exc:
-        logger.warning("Exa contents fallback failed %s: %s", url, exc)
-    return None
+        logger.warning("DETAIL retrieval failed %s: %s",url,exc); return None
 
 
 def research_job(item):
-    # Always retrieve the actual source page first. Exa is only a fallback for
+    # Retrieve the authoritative source page directly.
     # blocked/thin pages; it is never the primary Bdjobs discovery layer.
     retrieved = retrieve_job_content(item)
     if not retrieved:
@@ -1431,8 +1342,14 @@ def research_job(item):
         "canonical": item["canonical"], "apply_url": apply_url,
         "retrieval_backend": retrieved.get("backend", ""),
         "raw_text": retrieved["text"],
+        "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""),
         "is_government": bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower(),
     })
+    if not fields.get("posted_date") and item.get("listing_posted"):
+        fields["posted_date"] = item.get("listing_posted")
+    if not fields.get("deadline") and item.get("listing_deadline"):
+        fields["deadline"] = item.get("listing_deadline")
     fields["source"] = "Dohaj Government Jobs" if fields["is_government"] and is_domain_allowed(item["url"], [DOHAJ_DOMAIN]) else source_name(item["url"])
     fields["title"] = fields["title"] or item.get("title", "")
     fields["company"] = fields["company"] or item.get("company", "")
@@ -1660,6 +1577,9 @@ Return every input candidate.
 
 
 def judge_batch(batch, batch_no):
+    if not get_cerebras():
+        logger.info("CEREBRAS unavailable; deterministic ranking only")
+        return []
     payload_parts = []
     for idx, job in enumerate(batch, start=1):
         payload_parts.append("\n".join([
@@ -1670,19 +1590,15 @@ def judge_batch(batch, batch_no):
             f"Category: {job.get('category','')}",
             f"Location: {job.get('location','')}",
             f"Employment: {job.get('employment_type','')}",
-            f"Education: {trim_source_text(job.get('education',''), 1200)}",
-            f"Experience: {trim_source_text(job.get('experience',''), 700)}",
-            f"Salary: {job.get('salary','')}",
+            f"Education: {trim_source_text(job.get('education',''), 180)}",
+            f"Experience: {trim_source_text(job.get('experience',''), 120)}",
+            f"Salary: {trim_source_text(job.get('salary',''), 100)}",
             f"Vacancy: {job.get('vacancy','')}",
-            f"Age: {job.get('age','')}",
             f"Posted: {job.get('posted_date','')}",
             f"Deadline: {job.get('deadline','')}",
-            f"Application: {trim_source_text(job.get('application_method',''), 900)}",
-            f"Selection process: {trim_source_text(job.get('selection_process',''), 900)}",
-            f"Application period: {trim_source_text(job.get('application_period',''), 500)}",
             f"Workplace: {job.get('workplace','')}",
             f"Business relevance pre-score: {job.get('audience_pre_score',0)}",
-            f"Source text evidence: {trim_source_text(job.get('raw_text',''), 2600)}",
+            f"Listing evidence: {trim_source_text(job.get('raw_text',''), 650)}",
             "",
         ]))
     try:
@@ -1702,7 +1618,7 @@ def judge_batch(batch, batch_no):
             },
             reasoning_effort="low",
             temperature=0.0,
-            max_completion_tokens=3500,
+            max_completion_tokens=2000,
         )
         return json.loads(safe_text(response.choices[0].message.content)).get("results", [])
     except Exception as exc:
@@ -1711,74 +1627,33 @@ def judge_batch(batch, batch_no):
 
 
 def rank_jobs(jobs):
-    """Run the BBA/MBA suitability judge, then apply deterministic audience-first ranking."""
-    if not jobs:
-        return []
-    pre_ranked=sorted(
-        jobs,
-        key=lambda j:(
-            -education_priority_score(j),
-            -experience_priority_score(j),
-            -posted_freshness_score(j),
-            -deadline_urgency_score(j),
-            -job_quality_score(j),
-        ),
-    )[:MAX_PRIVATE_JUDGE_CANDIDATES]
-
-    judged=[]
-    for offset in range(0,len(pre_ranked),15):
-        batch=pre_ranked[offset:offset+15]
-        logger.info("CEREBRAS JUDGE BATCH %d | %d jobs", offset//15+1, len(batch))
-        rows=judge_batch(batch, offset//15+1)
-        by_id={i:job for i,job in enumerate(batch,start=1)}
-        for row in rows:
+    """Deterministic ranking first, with one optional compact Cerebras review."""
+    if not jobs: return []
+    pre_ranked=sorted(jobs,key=lambda j:(-education_priority_score(j),-experience_priority_score(j),-posted_freshness_score(j),-deadline_urgency_score(j),-job_quality_score(j),j.get("canonical","")))
+    ai_candidates=pre_ranked[:FAST_AI_CANDIDATE_LIMIT]
+    judged_by_key={}
+    if get_cerebras() and ai_candidates:
+        logger.info("CEREBRAS SINGLE REVIEW | %d jobs",len(ai_candidates))
+        for row in judge_batch(ai_candidates,1):
             try: idx=int(row.get("id"))
             except Exception: continue
-            if idx not in by_id: continue
-            job=dict(by_id[idx])
-            job.update({
-                "judge_publish":bool(row.get("publish")),
-                "judge_score":int(row.get("score",0)),
-                "bba_mba_fit":int(row.get("bba_mba_fit",0)),
-                "early_career_fit":int(row.get("early_career_fit",0)),
-                "role_fit":int(row.get("role_fit",0)),
-                "judge_reason":safe_text(row.get("reason")),
-            })
-            if job.get("bba_mba_target_score",0) < 25:
-                job["judge_publish"]=False
-            if job.get("judge_publish") and job.get("judge_score",0) >= 60:
-                judged.append(job)
-
-    judged_keys={j.get("canonical") for j in judged}
-    # Safe deterministic fallback for source-verified private jobs when AI returned an
-    # incomplete batch response. It still respects the BBA/MBA gate.
+            if 1<=idx<=len(ai_candidates): judged_by_key[ai_candidates[idx-1].get("canonical")]=row
+    ranked=[]
     for job in pre_ranked:
-        if job.get("canonical") in judged_keys:
-            continue
-        if job.get("bba_mba_target_score",0) < 25 or deadline_status(job) == "expired":
-            continue
-        fallback=dict(job)
-        fallback.update({
-            "judge_publish":True,
-            "judge_score":min(80, 55 + int(job.get("bba_mba_target_score",0))/3),
-            "bba_mba_fit":min(85, int(job.get("bba_mba_target_score",0))),
-            "early_career_fit":min(85, experience_priority_score(job)*3),
-            "role_fit":min(85, int(job.get("audience_pre_score",0))),
-            "judge_reason":"Source-verified deterministic fallback.",
+        row=judged_by_key.get(job.get("canonical"),{})
+        candidate=dict(job)
+        candidate.update({
+            "judge_publish":bool(row.get("publish",True)),
+            "judge_score":int(row.get("score",70 if not row else 0)),
+            "bba_mba_fit":int(row.get("bba_mba_fit",candidate.get("bba_mba_target_score",0))),
+            "early_career_fit":int(row.get("early_career_fit",experience_priority_score(candidate)*3)),
+            "role_fit":int(row.get("role_fit",candidate.get("audience_pre_score",0))),
+            "judge_reason":safe_text(row.get("reason","Deterministic source-first ranking.")),
         })
-        judged.append(fallback)
-
-    for job in judged:
-        job["private_rank_score"]=private_rank_score(job)
-    judged.sort(key=lambda j:(
-        -j.get("private_rank_score",0),
-        -education_priority_score(j),
-        -experience_priority_score(j),
-        -posted_freshness_score(j),
-        -job_quality_score(j),
-        j.get("canonical","")
-    ))
-    return judged
+        if candidate.get("bba_mba_target_score",0)>=25 and deadline_status(candidate)!="expired" and candidate.get("judge_publish",True):
+            candidate["private_rank_score"]=private_rank_score(candidate); ranked.append(candidate)
+    ranked.sort(key=lambda j:(-j.get("private_rank_score",0),-education_priority_score(j),-experience_priority_score(j),-posted_freshness_score(j),-job_quality_score(j),j.get("canonical","")))
+    return ranked
 
 
 # ============================================================
@@ -1942,7 +1817,7 @@ def store_selected_event(job, published=False, message_id=None):
 def telegram_call(method, data=None, files=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/{method}"
     last = {"ok": False, "description": "Unknown error"}
-    for attempt in range(1, 6):
+    for attempt in range(1, 4):
         try:
             response = session.post(url, data=data or {}, files=files, timeout=90)
             result = response.json()
@@ -1950,7 +1825,7 @@ def telegram_call(method, data=None, files=None):
                 return result
             last = result
             if response.status_code == 429:
-                retry_after = int(result.get("parameters", {}).get("retry_after", 5))
+                retry_after = min(5, int(result.get("parameters", {}).get("retry_after", 2)))
                 logger.warning("Telegram 429; waiting %ss", retry_after)
                 time.sleep(max(1, retry_after))
                 continue
@@ -1975,6 +1850,15 @@ def _button_markup(job):
     return {
         "inline_keyboard": [[{"text": label, "url": target}]]
     }
+
+
+def send_rich_text(blocks, job):
+    payload={
+        "chat_id":TELEGRAM_CHANNEL,
+        "rich_message":json.dumps({"blocks":blocks},ensure_ascii=False,separators=(",",":")),
+        "reply_markup":json.dumps(_button_markup(job),ensure_ascii=False,separators=(",",":")),
+    }
+    return telegram_call("sendRichMessage",data=payload)
 
 
 def send_bot_api_text_fallback(job, plain_text):
@@ -2097,7 +1981,7 @@ def rich_message_blocks(job):
         "cells":cells,
         "is_bordered":True,
         "is_striped":True,
-        "is_compact":False,
+        "is_compact":True,
     })
 
     tags=" ".join(job_hashtags(job))
@@ -2167,120 +2051,79 @@ def fit_rich_blocks(job):
 # MAIN
 # ============================================================
 
+def _research_items_parallel(items):
+    results=[]
+    if not items: return results
+    with ThreadPoolExecutor(max_workers=max(1,FAST_DETAIL_WORKERS)) as executor:
+        futures={executor.submit(research_job,item):item for item in items}
+        for future in as_completed(futures):
+            item=futures[future]
+            try: researched=future.result()
+            except Exception as exc:
+                logger.warning("RESEARCH worker failed %s: %s",item.get("url"),exc); researched=None
+            if not researched: continue
+            researched["source_url"]=item["url"]; researched["canonical"]=item["canonical"]
+            researched["is_government"]=bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower()
+            researched["source"]=("Dohaj Government Jobs" if researched["is_government"] and is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
+            results.append(researched)
+    return results
+
+
+def _prepare_shortlists(discovered):
+    unique=build_unique_job_pool(discovered)
+    gov=[x for x in unique if x.get("is_government")]
+    private=[x for x in unique if not x.get("is_government")]
+    gov.sort(key=lambda j:(-posted_freshness_score({"posted_date":j.get("listing_posted")}),j.get("canonical","")))
+    private.sort(key=lambda j:(-job_family_score(j.get("title",""),j.get("excerpt","")),-posted_freshness_score({"posted_date":j.get("listing_posted")}),j.get("canonical","")))
+    return gov[:FAST_GOVERNMENT_CANDIDATE_TARGET],private[:FAST_PRIVATE_CANDIDATE_TARGET]
+
+
 def run():
-    logger.info("CAREERNEWSROOM V4")
-    logger.info(
-        "Channel=%s | Sources=Bdjobs+Dohaj | Minimum total=%d | Max/run=%d | Gov=%d-%d first",
-        TELEGRAM_CHANNEL, MIN_STORIES_PER_RUN, MAX_STORIES_PER_RUN,
-        MIN_GOVERNMENT_POSTS_PER_RUN, MAX_GOVERNMENT_POSTS_PER_RUN,
-    )
+    started=time.monotonic()
+    logger.info("CAREERNEWSROOM V1 | fast incremental pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
     prune_state()
-
     discovered=discover_all()
+    gov_items,private_items=_prepare_shortlists(discovered)
+    logger.info("SHORTLISTS | government=%d private=%d",len(gov_items),len(private_items))
+    researched=_research_items_parallel(gov_items+private_items)
     verified=[]
-    rejected=0
-    for item in discovered:
-        researched=research_job(item)
-        if not researched:
-            rejected+=1
-            continue
-        researched["source_url"]=item["url"]
-        researched["canonical"]=item["canonical"]
-        researched["is_government"]=bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower()
-        researched["source"]=("Dohaj Government Jobs" if researched["is_government"] and is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
-        ok,reason=deterministic_job_gate(researched)
+    for job in researched:
+        ok,reason=deterministic_job_gate(job)
         if not ok:
-            rejected+=1
-            logger.info("DROP gate: %s | %s | %s",reason,item.get("source",""),item.get("title",""))
-            continue
-        save_job_to_queue(researched)
-        if not candidate_already_posted(researched):
-            verified.append(researched)
-
+            logger.info("DROP gate: %s | %s | %s",reason,job.get("source",""),job.get("title","")); continue
+        save_job_to_queue(job)
+        if not candidate_already_posted(job): verified.append(job)
     save_state(STATE)
     unique=build_unique_job_pool(verified)
-
     government_jobs=[j for j in unique if j.get("is_government")]
-    # Carry forward active/unpublished government jobs already in the queue.
-    for queued in STATE.get("queue",{}).values():
-        if queued.get("record_format") != 4: continue
-        if not queued.get("is_government"): continue
-        if queued.get("status") not in {"pending","selected"}: continue
-        if candidate_already_posted(queued) or deadline_status(queued)=="expired": continue
-        government_jobs.append(dict(queued))
-    government_jobs=build_unique_job_pool(government_jobs)
-
     private_jobs=[j for j in unique if not j.get("is_government")]
     ranked_private=rank_jobs(private_jobs)
-
     selected=select_final_jobs(ranked_private,government_jobs)
-
-    # A temporary queued-private fallback can satisfy the minimum total when current
-    # discovery/AI retrieval is short, but never raises the run above 20 posts.
-    if len(selected)<MIN_STORIES_PER_RUN:
-        used={j.get("canonical") for j in selected}
-        queued_private=[]
-        for queued in STATE.get("queue",{}).values():
-            if queued.get("record_format") != 4 or queued.get("is_government") or queued.get("status") not in {"pending","selected"}: continue
-            if candidate_already_posted(queued) or deadline_status(queued)=="expired": continue
-            target=queued.get("bba_mba_target_score",bba_mba_candidate_score(queued))
-            if target<25: continue
-            q=dict(queued)
-            q["bba_mba_target_score"]=target
-            q.setdefault("judge_publish",True)
-            q.setdefault("judge_score",60)
-            q["private_rank_score"]=private_rank_score(q)
-            queued_private.append(q)
-        queued_private.sort(key=lambda j:-j.get("private_rank_score",0))
-        for job in queued_private:
-            if len(selected)>=MIN_STORIES_PER_RUN or len(selected)>=MAX_STORIES_PER_RUN: break
-            key=job.get("canonical")
-            if not key or key in used: continue
-            selected.append(job); used.add(key)
-
-    # Final safety: government first, absolute 20-post maximum.
     gov_part=[j for j in selected if j.get("is_government")]
     priv_part=[j for j in selected if not j.get("is_government")]
     selected=(gov_part+priv_part)[:MAX_STORIES_PER_RUN]
-    gov_selected_count=sum(1 for j in selected if j.get("is_government"))
-    logger.info(
-        "FINAL SELECTED=%d | government=%d | private=%d | max=%d | min_total=%d",
-        len(selected),gov_selected_count,len(selected)-gov_selected_count,MAX_STORIES_PER_RUN,MIN_STORIES_PER_RUN,
-    )
-
+    logger.info("FINAL SELECTED=%d | government=%d | private=%d | discovery=%d | elapsed_before_publish=%.1fs",len(selected),len(gov_part),len(priv_part),len(discovered),time.monotonic()-started)
     published_count=0
     for index,job in enumerate(selected,start=1):
         blocks=fit_rich_blocks(job)
-        if rich_blocks_visible_length(blocks)>MAX_RICH_CHARACTERS:
-            logger.error("DROP render length: %s",job.get("title","")); continue
+        if rich_blocks_visible_length(blocks)>MAX_RICH_CHARACTERS: continue
         store_selected_event(job,published=False)
-
-        # V4 is always text-only. No image download, no photo block, no fallback image.
         result=send_rich_text(blocks,job)
         if not result.get("ok"):
-            logger.warning("Rich Message failed; Bot API text fallback: %s",result.get("description"))
-            result=send_bot_api_text_fallback(job,plain_job_text(job))
-
+            logger.warning("Rich Message failed; text fallback: %s",result.get("description")); result=send_bot_api_text_fallback(job,plain_job_text(job))
         if result.get("ok"):
             published_count+=1
-            message=result.get("result",{})
-            message_id=message.get("message_id") if isinstance(message,dict) else None
-            POSTED_URLS.add(canonical_url(job["source_url"]))
-            save_posted_url(canonical_url(job["source_url"]))
+            message=result.get("result",{}); message_id=message.get("message_id") if isinstance(message,dict) else None
+            POSTED_URLS.add(canonical_url(job["source_url"])); save_posted_url(canonical_url(job["source_url"]))
             item=STATE["queue"].get(job["canonical"])
-            if item:
-                item.update({"status":"posted","posted_at":now_iso(),"judge_score":job.get("judge_score",0),"apply_url":job.get("apply_url","")})
-            store_selected_event(job,published=True,message_id=message_id)
-            STATE["recent_titles"].append(normalize_title(job["title"]))
-            logger.info("PUBLISHED %d | %s | %s",published_count,job.get("source"),job.get("title"))
-        else:
-            logger.error("Telegram failed: %s",result.get("description"))
+            if item: item.update({"status":"posted","posted_at":now_iso(),"pipeline_version":PIPELINE_VERSION,"judge_score":job.get("judge_score",0)})
+            store_selected_event(job,published=True,message_id=message_id); STATE["recent_titles"].append(normalize_title(job["title"]))
+            logger.info("PUBLISHED %d/%d | %s | %s",published_count,len(selected),job.get("source"),job.get("title"))
+        else: logger.error("Telegram failed: %s",result.get("description"))
         save_state(STATE)
-        time.sleep(POST_DELAY_SECONDS)
-
-    STATE["last_run"]=now_iso()
-    save_state(STATE)
-    logger.info("Finished. Published=%d | hard_max=%d",published_count,MAX_STORIES_PER_RUN)
+        if POST_DELAY_SECONDS>0 and index<len(selected): time.sleep(POST_DELAY_SECONDS)
+    STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
+    logger.info("Finished V1. Published=%d | elapsed=%.1fs | hard_max=%d",published_count,time.monotonic()-started,MAX_STORIES_PER_RUN)
 
 
 # ============================================================
@@ -2333,7 +2176,7 @@ def self_test():
     table=next(b for b in blocks if b.get("type")=="table")
     assert table["is_bordered"] is True
     assert table["is_striped"] is True
-    assert table["is_compact"] is False
+    assert table["is_compact"] is True
     assert not any(b.get("type")=="photo" for b in blocks)
 
     # Experience must not absorb technical responsibilities.
@@ -2418,7 +2261,14 @@ def self_test():
     # Photo feature is fully disabled in V4.
     assert not any(b.get("type")=="photo" for b in rich_message_blocks(fresh))
 
-    logger.info("CareerNewsroom V4 self-test passed.")
+    assert PIPELINE_VERSION == "V1-fast-incremental"
+    assert MAX_STORIES_PER_RUN == 20
+    assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
+    assert MAX_GOVERNMENT_POSTS_PER_RUN == 5
+    assert FAST_DETAIL_WORKERS >= 1
+    assert FAST_AI_CANDIDATE_LIMIT <= 20
+    assert callable(send_rich_text)
+    logger.info("CareerNewsroom V1 self-test passed.")
 
 
 if __name__ == "__main__":

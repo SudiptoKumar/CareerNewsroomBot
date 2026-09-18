@@ -1,21 +1,69 @@
-# CareerNewsroom V4
+# CareerNewsroomBot V1
 
-Production-oriented Bangladesh job newsroom for BBA/MBA students, graduates, freshers and early-career business candidates.
+Fast, incremental Bangladesh job-news pipeline for Career Newsroom.
 
-## What V4 fixes
+## Core goal
 
-### Hard publication limit
-- **Maximum: 20 posts per run.**
-- **Minimum target: 5 total** when at least five eligible jobs are available.
-- **Government: 3-5 posts first** on every run when enough eligible/unposted government vacancies are available.
-- Government vacancies are **not filtered by BBA/MBA relevance**.
-- Private vacancies fill the remaining slots up to the hard limit of 20.
+Each scheduled run should finish in **about 5 minutes or less under normal source/network conditions**.
+The bot does **not** crawl the historical job archive on every run.
 
-### Government coverage
-Dohaj government discovery scans the exposed `https://dohaj.com/gov-jobs` feed across its available pagination window, queues verified active/unpublished circulars, and publishes 3-5 of them first on each run. The current Dohaj government feed is paginated at 40 jobs per page and, as of the current source snapshot, exposes hundreds of archived/current entries.
+```text
+Dedicated source URLs
+        ↓
+Latest listing pages only
+        ↓
+Early duplicate + cheap relevance filter
+        ↓
+Small detail-page shortlist
+        ↓
+Parallel detail retrieval
+        ↓
+Source-backed extraction
+        ↓
+Deterministic ranking
+        ↓
+Optional ONE Cerebras review of top private candidates
+        ↓
+3–5 Government first
+        ↓
+Fill remaining slots with private BBA/MBA jobs
+        ↓
+Hard maximum 20
+        ↓
+Consistency validation
+        ↓
+Telegram Rich Message
+```
 
-### Private-job source coverage
-The private pipeline uses fixed Dohaj category feeds for the business-heavy areas listed below plus the main all-jobs feed:
+## Publication rules
+
+- Maximum **20 posts per run**.
+- Minimum target **5 posts** when at least 5 eligible new jobs exist.
+- **3–5 government jobs first** whenever at least 3 valid new government jobs are available.
+- Government jobs have **no BBA/MBA filter**.
+- Private jobs must be relevant to BBA/MBA/business candidates.
+- Private ranking priority:
+  1. BBA/MBA and related business education fit
+  2. Fresher/no-experience/early-career suitability
+  3. Role relevance
+  4. Publish freshness
+  5. Deadline usefulness
+  6. Job-information quality
+  7. Optional AI editorial fit
+- More years of experience are not automatically ranked higher. Early-career roles are favored for the channel audience.
+- Photo feature is completely disabled.
+
+## Source discovery
+
+### Government
+
+`https://dohaj.com/gov-jobs`
+
+V1 reads the latest government listing page first and goes to another page only when the current candidate pool is insufficient. It does not scan the full government archive every run.
+
+### Dohaj private
+
+The bot uses the existing dedicated business-oriented sections:
 
 - `https://dohaj.com/category/accounting-finance`
 - `https://dohaj.com/category/marketing-sales`
@@ -30,86 +78,128 @@ The private pipeline uses fixed Dohaj category feeds for the business-heavy area
 - `https://dohaj.com/category/ngo-development`
 - `https://dohaj.com/jobs/all`
 
-Each private candidate is retrieved from its detail page before publication filtering.
+Only the latest listing windows are read. Discovery stops when the private candidate pool reaches its target.
 
-## Ranking model
-Private jobs are ranked in this order of importance:
+### Bdjobs
 
-1. **Education fit**: BBA/MBA first, then closely related business degrees, then broader bachelor/master requirements.
-2. **Experience level**: fresher/no experience and lower-year requirements are prioritized over higher-year requirements.
-3. **Publish freshness**: newer jobs are prioritized.
-4. **Deadline urgency**: active vacancies with closer deadlines receive higher priority.
-5. **Job quality**: completeness, verified source/apply link, and clean extracted fields.
-6. **AI editorial fit**: Cerebras suitability judgment is used as an eligibility signal and a small tie-break factor.
+The official Bdjobs search page is used as the source. Page 1 is read first; page 2 is used only when the private pool is still too small.
 
-Government jobs use a separate recency/deadline/quality ranking and do not pass through the private BBA/MBA gate.
+## Detail retrieval
 
-## Field extraction and mismatch protection
-V4 separates source sections instead of taking the first matching number/text anywhere on the page. This prevents problems such as: salary or age becoming vacancy, responsibility text becoming experience, or one post's value being attached to another field.
+Only shortlisted jobs receive detail-page requests.
 
-Supported source labels include English and Dohaj's Bengali labels such as `প্রতিষ্ঠানের নাম`, `চাকুরি স্থান`, `বয়সসীমা`, `বেতন`, `প্রকাশিত`, `শেষ তারিখ`, and application-period labels. Dates are normalized to ISO `YYYY-MM-DD`.
+Detail pages are fetched concurrently with a bounded worker pool. Default: **8 workers**.
 
-Experience is displayed in the table only when the source explicitly states a duration/fresher status. Technical skill lists or `Area of Experience` descriptions are not shown as the Experience value.
+V1 does not use Exa search or Exa content retrieval. Direct source retrieval is authoritative and faster. If a detail page fails, that candidate is skipped rather than starting a slow external search workflow.
 
-Missing fields are omitted, not replaced with `--` or invented values.
+## AI usage
 
-## Post format
+Cerebras is optional. Deterministic filtering/ranking happens first.
 
-```text
-📣 Job Title
-🏢 Company
+Only **one compact Cerebras batch**, containing at most 20 private candidates, is sent for editorial suitability review. If Cerebras returns a quota/rate-limit/error response, V1 immediately continues with deterministic ranking. There are no multi-batch retry loops.
 
-JOB SNAPSHOT
+## Ranking
 
-FIELD | DETAILS
-📍 Location | Dhaka
-💼 Employment | Full Time
-🏢 Workplace | On-site
-🎓 Education | BBA/MBA
-🧑‍💼 Experience | Freshers
-💰 Salary | Tk. 30,000-40,000/month
-👥 Vacancy | 2
-🎂 Age | 18-30 years
-📝 Application | Online
-🗓️ Application Period | 2026-09-24 to 2026-09-25
-🧪 Selection | Written + Viva
-📅 Deadline | 2026-09-30
-🕒 Posted | 2026-09-18
+Private score emphasizes:
 
-#Marketing #EarlyCareer
-Source: Dohaj
-```
+- BBA/MBA fit
+- Fresher/early-career fit
+- Relevant business function
+- Freshness
+- Deadline
+- Information completeness
+- Optional AI tie-break
 
-The table uses Telegram Bot API 10.3 Rich Messages with a native table, `is_bordered=true`, striped rows and non-compact cells for clearer visual separation.
-
-## Photo feature
-**Completely disabled in V4.** No image URL is downloaded, no photo block is added, and no source/logo/placeholder image is generated or used. Every post is text-only Rich Message content.
+Government jobs use a separate freshness/deadline/quality score and are selected before private jobs.
 
 ## Duplicate protection
-Duplicate detection uses:
-- canonical source URL
-- persistent `posted_urls.txt`
-- cross-source event identity from normalized title/company/location
-- verified application-target identity when available
-- fuzzy title/company/location comparison for mirrored or slightly edited copies
-- persistent `news_state.json` event history
 
-This is designed to prevent repeated Dohaj category copies and Dohaj/Bdjobs mirrors from being published again as separate jobs.
+V1 uses:
 
-## AI and retrieval
-- **Exa:** fallback retrieval only when direct source retrieval is blocked/thin.
-- **Cerebras:** private-job audience/editorial suitability.
-- **Python:** discovery, pagination, detail retrieval, multilingual extraction, normalization, deadline validation, duplicate filtering, ranking and Telegram publication.
+1. Canonical source URL
+2. Persistent `posted_urls.txt`
+3. Persistent `news_state.json` events
+4. Normalized title + company + location identity
+5. Application-target identity when available
+6. Fuzzy title/company/location matching
+7. Cross-source mirror detection between Dohaj and Bdjobs
 
-## Required GitHub secrets
-- `EXA_API_KEY`
-- `CEREBRAS_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
+A job appearing in several Dohaj categories is treated as one vacancy.
 
-Optional variables:
-- `DOHAJ_PRIVATE_PAGES_PER_SECTION` default `3`
-- `DOHAJ_GOVERNMENT_MAX_PAGES` default `30`
-- `MAX_PRIVATE_JUDGE_CANDIDATES` default `220`
-- `MAX_BDJOBS_DISCOVERY_PAGES` default `8`
-- `MAX_BDJOBS_DETAIL_CANDIDATES` default `160`
-- `POST_DELAY_SECONDS` default `2.5`
+## Field consistency
+
+Each job is converted into one source-backed record. The Telegram post is rendered only from that record.
+
+This prevents mismatches such as one job's vacancy appearing in another job, salary becoming vacancy, responsibilities becoming Experience, or the wrong source being shown.
+
+### Table fields
+
+- Location
+- Employment
+- Workplace
+- Education
+- Experience
+- Salary
+- Vacancy
+- Age
+- Application
+- Application Period
+- Selection
+- Deadline
+- Posted
+
+Missing fields are omitted. No `--` or invented values.
+
+Experience appears only for real duration/fresher status. Technical skills, responsibilities and `Area of Experience` text are not treated as Experience.
+
+## Telegram design
+
+V1 uses Telegram Bot API `sendRichMessage` with native Rich Message blocks. The table is:
+
+- bordered
+- striped
+- compact for mobile
+
+No photo block, logo fallback, placeholder image or generated image is used.
+
+`APPLY NOW` is shown when a verified application URL exists. Otherwise `READ MORE` opens the source page.
+
+## Runtime controls
+
+```text
+MAX_STORIES_PER_RUN=20
+MIN_STORIES_PER_RUN=5
+MIN_GOVERNMENT_POSTS_PER_RUN=3
+MAX_GOVERNMENT_POSTS_PER_RUN=5
+FAST_PRIVATE_CANDIDATE_TARGET=60
+FAST_GOVERNMENT_CANDIDATE_TARGET=10
+FAST_DETAIL_WORKERS=8
+FAST_AI_CANDIDATE_LIMIT=20
+FAST_DISCOVERY_TIMEOUT=15
+FAST_DETAIL_TIMEOUT=18
+POST_DELAY_SECONDS=1.0
+```
+
+## GitHub secrets
+
+Required:
+
+```text
+TELEGRAM_BOT_TOKEN
+```
+
+Optional:
+
+```text
+CEREBRAS_API_KEY
+CEREBRAS_MODEL
+```
+
+`EXA_API_KEY` is not required in V1.
+
+## Validation
+
+```bash
+python -m py_compile main.py
+python main.py --self-test
+```
