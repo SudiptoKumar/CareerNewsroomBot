@@ -39,7 +39,7 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Polish-1.1"
+PIPELINE_VERSION = "Polish-1.2"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -937,6 +937,13 @@ def compact_experience(value, raw_text=""):
     # Only publish actual experience duration/fresher status. Never transform
     # technical skills, responsibilities or "area of experience" into a fake duration.
     blob = _clean_one_line(value)
+    # Dohaj sometimes renders the Experience label/value as a separate summary block.
+    # If the first label extraction missed it, recover only the label-specific value.
+    if not blob and raw_text:
+        recovered = _label_value(raw_text, [
+            "Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"
+        ])
+        blob = _clean_one_line(recovered)
     if not blob:
         return ""
     patterns = [
@@ -1310,7 +1317,7 @@ BANGLA_PHRASE_MAP={
     "কর অঞ্চল":"Tax Zone","ঢাকা":"Dhaka","ময়মনসিংহ":"Mymensingh","ময়মনসিংহ":"Mymensingh","চট্টগ্রাম":"Chattogram","খুলনা":"Khulna","রাজশাহী":"Rajshahi","সিলেট":"Sylhet","বরিশাল":"Barishal","রংপুর":"Rangpur","কক্সবাজার":"Cox's Bazar",
     "আবেদন":"Application","আবেদনের":"Application","অনলাইন":"Online","লিখিত":"Written","মৌখিক":"Viva","পরীক্ষা":"Exam",
     "বেতন":"Salary","বয়সসীমা":"Age Limit","বয়সসীমা":"Age Limit","অভিজ্ঞতা":"Experience","শিক্ষাগত যোগ্যতা":"Educational Qualification",
-    "পদ সংখ্যা":"Vacancy","পদসংখ্যা":"Vacancy","পদ":"Post","সংখ্যা":"Number","প্রকাশিত":"Published","শেষ তারিখ":"Deadline","চাকরির ধরন":"Employment Type",
+    "পদ সংখ্যা":"Vacancy","পদসংখ্যা":"Vacancy","পদ":"Post","সংখ্যা":"Number","জন":"People","জনকে":"People","টি":"","প্রকাশিত":"Published","শেষ তারিখ":"Deadline","চাকরির ধরন":"Employment Type",
     "চাকুরি স্থান":"Job Location","চাকরি স্থান":"Job Location", "আবেদন শুরুর সময়":"Application Start Time","আবেদন শুরুর সময়":"Application Start Time",
     "আবেদনের শেষ সময়":"Application End Time","আবেদনের শেষ সময়":"Application End Time",
     "থেকে":"to","বছরের":"Years","বছর":"Years","এসএসসি":"SSC","এইচএসসি":"HSC",
@@ -1331,7 +1338,7 @@ def fallback_government_translate(value):
     out=re.sub(r"\s+"," ",out)
     return smart_title_case(out)
 
-GOV_TRANSLATE_SCHEMA={"type":"object","properties":{"results":{"type":"array","items":{"type":"object","properties":{k:{"type":"string"} for k in ("id","title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category")},"required":["id","title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category"],"additionalProperties":False}}},"required":["results"],"additionalProperties":False}
+GOV_TRANSLATE_SCHEMA={"type":"object","properties":{"results":{"type":"array","items":{"type":"object","properties":{k:{"type":"string"} for k in ("id","title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category")},"required":["id","title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category"],"additionalProperties":False}}},"required":["results"],"additionalProperties":False}
 
 def translate_government_jobs(jobs):
     """Translate government fields once, with local fallback so no Bangla is published."""
@@ -1343,7 +1350,7 @@ def translate_government_jobs(jobs):
         job["source"]="Dohaj"
         if not job.get("company"):
             job["company"]=infer_government_organization(job.get("title","")) or "Government Organization"
-        source_fields={k:safe_text(job.get(k,"")) for k in ("title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category")}
+        source_fields={k:safe_text(job.get(k,"")) for k in ("title","company","location","salary","experience","education","employment_type","workplace","age","vacancy","application_method","selection_process","category")}
         if any(_contains_bengali(v) for v in source_fields.values()):
             source_snapshots.append((job,source_fields))
         for key,value in source_fields.items():
@@ -1381,7 +1388,7 @@ def translate_government_jobs(jobs):
             except Exception: continue
             if 1<=idx<=len(source_snapshots):
                 job,_=source_snapshots[idx-1]
-                for key in ("title","company","location","salary","experience","education","employment_type","workplace","age","application_method","selection_process","category"):
+                for key in ("title","company","location","salary","experience","education","employment_type","workplace","age","vacancy","application_method","selection_process","category"):
                     value=safe_text(row.get(key))
                     if value:
                         job[key]=smart_title_case(value)
@@ -2024,6 +2031,10 @@ def rank_jobs(jobs):
             if 1<=idx<=len(ai_candidates): judged_by_key[ai_candidates[idx-1].get("canonical")]=row
     ranked=[]
     for job in pre_ranked:
+        # Defense-in-depth: experience can be enriched after the first gate.
+        if private_experience_too_high(job):
+            logger.info("DROP rank gate: experience_above_%d_years | %s", MAX_PRIVATE_EXPERIENCE_YEARS, job.get("title",""))
+            continue
         row=judged_by_key.get(job.get("canonical"),{})
         candidate=dict(job)
         candidate.update({
@@ -2104,6 +2115,7 @@ def select_private_jobs_by_category(ranked, limit):
         and job.get("judge_score",0)>=60
         and deadline_status(job)!="expired"
         and job.get("bba_mba_target_score",0)>=25
+        and not private_experience_too_high(job)
         and not candidate_already_posted(job)
     ]
     return eligible[:max(0, int(limit))]
@@ -2158,6 +2170,8 @@ def select_final_jobs(private_ranked, government_jobs):
             if deadline_status(job)=="expired":
                 continue
             if job.get("bba_mba_target_score",0)<25:
+                continue
+            if private_experience_too_high(job):
                 continue
             selected.append(job); used.add(key)
 
@@ -2241,6 +2255,7 @@ def send_rich_text(blocks, job):
         "chat_id":TELEGRAM_CHANNEL,
         "rich_message":json.dumps({"blocks":blocks},ensure_ascii=False,separators=(",",":")),
         "reply_markup":json.dumps(_button_markup(job),ensure_ascii=False,separators=(",",":")),
+        "protect_content": True,
     }
     return telegram_call("sendRichMessage",data=payload)
 
@@ -2252,6 +2267,7 @@ def send_bot_api_text_fallback(job, plain_text):
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": json.dumps(_button_markup(job), ensure_ascii=False),
+        "protect_content": True,
     }
     return telegram_call("sendMessage", data=data)
 
@@ -2261,7 +2277,7 @@ def send_bot_api_text_fallback(job, plain_text):
 # ============================================================
 
 def display_value(value):
-    return clean_generated_text(safe_text(value))
+    return english_display_text(clean_generated_text(safe_text(value)))
 
 
 def job_hashtags(job):
@@ -2303,8 +2319,20 @@ def _field_icon(label):
     }.get(label, "•")
 
 
+def english_display_text(value):
+    """Guarantee that user-visible job text contains no Bengali script."""
+    text=_clean_one_line(value)
+    if not text:
+        return ""
+    if _contains_bengali(text):
+        text=fallback_government_translate(text)
+    # A final Bengali-digit pass is useful for values such as government vacancy counts.
+    text=text.translate(BENGALI_DIGIT_MAP)
+    return _clean_one_line(text)
+
+
 def job_snapshot_rows(job):
-    """Return only source-backed available fields, in one consistent order."""
+    """Return only source-backed available fields; dates shown are Deadline and Posted only."""
     mapping=[
         ("Location","location"),
         ("Employment","employment_type"),
@@ -2315,17 +2343,16 @@ def job_snapshot_rows(job):
         ("Vacancy","vacancy"),
         ("Age","age"),
         ("Application","application_method"),
-        ("Application Start","application_start"),
-        ("Application End","application_end"),
         ("Deadline","deadline"),
         ("Posted","posted_date"),
     ]
     rows=[]
     for label,key in mapping:
-        raw=_clean_one_line(job.get(key))
+        raw=english_display_text(job.get(key))
         if not raw or raw.lower() in {"—","--","n/a","na","not available","not specified","none","null"}:
             continue
         value=format_table_value(label,raw)
+        value=english_display_text(value)
         if not value or value=="—":
             continue
         rows.append((label,value))
@@ -2369,6 +2396,10 @@ def rich_message_blocks(job):
         "is_compact":False,
     })
 
+    # RichBlockTable has no width/min-width property in Telegram Bot API.
+    # A fixed-length divider gives short posts the same practical bubble width as
+    # longer posts without adding a fake data row or changing the table columns.
+    blocks.append({"type":"paragraph","text":"────────────────────────────────────────────────"})
     tags=" ".join(job_hashtags(job))
     if tags:
         blocks.append({"type":"paragraph","text":tags})
@@ -2489,6 +2520,24 @@ def run():
     priv_part=[j for j in selected if not j.get("is_government")]
     selected=(gov_part+priv_part)[:MAX_STORIES_PER_RUN]
     selected=translate_government_jobs(selected)
+    # Final publication safety: never publish a private role that now exposes an
+    # experience requirement above the early-career cap, even if a later enrichment
+    # step changed the field after the first gate.
+    safe_selected=[]
+    for job in selected:
+        if not job.get("is_government") and private_experience_too_high(job):
+            logger.info("DROP final safety gate: experience_above_%d_years | %s", MAX_PRIVATE_EXPERIENCE_YEARS, job.get("title",""))
+            continue
+        safe_selected.append(job)
+    selected=safe_selected[:MAX_STORIES_PER_RUN]
+    # No Bengali script may reach Telegram. Government jobs get the AI/local translator;
+    # any remaining Bengali is locally normalized before rendering.
+    for job in selected:
+        for key in ("title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category"):
+            if _contains_bengali(job.get(key,"")):
+                job[key]=fallback_government_translate(job.get(key,""))
+        job["title"]=english_display_text(job.get("title",""))
+        job["company"]=english_display_text(job.get("company",""))
     logger.info("FINAL SELECTED=%d | government=%d | private=%d | discovery=%d | elapsed_before_publish=%.1fs",len(selected),len([j for j in selected if j.get("is_government")]),len([j for j in selected if not j.get("is_government")]),len(discovered),time.monotonic()-started)
     published_count=0
     for index,job in enumerate(selected,start=1):
@@ -2572,10 +2621,9 @@ def self_test():
     period_fields=dict(fields)
     period_fields["application_start"]="2026-09-15"
     period_fields["application_end"]="2026-10-06"
-    period_rows=job_snapshot_rows(period_fields)
-    period_map=dict(period_rows)
-    assert period_map["Application Start"]=="15-09-2026"
-    assert period_map["Application End"]=="06-10-2026"
+    period_map=dict(job_snapshot_rows(period_fields))
+    assert "Application Start" not in period_map and "Application End" not in period_map
+    assert "Deadline" in period_map and "Posted" in period_map
     assert compact_age("at least 25 years")=="25 Years"
     assert compact_age("18 to 30 years")=="18-30 Years"
     assert smart_title_case("global asia bangladesh limited")=="Global Asia Bangladesh Limited"
@@ -2670,6 +2718,9 @@ def self_test():
 
     # Photo feature is fully disabled.
     assert not any(b.get("type")=="photo" for b in rich_message_blocks(fresh))
+    assert any("─" in str(b.get("text","")) for b in rich_message_blocks(fresh) if isinstance(b,dict))
+    # Rendering never includes application start/end rows.
+    assert not any(label in {"Application Start","Application End","Application Period"} for label,_ in job_snapshot_rows(fresh))
 
     # Dohaj full-page Job Summary must supply the authoritative private fields.
     dohaj_fixture="""
@@ -2751,7 +2802,7 @@ def self_test():
     translated=translate_government_jobs([translated])[0]
     assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
 
-    assert PIPELINE_VERSION == "Polish-1.1"
+    assert PIPELINE_VERSION == "Polish-1.2"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3

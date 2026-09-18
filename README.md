@@ -1,4 +1,4 @@
-# CareerNewsroomBot Polish
+# CareerNewsroomBot Polish 1.2
 
 Fast, incremental Bangladesh job-news pipeline for Career Newsroom with a polished, standardized post format.
 
@@ -32,7 +32,7 @@ Hard maximum 20
         ↓
 Consistency validation
         ↓
-Polish formatter: fixed table + English government text + DD-MM-YYYY dates
+Polish formatter: available-fields-only table + English-only output + DD-MM-YYYY dates
         ↓
 Telegram Rich Message
 ```
@@ -44,7 +44,7 @@ Telegram Rich Message
 - **3–5 government jobs first** whenever at least 3 valid new government jobs are available.
 - Government jobs have **no BBA/MBA filter**.
 - Private jobs must be relevant to BBA/MBA/business candidates.
-- Private jobs must also pass a hard early-career experience gate. By default, the maximum accepted explicit experience band is **3 years**. Examples such as `3-7 years` and `7+ years` are rejected before AI ranking.
+- Private jobs must also pass a hard early-career experience gate. By default, the maximum accepted explicit experience band is **3 years**. Examples such as `3-7 years` and `7+ years` are rejected before AI ranking, and the same hard gate is rechecked immediately before publication so later enrichment cannot reintroduce a senior role.
 - Private ranking priority after the hard gate:
   1. BBA/MBA and related business education fit
   2. Fresher/no-experience/early-career suitability
@@ -54,6 +54,11 @@ Telegram Rich Message
   6. Job-information quality
   7. Optional AI editorial fit
 - Photo feature is completely disabled.
+- Application Start/Application End/Application Period are not displayed. Only Deadline and Posted are displayed as date rows.
+- Missing source fields are omitted from the table. The bot never inserts `—` placeholders for unavailable information.
+- Bengali script is blocked from publication. Government vacancy counts and other Bengali fields are translated/normalized before rendering.
+- Telegram posts use `protect_content=true` so the client does not expose the normal forward/share control for newly published posts. This also means users cannot forward/save protected posts.
+- Rich Message tables have no Bot API width/min-width setting. Polish 1.2 uses a fixed divider width anchor so short posts render with a consistent practical bubble width on mobile clients while retaining the native table. Exact pixel width remains Telegram-client controlled.
 
 ## Source discovery
 
@@ -92,7 +97,7 @@ Only shortlisted jobs receive detail-page requests.
 
 Detail pages are fetched concurrently with a bounded worker pool. Default: **8 workers**.
 
-For Dohaj, the extractor uses the **full visible page text first** because important Job Summary fields can be outside the article text selected by high-precision extraction. It then supplements that text with the article extraction when useful. This preserves authoritative fields such as vacancy, age, location, salary, employment type and workplace.
+For Dohaj, the extractor uses the **full visible page text first** because important Job Summary fields can be outside the article text selected by high-precision extraction. It then supplements that text with the article extraction when useful. This preserves authoritative fields such as vacancy, age, location, salary, education, experience, employment type and workplace. If a labeled Experience field is missed by the first parser, the extractor performs a second label-specific recovery from the full page text.
 
 V1 does not use Exa search or Exa content retrieval. Direct source retrieval is authoritative and faster. If a detail page fails, that candidate is skipped rather than starting a slow external search workflow.
 
@@ -228,3 +233,14 @@ CEREBRAS_MODEL
 python -m py_compile main.py
 python main.py --self-test
 ```
+
+## Polish 1.2 regression fixes
+
+- Removed `Application Start`, `Application End`, and `Application Period` from the rendered table.
+- Added Bengali-vacancy translation, including Bengali numerals such as `৩৩৮` -> `338`.
+- Added final no-Bengali publication validation for title, company and table fields.
+- Added a second experience extraction pass and defense-in-depth private experience filtering.
+- Added Telegram `protect_content` to both Rich Message and fallback sends.
+- Restored a stable practical message-width anchor because the Rich Message table API does not expose a minimum-width property.
+
+Pipeline version: `Polish-1.2`.
