@@ -1,9 +1,0 @@
-# Runtime dependencies
-requests>=2.32,<3
-urllib3>=2.5,<3
-beautifulsoup4>=4.13,<5
-Pillow>=12,<13
-feedparser>=6.0,<7
-trafilatura>=2.0,<3
-exa-py>=2.22,<3
-cerebras_cloud_sdk>=1,<3
