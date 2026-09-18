@@ -1,4 +1,4 @@
-name: CareerNewsroomBot
+name: CareerNewsroom V0.5
 
 on:
   schedule:
@@ -7,16 +7,6 @@ on:
     - cron: "0,30 0-2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
-    inputs:
-      mode:
-        description: "Run mode"
-        required: false
-        default: "publish"
-        type: choice
-        options:
-          - publish
-          - dry-run
-          - live-test
 
 permissions:
   contents: write
@@ -26,62 +16,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  career-news:
+  run-career-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     env:
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-      CEREBRAS_MODEL: "gpt-oss-120b"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
+      CEREBRAS_MODEL: "gpt-oss-120b"
       PYTHONUNBUFFERED: "1"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v7
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-          cache: pip
+          python-version: "3.12"
+          cache: "pip"
           cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
 
-      - name: Compile
+      - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Self test
+      - name: Run self-test
         run: python main.py --self-test
 
-      - name: Live API test
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'live-test'
-        run: python main.py --live-test
-
-      - name: Run dry test
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'
-        run: python main.py --dry-run
-
-      - name: Run bot
-        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'publish'
+      - name: Run CareerNewsroom V0.5
         run: python main.py
 
       - name: Save state
         if: always()
         run: |
-          git config user.name "CareerNewsroomBot"
+          git config user.name "Career News Bot"
           git config user.email "actions@github.com"
           git add news_state.json posted_urls.txt
           if git diff --cached --quiet; then
-            echo "No state changes."
+            echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroomBot state"
+            git commit -m "Update CareerNewsroom state"
             git push
           fi
