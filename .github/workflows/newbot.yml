@@ -1,4 +1,4 @@
-name: CareerNewsroom V3
+name: CareerNewsroom V4
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v3
+  group: careernewsroom-v4
   cancel-in-progress: false
 
 jobs:
