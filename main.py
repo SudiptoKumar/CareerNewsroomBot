@@ -39,7 +39,7 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Polish-1.2"
+PIPELINE_VERSION = "Polish-1.3"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -2255,7 +2255,6 @@ def send_rich_text(blocks, job):
         "chat_id":TELEGRAM_CHANNEL,
         "rich_message":json.dumps({"blocks":blocks},ensure_ascii=False,separators=(",",":")),
         "reply_markup":json.dumps(_button_markup(job),ensure_ascii=False,separators=(",",":")),
-        "protect_content": True,
     }
     return telegram_call("sendRichMessage",data=payload)
 
@@ -2267,7 +2266,6 @@ def send_bot_api_text_fallback(job, plain_text):
         "text": text,
         "parse_mode": "HTML",
         "reply_markup": json.dumps(_button_markup(job), ensure_ascii=False),
-        "protect_content": True,
     }
     return telegram_call("sendMessage", data=data)
 
@@ -2396,13 +2394,19 @@ def rich_message_blocks(job):
         "is_compact":False,
     })
 
-    # RichBlockTable has no width/min-width property in Telegram Bot API.
-    # A fixed-length divider gives short posts the same practical bubble width as
-    # longer posts without adding a fake data row or changing the table columns.
-    blocks.append({"type":"paragraph","text":"────────────────────────────────────────────────"})
+    # Telegram RichBlockTable has no width/min-width property. Keep the table
+    # non-compact and use a centered pull-quote as the consistent editorial
+    # signature. The short 22-character dividers are intentional.
+    divider="──────────────────────"
+    blocks.append({"type":"paragraph","text":divider})
+    blocks.append({"type":"pullquote","text":"Your next opportunity starts here. 💼"})
+    blocks.append({"type":"paragraph","text":divider})
     tags=" ".join(job_hashtags(job))
     if tags:
         blocks.append({"type":"paragraph","text":tags})
+    # Channel identity is displayed as a username while the actual channel URL
+    # stays behind the link, so no raw URL is exposed in the post.
+    blocks.append({"type":"paragraph","text":[_rich_url("@CareerNewsroom","https://t.me/CareerNewsroom")]})
 
     source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else safe_text(job.get("source","Source"))
     source_url=safe_text(job.get("source_url"))
@@ -2717,8 +2721,11 @@ def self_test():
     assert all(x.get("is_government") for x in selected[:5])
 
     # Photo feature is fully disabled.
-    assert not any(b.get("type")=="photo" for b in rich_message_blocks(fresh))
-    assert any("─" in str(b.get("text","")) for b in rich_message_blocks(fresh) if isinstance(b,dict))
+    rendered=rich_message_blocks(fresh)
+    assert not any(b.get("type")=="photo" for b in rendered)
+    assert any(b.get("type")=="pullquote" and "Your next opportunity starts here." in str(b.get("text","")) for b in rendered)
+    assert sum(1 for b in rendered if b.get("type")=="paragraph" and b.get("text")=="──────────────────────") == 2
+    assert any("@CareerNewsroom" in str(b.get("text","")) for b in rendered)
     # Rendering never includes application start/end rows.
     assert not any(label in {"Application Start","Application End","Application Period"} for label,_ in job_snapshot_rows(fresh))
 
@@ -2802,7 +2809,7 @@ def self_test():
     translated=translate_government_jobs([translated])[0]
     assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
 
-    assert PIPELINE_VERSION == "Polish-1.2"
+    assert PIPELINE_VERSION == "Polish-1.3"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3

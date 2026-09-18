@@ -57,7 +57,7 @@ Telegram Rich Message
 - Application Start/Application End/Application Period are not displayed. Only Deadline and Posted are displayed as date rows.
 - Missing source fields are omitted from the table. The bot never inserts `—` placeholders for unavailable information.
 - Bengali script is blocked from publication. Government vacancy counts and other Bengali fields are translated/normalized before rendering.
-- Telegram posts use `protect_content=true` so the client does not expose the normal forward/share control for newly published posts. This also means users cannot forward/save protected posts.
+- Telegram posts do **not** use `protect_content`; subscribers remain free to forward/share/save posts according to the channel/client rules. The bot cannot independently hide Telegram’s native share/forward control while keeping forwarding enabled.
 - Rich Message tables have no Bot API width/min-width setting. Polish 1.2 uses a fixed divider width anchor so short posts render with a consistent practical bubble width on mobile clients while retaining the native table. Exact pixel width remains Telegram-client controlled.
 
 ## Source discovery
@@ -154,8 +154,6 @@ The polished format keeps one fixed field order across private and government jo
 - Vacancy
 - Age
 - Application
-- Application Start
-- Application End
 - Deadline
 - Posted
 
@@ -240,7 +238,9 @@ python main.py --self-test
 - Added Bengali-vacancy translation, including Bengali numerals such as `৩৩৮` -> `338`.
 - Added final no-Bengali publication validation for title, company and table fields.
 - Added a second experience extraction pass and defense-in-depth private experience filtering.
-- Added Telegram `protect_content` to both Rich Message and fallback sends.
+- Removed `protect_content`; forwarding/sharing remains enabled.
+- Added a centered Rich Message pull-quote between 22-character dividers.
+- Added clickable `@CareerNewsroom` channel identity after hashtags, backed by the channel URL.
 - Restored a stable practical message-width anchor because the Rich Message table API does not expose a minimum-width property.
 
-Pipeline version: `Polish-1.2`.
+Pipeline version: `Polish-1.3`.
