@@ -1,51 +1,9 @@
 {
-  "version": 2,
-  "feeds": {
-    "https://projobsbd.com/feed/": {
-      "etag": null,
-      "last_modified": "Fri, 18 Sep 2026 03:07:42 GMT"
-    },
-    "https://projobsbd.com/category/running-job-circular/feed/": {
-      "etag": null,
-      "last_modified": "Thu, 17 Sep 2026 07:29:12 GMT"
-    },
-    "https://bdgovtjobs.com/feed/": {
-      "etag": "W/\"2f2fa28eb9bb6b2f0cfa96bc34076734\"",
-      "last_modified": "Fri, 18 Sep 2026 04:08:49 GMT"
-    },
-    "https://bdpratidin.net/rss/category/job": {
-      "etag": null,
-      "last_modified": null
-    },
-    "https://www.jagonews24.com/rss/rss.xml": {
-      "etag": null,
-      "last_modified": null
-    },
-    "https://risingbd.com/rss/rss.xml": {
-      "etag": "\"1b70e-65bbd4a6e5e76-gzip\"",
-      "last_modified": "Fri, 18 Sep 2026 08:00:15 GMT"
-    },
-    "https://www.bd-journal.com/feed/latest-rss.xml": {
-      "etag": null,
-      "last_modified": "Fri, 18 Sep 2026 08:06:54 GMT"
-    },
-    "https://www.prothomalo.com/feed/": {
-      "etag": null,
-      "last_modified": "Fri, 18 Sep 2026 08:03:44 GMT"
-    },
-    "https://www.jugantor.com/feed/rss.xml": {
-      "etag": null,
-      "last_modified": null
-    },
-    "https://www.thedailystar.net/jobs/rss.xml": {
-      "etag": "W/\"1789719186\"",
-      "last_modified": "Fri, 18 Sep 2026 08:13:06 GMT"
-    }
-  },
+  "feeds": {},
   "queue": {},
   "events": {},
-  "source_health": {},
+  "event_clusters": {},
   "posted_event_ids": [],
   "recent_titles": [],
-  "event_clusters": {}
+  "source_health": {}
 }
