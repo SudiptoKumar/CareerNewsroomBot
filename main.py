@@ -39,7 +39,7 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Polish-1.3"
+PIPELINE_VERSION = "Polish-1.5"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -2501,7 +2501,7 @@ def _prepare_shortlists(discovered):
 
 def run():
     started=time.monotonic()
-    logger.info("CAREERNEWSROOM V1 | fast incremental pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
+    logger.info("CAREER NEWS BOT 1.5 | fast incremental pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
     prune_state()
     discovered=discover_all()
     gov_items,private_items=_prepare_shortlists(discovered)
@@ -2563,7 +2563,7 @@ def run():
         save_state(STATE)
         if POST_DELAY_SECONDS>0 and index<len(selected): time.sleep(POST_DELAY_SECONDS)
     STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
-    logger.info("Finished V1. Published=%d | elapsed=%.1fs | hard_max=%d",published_count,time.monotonic()-started,MAX_STORIES_PER_RUN)
+    logger.info("Finished Career News Bot 1.5. Published=%d | elapsed=%.1fs | hard_max=%d",published_count,time.monotonic()-started,MAX_STORIES_PER_RUN)
 
 
 # ============================================================
@@ -2810,7 +2810,7 @@ def self_test():
     translated=translate_government_jobs([translated])[0]
     assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
 
-    assert PIPELINE_VERSION == "Polish-1.3"
+    assert PIPELINE_VERSION == "Polish-1.5"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
@@ -2818,7 +2818,7 @@ def self_test():
     assert FAST_DETAIL_WORKERS >= 1
     assert FAST_AI_CANDIDATE_LIMIT <= 20
     assert callable(send_rich_text)
-    logger.info("CareerNewsroom V1 self-test passed.")
+    logger.info("Career News Bot 1.5 self-test passed.")
 
 
 if __name__ == "__main__":
