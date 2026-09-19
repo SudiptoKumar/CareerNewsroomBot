@@ -6,3 +6,4 @@ trafilatura
 cerebras_cloud_sdk
 pytest
 pytest-cov
+scrapling[fetchers]

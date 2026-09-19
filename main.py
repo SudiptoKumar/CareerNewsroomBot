@@ -8,6 +8,7 @@ import logging
 import hashlib
 import shutil
 import threading
+import atexit
 from collections import deque
 
 try:
@@ -26,6 +27,18 @@ try:
     import trafilatura
 except ImportError:
     trafilatura = None
+
+try:
+    from scrapling.fetchers import StealthyFetcher
+except ImportError:
+    StealthyFetcher = None
+
+SCRAPLING_BROWSER_ENABLED = os.environ.get("SCRAPLING_BROWSER_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
+SCRAPLING_BROWSER_TIMEOUT = int(os.environ.get("SCRAPLING_BROWSER_TIMEOUT", "15000"))
+SCRAPLING_BROWSER_WAIT_MS = int(os.environ.get("SCRAPLING_BROWSER_WAIT_MS", "1200"))
+SCRAPLING_BROWSER_DETAIL_LIMIT = int(os.environ.get("SCRAPLING_BROWSER_DETAIL_LIMIT", "60"))
+SCRAPLING_BROWSER_LOCK = threading.Lock()
+SCRAPLING_BROWSER_FETCH_COUNT = 0
 from bs4 import BeautifulSoup, NavigableString
 
 from requests.adapters import HTTPAdapter
@@ -69,6 +82,11 @@ PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "120")
 PRIVATE_DISCOVERY_MAX = int(os.environ.get("PRIVATE_DISCOVERY_MAX", "200"))
 PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "60"))
 PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "60"))
+INTERNSHIP_DETAIL_TARGET = int(os.environ.get("INTERNSHIP_DETAIL_TARGET", "10"))
+INTERNSHIP_AI_TARGET = int(os.environ.get("INTERNSHIP_AI_TARGET", "8"))
+MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "2"))
+PRIVATE_SNAPSHOT_MIN_FIELDS = int(os.environ.get("PRIVATE_SNAPSHOT_MIN_FIELDS", "4"))
+GOVERNMENT_SNAPSHOT_MIN_FIELDS = int(os.environ.get("GOVERNMENT_SNAPSHOT_MIN_FIELDS", "3"))
 AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
 AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "8"))
 AI_RETRY_COUNT = int(os.environ.get("AI_RETRY_COUNT", "1"))
@@ -79,6 +97,7 @@ CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "12"))
 DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
 DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
 DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "14"))
+LEGACY_DETAIL_TIMEOUT = int(os.environ.get("LEGACY_DETAIL_TIMEOUT", "8"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
@@ -99,7 +118,7 @@ TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
 JINA_PREFIX = "https://r.jina.ai/"
 
 CURL_IMPERSONATES = tuple(x.strip() for x in os.environ.get(
-    "CURL_IMPERSONATES", "safari18_0_ios,safari180_ios,safari184_ios,safari_ios"
+    "CURL_IMPERSONATES", "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
 ).split(",") if x.strip()) or ("safari18_0_ios",)
 CURL_MAX_FINGERPRINT_ATTEMPTS = max(1, int(os.environ.get("CURL_MAX_FINGERPRINT_ATTEMPTS", "4")))
 CURL_VERIFY_SSL = os.environ.get("CURL_VERIFY_SSL", "1").strip().lower() not in {"0", "false", "no", "off"}
@@ -779,7 +798,7 @@ def _extract_listing_baseline(card_text):
         "vacancy": _first_match(text, [r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b"]),
         "employment_type": _first_match(text, [r"(?:Employment Status|Employment Type|Job Type|চাকরির ধরন)\s*[:：-]?\s*(.+?)(?=\s+(?:Workplace|Job Work Place|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
         "workplace": _first_match(text, [r"(?:Job Work Place|Workplace|Work Place|কর্মক্ষেত্র)\s*[:：-]?\s*(.+?)(?=\s+(?:Employment Status|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
-        "age": _first_match(text, [r"(?:Age|Age Limit|Age Requirements|বয়স|বয়স|বয়সসীমা|বয়সসীমা)\s*[:：-]?\s*(.+?)(?=\s+(?:Salary|Vacancy|Deadline|Education|required|Job Location|Location|Posted|Published)\b|$)"]),
+        "age": _first_match(text, [r"(?:Age|Age Limit|Age Requirements|বয়স|বয়স|বয়সসীমা|বয়সসীমা)\s*[:：-]?\s*(.+?)(?=\s+(?:Salary|Vacancy|Deadline|Education|required|Experience required|Experience|Job Location|Location|Posted|Published)\b|$)"]),
         "posted": _first_match(text, [r"(?:Published|Posted|Date Posted|Publication Date|প্রকাশিত|প্রকাশ তারিখ|প্রকাশের তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education|Experience|Vacancy|Job Location|Location|Salary|Employment|Workplace)\b|$)"]),
         "application_method": _first_match(text, [r"(?:Application|Application Process|Application Procedure|How to Apply|আবেদন প্রক্রিয়া|আবেদন প্রক্রিয়া|আবেদনের নিয়ম|আবেদনের নিয়ম)\s*[:：-]?\s*(.+?)(?=\s+(?:Selection Process|Deadline|Posted|Published|Salary)\b|$)"]),
     }
@@ -1470,7 +1489,16 @@ def compact_salary(value):
 
 def compact_location(value):
     blob = _clean_one_line(value)
-    return trim_source_text(blob, 80) if blob else ""
+    if not blob:
+        return ""
+    # A pure logo ALT value is never a location.
+    if re.match(r"^(?:image\s*:?[ \t]*)?logo\s+of\b", blob, flags=re.I):
+        return ""
+    # Logo/image ALT text from Bdjobs can be attached to the location string.
+    blob = re.sub(r"\s+(?:image\s*:?[ \t]*)?logo\s+of\b.*$", "", blob, flags=re.I)
+    blob = re.sub(r"\s+(?:image\s*:?[ \t]*)?(?:matching_lock_en(?:_res)?\.(?:webp|svg|png|gif))\b.*$", "", blob, flags=re.I)
+    blob = re.sub(r"^(?:image\s*:?[ \t]*)?logo\s+of\s+", "", blob, flags=re.I)
+    return trim_source_text(_clean_one_line(blob), 80) if blob else ""
 
 
 def compact_vacancy(value):
@@ -1498,18 +1526,29 @@ def compact_vacancy(value):
 
 
 def compact_age(value):
+    """Normalize an explicitly age-labelled source value.
+
+    Plausibility bounds prevent experience values such as "At least 3 years" from
+    becoming an age field when an upstream parser accidentally passes the wrong text.
+    """
     blob=_clean_one_line(value).translate(BENGALI_DIGIT_MAP)
     blob=blob.replace("থেকে","to").replace("বছর","years").replace("বছরের","years").replace("ন্যূনতম","minimum")
     if not blob:
         return ""
+    def valid_age(n):
+        return 16 <= int(n) <= 80
     m=re.search(r"\b(\d{1,2})\s*(?:to|[-–])\s*(\d{1,2})\s*(?:years?|year)?\b",blob,flags=re.I)
-    if m:
+    if m and valid_age(m.group(1)) and valid_age(m.group(2)) and int(m.group(1)) <= int(m.group(2)):
         return f"{m.group(1)}-{m.group(2)} Years"
     m=re.search(r"\b(?:at\s+least|minimum(?:\s+age)?|not\s+less\s+than|minimum\s+of)\s*:?\s*(\d{1,2})\s*(?:years?|year)\b",blob,flags=re.I)
-    if m:
-        return f"{m.group(1)} Years"
+    if m and valid_age(m.group(1)):
+        prefix = "At least" if re.search(r"at\s+least|minimum|not\s+less", blob, flags=re.I) else ""
+        return f"{prefix} {m.group(1)} Years".strip()
+    m=re.search(r"\b(?:at\s+most|maximum(?:\s+age)?|not\s+more\s+than)\s*:?\s*(\d{1,2})\s*(?:years?|year)\b",blob,flags=re.I)
+    if m and valid_age(m.group(1)):
+        return f"At most {m.group(1)} Years"
     m=re.search(r"\b(\d{1,2})\s*(?:\+|plus|years?|year)\b",blob,flags=re.I)
-    if m:
+    if m and valid_age(m.group(1)):
         return f"{m.group(1)} Years"
     return ""
 
@@ -1921,15 +1960,18 @@ def _summary_lines(text):
 
 
 def _summary_value(text, labels):
+    """Extract a summary field while preserving the source value's casing."""
     wanted = {re.sub(r"\s+", " ", safe_text(x).lower().rstrip(":-")).strip() for x in labels}
     lines = _summary_lines(text)
     for i, line in enumerate(lines):
-        norm = _normalized_line_label(line)
+        raw_line = _clean_one_line(line)
+        norm = _normalized_line_label(raw_line)
         if norm in wanted and i + 1 < len(lines):
-            return lines[i+1]
+            return _clean_one_line(lines[i + 1])
         for label in sorted(wanted, key=len, reverse=True):
-            if norm.startswith(label + ":"):
-                return norm[len(label)+1:].strip()
+            match = re.match(rf"^{re.escape(label)}\s*[:\-]\s*(.*?)$", raw_line, flags=re.I)
+            if match:
+                return _clean_one_line(match.group(1))
     return ""
 
 
@@ -1956,17 +1998,122 @@ def _meta_or_time_published(page_html):
     return ""
 
 
+
+def _bdjobs_detail_summary_fields(text, expected_title=""):
+    """Parse high-value fields from the current/legacy Bdjobs detail summary.
+
+    The current page exposes a compact summary such as Application Deadline, Vacancy,
+    Age, Location, Salary, Experience, Published, followed by Requirements, Workplace,
+    and Employment Status. Parse by explicit labels so fields cannot borrow neighboring
+    values (especially Age <- Experience).
+    """
+    raw = safe_text(text)
+    if not raw:
+        return {}
+    lines = [_clean_one_line(x) for x in raw.splitlines() if _clean_one_line(x)]
+    label_aliases = {
+        "company": ("Company Name", "Company", "Organization Name", "Employer", "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম", "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম"),
+        "deadline": ("Application Deadline", "Deadline", "শেষ তারিখ"),
+        "vacancy": ("Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "খালি পদ", "পদসংখ্যা", "পদ সংখ্যা"),
+        "age": ("Age", "Age Limit", "Age Requirements", "বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা"),
+        "location": ("Location", "Job Location", "Job Location(s)", "Work Location", "চাকরি স্থান", "চাকুরি স্থান", "কর্মস্থল", "কর্মস্হল"),
+        "salary": ("Salary", "Salary Range", "Compensation", "বেতন"),
+        "experience": ("Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"),
+        "posted_date": ("Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"),
+        "employment_type": ("Employment Status", "Employment Type", "Job Type", "চাকরির ধরন"),
+        "workplace": ("Workplace", "Job Work Place", "Work Place", "কর্মক্ষেত্র"),
+        "application_method": ("Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"),
+    }
+    normalized_aliases = {
+        key: {re.sub(r"\s+", " ", safe_text(v).lower().rstrip(":- ")).strip() for v in aliases}
+        for key, aliases in label_aliases.items()
+    }
+    normalized_known = set().union(*normalized_aliases.values())
+    company_labels = normalized_aliases["company"]
+    result = {}
+
+    for i, line in enumerate(lines):
+        norm = _normalized_line_label(line)
+        for key, aliases in normalized_aliases.items():
+            value = ""
+            if norm in aliases:
+                # A label on its own line: the next non-label line is the value.
+                if i + 1 < len(lines):
+                    nxt = lines[i + 1]
+                    if _normalized_line_label(nxt) not in normalized_known:
+                        value = nxt
+            else:
+                for alias in sorted(aliases, key=len, reverse=True):
+                    m = re.match(rf"^{re.escape(alias)}\s*[:：-]\s*(.*?)$", line, flags=re.I)
+                    if m:
+                        value = _clean_one_line(m.group(1))
+                        break
+            if value and key not in {"company"}:
+                # Explicit label semantics win. A value like `--` is cleaned later.
+                result_value = _clean_one_line(value)
+                # Store only the first explicit occurrence for each field.
+                if result_value and key not in result:
+                    result[key] = result_value
+            elif value and key == "company" and key not in result:
+                result[key] = _clean_one_line(value)
+
+    # Flattened fallback. Use source labels followed by a different known label as a boundary.
+    flat = re.sub(r"\s+", " ", raw)
+    for key, aliases in normalized_aliases.items():
+        if result.get(key):
+            continue
+        label_pattern = "|".join(re.escape(a) for a in sorted(aliases, key=len, reverse=True))
+        stop_labels = normalized_known - aliases
+        stop = "|".join(re.escape(a) for a in sorted(stop_labels, key=len, reverse=True)) or r"(?!)"
+        pattern = rf"(?:{label_pattern})\s*[:：-]\s*(.+?)(?=\s+(?:{stop})\s*[:：-]|$)"
+        m = re.search(pattern, flat, flags=re.I)
+        if m:
+            result[key] = _clean_one_line(m.group(1))
+
+    # Current detail pages often expose company on the line immediately before the expected title.
+    # Some localized templates place a company label/value immediately after the title.
+    if not result.get("company") and lines:
+        expected = _clean_one_line(expected_title)
+        title_idx = -1
+        if expected:
+            for i, line in enumerate(lines[:30]):
+                if normalize_title(line) == normalize_title(expected):
+                    title_idx = i
+                    break
+        candidates=[]
+        if title_idx > 0:
+            prev=lines[title_idx-1]
+            if _normalized_line_label(prev) not in company_labels:
+                candidates.append(prev)
+        if title_idx >= 0 and title_idx + 1 < len(lines):
+            nxt=lines[title_idx+1]
+            if _normalized_line_label(nxt) in company_labels and title_idx + 2 < len(lines):
+                candidates.insert(0, lines[title_idx+2])
+            elif _normalized_line_label(nxt) not in normalized_known:
+                candidates.append(nxt)
+        if not candidates and len(lines)>=2:
+            candidates.append(lines[0])
+        for candidate in candidates:
+            candidate=_clean_one_line(candidate)
+            if (candidate and normalize_title(candidate) != normalize_title(expected or "__none__")
+                and not re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", candidate, flags=re.I)
+                and not any(x in candidate.lower() for x in ("job list", "create", "sign in", "unlock", "application deadline"))):
+                result["company"]=candidate
+                break
+    return result
+
 def extract_job_fields(text, page_html, source_url, discovery_item):
     text = safe_text(text)
     jsonld = _jobposting_jsonld(page_html) if page_html else {}
     is_gov = bool(discovery_item.get("is_government")) or "/gov-job/" in urlparse(source_url).path.lower()
+    bd_summary = _bdjobs_detail_summary_fields(text, discovery_item.get("title", "")) if not is_gov else {}
 
     title = safe_text(jsonld.get("title")) or _html_h1(page_html) or _label_value(text, ["Title", "Job Title", "Position", "Post Name"])
     company = ""
     hiring = jsonld.get("hiringOrganization")
     if isinstance(hiring, dict):
         company = safe_text(hiring.get("name"))
-    company = (company or _summary_value(text, [
+    company = (company or bd_summary.get("company") or _summary_value(text, [
         "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম",
         "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম", "Company Name", "Company",
         "Organization Name", "Employer", "Department", "Ministry", "Office", "Directorate",
@@ -1978,23 +2125,25 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "কার্যালয়ের নাম", "কার্যালয়ের নাম"
     ]))
 
-    location = _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
-    salary = _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
-    age = _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা"])
-    employment = _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
-    published = _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
-    deadline = _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
+    location = bd_summary.get("location") or _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
+    salary = bd_summary.get("salary") or _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
+    # Age is intentionally extracted only from explicit age-labelled summary content.
+    # Never use a generic fallback that can reinterpret the Experience value as Age.
+    age = bd_summary.get("age") or _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"])
+    employment = bd_summary.get("employment_type") or _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
+    published = bd_summary.get("posted_date") or _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
+    deadline = bd_summary.get("deadline") or _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
 
     # Detail-section fields. Use the same source text as a fallback because some
     # source templates expose the value outside the Job Summary card.
-    experience = _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
-    education = _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
-    vacancy = _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
+    experience = bd_summary.get("experience") or _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
+    education = bd_summary.get("education") or _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
+    vacancy = bd_summary.get("vacancy") or _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
-    workplace = _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
+    workplace = bd_summary.get("workplace") or _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
     category = _label_value(text, ["Category", "Job Category"])
-    application_method = _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
+    application_method = bd_summary.get("application_method") or _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
     application_period = _label_value(text, ["Application Period", "Application Date", "Interview Date", "Walk-in Date"])
 
@@ -2126,7 +2275,13 @@ def _extract_apply_url_from_text(text, page_url):
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def _detail_url_variants(item):
-    """Prefer the current Bdjobs detail route, with bounded legacy routes after it."""
+    """Return deterministic Bdjobs detail routes from current to legacy.
+
+    Current /h/details pages may serve an Angular shell to non-browser HTTP clients.
+    The /hn/details server-rendered route and the legacy jobs.bdjobs.com route are
+    intentionally tried before Jina so a real source document can supply the full
+    Job Snapshot.
+    """
     variants = []
     raw = safe_text(item.get("url") or item.get("source_url"))
     job_id = safe_text(item.get("source_job_id"))
@@ -2134,6 +2289,7 @@ def _detail_url_variants(item):
         qid = quote(job_id)
         variants.extend([
             f"https://bdjobs.com/h/details/{qid}?ln=1",
+            f"https://bdjobs.com/hn/details/{qid}?ln=1",
             f"https://jobs.bdjobs.com/jobdetails.asp?id={qid}&ln=1",
             f"https://jobs.bdjobs.com/bn/jobdetailsbn.asp?id={qid}&ln=1",
             f"https://bdjobs.com/h/jobs/{qid}",
@@ -2190,7 +2346,7 @@ def _looks_like_job_document(body, *, url="", detail=True):
 
         if marker_hits < 2 and len(visible) < DETAIL_MIN_TEXT_CHARS:
             return False, f"thin_or_non_job_page:{len(visible)}"
-        if len(visible) < DETAIL_MIN_TEXT_CHARS:
+        if len(visible) < DETAIL_MIN_TEXT_CHARS and marker_hits < 5:
             return False, f"thin_detail:{len(visible)}"
     return True, "ok"
 
@@ -2215,14 +2371,110 @@ def _detail_payload_from_fetch(fetched):
     return result
 
 
-def _fetch_bdjobs_detail(item):
-    """Fetch one Bdjobs detail page without multiplying identical slow fallbacks.
+def _scrapling_visible_text(page):
+    """Extract rendered body text from a Scrapling Response with API-tolerant fallbacks."""
+    if page is None:
+        return ""
+    try:
+        body_nodes = page.css("body")
+        if body_nodes:
+            first = body_nodes[0]
+            text = first.get_all_text(strip=True)
+            if text:
+                return _clean_one_line(text)
+    except Exception:
+        pass
+    for attr in ("text", "body_text"):
+        try:
+            value = getattr(page, attr, "")
+            if callable(value):
+                value = value()
+            if value:
+                return _clean_one_line(value)
+        except Exception:
+            pass
+    try:
+        value = page.get_all_text(strip=True)
+        if value:
+            return _clean_one_line(value)
+    except Exception:
+        pass
+    return ""
 
-    Important production rule:
-    A HTTP-200 Angular/application shell is a *content failure*, not a transport
-    failure. Do not try every legacy URL variant after that. One direct attempt
-    followed by one Jina Reader attempt is enough; listing data remains the final
-    deterministic fallback.
+
+def _fetch_bdjobs_with_scrapling(item):
+    """Render the Bdjobs application when HTTP clients receive only its Angular shell.
+
+    This is a bounded last-mile browser fallback. It runs only after the lightweight
+    curl_cffi routes are rejected, and uses a single request per candidate.
+    """
+    global SCRAPLING_BROWSER_FETCH_COUNT
+    if not SCRAPLING_BROWSER_ENABLED or StealthyFetcher is None:
+        return None
+    if SCRAPLING_BROWSER_FETCH_COUNT >= SCRAPLING_BROWSER_DETAIL_LIMIT:
+        return None
+    url = safe_text(item.get("url") or item.get("source_url"))
+    if not url:
+        return None
+    with SCRAPLING_BROWSER_LOCK:
+        if SCRAPLING_BROWSER_FETCH_COUNT >= SCRAPLING_BROWSER_DETAIL_LIMIT:
+            return None
+        SCRAPLING_BROWSER_FETCH_COUNT += 1
+        ordinal = SCRAPLING_BROWSER_FETCH_COUNT
+        try:
+            page = StealthyFetcher.fetch(
+                request_safe_url(url),
+                headless=True,
+                disable_resources=True,
+                load_dom=True,
+                network_idle=False,
+                wait=SCRAPLING_BROWSER_WAIT_MS,
+                timeout=SCRAPLING_BROWSER_TIMEOUT,
+                google_search=True,
+                solve_cloudflare=False,
+                block_webrtc=True,
+                hide_canvas=True,
+                retries=1,
+                retry_delay=0.5,
+            )
+            text = _scrapling_visible_text(page)
+            ok, reason = _looks_like_job_document(text, url=url, detail=True)
+            if not ok:
+                logger.info(
+                    "BDJOBS BROWSER REJECT | id=%s | attempt=%d | reason=%s | chars=%d",
+                    item.get("source_job_id", ""), ordinal, reason, len(text),
+                )
+                return None
+            logger.info(
+                "BDJOBS BROWSER SUCCESS | id=%s | attempt=%d | chars=%d",
+                item.get("source_job_id", ""), ordinal, len(text),
+            )
+            return {
+                "ok": True, "status": 200, "text": text, "html": "",
+                "url": url, "backend": "scrapling_stealthy",
+                "cloudflare": False, "detail_quality": "browser_valid",
+                "detail_route": url,
+            }
+        except Exception as exc:
+            logger.info(
+                "BDJOBS BROWSER FAILED | id=%s | attempt=%d | error=%s",
+                item.get("source_job_id", ""), ordinal, exc,
+            )
+            return None
+
+
+def _fetch_bdjobs_detail(item):
+    """Acquire one real Bdjobs detail document with bounded fallbacks.
+
+    Flow:
+      1. current /h/details
+      2. current /hn/details when the first route is an application shell
+      3. legacy jobs.bdjobs.com server-rendered detail
+      4. one Jina Reader request
+      5. listing preservation handled by research_job/retrieve_job_content
+
+    Legacy routes are tried on *content failure* as well as transport failure,
+    because HTTP 200 Angular shells are a known current-site behavior.
     """
     key=cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
     cached=DETAIL_CACHE.get(key)
@@ -2234,79 +2486,82 @@ def _fetch_bdjobs_detail(item):
         DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
         return None
 
-    primary=variants[0]
     last_reason="no_url"
-
-    # 1) Direct browser-impersonated request.
-    direct=_fetch_with_curl(primary, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
-    if direct:
+    attempted=[]
+    primary=variants[0]
+    for idx, variant in enumerate(variants[:4]):
+        timeout = DETAIL_TIMEOUT if idx == 0 else LEGACY_DETAIL_TIMEOUT
+        referer = item.get("url") or BDJOBS_LISTING_URL
+        direct=_fetch_with_curl(variant, timeout=timeout, referer=referer, max_attempts=(CURL_MAX_FINGERPRINT_ATTEMPTS if idx == 0 else 2))
+        attempted.append(variant)
+        if not direct:
+            last_reason="transport_failure"
+            continue
         body=safe_text(direct.get("text"))
-        ok,reason=_looks_like_job_document(body, url=direct.get("url") or primary, detail=True)
+        ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
         if ok:
             direct=_detail_payload_from_fetch(direct)
             direct["detail_quality"]="direct_valid"
+            direct["detail_route"] = variant
             DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
+            logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=%s | backend=%s", item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""))
             return direct
         last_reason=reason
         logger.info(
-            "BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s",
-            item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason
+            "BDJOBS DETAIL REJECT | id=%s | route=%s | backend=%s | status=%s | reason=%s",
+            item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""), direct.get("status",""), reason,
         )
 
-        # A 200 shell/thin page is deterministic content failure. Do NOT rotate
-        # through legacy URLs because they normally return the same application
-        # shell and multiply latency by ~3x.
-        transport_failed = int(direct.get("status") or 0) in {0, 404, 410, 429, 500, 502, 503, 504}
-    else:
-        transport_failed = True
+        # Once a valid-looking source document has been found, stop. Only a rejected
+        # 200 shell/thin page triggers the next route.
+        if idx == 0:
+            continue
 
-    # 2) One Jina Reader attempt on the canonical/current detail URL.
+    # The current Bdjobs /h/details and /hn/details endpoints can return an Angular
+    # shell to non-browser clients even with HTTP 200. At that point the correct
+    # fallback is a real JS-capable browser render, not repeated Jina requests.
+    browser = _fetch_bdjobs_with_scrapling(item)
+    if browser:
+        DETAIL_CACHE[key]={"ts":time.monotonic(),"result":browser}
+        return browser
+
+    # One Jina attempt as a final text-only fallback.
     if JINA_ENABLED:
-        jina_timeout = min(10, max(5, int(JINA_TIMEOUT)))
-        fallback=_fetch_jina(primary, timeout=jina_timeout)
+        jina_target = variants[2] if len(variants) >= 3 else primary
+        fallback=_fetch_jina(jina_target, timeout=min(10, max(5, int(JINA_TIMEOUT))))
         if fallback:
-            ok,reason=_looks_like_job_document(fallback.get("text",""), url=primary, detail=True)
+            ok,reason=_looks_like_job_document(fallback.get("text", ""), url=jina_target, detail=True)
             if ok:
                 fallback=_detail_payload_from_fetch(fallback)
                 fallback["detail_quality"]="jina_valid"
+                fallback["detail_route"] = jina_target
                 DETAIL_CACHE[key]={"ts":time.monotonic(),"result":fallback}
+                logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=jina:%s", item.get("source_job_id",""), urlparse(jina_target).path)
                 return fallback
             last_reason=reason
-            logger.info(
-                "BDJOBS DETAIL JINA REJECT | id=%s | backend=%s | status=%s | reason=%s",
-                item.get("source_job_id",""), fallback.get("backend",""), fallback.get("status",""), reason
-            )
+            logger.info("BDJOBS DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id",""), reason)
 
-    # 3) Only use legacy variants when the primary endpoint actually failed
-    # at the transport/HTTP layer. Never use them after a valid 200 shell.
-    if transport_failed:
-        for variant in variants[1:]:
-            direct=_fetch_with_curl(variant, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL, max_attempts=2)
-            if not direct:
-                continue
-            body=safe_text(direct.get("text"))
-            ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
-            if ok:
-                direct=_detail_payload_from_fetch(direct)
-                direct["detail_quality"]="direct_valid"
-                DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
-                return direct
-            last_reason=reason
-
-    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s", item.get("source_job_id",""), last_reason)
+    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
     return None
 
 
 def _listing_fallback_content(item):
     baseline=item.get("listing_fields") or {}
-    text_parts=[item.get("title",""), baseline.get("company",""), baseline.get("location",""), baseline.get("education",""), baseline.get("experience",""), baseline.get("salary",""), baseline.get("vacancy",""), item.get("listing_deadline",""), item.get("excerpt","")]
+    text_parts=[
+        item.get("title",""), baseline.get("company",""), baseline.get("location",""),
+        baseline.get("employment_type",""), baseline.get("workplace",""), baseline.get("education",""),
+        baseline.get("experience",""), baseline.get("salary",""), baseline.get("vacancy",""),
+        baseline.get("age",""), baseline.get("application_method",""), baseline.get("deadline",""),
+        baseline.get("posted_date",""), item.get("listing_posted",""), item.get("listing_deadline",""), item.get("excerpt","")
+    ]
     text=" | ".join(_clean_one_line(x) for x in text_parts if _clean_one_line(x))
-    if not text or len(text) < 120:
+    if not text or len(text) < 80:
         return None
     return {
         "text": trim_source_text(text, MAX_JOB_CONTENT_CHARS),
-        "html": "", "final_url": item.get("url", ""), "apply_url": "",
+        "html": "", "final_url": item.get("url", ""),
+        "apply_url": item.get("apply_url", ""),
         "backend": "bdjobs_listing_fallback", "cloudflare": False, "detail_quality": "listing_fallback",
     }
 
@@ -2449,6 +2704,13 @@ def research_job(item):
     apply_url=retrieved.get("apply_url", "") or item.get("apply_url", "")
     if not apply_url and fields.get("application_method"):
         apply_url=_extract_apply_url_from_text(fields["application_method"], item["url"])
+    if not fields.get("application_method") and apply_url:
+        fields["application_method"] = "Online"
+    if item.get("source") == "Bdjobs" and not fields.get("application_method") and not fields.get("selection_process"):
+        # The current Bdjobs detail page exposes a first-class Apply Now action.
+        # Use Online only when we can actually point to the source/application URL.
+        if apply_url:
+            fields["application_method"] = "Online"
     fields.update({
         "canonical": item["canonical"], "apply_url": apply_url,
         "source_url": item.get("source_url") or item.get("url", ""),
@@ -2574,7 +2836,7 @@ def vacancy_score(job):
     return 5 if n >= 10 else 4 if n >= 5 else 3 if n >= 2 else 1
 
 def information_quality_score(job):
-    fields = ("company", "education", "experience", "salary", "vacancy", "deadline", "location", "apply_url")
+    fields = ("company", "education", "experience", "salary", "vacancy", "deadline", "location", "posted_date", "age", "employment_type", "workplace", "apply_url")
     return min(5, round(sum(1 for k in fields if safe_text(job.get(k)))*5/len(fields)))
 
 def role_fit_score(job):
@@ -2861,7 +3123,12 @@ def rank_jobs(jobs):
         j.get("canonical", ""),
     ))
 
-    ai_candidates = pre[:min(AI_REVIEW_TARGET, len(pre))]
+    interns = [j for j in pre if is_internship_job(j)]
+    general = [j for j in pre if not is_internship_job(j)]
+    forced_interns = interns[:min(INTERNSHIP_AI_TARGET, len(interns))]
+    forced_keys = {j.get("canonical") for j in forced_interns}
+    ai_candidates = forced_interns + [j for j in general if j.get("canonical") not in forced_keys]
+    ai_candidates = ai_candidates[:min(AI_REVIEW_TARGET, len(ai_candidates))]
     judged = {}
     if ai_candidates:
         rows = judge_batch(ai_candidates, 1)
@@ -2894,7 +3161,8 @@ def rank_jobs(jobs):
             round(candidate["deterministic_score"] * 0.85 + ai_score * 0.15, 3)
             if ai_available else candidate["deterministic_score"]
         )
-        if candidate["final_score"] >= PRIVATE_HARD_FILL_SCORE and deadline_status(candidate) != "expired":
+        floor = (45 if is_internship_job(candidate) else PRIVATE_HARD_FILL_SCORE)
+        if candidate["final_score"] >= floor and deadline_status(candidate) != "expired":
             ranked.append(candidate)
 
     ranked.sort(key=lambda j: (
@@ -2966,6 +3234,21 @@ def build_unique_job_pool(jobs):
         identity_buckets.setdefault(bucket, []).append(job)
     return unique
 
+
+def is_internship_job(job):
+    """Detect true internship opportunities without treating generic trainee roles as internships."""
+    title = safe_text(job.get("title")).lower()
+    employment = safe_text(job.get("employment_type")).lower()
+    raw = safe_text(job.get("raw_text")).lower()
+    blob = f"{title} {employment} {raw}"
+    strong = (
+        "internship" in title
+        or re.search(r"\bintern\b", title)
+        or "internship" in employment
+        or "internship program" in raw
+        or re.search(r"\bintern\b", employment)
+    )
+    return bool(strong)
 
 def _career_family(job):
     blob = f"{job.get('title','')} {job.get('raw_text','')}".lower()
@@ -3111,43 +3394,47 @@ def select_government_jobs(government_jobs):
 
 
 def select_final_jobs(private_ranked, government_jobs):
-    """Guarantee the requested source mix when enough qualifying candidates exist."""
+    """Select up to 20 posts while guaranteeing government/private/internship minima when qualifying pools exist."""
     gov_pool = select_government_jobs(government_jobs)
     gov_required = min(MIN_GOVERNMENT_POSTS_PER_RUN, len(gov_pool), MAX_STORIES_PER_RUN)
     gov = gov_pool[:gov_required]
 
-    # Preserve at least MIN_PRIVATE_POSTS_PER_RUN slots whenever possible.
-    private_limit = min(
-        MAX_STORIES_PER_RUN - len(gov),
-        max(MIN_PRIVATE_POSTS_PER_RUN, MAX_STORIES_PER_RUN - len(gov)),
-    )
-    private = select_private_jobs_by_category(
-        private_ranked,
-        private_limit,
-        minimum_required=min(MIN_PRIVATE_POSTS_PER_RUN, private_limit),
-    )
+    # Internship is a subset of private. Reserve the required number first so
+    # diversity/ranking cannot consume their slots.
+    internship_pool = [j for j in private_ranked if is_internship_job(j)]
+    internship_selected = _select_diverse_private(internship_pool, min(MIN_INTERNSHIP_POSTS_PER_RUN, len(internship_pool)))
+    internship_keys = {j.get("canonical") for j in internship_selected}
 
-    # Once both minimums are met, fill remaining slots with the strongest available
-    # private/government mix without exceeding the 20-post ceiling.
-    selected = gov + private
-    remaining_slots = MAX_STORIES_PER_RUN - len(selected)
+    remaining_private_ranked = [j for j in private_ranked if j.get("canonical") not in internship_keys]
+    private_room = max(0, MAX_STORIES_PER_RUN - len(gov))
+    private_required = min(MIN_PRIVATE_POSTS_PER_RUN, private_room)
+    private_general_needed = max(0, private_required - len(internship_selected))
+    private_general = select_private_jobs_by_category(
+        remaining_private_ranked,
+        max(private_general_needed, 0),
+        minimum_required=private_general_needed,
+    ) if private_general_needed else []
+
+    private = internship_selected + private_general
+
+    # After minima are satisfied, use the remaining room for the strongest available jobs.
+    used = {j.get("canonical") for j in private + gov}
+    remaining_slots = MAX_STORIES_PER_RUN - len(private) - len(gov)
     if remaining_slots > 0:
-        used_private = {j.get("canonical") for j in private}
-        extra_private_pool = [
-            j for j in private_ranked
-            if j.get("canonical") not in used_private
-        ]
-        extra_private = _select_diverse_private(extra_private_pool, remaining_slots)
-        selected.extend(extra_private[:remaining_slots])
+        extra_private_pool = [j for j in private_ranked if j.get("canonical") not in used]
+        selected_extra = _select_diverse_private(extra_private_pool, remaining_slots)
+        private.extend(selected_extra[:remaining_slots])
+        used.update(j.get("canonical") for j in selected_extra)
 
-    # Optionally add additional government jobs only after the private minimum is met.
-    gov_used = {j.get("canonical") for j in gov}
-    extra_gov = [j for j in gov_pool if j.get("canonical") not in gov_used]
-    room = MAX_STORIES_PER_RUN - len(selected)
+    room = MAX_STORIES_PER_RUN - len(private) - len(gov)
     if room > 0:
-        selected.extend(extra_gov[:min(room, MAX_GOVERNMENT_POSTS_PER_RUN - len(gov))])
+        extra_gov = [j for j in gov_pool if j.get("canonical") not in used]
+        private.extend([])
+        gov.extend(extra_gov[:min(room, MAX_GOVERNMENT_POSTS_PER_RUN - len(gov))])
 
+    selected = gov + private
     return selected[:MAX_STORIES_PER_RUN]
+
 
 def store_selected_event(job, published=False, message_id=None):
     event_id = job.get("event_id") or job_event_key(job)
@@ -3213,7 +3500,7 @@ def _button_markup(job):
         label = "APPLY NOW"
         target = url
     else:
-        label = "READ MORE"
+        label = "APPLY NOW"
         target = safe_text(job.get("source_url"))
     return {
         "inline_keyboard": [[{"text": label, "url": target}]]
@@ -3249,19 +3536,45 @@ def display_value(value):
 
 
 def job_hashtags(job):
-    tags = []
-    category = safe_text(job.get("category") or job.get("source_category_name"))
-    blob = f"{job.get('title','')} {job.get('education','')} {job.get('category','')}".lower()
-    if any(x in blob for x in ("account", "finance", "audit", "tax")):
-        tags.append("#Finance")
-    if "bank" in blob:
-        tags.append("#Banking")
-    if any(x in blob for x in ("marketing", "sales", "brand")):
-        tags.append("#Marketing")
-    if any(x in blob for x in ("human resource", "hr", "recruitment")):
-        tags.append("#HR")
-    if any(x in blob for x in ("supply chain", "procurement", "commercial")):
-        tags.append("#SupplyChain")
+    """Generate explicit source-aware, role-aware hashtags."""
+    if job.get("is_government"):
+        return ["#GovtJob"]
+    tags=[]
+    if is_internship_job(job):
+        tags.append("#Internship")
+    family = safe_text(job.get("career_category") or _career_family(job))
+    family_tags = {
+        "Finance & Accounting": "#Finance",
+        "Banking & Financial Services": "#Banking",
+        "Marketing & Sales": "#Marketing",
+        "Business Development": "#BusinessDevelopment",
+        "Human Resources": "#HR",
+        "Supply Chain & Procurement": "#SupplyChain",
+        "Commercial": "#Commercial",
+        "Management & Administration": "#Management",
+        "Customer Experience": "#CustomerService",
+        "E-commerce & Digital Business": "#Ecommerce",
+        "Operations": "#Operations",
+        "Media / Advertisement / Events": "#Media",
+        "Research & Consultancy": "#Research",
+        "NGO / Development": "#NGO",
+        "Hospitality / Travel / Tourism": "#Hospitality",
+    }
+    tag=family_tags.get(family)
+    if tag:
+        tags.append(tag)
+    blob=f"{safe_text(job.get('title'))} {safe_text(job.get('raw_text'))}".lower()
+    extra = (
+        ("#Sales", ("sales", "territory sales", "key account")),
+        ("#Marketing", ("marketing", "brand", "trade marketing")),
+        ("#Finance", ("finance", "account", "audit", "tax")),
+        ("#Banking", ("bank", "credit", "branch")),
+        ("#HR", ("human resource", "recruitment", "talent acquisition", "hr ")),
+        ("#SupplyChain", ("supply chain", "procurement", "logistics", "sourcing")),
+    )
+    for tag_name, terms in extra:
+        if any(term in blob for term in terms):
+            tags.append(tag_name)
     if any(x in blob for x in EARLY_CAREER_TERMS):
         tags.append("#EarlyCareer")
     if not tags:
@@ -3306,16 +3619,29 @@ def snapshot_field_quality(job):
 
 
 def snapshot_integrity(job):
-    """Reject sparse/contaminated records before Telegram publication."""
+    """Reject sparse, contaminated, or internally inconsistent records before Telegram."""
     if not safe_text(job.get("title")) or not safe_text(job.get("company")):
         return False, "missing_identity"
     if not safe_text(job.get("source_url")):
         return False, "missing_source_url"
-    for key in ("title","company","location","education","experience","salary","vacancy"):
+    for key in ("title","company","location","education","experience","salary","vacancy","age","employment_type","workplace","application_method"):
         value=safe_text(job.get(key)).lower()
-        if any(token in value for token in ("name-share-details", "matching_lock_en", "![image", "bdjobs.com/h/images")):
+        if any(token in value for token in ("name-share-details", "matching_lock_en", "![image", "bdjobs.com/h/images", "logo of ")):
             return False, "source_chrome_in_field"
-    minimum=2 if job.get("is_government") else 3
+    # Age must be explicitly plausible and independent from the experience field.
+    age=safe_text(job.get("age"))
+    exp=safe_text(job.get("experience"))
+    if age and exp and age.casefold() == compact_age(exp).casefold() and re.search(r"\byears?\b", exp, flags=re.I):
+        return False, "age_matches_experience_suspect"
+    if job.get("is_government"):
+        minimum=GOVERNMENT_SNAPSHOT_MIN_FIELDS
+    else:
+        minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
+        for key in ("location", "experience", "deadline"):
+            if not safe_text(job.get(key)):
+                return False, f"private_missing_core_{key}"
+        if not any(safe_text(job.get(k)) for k in ("education", "salary", "vacancy", "employment_type", "workplace", "age", "application_method")):
+            return False, "private_missing_secondary_field"
     count=snapshot_field_quality(job)
     if count < minimum:
         return False, f"snapshot_too_sparse:{count}"
@@ -3608,7 +3934,22 @@ def _prepare_shortlists(discovered):
         -deadline_urgency_score({"deadline":j.get("listing_deadline")}),
         j.get("canonical","")
     ))
-    return gov[:GOVERNMENT_DISCOVERY_TARGET], private[:PRIVATE_DETAIL_TARGET]
+
+    # Reserve internship candidates before the ordinary private top-N cutoff so
+    # internships cannot disappear simply because their listing text has less BBA detail.
+    internships=[x for x in private if is_internship_job(x)]
+    internships.sort(key=lambda j:(
+        -posted_freshness_score({"posted_date":j.get("listing_posted")}),
+        -bba_mba_candidate_score(j),
+        j.get("canonical","")
+    ))
+    reserved_internships=internships[:min(INTERNSHIP_DETAIL_TARGET, len(internships))]
+    reserved_keys={x.get("canonical") for x in reserved_internships}
+    ordinary=[x for x in private if x.get("canonical") not in reserved_keys]
+    private_short=(reserved_internships + ordinary)[:PRIVATE_DETAIL_TARGET]
+    logger.info("INTERNSHIP DISCOVERED | candidates=%d reserved_for_detail=%d minimum=%d", len(internships), len(reserved_internships), MIN_INTERNSHIP_POSTS_PER_RUN)
+    return gov[:GOVERNMENT_DISCOVERY_TARGET], private_short
+
 
 def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
@@ -3668,6 +4009,11 @@ def run(*, dry_run=False, print_ranking=False):
     logger.info("PRIVATE SCORED | %d", len(ranked_private))
     eligible_government=snapshot_government
     selected=select_final_jobs(ranked_private, eligible_government)
+    internship_final=sum(1 for j in selected if not j.get("is_government") and is_internship_job(j))
+    if internship_final < MIN_INTERNSHIP_POSTS_PER_RUN:
+        logger.error("INTERNSHIP QUOTA SHORTFALL | selected=%d required=%d | qualifying_internship_pool=%d", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN, sum(1 for j in ranked_private if is_internship_job(j)))
+    else:
+        logger.info("INTERNSHIP QUOTA | selected=%d/%d minimum", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN)
     selected=translate_government_jobs(selected)
     selected=[j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
     checked=[]
@@ -3709,7 +4055,7 @@ def run(*, dry_run=False, print_ranking=False):
     logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d snapshot_eligible_private=%d snapshot_eligible_gov=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(snapshot_private), len(snapshot_government), len(ranked_private), private_final)
     logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
     snapshot_counts=[snapshot_field_quality(j) for j in selected]
-    logger.info("SNAPSHOT QUALITY | selected=%d | >=3_fields=%d | avg_fields=%.1f", len(snapshot_counts), sum(1 for n in snapshot_counts if n>=3), (sum(snapshot_counts)/len(snapshot_counts) if snapshot_counts else 0.0))
+    logger.info("SNAPSHOT QUALITY | selected=%d | >=5_fields=%d | avg_fields=%.1f", len(snapshot_counts), sum(1 for n in snapshot_counts if n>=5), (sum(snapshot_counts)/len(snapshot_counts) if snapshot_counts else 0.0))
 
     if print_ranking:
         print("=== CAREER NEWS V1 PRIVATE RANKING ===")

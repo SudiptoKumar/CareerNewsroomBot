@@ -530,3 +530,24 @@ A production release must satisfy all of the following:
 ✓ Telegram rendering validation
 ✓ self-test and compile check
 ```
+
+
+## Publication quotas
+
+```text
+Private minimum: 10
+Government minimum: 3
+Internship minimum: 2 (included in private minimum)
+Maximum total: 20
+Private snapshot minimum: 4 source-backed fields
+```
+
+
+## Publication constraints
+
+```text
+Private jobs: minimum 10 per run
+Government jobs: minimum 3 per run
+Internships: minimum 2 per run, included within private jobs
+Maximum total posts: 20 per run
+```

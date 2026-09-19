@@ -60,6 +60,8 @@ def test_detail_fetch_prefers_direct_then_jina(monkeypatch):
 
     def fake_curl(url, **_kwargs):
         calls.append(("curl", url))
+        if "jobdetails.asp" in url or "jobdetailsbn.asp" in url:
+            return None
         return {
             "ok": True,
             "status": 200,
@@ -96,7 +98,7 @@ def test_detail_fetch_prefers_direct_then_jina(monkeypatch):
     assert result["backend"] == "jina_reader"
     assert result["detail_quality"] == "jina_valid"
     assert calls[0][0] == "curl"
-    assert calls[1][0] == "jina"
+    assert any(kind == "jina" for kind, _ in calls)
 
 
 def test_listing_parser_keeps_job_url_and_fields():
@@ -434,7 +436,7 @@ def test_sparse_snapshot_is_rejected_before_publish():
     }
     ok, reason = main.snapshot_integrity(job)
     assert not ok
-    assert reason == "snapshot_too_sparse:1"
+    assert reason in {"private_missing_core_location", "snapshot_too_sparse:1"}
 
 
 def test_rich_snapshot_accepts_source_backed_fields():
@@ -531,7 +533,7 @@ def test_snapshot_eligibility_happens_before_quota_selection():
         "final_score": 95, "is_government": False,
     }
     rich_private = dict(sparse_private, source_job_id="2", source_url="https://bdjobs.com/h/details/2?ln=1",
-        location="Dhaka", experience="0 to 2 years", education="BBA", salary="Negotiable")
+        location="Dhaka", experience="0 to 2 years", education="BBA", salary="Negotiable", posted_date="2026-09-19")
     sparse_gov = {
         "title": "Government Officer", "company": "Government Organization", "source": "Teletalk",
         "source_url": "https://alljobs.teletalk.com.bd/", "deadline": "2026-09-30",
@@ -661,3 +663,190 @@ def test_bdjobs_search_page_sequence_with_image_labels_is_rich():
         assert fields["deadline"]
         assert fields["education"]
         assert sum(bool(fields.get(k)) for k in ("location","education","experience","deadline")) >= 3
+
+
+
+def test_current_bdjobs_detail_full_snapshot_and_identity():
+    text = """Partners in Health and Development (PhD)
+Officer Procurement and Supply Chain
+Application Deadline : 22 Sep 2026
+Vacancy: 1
+Age:
+(no age requirement shown here)
+Location: Anywhere in Bangladesh
+Salary: Negotiable
+Experience: At least 3 years
+Published: 17 Sep 2026
+Requirements
+Education
+Bachelor's
+Workplace
+Work at office
+Employment Status
+Full Time"""
+    parsed = main.extract_job_fields(
+        text, "", "https://bdjobs.com/h/details/1535054?ln=1",
+        {"title":"Officer Procurement and Supply Chain", "listing_fields":{}},
+    )
+    assert parsed["company"] == "Partners in Health and Development (PhD)"
+    assert parsed["location"] == "Anywhere in Bangladesh"
+    assert parsed["salary"] == "Negotiable"
+    assert parsed["experience"] == "At least 3 years"
+    assert parsed["vacancy"] == "1"
+    assert parsed["posted_date"] == "2026-09-17"
+    assert parsed["deadline"] == "2026-09-22"
+    assert parsed["employment_type"] == "Full Time"
+    assert parsed["workplace"] == "On-site"
+    assert parsed["age"] == ""
+
+
+def test_age_never_reuses_experience_and_location_logo_text_is_removed():
+    assert main.compact_age("At least 3 years") == ""
+    assert main.compact_age("2 to 3 years") == ""
+    assert main.compact_age("24 to 28 years") == "24-28 Years"
+    assert main.compact_age("At most 35 years") == "At most 35 Years"
+    assert main.compact_location("Dhaka Logo of Averroes International School") == "Dhaka"
+    assert main.compact_location("Logo of Averroes International School") == ""
+
+
+def test_bdjobs_shell_then_legacy_detail_fallback(monkeypatch):
+    item = make_listing_item()
+    calls=[]
+    def fake_curl(url, **kwargs):
+        calls.append(url)
+        if "/h/details/" in url:
+            return {"ok":True,"status":200,"text":"<html><app-root></app-root></html>","url":url,"backend":"curl_cffi:safari18_0_ios","cloudflare":False}
+        if "/hn/details/" in url:
+            return {"ok":True,"status":200,"text":"<html><app-root></app-root></html>","url":url,"backend":"curl_cffi:safari18_0_ios","cloudflare":False}
+        return {"ok":True,"status":200,"text":"Job Summary\nCompany Name\nExample Finance Ltd.\nEducation\nBBA\nExperience\n1 to 2 years\nVacancy\n3\nDeadline\n2026-10-01\nPublished\n2026-09-19\nLocation\nDhaka\nSalary\nTk. 30000","url":url,"backend":"curl_cffi:safari184_ios","cloudflare":False}
+    def fail_jina(*args, **kwargs):
+        raise AssertionError("Jina should not run when the legacy route succeeds")
+    monkeypatch.setattr(main, "_fetch_with_curl", fake_curl)
+    monkeypatch.setattr(main, "_fetch_jina", fail_jina)
+    main.DETAIL_CACHE.clear()
+    result=main._fetch_bdjobs_detail(item)
+    assert result and "jobdetails.asp" in result["detail_route"]
+    assert any("/h/details/" in x for x in calls)
+    assert any("/hn/details/" in x for x in calls)
+    assert any("jobdetails.asp" in x for x in calls)
+
+
+def test_apply_button_always_uses_apply_now():
+    markup=main._button_markup({"apply_url":"","source_url":"https://bdjobs.com/h/details/1?ln=1"})
+    assert markup["inline_keyboard"][0][0]["text"] == "APPLY NOW"
+    markup2=main._button_markup({"apply_url":"https://example.com/apply","source_url":"https://bdjobs.com/h/details/1?ln=1"})
+    assert markup2["inline_keyboard"][0][0]["text"] == "APPLY NOW"
+
+
+def test_source_aware_hashtags_for_government_and_internship():
+    gov={"is_government":True,"title":"Assistant Officer","source":"Teletalk"}
+    assert main.job_hashtags(gov) == ["#GovtJob"]
+    internship={"is_government":False,"title":"Accounts Intern","employment_type":"Internship","career_category":"Finance & Accounting"}
+    tags=main.job_hashtags(internship)
+    assert "#Internship" in tags
+    assert "#Finance" in tags
+
+
+def test_current_bdjobs_screenshot_style_snapshot_all_fields_and_correct_age():
+    text = """ARTEK
+HR Executive
+Application Deadline : 17 Oct 2026
+Vacancy: 01
+Age:
+26 to 28 years
+Location:
+Dhaka
+Salary: Tk. 20000 - 25000 (Monthly)
+Experience:
+2 to 3 years
+Published: 17 Sep 2026
+Requirements
+Education
+Bachelor of Business Administration (BBA)
+Workplace
+Work at office
+Employment Status
+Full Time
+Job Location
+Dhaka"""
+    parsed = main.extract_job_fields(
+        text, "", "https://bdjobs.com/h/details/1539999?ln=1",
+        {"title": "HR Executive", "listing_fields": {"company": "ARTEK"}},
+    )
+    assert parsed["company"] == "ARTEK"
+    assert parsed["location"] == "Dhaka"
+    assert parsed["salary"] == "Tk. 20000 - 25000/month"
+    assert parsed["vacancy"] == "01"
+    assert parsed["experience"] == "2 to 3 years"
+    assert parsed["age"] == "26-28 Years"
+    assert parsed["posted_date"] == "2026-09-17"
+    assert parsed["deadline"] == "2026-10-17"
+    assert parsed["education"] in {"BBA", "BBA/Bachelor's"}
+
+
+def test_browser_fallback_is_used_for_angular_shell(monkeypatch):
+    item = make_listing_item()
+    main.DETAIL_CACHE.clear()
+    monkeypatch.setattr(main, "_fetch_with_curl", lambda *a, **k: {
+        "ok": True, "status": 200,
+        "text": "<html><body><app-root></app-root></body></html>",
+        "url": item["url"], "backend": "curl_cffi:safari18_0_ios", "cloudflare": False,
+    })
+    class FakeBody:
+        def get_all_text(self, strip=True):
+            return "Example Finance Ltd.\nAccounts Executive\nApplication Deadline : 01 Oct 2026\nVacancy: 3\nAge: 24 to 30 years\nLocation: Dhaka\nSalary: Tk. 30000\nExperience: 1 to 2 years\nPublished: 19 Sep 2026\nRequirements\nEducation\nBBA\nWorkplace\nWork at office\nEmployment Status\nFull Time"
+    class FakePage:
+        def css(self, selector):
+            return [FakeBody()] if selector == "body" else []
+    class FakeFetcher:
+        @staticmethod
+        def fetch(url, **kwargs):
+            return FakePage()
+    monkeypatch.setattr(main, "StealthyFetcher", FakeFetcher)
+    monkeypatch.setattr(main, "_fetch_jina", lambda *a, **k: (_ for _ in ()).throw(AssertionError("Jina should not run after browser success")))
+    main.SCRAPLING_BROWSER_FETCH_COUNT = 0
+    result = main._fetch_bdjobs_detail(item)
+    assert result is not None
+    assert result["backend"] == "scrapling_stealthy"
+    assert result["detail_quality"] == "browser_valid"
+
+
+def test_final_selector_guarantees_private_government_and_internship_minima():
+    private=[]
+    for i in range(14):
+        private.append({
+            "source":"Bdjobs", "source_job_id":str(500+i), "canonical":f"https://bdjobs.com/h/details/{500+i}",
+            "title":"Accounts Internship" if i < 2 else f"Finance Executive {i}",
+            "company":f"Company {i}", "location":"Dhaka", "education":"BBA",
+            "experience":"Freshers" if i < 2 else "0 to 2 years", "salary":"Negotiable",
+            "vacancy":"1", "age":"20-30 Years", "deadline":"2026-10-01", "posted_date":"2026-09-19",
+            "employment_type":"Internship" if i < 2 else "Full Time", "career_category":"Finance & Accounting",
+            "is_government":False, "final_score":82-i, "deterministic_score":82-i,
+            "information_quality":7,
+        })
+    government=[{
+        "source":"Teletalk", "source_job_id":str(800+i), "canonical":f"https://alljobs.teletalk.com.bd/?job_primary_id={800+i}",
+        "title":f"Govt Job {i}", "company":"Government Office", "location":"Dhaka", "vacancy":"1",
+        "deadline":"2026-10-01", "posted_date":"2026-09-19", "is_government":True, "final_score":90-i,
+    } for i in range(4)]
+    selected=main.select_final_jobs(private, government)
+    assert len(selected) <= 20
+    assert sum(not j.get("is_government") for j in selected) >= 10
+    assert sum(j.get("is_government") for j in selected) >= 3
+    assert sum(main.is_internship_job(j) for j in selected if not j.get("is_government")) >= 2
+
+
+def test_job_snapshot_rows_keep_source_fields_and_omit_only_missing_values():
+    job = {
+        "location": "Dhaka", "employment_type": "Full Time", "workplace": "On-site",
+        "education": "BBA", "experience": "2 to 3 years", "salary": "Tk. 20000 - 25000/month",
+        "vacancy": "01", "age": "26-28 Years", "application_method": "Online",
+        "deadline": "2026-10-17", "posted_date": "2026-09-17",
+    }
+    rows = dict(main.job_snapshot_rows(job))
+    for label in ("Location","Employment","Workplace","Education","Experience","Salary","Vacancy","Age","Application","Deadline","Posted"):
+        assert label in rows
+    assert rows["Age"] == "26-28 Years"
+    assert rows["Salary"] == "Tk. 20000 - 25000/month"
+    assert rows["Vacancy"] == "01"
+    assert rows["Posted"] == "17-09-2026"

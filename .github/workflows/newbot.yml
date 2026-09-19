@@ -28,6 +28,11 @@ jobs:
       PRIVATE_DISCOVERY_MAX: "200"
       PRIVATE_FAST_RANK_TARGET: "60"
       PRIVATE_DETAIL_TARGET: "60"
+      INTERNSHIP_DETAIL_TARGET: "10"
+      INTERNSHIP_AI_TARGET: "8"
+      MIN_INTERNSHIP_POSTS_PER_RUN: "2"
+      PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
+      GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
       AI_REVIEW_TARGET: "50"
       AI_BATCH_SIZE: "8"
       AI_RETRY_COUNT: "1"
@@ -39,9 +44,14 @@ jobs:
       PRIVATE_HARD_MIN_INFORMATION_QUALITY: "3"
       DETAIL_WORKERS: "8"
       DETAIL_TIMEOUT: "14"
+      LEGACY_DETAIL_TIMEOUT: "8"
+      SCRAPLING_BROWSER_ENABLED: "1"
+      SCRAPLING_BROWSER_TIMEOUT: "15000"
+      SCRAPLING_BROWSER_WAIT_MS: "1200"
+      SCRAPLING_BROWSER_DETAIL_LIMIT: "60"
       DETAIL_MIN_TEXT_CHARS: "180"
       POST_DELAY_SECONDS: "1.0"
-      CURL_IMPERSONATES: "safari18_0_ios,safari180_ios,safari184_ios,safari_ios"
+      CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
       CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
       JINA_ENABLED: "1"
       JINA_TIMEOUT: "10"
@@ -64,6 +74,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          scrapling install
 
       - name: Compile check
         run: python -m py_compile main.py
