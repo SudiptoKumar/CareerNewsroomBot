@@ -1,6 +1,6 @@
-# CareerNewsroomBot V1
+# Career News Bot
 
-CareerNewsroom V1 is a category-first Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates.
+Career News Bot is a category-first Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates.
 
 ## Sources
 
@@ -8,7 +8,7 @@ CareerNewsroom V1 is a category-first Bangladesh job-intelligence pipeline for B
 Teletalk AllJobs API is the government source. Government vacancies are evaluated for active validity/freshness and are not passed through the BBA/MBA private-job relevance filter.
 
 ### Private
-Bdjobs is the only private-job source. V1 checks every configured BBA/MBA-oriented category on every run:
+Bdjobs is the only private-job source. checks every configured BBA/MBA-oriented category on every run:
 
 1. Accounting / Finance
 2. Bank / Non-Bank Financial Institution
@@ -25,21 +25,22 @@ Bdjobs is the only private-job source. V1 checks every configured BBA/MBA-orient
 13. IT / Telecom - Business Roles
 14. Education / Training - Business Roles
 
-The legacy `jobs.bdjobs.com/jobsearch.asp?fcatId=...` URLs are used because they are still useful server-rendered category pages for discovery. Some categories now redirect to Bdjobs' newer `/h/jobs/?fcatId=...` application. V1 treats these as the same source and does not use a second job board as fallback.
+The collector uses multiple official Bdjobs category and listing routes because route behavior can vary. It does not use a second job board as a private-source fallback.
 
-Bdjobs' public search page currently exposes the same functional category system together with Posted within windows through 5 days, deadline windows, job level, fresher/experience, age range, job nature and up to 100 jobs per page. V1 uses those source concepts but applies the final freshness rule from authoritative job data instead of depending on undocumented filter parameter names. citeturn851991view0
+Bdjobs' public search page currently exposes the same functional category system together with Posted within windows through 5 days, deadline windows, job level, fresher/experience, age range, job nature and up to 100 jobs per page. the bot uses those source concepts but applies the final freshness rule from authoritative job data instead of depending on undocumented filter parameter names.
 
 ## Discovery strategy
 
-Every configured category is queried on every run. A bounded number of candidates is collected from each category so large categories such as Marketing/Sales cannot consume the entire discovery budget.
+Every configured category is attempted on each run. If Bdjobs returns repeated 403/429 responses, the collector stops hammering blocked category routes and switches to the newest public Bdjobs listing, then infers category lanes locally and verifies shortlisted jobs from authoritative detail pages.
 
-The structured Bdjobs JSON search API is added as a supplementary lane when the category windows do not already fill the private candidate target.
+The structured Bdjobs JSON search API is a final supplementary lane. It is never the only private discovery path.
 
 The private funnel is:
 
 ```text
-14 categories x bounded candidate window
-        + Bdjobs structured API when needed
+14 category lanes
+        + newest Bdjobs listing fallback
+        + structured API when available
                        |
                        v
                 cross-category dedup
@@ -99,7 +100,7 @@ Government jobs are selected separately and placed before private jobs.
 MAX_STORIES_PER_RUN=20
 MAX_GOVERNMENT_POSTS_PER_RUN=5
 BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY=10
-BDJOBS_CATEGORY_WORKERS=8
+BDJOBS_CATEGORY_WORKERS=1
 FAST_PRIVATE_CANDIDATE_TARGET=160
 PRIVATE_RESEARCH_TARGET=40
 FAST_DETAIL_WORKERS=10
@@ -128,10 +129,10 @@ python -m py_compile main.py
 python main.py --self-test
 ```
 
-Use `python main.py --source-test` from a manual GitHub Actions run to inspect every configured Bdjobs category and the Teletalk/Bdjobs source health.
+Use `python main.py --source-test` from a manual GitHub Actions run to inspect category routes, the newest-listing fallback, and Teletalk/Bdjobs source health.
 
 ## Source notes
 
-Bdjobs currently exposes New Jobs and Deadline Tomorrow pages in addition to category search. The category-first collector is intentional because it gives the bot explicit coverage of the business career areas instead of relying on a single mixed listing. citeturn899899view0turn899899view1
+Bdjobs currently exposes New Jobs and Deadline Tomorrow pages in addition to category search. The category-first collector is intentional because it gives the bot explicit coverage of the business career areas instead of relying on a single mixed listing.
 
-The Teletalk AllJobs search endpoint used by the government lane is documented by an open-source integration that records job ID, title, organization, vacancy, deadline and application URL. citeturn917758search1
+The Teletalk AllJobs search endpoint used by the government lane is documented by an open-source integration that records job ID, title, organization, vacancy, deadline and application URL.

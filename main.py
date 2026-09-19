@@ -47,12 +47,12 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot V1"
+PIPELINE_VERSION = "Career News Bot"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules for CareerNewsroom V6:
+# Publication rules for Career News Bot:
 # - Ingest roughly 100 newest Bdjobs candidates, not just 20 search hits.
 # - Reduce 100 -> ~40 with cheap deterministic scoring, then enrich only those.
 # - Score private jobs on a 100-point BBA/MBA career-fit model.
@@ -68,7 +68,7 @@ FUTURE_TOLERANCE_MINUTES = 20
 DISCOVERY_LOOKBACK_DAYS = int(os.environ.get("DISCOVERY_LOOKBACK_DAYS", "21"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
 MAX_EXA_CANDIDATES = int(os.environ.get("MAX_EXA_CANDIDATES", "100"))
-MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "2"))
+MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "3"))
 MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "40"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
@@ -1135,7 +1135,7 @@ def _bdjobs_api_candidates(records):
 def _bdjobs_api_fetch(page_no):
     """Fetch only the newest unparameterized Bdjobs API page.
 
-    V6 intentionally avoids guessing undocumented pagination parameters.
+    The structured API lane intentionally avoids guessing undocumented pagination parameters.
     Any additional depth must come from an independent path (Ever Jobs bridge
     or the direct HTML listing) rather than duplicate API responses."""
     if page_no != 1:
@@ -1158,7 +1158,7 @@ def _discover_bdjobs_api():
 
     The response is useful for structured fields, but current freshness and
     pagination behavior are not sufficiently documented to justify guessing
-    request parameters. V6 therefore limits this path to the newest response
+    request parameters. The API lane therefore limits this path to the newest response
     and uses independent fallbacks when the candidate pool remains short."""
     discovered = []
     seen = set()
@@ -1189,65 +1189,241 @@ def _discover_bdjobs_api():
     return discovered
 
 
-def _fetch_bdjobs_category_page(category):
-    urls=[
-        f"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId={category['id']}",
-        category["url"],
+def _bdjobs_category_url_variants(category):
+    """Known Bdjobs category URL variants, ordered from the legacy mobile/search
+    route to the newer cache route. Bdjobs has changed query casing/route behavior
+    over time, so one hard-coded URL is not a reliable acquisition strategy."""
+    cid = safe_text(category.get("id"))
+    return [
+        f"https://jobs.bdjobs.com/jobsearch.asp?fcatid={cid}&req=mob&requestType=new",
+        f"https://jobs.bdjobs.com/jobsearch.asp?fcatId={cid}&req=mob&requestType=new",
+        f"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatid={cid}",
+        f"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId={cid}",
+        f"https://bdjobs.com/jobsearch.asp?fcatid={cid}&req=mob&requestType=new",
     ]
-    for url in urls:
+
+
+def _bdjobs_source_warmup():
+    """Warm a normal Bdjobs web session before category/API requests.
+
+    Some Bdjobs routes are protected more aggressively when hit cold. Warmup is
+    best-effort and never considered a successful discovery result by itself.
+    """
+    warm_urls = (
+        "https://jobs.bdjobs.com/",
+        "https://jobs.bdjobs.com/jobsearch-cache.asp",
+    )
+    for url in warm_urls:
         try:
-            fetched=_scrapling_static_html(url,timeout=FAST_DISCOVERY_TIMEOUT)
+            r = session.get(url, headers=HEADERS, timeout=min(FAST_DISCOVERY_TIMEOUT, 10), allow_redirects=True)
+            logger.info("BDJOBS WARMUP | status=%s | bytes=%d | url=%s", r.status_code, len(r.content), r.url)
+            if r.status_code < 400 and r.cookies:
+                session.cookies.update(r.cookies)
+        except Exception as exc:
+            logger.debug("Bdjobs warmup failed %s: %s", url, exc)
+
+
+def _fetch_bdjobs_category_page(category):
+    """Try several source-native category routes, then stop on a clear block.
+
+    We do not concurrently hammer all 14 routes. A small sequential ladder is
+    more stable against transient 403 responses and gives us a clean source
+    health signal before falling back to the general newest-jobs pool.
+    """
+    for url in _bdjobs_category_url_variants(category):
+        try:
+            fetched = _scrapling_static_html(url, timeout=FAST_DISCOVERY_TIMEOUT)
             if fetched and fetched.get("text"):
                 return fetched
-            response=session.get(request_safe_url(url),headers=HEADERS,timeout=FAST_DISCOVERY_TIMEOUT)
-            if response.status_code<400 and response.text:
-                return {"status":response.status_code,"text":response.text,"url":response.url,"backend":"requests"}
+            response = session.get(request_safe_url(url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
+            if response.status_code < 400 and response.text:
+                return {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
+            if response.status_code in (401, 403, 429):
+                logger.info("BDJOBS ROUTE BLOCK | status=%s | url=%s", response.status_code, url)
         except Exception as exc:
-            logger.debug("Bdjobs category fetch failed %s: %s",url,exc)
+            logger.debug("Bdjobs category fetch failed %s: %s", url, exc)
     return None
 
 
+def _infer_bdjobs_category(title, text=""):
+    blob = f"{safe_text(title)} {safe_text(text)}".lower()
+    rules = [
+        ("Accounting / Finance", ("account", "finance", "audit", "tax", "treasury")),
+        ("Bank / Non-Bank Financial Institution", ("bank", "banking", "credit", "loan", "relationship officer", "relationship manager")),
+        ("Commercial / Supply Chain", ("supply chain", "procurement", "purchase", "purchasing", "commercial", "sourcing", "logistics")),
+        ("Marketing / Sales", ("marketing", "sales", "business development", "brand", "trade marketing", "territory sales")),
+        ("HR / Organization Development", ("human resource", "human resources", "hr ", "hr&", "recruitment", "talent acquisition", "people operations")),
+        ("General Management / Admin", ("admin", "administration", "office management", "executive assistant", "general management")),
+        ("Customer Service / Call Centre", ("customer service", "call center", "call centre", "contact center", "customer experience", "client service")),
+        ("Media / Advertisement / Event Management", ("media", "advertisement", "advertising", "event management", "public relations", "pr executive")),
+        ("Research / Consultancy", ("research", "consultancy", "consultant", "analyst", "mis", "planning")),
+        ("NGO / Development", ("ngo", "development", "program officer", "project officer", "field officer")),
+        ("Hospitality / Travel / Tourism", ("hotel", "hospitality", "travel", "tourism", "front office", "reservation")),
+        ("Garments / Textile", ("garment", "textile", "merchandising", "merchandiser", "knit", "woven")),
+        ("IT / Telecom - Business Roles", ("business analyst", "product", "product manager", "erp", "crm", "it sales", "telecom sales")),
+        ("Education / Training - Business Roles", ("education coordinator", "admission officer", "academic coordinator", "training coordinator", "school admin")),
+    ]
+    best = None
+    for category, terms in rules:
+        score = sum(2 if term in safe_text(title).lower() else 1 for term in terms if term in blob)
+        if score and (best is None or score > best[0]):
+            best = (score, category)
+    return best[1] if best else "Other Business"
+
+
 def _discover_bdjobs_category(category):
-    fetched=_fetch_bdjobs_category_page(category)
+    fetched = _fetch_bdjobs_category_page(category)
     if not fetched:
-        logger.warning("BDJOBS CATEGORY FAIL | %s | id=%s",category["name"],category["id"])
+        logger.warning("BDJOBS CATEGORY FAIL | %s | id=%s", category["name"], category["id"])
         return []
-    items=_bdjobs_listing_candidates(fetched["text"],fetched.get("url") or category["url"],category=category,limit=BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY)
-    logger.info("BDJOBS CATEGORY | %s | id=%s | candidates=%d | backend=%s",category["name"],category["id"],len(items),fetched.get("backend",""))
+    items = _bdjobs_listing_candidates(
+        fetched["text"], fetched.get("url") or category["url"],
+        category=category, limit=BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY
+    )
+    logger.info("BDJOBS CATEGORY | %s | id=%s | candidates=%d | backend=%s", category["name"], category["id"], len(items), fetched.get("backend", ""))
     return items
 
 
 def _discover_bdjobs_categories():
-    items=[]; seen=set()
-    workers=max(1,min(BDJOBS_CATEGORY_WORKERS,len(BDJOBS_BBA_MBA_CATEGORIES)))
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures={executor.submit(_discover_bdjobs_category,c):c for c in BDJOBS_BBA_MBA_CATEGORIES}
-        for future in as_completed(futures):
-            category=futures[future]
-            try: result=future.result()
-            except Exception as exc:
-                logger.warning("BDJOBS CATEGORY WORKER FAIL | %s | %s",category["name"],exc); continue
-            for item in result:
-                key=item.get("canonical")
-                if not key or key in seen: continue
-                seen.add(key); items.append(item)
-    logger.info("BDJOBS CATEGORY DISCOVERY TOTAL | raw_unique=%d | categories=%d",len(items),len(BDJOBS_BBA_MBA_CATEGORIES))
+    """Category-first discovery with an anti-bot-aware circuit breaker.
+
+    The requirement is to inspect every configured category, but once Bdjobs is
+    clearly returning 403/429 across routes, repeatedly retrying all categories
+    only wastes the run. We therefore probe sequentially, record the health, and
+    let the general newest-jobs fallback recover the candidate pool.
+    """
+    items = []
+    seen = set()
+    blocked_streak = 0
+    attempted = 0
+    for category in BDJOBS_BBA_MBA_CATEGORIES:
+        attempted += 1
+        result = _discover_bdjobs_category(category)
+        if result:
+            blocked_streak = 0
+        else:
+            blocked_streak += 1
+        for item in result:
+            key = item.get("canonical")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            items.append(item)
+        # Four consecutive empty category probes is enough evidence that the
+        # source route is blocked. Do not burn time on ten more identical 403s.
+        if blocked_streak >= 4:
+            logger.warning("BDJOBS CATEGORY CIRCUIT BREAKER | consecutive_failures=%d | switching_to_broad_fallback", blocked_streak)
+            break
+        time.sleep(0.12)
+    logger.info("BDJOBS CATEGORY DISCOVERY TOTAL | raw_unique=%d | categories_attempted=%d/%d", len(items), attempted, len(BDJOBS_BBA_MBA_CATEGORIES))
     return items
 
 
+def _discover_bdjobs_broad_fallback():
+    """Recover private candidates from Bdjobs' current newest-job listing.
+
+    The current public listing exposes a large newest-first pool and explicitly
+    supports Posted within filters. If category routes are blocked, this route
+    keeps the bot useful while preserving category lanes through local inference
+    and authoritative detail-page enrichment.
+    """
+    discovered = []
+    seen = set()
+    queue = [(1, BDJOBS_SEARCH_URL)]
+    # The public "New Jobs" page is a useful second route if the cache listing is
+    # blocked or yields too few links.
+    fallback_urls = [
+        "https://jobs.bdjobs.com/bn/otherjobsbn.asp?JobType=new",
+        "https://bdjobs.com/wap/html/test.asp",
+    ]
+    pages_seen = set()
+    while queue and len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
+        page_no, page_url = queue.pop(0)
+        if page_url in pages_seen:
+            continue
+        pages_seen.add(page_url)
+        fetched = _scrapling_static_html(page_url, timeout=FAST_DISCOVERY_TIMEOUT)
+        if not fetched:
+            try:
+                response = session.get(request_safe_url(page_url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
+                if response.status_code >= 400 or not response.text:
+                    logger.info("BDJOBS BROAD FAIL | status=%s | url=%s", response.status_code, page_url)
+                    continue
+                fetched = {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
+            except Exception as exc:
+                logger.warning("BDJOBS broad fallback failed %s: %s", page_url, exc)
+                continue
+        page_html = fetched["text"]
+        response_url = fetched.get("url") or page_url
+        items = _bdjobs_listing_candidates(page_html, response_url, limit=None)
+        for item in items:
+            if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+                continue
+            inferred = _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", ""))
+            item["source_category"] = inferred
+            item["source_category_id"] = next((c["id"] for c in BDJOBS_BBA_MBA_CATEGORIES if c["name"] == inferred), "")
+            item["discovery"] = "bdjobs_broad_latest"
+            seen.add(item["canonical"])
+            discovered.append(item)
+            if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
+                break
+        if page_no == 1 and len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
+            for n, href in _bdjobs_pagination_links(page_html, response_url):
+                if 2 <= n <= MAX_BDJOBS_DISCOVERY_PAGES:
+                    queue.append((n, href))
+    if len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
+        for url in fallback_urls:
+            if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
+                break
+            fetched = _scrapling_static_html(url, timeout=FAST_DISCOVERY_TIMEOUT)
+            if not fetched:
+                try:
+                    response = session.get(request_safe_url(url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
+                    if response.status_code >= 400 or not response.text:
+                        continue
+                    fetched = {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
+                except Exception:
+                    continue
+            for item in _bdjobs_listing_candidates(fetched["text"], fetched.get("url") or url):
+                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+                    continue
+                item["source_category"] = _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", ""))
+                item["discovery"] = "bdjobs_broad_fallback"
+                seen.add(item["canonical"])
+                discovered.append(item)
+                if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
+                    break
+    logger.info("BDJOBS BROAD FALLBACK | candidates=%d", len(discovered))
+    return discovered
+
 def discover_bdjobs():
-    """Category-first official Bdjobs discovery. Every configured category is probed on every run."""
+    """Production Bdjobs discovery ladder.
+
+    Order: warm session -> source-native category lanes -> broad newest listing ->
+    structured API probe. No single route is allowed to zero the entire private
+    stream.
+    """
+    _bdjobs_source_warmup()
     merged=[]; seen=set()
     def merge(label, items):
         accepted=0
         for item in items or []:
             key=safe_text(item.get("canonical")) or canonical_url(item.get("source_url") or item.get("url") or "")
             if not key or key in seen or key in POSTED_URLS: continue
-            item["canonical"]=key; seen.add(key); merged.append(item); accepted+=1
+            item["canonical"]=key
+            if not item.get("source_category"):
+                item["source_category"]=_infer_bdjobs_category(item.get("title",""), item.get("excerpt","") or item.get("raw_text",""))
+            seen.add(key); merged.append(item); accepted+=1
         logger.info("BDJOBS %s DISCOVERY | raw=%d accepted=%d merged=%d",label,len(items or []),accepted,len(merged))
     merge("CATEGORIES",_discover_bdjobs_categories())
     if len(merged)<FAST_PRIVATE_CANDIDATE_TARGET:
+        merge("BROAD",_discover_bdjobs_broad_fallback())
+    if len(merged)<FAST_PRIVATE_CANDIDATE_TARGET:
         merge("API",_discover_bdjobs_api())
+    if not merged:
+        logger.error("BDJOBS PRIVATE SOURCE UNHEALTHY | no private candidates acquired from any ladder")
+    else:
+        logger.info("BDJOBS PRIVATE SOURCE HEALTHY | candidates=%d",len(merged))
     return merged[:FAST_PRIVATE_CANDIDATE_TARGET]
 
 def discover_all():
@@ -3210,7 +3386,7 @@ def _probe_get(url, params=None, timeout=10, json_expected=False):
 
 
 def source_test():
-    print("CAREER NEWS BOT V1 SOURCE TEST")
+    print("CAREER NEWS BOT SOURCE TEST")
     print(f"Scrapling static: {'available' if ScraplingFetcher and SCRAPLING_ENABLED else 'disabled/unavailable'}")
     print("Scrapling dynamic: disabled for production")
     probes=[
@@ -3289,7 +3465,7 @@ def _prepare_shortlists(discovered):
 
 def run():
     started=time.monotonic()
-    logger.info("CAREER NEWS BOT V1 | category-first BBA/MBA intelligence | categories=%d | max=%d | research=%d | ai=%d | fresh<=%dd",len(BDJOBS_BBA_MBA_CATEGORIES),MAX_STORIES_PER_RUN,PRIVATE_RESEARCH_TARGET,FAST_AI_CANDIDATE_LIMIT,MAX_PRIVATE_POST_AGE_DAYS)
+    logger.info("CAREER NEWS BOT | category-first BBA/MBA intelligence | categories=%d | max=%d | research=%d | ai=%d | fresh<=%dd",len(BDJOBS_BBA_MBA_CATEGORIES),MAX_STORIES_PER_RUN,PRIVATE_RESEARCH_TARGET,FAST_AI_CANDIDATE_LIMIT,MAX_PRIVATE_POST_AGE_DAYS)
     prune_state()
     discovered=discover_all()
     gov_items,private_pool=_prepare_shortlists(discovered)
@@ -3365,7 +3541,7 @@ def run():
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "Career News Bot V1"
+    assert PIPELINE_VERSION == "Career News Bot"
     assert len(BDJOBS_BBA_MBA_CATEGORIES) == 14
     assert MAX_PRIVATE_POST_AGE_DAYS == 5
     assert MAX_STORIES_PER_RUN == 20
@@ -3380,6 +3556,9 @@ def self_test():
     assert is_bdjobs_job_url("https://jobs.bdjobs.com/jobdetails.asp?id=1534666")
     assert is_bdjobs_job_url("https://bdjobs.com/h/jobs/1534666")
     assert not is_bdjobs_job_url("https://bdjobs.com/h/jobs")
+    assert "fcatid=1" in _bdjobs_category_url_variants(BDJOBS_BBA_MBA_CATEGORIES[0])[0]
+    assert _infer_bdjobs_category("Accounts Executive", "Finance and accounting") == "Accounting / Finance"
+    assert _infer_bdjobs_category("Sales Executive", "Business development and marketing") == "Marketing / Sales"
 
     bd_fixture = """
     <html><body>
@@ -3504,7 +3683,7 @@ def self_test():
         body = b"<html><body><h1>ok</h1></body></html>"
     assert "<h1>ok</h1>" in _decode_scrapling_body(_FakeScraplingResponse())
 
-    logger.info("Career News Bot V1 self-test passed.")
+    logger.info("Career News Bot self-test passed.")
 
 
 if __name__ == "__main__":
