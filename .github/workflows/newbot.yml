@@ -1,4 +1,4 @@
-name: Career News V1
+name: CareerNewsroom
 
 on:
   schedule:
@@ -9,13 +9,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-news-v1
+  group: career-newsroom
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 25
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -46,9 +46,11 @@ jobs:
       DETAIL_TIMEOUT: "14"
       LEGACY_DETAIL_TIMEOUT: "8"
       SCRAPLING_BROWSER_ENABLED: "1"
-      SCRAPLING_BROWSER_TIMEOUT: "15000"
-      SCRAPLING_BROWSER_WAIT_MS: "1000"
+      SCRAPLING_BROWSER_TIMEOUT: "60000"
+      SCRAPLING_BROWSER_WAIT_MS: "750"
       SCRAPLING_BROWSER_DETAIL_LIMIT: "60"
+      SCRAPLING_BROWSER_WAIT_SELECTOR: "app-summary #allSection"
+      SCRAPLING_BROWSER_NETWORK_IDLE: "1"
       DETAIL_MIN_TEXT_CHARS: "180"
       POST_DELAY_SECONDS: "1.0"
       CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
@@ -88,7 +90,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run Career News V1
+      - name: Run CareerNewsroom
         run: python main.py
 
       - name: Save state
@@ -101,6 +103,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update Career News V1 state"
+            git commit -m "Update CareerNewsroom state"
             git push
           fi
