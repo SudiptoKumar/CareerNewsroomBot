@@ -1,4 +1,4 @@
-name: CareerNewsroom V4
+name: CareerNewsroom V5
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v4
+  group: careernewsroom-v5
   cancel-in-progress: false
 
 jobs:
@@ -27,10 +27,6 @@ jobs:
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       SCRAPLING_ENABLED: "1"
-      SCRAPLING_DYNAMIC_ENABLED: "0"
-      SCRAPLING_DYNAMIC_TIMEOUT_MS: "15000"
-      SCRAPLING_DYNAMIC_WAIT_MS: "1500"
-      SCRAPLING_DYNAMIC_MAX_CANDIDATES: "40"
       PYTHONUNBUFFERED: "1"
       FAST_PRIVATE_CANDIDATE_TARGET: "60"
       FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
@@ -39,8 +35,6 @@ jobs:
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
-      EVER_JOBS_API_URL: ${{ secrets.EVER_JOBS_API_URL }}
-      EVER_JOBS_API_KEY: ${{ secrets.EVER_JOBS_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -66,14 +60,14 @@ jobs:
           python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
           echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V4 self-test
+      - name: Run V5 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run CareerNewsroom V4
+      - name: Run CareerNewsroom V5
         run: python main.py
 
       - name: Save state
@@ -86,6 +80,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom V4 state"
+            git commit -m "Update CareerNewsroom V5 state"
             git push
           fi
