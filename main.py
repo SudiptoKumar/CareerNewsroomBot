@@ -39,12 +39,12 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot"
+PIPELINE_VERSION = "Career News Bot V2"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules requested for CareerNewsroom V4:
+# Publication rules for CareerNewsroom V2:
 # - Total hard maximum: 20 posts per run.
 # - Minimum total target: 5 posts when enough eligible jobs exist.
 # - Government: 3-5 posts FIRST in every run when 3-5 eligible/unposted government
@@ -61,7 +61,7 @@ FUTURE_TOLERANCE_MINUTES = 20
 DISCOVERY_LOOKBACK_DAYS = int(os.environ.get("DISCOVERY_LOOKBACK_DAYS", "14"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
 MAX_EXA_CANDIDATES = int(os.environ.get("MAX_EXA_CANDIDATES", "100"))
-MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "8"))
+MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "1"))
 MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "160"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
@@ -83,7 +83,29 @@ FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 
 BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
+# Bdjobs' backend search endpoint is used only as a bounded newest-page probe.
+# Its current pagination contract is not publicly documented/verified, so V2
+# deliberately does NOT guess parameter names. If one page is insufficient,
+# V2 moves to the next independent source path instead of wasting requests on
+# duplicate pages.
+BDJOBS_API_URL = "https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
+
+# Government primary source. The endpoint is documented by an independent
+# open-source Teletalk AllJobs search project and returns structured records
+# including job_primary_id, title, organization, vacancy, deadline and
+# application_site_url.
+TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
+TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
+TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
+TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
+
+# Optional self-hosted Ever Jobs bridge. Disabled unless explicitly configured.
+# Ever Jobs exposes POST /api/jobs/search and supports siteType=["bdjobs"].
+EVER_JOBS_API_URL = (os.environ.get("EVER_JOBS_API_URL") or "").strip().rstrip("/")
+EVER_JOBS_API_KEY = (os.environ.get("EVER_JOBS_API_KEY") or "").strip()
+EVER_JOBS_TIMEOUT = int(os.environ.get("EVER_JOBS_TIMEOUT", "15"))
+
 DOHAJ_DOMAIN = "dohaj.com"
 
 DOHAJ_PRIVATE_SECTION_URLS = [
@@ -169,6 +191,7 @@ SOURCE_NAMES = {
     "bdjobs.com": "Bdjobs",
     "jobs.bdjobs.com": "Bdjobs",
     "dohaj.com": "Dohaj",
+    "alljobs.teletalk.com.bd": "Teletalk",
 }
 
 logging.basicConfig(
@@ -421,8 +444,14 @@ def _job_identity_text(job):
 
 
 def job_event_key(job):
-    # Cross-source identity. This intentionally ignores the source domain so the same
-    # vacancy mirrored on Dohaj/Bdjobs is treated as one event.
+    # Prefer a source-native immutable job ID when the source provides one.
+    # Cross-source mirror detection still happens in likely_same_job/build_unique_job_pool.
+    source_id = safe_text(job.get("source_job_id"))
+    source = safe_text(job.get("source")).lower()
+    if source_id and source:
+        return hashlib.sha1(f"{source}:{source_id}".encode("utf-8")).hexdigest()[:24]
+    # Cross-source content identity. This intentionally ignores the source domain so
+    # the same vacancy mirrored on Dohaj/Bdjobs can still collapse into one event.
     return hashlib.sha1(_job_identity_text(job).encode("utf-8")).hexdigest()[:24]
 
 
@@ -602,16 +631,21 @@ def _discover_private_section(url):
     return [x for x in items if _dohaj_private_title_signal(x["title"])]
 
 
-def discover_dohaj():
-    government=[]; private=[]; seen=set()
-    # Government pagination is sequential because page 2 is only needed if page 1 is short.
+def discover_dohaj_government():
+    government=[]; seen=set()
+    # Secondary government fallback only. Teletalk is the primary path in V2.
     for page_no in range(1,DOHAJ_GOVERNMENT_MAX_PAGES+1):
         items=extract_dohaj_page(DOHAJ_GOVERNMENT_URL,"Government Jobs",page_no,FAST_GOVERNMENT_CANDIDATE_TARGET)
         for item in items:
             if item["canonical"] not in seen:
                 seen.add(item["canonical"]); government.append(item)
         if len(government)>=FAST_GOVERNMENT_CANDIDATE_TARGET or (page_no>=2 and len(government)>=MIN_GOVERNMENT_POSTS_PER_RUN): break
+    logger.info("DOHAJ GOVERNMENT FALLBACK: %d",len(government))
+    return government
 
+
+def discover_dohaj():
+    private=[]; seen=set()
     # Private dedicated sections are independent, so fetch page 1 concurrently.
     with ThreadPoolExecutor(max_workers=min(8,len(DOHAJ_PRIVATE_SECTION_URLS))) as executor:
         futures=[executor.submit(_discover_private_section,url) for url in DOHAJ_PRIVATE_SECTION_URLS]
@@ -642,9 +676,124 @@ def discover_dohaj():
                     if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
                 if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
 
-    logger.info("DOHAJ FAST DISCOVERY: government=%d private=%d",len(government),len(private))
-    return government+private
+    logger.info("DOHAJ PRIVATE DISCOVERY: %d",len(private))
+    return private
 
+
+def _teletalk_record_fields(record):
+    if not isinstance(record, dict):
+        return None
+    source_id=safe_text(record.get("job_primary_id") or record.get("jobPrimaryId") or record.get("id"))
+    title=_clean_one_line(record.get("job_title") or record.get("jobTitle") or record.get("title"))
+    if not source_id or not title: return None
+    company=_clean_one_line(record.get("org_name") or record.get("orgName") or record.get("organization") or record.get("company"))
+    vacancy=compact_vacancy(record.get("vacancy"))
+    deadline=normalize_date_text(record.get("deadline_date") or record.get("deadlineDate") or record.get("deadline"))
+    posted=normalize_date_text(record.get("published_date") or record.get("publish_date") or record.get("posted_date") or record.get("postedDate"))
+    apply_url=safe_text(record.get("application_site_url") or record.get("applicationSiteUrl") or record.get("apply_url") or record.get("applyUrl"))
+    education=_strip_html_fragment(record.get("education") or record.get("education_qualification") or "")
+    location=_clean_one_line(record.get("location") or record.get("job_location") or "")
+    employment=compact_employment(record.get("employment_type") or record.get("job_type") or record.get("jobType"))
+    raw_text=" | ".join(x for x in [title,company,location,education] if x)
+    # Keep the source identity independent from the application target. Multiple
+    # Teletalk jobs can legitimately share one application domain/form, so the
+    # native job ID must drive canonicalization and persistent duplicate state.
+    source_url=f"https://alljobs.teletalk.com.bd/?job_primary_id={quote(source_id)}"
+    return {
+        "title":title,"company":company,"location":location,"salary":"","experience":"",
+        "education":compact_education(education),"vacancy":vacancy,"employment_type":employment,
+        "workplace":"","age":"","category":"","application_method":"Online" if apply_url else "",
+        "selection_process":"","application_period":"","application_start":"","application_end":"",
+        "posted_date":posted,"deadline":deadline,"source":"Teletalk","source_url":source_url,
+        "url":source_url,"apply_url":apply_url,"source_job_id":source_id,
+        "discovery":"teletalk_api","is_government":True,"raw_text":raw_text,
+    }
+
+
+def _teletalk_records(payload):
+    if not isinstance(payload,dict): return []
+    for key in ("govtJobs","data","jobs","results"):
+        value=payload.get(key)
+        if isinstance(value,list): return value
+    return []
+
+
+def _discover_teletalk_api():
+    discovered=[]; seen=set()
+    try:
+        response=session.get(TELETALK_API_URL,params={"searchKeyword":""},headers=HEADERS,timeout=TELETALK_API_TIMEOUT)
+        response.raise_for_status(); payload=response.json()
+        records=_teletalk_records(payload)
+        for record in records:
+            fields=_teletalk_record_fields(record)
+            if not fields: continue
+            canonical=canonical_url(fields["source_url"])
+            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
+            seen.add(canonical)
+            discovered.append({
+                "title":fields["title"],"url":fields["url"],"canonical":canonical,
+                "source":"Teletalk","source_url":fields["source_url"],"discovery":"teletalk_api",
+                "excerpt":trim_source_text(fields.get("raw_text",""),1800),
+                "listing_posted":fields.get("posted_date",""),"listing_deadline":fields.get("deadline",""),
+                "discovered_at":now_iso(),"api_fields":fields,"is_government":True,
+            })
+            if len(discovered)>=FAST_GOVERNMENT_CANDIDATE_TARGET: break
+        logger.info("TELETALK API DISCOVERY: %d",len(discovered))
+    except Exception as exc:
+        logger.warning("TELETALK API discovery failed: %s",exc)
+    return discovered
+
+
+def _discover_ever_jobs_bdjobs():
+    """Optional self-hosted Ever Jobs bridge. Never required for V2 operation."""
+    if not EVER_JOBS_API_URL: return []
+    discovered=[]; seen=set()
+    headers={"Accept":"application/json","Content-Type":"application/json"}
+    if EVER_JOBS_API_KEY: headers["x-api-key"]=EVER_JOBS_API_KEY
+    body={"searchTerm":"","siteType":["bdjobs"],"resultsWanted":min(60,FAST_PRIVATE_CANDIDATE_TARGET),"descriptionFormat":"markdown"}
+    try:
+        response=session.post(f"{EVER_JOBS_API_URL}/api/jobs/search",headers=headers,json=body,timeout=EVER_JOBS_TIMEOUT)
+        response.raise_for_status(); payload=response.json()
+        records=payload.get("jobs") if isinstance(payload,dict) else payload
+        if not isinstance(records,list): records=[]
+        for record in records:
+            if not isinstance(record,dict): continue
+            title=_clean_one_line(record.get("title") or record.get("jobTitle"))
+            url=safe_text(record.get("jobUrl") or record.get("job_url") or record.get("url") or record.get("link"))
+            if not title or not url or not is_bdjobs_job_url(url): continue
+            company=_clean_one_line(record.get("company") or record.get("companyName"))
+            source_id=safe_text(record.get("jobId") or record.get("id") or "")
+            canonical=canonical_url(url)
+            if canonical in seen or canonical in POSTED_URLS: continue
+            seen.add(canonical)
+            posted=normalize_date_text(record.get("datePosted") or record.get("postedDate") or record.get("date_posted"))
+            deadline=normalize_date_text(record.get("deadline") or record.get("validThrough"))
+            apply_url=safe_text(record.get("applicationUrl") or record.get("application_url") or record.get("applyUrl") or record.get("apply_url"))
+            description=_strip_html_fragment(record.get("description") or "")
+            fields={
+                "title":title,"company":company,"location":_clean_one_line(record.get("location") or ""),
+                "salary":compact_salary(record.get("salary") or record.get("compensation") or ""),
+                "experience":compact_experience(record.get("experience") or ""),
+                "education":compact_education(_strip_html_fragment(record.get("education") or "")),
+                "vacancy":compact_vacancy(record.get("vacancy") or ""),
+                "employment_type":compact_employment(record.get("jobType") or record.get("employmentType") or ""),
+                "workplace":compact_workplace(record.get("workplace") or record.get("remote") or ""),
+                "age":"","category":"","application_method":"Online" if apply_url else "",
+                "selection_process":"","application_period":"","application_start":"","application_end":"",
+                "posted_date":posted,"deadline":deadline,"source":"Bdjobs","source_url":url,"url":url,
+                "apply_url":apply_url,"source_job_id":source_id,"discovery":"ever_jobs_bdjobs",
+                "is_government":False,"raw_text":trim_source_text(" | ".join(x for x in [title,company,description] if x),MAX_JOB_CONTENT_CHARS),
+            }
+            discovered.append({
+                "title":title,"url":url,"canonical":canonical,"source":"Bdjobs","source_url":url,
+                "discovery":"ever_jobs_bdjobs","excerpt":trim_source_text(fields.get("raw_text",""),2200),
+                "listing_posted":posted,"listing_deadline":deadline,"discovered_at":now_iso(),"api_fields":fields,
+            })
+            if len(discovered)>=FAST_PRIVATE_CANDIDATE_TARGET: break
+        logger.info("EVER JOBS BDJOBS BRIDGE: %d",len(discovered))
+    except Exception as exc:
+        logger.warning("Ever Jobs BDJobs bridge failed: %s",exc)
+    return discovered
 
 
 BDJOBS_NATIVE_CATEGORY_HINTS = (
@@ -698,8 +847,14 @@ def _bdjobs_listing_candidates(page_html, page_url):
         })
     return found
 
-def discover_bdjobs():
-    """Read only the newest Bdjobs page, using page 2 only if the private pool is short."""
+def _discover_bdjobs_html_fallback():
+    """Scrape the .asp listing page's raw HTML for job links. Runs every cycle
+    alongside the JSON API (not only when the API fails) because the live
+    listing page is largely client-rendered and a plain HTTP GET of it may
+    return a thin/empty page independent of whether the API is healthy --
+    confirmed by fetching the bdjobs.com homepage directly and finding no
+    job content in the raw response, consistent with heavy client-side
+    rendering."""
     discovered=[]; seen=set(); pages=[(1,BDJOBS_SEARCH_URL)]
     try:
         while pages and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
@@ -714,23 +869,212 @@ def discover_bdjobs():
                 for n,href in _bdjobs_pagination_links(response.text,response.url):
                     if n==2: pages.append((n,href)); break
     except Exception as exc:
-        logger.warning("BDJOBS latest discovery failed: %s",exc)
-    logger.info("BDJOBS LATEST DISCOVERY: %d",len(discovered))
+        logger.warning("BDJOBS HTML discovery failed: %s",exc)
+    logger.info("BDJOBS HTML DISCOVERY (raw): %d",len(discovered))
     return discovered
 
 
-def discover_all():
-    dohaj = discover_dohaj()
-    bdjobs = discover_bdjobs()
-    all_items = []
-    seen = set()
-    for item in dohaj + bdjobs:
-        canonical = item["canonical"]
-        if canonical in seen:
+# ============================================================
+# BDJOBS JSON API DISCOVERY (bounded primary probe)
+# ============================================================
+
+BDJOBS_API_HEADERS = {
+    "Accept": "application/json, text/plain, */*",
+    "Referer": "https://jobs.bdjobs.com/jobsearch-cache.asp",
+    "Origin": "https://jobs.bdjobs.com",
+}
+
+
+def _bdjobs_api_job_url(job_id):
+    return f"https://jobs.bdjobs.com/jobdetails.asp?id={job_id}"
+
+
+def _bdjobs_api_record_fields(record):
+    """Map one Bdjobs API search-result record onto the bot's internal job
+    schema. The listing API already returns source-backed structured values
+    for nearly every table field, so this does not need any label/regex
+    guessing the way HTML-page extraction does."""
+    if not isinstance(record, dict):
+        return None
+    job_id = safe_text(record.get("Jobid"))
+    title = _clean_one_line(record.get("jobTitle"))
+    if not job_id or not title:
+        return None
+    url = _bdjobs_api_job_url(job_id)
+    company = _clean_one_line(record.get("companyName"))
+    education_raw = _strip_html_fragment(record.get("eduRec"))
+    context_text = _strip_html_fragment(record.get("jobContext"))
+    description_text = _strip_html_fragment(record.get("jobDescription"))
+    raw_text = " | ".join(x for x in [title, company, education_raw, context_text, description_text] if x)
+    posted_iso = normalize_date_text(record.get("publishDate"))
+    deadline_iso = normalize_date_text(record.get("deadlineDB") or record.get("deadline"))
+    return {
+        "title": title,
+        "company": company,
+        "location": compact_location(record.get("location")),
+        "salary": compact_salary(record.get("Salary")),
+        "experience": compact_experience(record.get("experience")),
+        "education": compact_education(education_raw),
+        "vacancy": compact_vacancy(record.get("Vacancies")),
+        "employment_type": compact_employment(record.get("JobType")),
+        "workplace": compact_workplace(record.get("WorkPlace")),
+        "age": "",
+        "category": "",
+        "application_method": "",
+        "selection_process": "",
+        "application_period": "",
+        "application_start": "",
+        "application_end": "",
+        "posted_date": posted_iso,
+        "deadline": deadline_iso,
+        "source": "Bdjobs",
+        "source_url": url,
+        "url": url,
+        "source_job_id": job_id,
+        "discovery": "bdjobs_api",
+        "dohaj_category": "",
+        "is_government": False,
+        "raw_text": raw_text,
+    }
+
+
+def _bdjobs_api_candidates(records):
+    """Gate each record against the same BBA/MBA + early-career hard filters
+    used before publication. The API already supplies every field that gate
+    needs, so irrelevant categories (IT, medical, engineering...) are dropped
+    right here instead of spending a detail-page fetch on them later."""
+    found = []
+    for record in records:
+        fields = _bdjobs_api_record_fields(record)
+        if not fields or is_noise_title(fields["title"], fields["url"]):
             continue
-        seen.add(canonical)
-        all_items.append(item)
-    logger.info("DISCOVERED | Dohaj=%d | Bdjobs=%d | merged=%d", len(dohaj), len(bdjobs), len(all_items))
+        if private_experience_too_high(fields):
+            continue
+        if bba_mba_candidate_score(fields) < 25:
+            continue
+        found.append(fields)
+    return found
+
+
+def _bdjobs_api_fetch(page_no):
+    """Fetch only the newest unparameterized Bdjobs API page.
+
+    V2 intentionally avoids guessing undocumented pagination parameters.
+    Any additional depth must come from an independent path (Ever Jobs bridge
+    or the direct HTML listing) rather than duplicate API responses."""
+    if page_no != 1:
+        return []
+    headers = dict(HEADERS); headers.update(BDJOBS_API_HEADERS)
+    try:
+        response = session.get(BDJOBS_API_URL, headers=headers, timeout=FAST_DISCOVERY_TIMEOUT)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.warning("BDJOBS API request failed: %s", exc)
+        return []
+    if not isinstance(payload,dict) or safe_text(payload.get("statuscode")) != "1":
+        return []
+    return list(payload.get("data") or []) + list(payload.get("premiumData") or [])
+
+
+def _discover_bdjobs_api():
+    """Probe Bdjobs' own JSON search response without speculative pagination.
+
+    The response is useful for structured fields, but current freshness and
+    pagination behavior are not sufficiently documented to justify guessing
+    request parameters. V2 therefore limits this path to the newest response
+    and uses independent fallbacks when the candidate pool remains short."""
+    discovered = []
+    seen = set()
+    target = min(FAST_PRIVATE_CANDIDATE_TARGET, MAX_BDJOBS_DETAIL_CANDIDATES)
+    try:
+        for page_no in range(1, MAX_BDJOBS_DISCOVERY_PAGES + 1):
+            records = _bdjobs_api_fetch(page_no)
+            if not records:
+                break
+            new_this_page = 0
+            for fields in _bdjobs_api_candidates(records):
+                canonical = canonical_url(fields["url"])
+                if not canonical or canonical in seen or canonical in POSTED_URLS:
+                    continue
+                seen.add(canonical); new_this_page += 1
+                discovered.append({
+                    "title": fields["title"], "url": fields["url"], "canonical": canonical,
+                    "source": "Bdjobs", "source_url": fields["url"], "discovery": "bdjobs_api",
+                    "excerpt": trim_source_text(fields.get("raw_text", ""), 2200),
+                    "listing_posted": fields.get("posted_date", ""),
+                    "listing_deadline": fields.get("deadline", ""),
+                    "discovered_at": now_iso(), "api_fields": fields,
+                })
+            if new_this_page == 0 or len(discovered) >= target:
+                break
+    except Exception as exc:
+        logger.warning("BDJOBS API discovery failed: %s", exc)
+    return discovered
+
+
+def discover_bdjobs():
+    """Bounded Bdjobs acquisition ladder.
+
+    1. Official backend API, newest unparameterized page only.
+    2. Optional self-hosted Ever Jobs bridge, when configured.
+    3. Direct HTML listing fallback.
+
+    The ladder stops as soon as the private candidate target is reached.
+    Each rung is invoked lazily so an unnecessary fallback never costs time.
+    """
+    seen=set(); merged=[]
+
+    def merge_items(label, items):
+        accepted=0
+        for item in items or []:
+            canonical=safe_text(item.get("canonical")) or canonical_url(item.get("source_url") or item.get("url") or "")
+            if not canonical or canonical in seen or canonical in POSTED_URLS:
+                continue
+            item["canonical"]=canonical
+            seen.add(canonical); merged.append(item); accepted += 1
+            if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
+                break
+        logger.info("BDJOBS %s DISCOVERY: %d | accepted=%d | merged=%d",label,len(items or []),accepted,len(merged))
+
+    api_items=_discover_bdjobs_api()
+    merge_items("API", api_items)
+    if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
+        return merged
+
+    ever_items=_discover_ever_jobs_bdjobs()
+    merge_items("EVER", ever_items)
+    if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
+        return merged
+
+    html_items=_discover_bdjobs_html_fallback()
+    merge_items("HTML", html_items)
+    return merged
+
+
+def discover_all():
+    # Source discovery is parallelized across primary government, private and Bdjobs paths.
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        f_teletalk=executor.submit(_discover_teletalk_api)
+        f_dohaj=executor.submit(discover_dohaj)
+        f_bdjobs=executor.submit(discover_bdjobs)
+        try: government=f_teletalk.result()
+        except Exception as exc: logger.warning("Teletalk source worker failed: %s",exc); government=[]
+        try: dohaj_private=f_dohaj.result()
+        except Exception as exc: logger.warning("Dohaj private source worker failed: %s",exc); dohaj_private=[]
+        try: bdjobs=f_bdjobs.result()
+        except Exception as exc: logger.warning("Bdjobs source worker failed: %s",exc); bdjobs=[]
+
+    # Only use Dohaj government when the primary Teletalk source is insufficient.
+    if len(government)<MIN_GOVERNMENT_POSTS_PER_RUN:
+        government.extend(discover_dohaj_government())
+
+    all_items=[]; seen=set()
+    for item in government+dohaj_private+bdjobs:
+        canonical=item.get("canonical") or canonical_url(item.get("source_url",""))
+        if not canonical or canonical in seen: continue
+        seen.add(canonical); all_items.append(item)
+    logger.info("DISCOVERED | Teletalk=%d | DohajPrivate=%d | Bdjobs=%d | merged=%d",len(government),len(dohaj_private),len(bdjobs),len(all_items))
     return all_items
 
 
@@ -748,6 +1092,18 @@ def _text_from_html(page_html):
         bad.decompose()
     text = soup.get_text("\n", strip=True)
     return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def _strip_html_fragment(value):
+    """Bdjobs API text fields (eduRec/jobContext/jobDescription) carry inline
+    HTML rather than plain text. Strip tags without touching non-HTML values."""
+    raw = safe_text(value)
+    if not raw or "<" not in raw:
+        return raw
+    try:
+        return _clean_one_line(BeautifulSoup(raw, "html.parser").get_text(" ", strip=True))
+    except Exception:
+        return _clean_one_line(re.sub(r"<[^>]+>", " ", raw))
 
 
 def _jsonld_objects(page_html):
@@ -1683,9 +2039,56 @@ def retrieve_job_content(item):
         return None
 
 
+def _research_teletalk_job(item):
+    fields=dict(item.get("api_fields") or {})
+    fields.update({
+        "canonical":item.get("canonical",canonical_url(item.get("source_url",""))),
+        "source":"Teletalk","source_url":item.get("source_url",fields.get("source_url","")),
+        "apply_url":fields.get("apply_url",item.get("apply_url","")),
+        "retrieval_backend":"teletalk_api","listing_posted":item.get("listing_posted",""),
+        "listing_deadline":item.get("listing_deadline",""),"is_government":True,
+        "source_job_id":fields.get("source_job_id",item.get("source_job_id","")),
+    })
+    fields["application_method"] = compact_application(fields.get("application_method",""), fields.get("apply_url",""))
+    fields["audience_pre_score"] = job_family_score(fields.get("title",""), fields.get("raw_text",""))
+    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
+    fields["event_id"] = job_event_key(fields)
+    return fields
+
+
+def _research_bdjobs_api_job(item):
+    """Bdjobs API discovery already carries a full, source-backed record.
+    Still attempt one detail-page fetch to recover a verified external apply
+    link and a longer description for relevance scoring, but a failed/blocked
+    detail page must never drop an otherwise complete candidate -- unlike the
+    HTML-extraction path, there is no missing data to recover from it."""
+    fields = dict(item["api_fields"])
+    apply_url = ""
+    retrieved = retrieve_job_content(item)
+    if retrieved:
+        apply_url = retrieved.get("apply_url", "")
+        detail_text = safe_text(retrieved.get("text"))
+        if len(detail_text) > len(fields.get("raw_text", "")):
+            fields["raw_text"] = detail_text[:MAX_JOB_CONTENT_CHARS]
+    fields.update({
+        "canonical": item["canonical"], "apply_url": apply_url,
+        "retrieval_backend": "bdjobs_api" + ("+detail_page" if retrieved else "_only"),
+        "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""),
+    })
+    fields["application_method"] = compact_application(fields.get("application_method", ""), apply_url)
+    fields["audience_pre_score"] = job_family_score(fields["title"], fields.get("raw_text", "")[:9000])
+    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
+    fields["event_id"] = job_event_key(fields)
+    return fields
+
+
 def research_job(item):
+    if item.get("source")=="Teletalk" and item.get("api_fields"):
+        return _research_teletalk_job(item)
+    if item.get("api_fields"):
+        return _research_bdjobs_api_job(item)
     # Retrieve the authoritative source page directly.
-    # blocked/thin pages; it is never the primary Bdjobs discovery layer.
     retrieved = retrieve_job_content(item)
     if not retrieved:
         return None
@@ -1884,8 +2287,9 @@ def deterministic_job_gate(job):
     # Government jobs have no BBA/MBA suitability filter. Do not reject a circular
     # merely because a company/employer field is absent or a date could not be parsed.
     if job.get("is_government"):
-        if not is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN]):
-            return False, "government_source_not_dohaj"
+        source=safe_text(job.get("source"))
+        if source not in {"Dohaj", "Teletalk"} and not is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN, TELETALK_DOMAIN]):
+            return False, "government_source_not_allowed"
         return True, "ok_government"
     if not job.get("company"):
         return False, "missing_company"
@@ -2070,12 +2474,18 @@ def candidate_already_posted(job):
     canonical = canonical_url(job.get("source_url", ""))
     if canonical in POSTED_URLS:
         return True
+    source_id = safe_text(job.get("source_job_id"))
+    source = safe_text(job.get("source")).lower()
+    if source_id and source:
+        for published in STATE.get("events", {}).values():
+            if published.get("status") == "published" and safe_text(published.get("source")).lower() == source and safe_text(published.get("source_job_id")) == source_id:
+                return True
     event_id = job.get("event_id") or job_event_key(job)
     event = STATE.get("events", {}).get(event_id, {})
     if event.get("status") == "published":
         return True
-    # Cross-source persistent mirror check. A Dohaj/Bdjobs copy can have different URLs,
-    # so compare it against the small persistent published-event set as well.
+    # Cross-source persistent mirror check. A Dohaj/Bdjobs/Teletalk copy can have different
+    # URLs, so compare it against the small persistent published-event set as well.
     for published in STATE.get("events", {}).values():
         if published.get("status") != "published":
             continue
@@ -2188,6 +2598,7 @@ def store_selected_event(job, published=False, message_id=None):
         "source_url": job.get("source_url", ""),
         "apply_url": job.get("apply_url", ""),
         "source": job.get("source", ""),
+        "source_job_id": job.get("source_job_id", ""),
         "title": job.get("title", ""),
         "company": job.get("company", ""),
         "location": job.get("location", ""),
@@ -2466,6 +2877,53 @@ def fit_rich_blocks(job):
     for key,limit in (("title",120),("company",80),("location",42),("education",42),("experience",28),("salary",44),("application_start",20),("application_end",20)):
         if candidate.get(key): candidate[key]=trim_source_text(candidate[key],limit)
     return rich_message_blocks(candidate)
+
+
+# ============================================================
+# SOURCE DIAGNOSTICS
+# ============================================================
+
+def _probe_get(url, params=None, timeout=10, json_expected=False):
+    # Diagnostics must not inherit the production retry policy; a dead DNS/host
+    # should be reported quickly instead of consuming a large retry/backoff budget.
+    started=time.monotonic()
+    probe_session=requests.Session()
+    probe_session.headers.update(HEADERS)
+    try:
+        response=probe_session.get(url,params=params,headers=HEADERS,timeout=timeout,allow_redirects=True)
+        elapsed=time.monotonic()-started
+        payload=None
+        if json_expected:
+            try: payload=response.json()
+            except Exception: payload=None
+        return {"ok":response.ok,"status":response.status_code,"elapsed":round(elapsed,2),"payload":payload,"bytes":len(response.content or b"")}
+    except Exception as exc:
+        return {"ok":False,"status":0,"elapsed":round(time.monotonic()-started,2),"error":str(exc)}
+
+
+def source_test():
+    print("CAREER NEWS BOT V2 SOURCE TEST")
+    probes=[
+        ("Teletalk API",TELETALK_API_URL,{"searchKeyword":""},TELETALK_API_TIMEOUT,True),
+        ("Bdjobs API",BDJOBS_API_URL,None,FAST_DISCOVERY_TIMEOUT,True),
+        ("Bdjobs HTML",BDJOBS_SEARCH_URL,None,FAST_DISCOVERY_TIMEOUT,False),
+        ("Dohaj Government",DOHAJ_GOVERNMENT_URL,None,FAST_DISCOVERY_TIMEOUT,False),
+    ]
+    results=[]
+    for label,url,params,timeout,jexp in probes:
+        result=_probe_get(url,params=params,timeout=timeout,json_expected=jexp); results.append((label,result))
+        extra=f"status={result.get('status')} time={result.get('elapsed')}s bytes={result.get('bytes',0)}"
+        if label=="Teletalk API" and result.get("ok"):
+            records=_teletalk_records(result.get("payload") or {}); extra+=f" jobs={len(records)}"
+        elif label=="Bdjobs API" and result.get("ok"):
+            payload=result.get("payload") or {}; extra+=f" jobs={len(list(payload.get('data') or []))+len(list(payload.get('premiumData') or [])) if isinstance(payload,dict) else 0}"
+        print(f"{label}: {'OK' if result.get('ok') else 'FAIL'} | {extra}")
+        if result.get("error"): print(f"  error={result['error']}")
+    if EVER_JOBS_API_URL:
+        print(f"Ever Jobs bridge: configured at {EVER_JOBS_API_URL}")
+    else:
+        print("Ever Jobs bridge: disabled (set EVER_JOBS_API_URL to enable)")
+    return results
 
 
 # ============================================================
@@ -2805,12 +3263,82 @@ def self_test():
     assert any(x["url"].endswith("id=101") for x in bd_candidates)
     assert any(x["url"].endswith("id=103") for x in bd_candidates)
 
+    # Bdjobs JSON API regression test: fixture modeled on the live API response
+    # shape (verified against the real endpoint). One BBA-eligible early-career
+    # record, one irrelevant category, one over-experience business record --
+    # only the first should survive discovery-time filtering.
+    bd_api_records=[
+        {
+            "Jobid":"1534666","jobTitle":"ADMIN EXECUTIVE","companyName":"Averroes International School",
+            "eduRec":"Bachelor of Business Administration (BBA)\nBachelor of Business Administration (BBA) in Management\n<ul><li><p>Bachelor's degree in Business Administration, Management, or a relevant field.</p></li></ul>",
+            "experience":"2 to 3 years","location":"Dhaka","JobType":"FullTime","Vacancies":1,"Salary":"--",
+            "WorkPlace":"","deadlineDB":"2026-10-17T00:00:00Z","publishDate":"2026-09-17T06:09:00Z",
+            "jobContext":None,"jobDescription":"Bachelor of Business Administration (BBA) in Management.","Cat_id":7,
+        },
+        {
+            "Jobid":"1534815","jobTitle":"IT Officer","companyName":"Hi-Tech Group",
+            "eduRec":"","experience":"NA","location":"Dhaka","JobType":"FullTime","Vacancies":1,"Salary":"--",
+            "WorkPlace":"Office","deadlineDB":"2026-10-17T00:00:00Z","publishDate":"2026-09-17T12:08:00Z",
+            "jobContext":"<p>Mikrotik router configure, networking, website design.</p>","jobDescription":"","Cat_id":8,
+        },
+        {
+            "Jobid":"1535011","jobTitle":"Assistant Manager / Sr. Executive, Sales & Marketing","companyName":"Spark International",
+            "eduRec":"<ul><li><p>Minimum Graduate degree from a reputed educational institution.</p></li></ul>",
+            "experience":"5 to 8 years","location":"DOHS Banani","JobType":"FullTime","Vacancies":1,"Salary":"--",
+            "WorkPlace":"","deadlineDB":"2026-09-28T00:00:00Z","publishDate":"2026-09-17T11:47:00Z",
+            "jobContext":None,"jobDescription":"<ul><li><p>Minimum Graduate degree.</p></li></ul>","Cat_id":9,
+        },
+    ]
+    bd_api_filtered=_bdjobs_api_candidates(bd_api_records)
+    assert len(bd_api_filtered)==1, f"expected only the BBA-eligible record, got {[x['title'] for x in bd_api_filtered]}"
+    bd_api_job=bd_api_filtered[0]
+    assert bd_api_job["title"]=="ADMIN EXECUTIVE"
+    assert bd_api_job["company"]=="Averroes International School"
+    assert "BBA" in bd_api_job["education"]
+    assert bd_api_job["experience"]=="2 to 3 years"
+    assert bd_api_job["vacancy"]=="1"
+    assert bd_api_job["deadline"]=="2026-10-17"
+    assert bd_api_job["posted_date"]=="2026-09-17"
+    assert bd_api_job["source"]=="Bdjobs"
+    assert bd_api_job["url"]=="https://jobs.bdjobs.com/jobdetails.asp?id=1534666"
+    assert is_bdjobs_job_url(bd_api_job["url"])
+    assert "<" not in bd_api_job["education"] and "<" not in bd_api_job["raw_text"]
+
+    # Malformed API records (no Jobid/title) must be skipped, never crash the pipeline.
+    assert _bdjobs_api_record_fields({"jobTitle":"No Id"}) is None
+    assert _bdjobs_api_record_fields({"Jobid":"999"}) is None
+    assert _bdjobs_api_record_fields("not a dict") is None
+
+    # The over-experience business role must be excluded by the experience gate
+    # specifically (not just happen to score low), matching the private-role cap.
+    over_exp_fields=_bdjobs_api_record_fields(bd_api_records[2])
+    assert private_experience_too_high(over_exp_fields)
+
     translated={**gov_fields,"title":"কর অঞ্চল-১৬, ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬","company":"ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়","location":"ঢাকা"}
     # Without Cerebras this must still produce non-Bengali publishable text.
     translated=translate_government_jobs([translated])[0]
     assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
 
-    assert PIPELINE_VERSION == "Career News Bot"
+    # Teletalk structured-source fixture. No detail-page retrieval is needed.
+    teletalk_fixture={
+        "job_primary_id": "TL-1001", "job_title": "Accounts Assistant",
+        "org_name": "Example Government Department", "vacancy": "12",
+        "deadline_date": "2026-10-10", "application_site_url": "https://example.teletalk.com.bd/"
+    }
+    tel_fields=_teletalk_record_fields(teletalk_fixture)
+    assert tel_fields["source"]=="Teletalk" and tel_fields["is_government"]
+    assert tel_fields["source_job_id"]=="TL-1001" and tel_fields["vacancy"]=="12"
+    assert tel_fields["apply_url"]=="https://example.teletalk.com.bd/"
+    tel_item={"canonical":canonical_url(tel_fields["source_url"]),"source":"Teletalk","source_url":tel_fields["source_url"],"api_fields":tel_fields,"is_government":True,"listing_posted":"","listing_deadline":"2026-10-10"}
+    tel_researched=_research_teletalk_job(tel_item)
+    assert tel_researched["event_id"]==job_event_key(tel_researched)
+
+    # Source-native IDs must distinguish two otherwise identical recruitment records.
+    tel_a=dict(tel_researched,source_job_id="A")
+    tel_b=dict(tel_researched,source_job_id="B")
+    assert job_event_key(tel_a)!=job_event_key(tel_b)
+
+    assert PIPELINE_VERSION == "Career News Bot V2"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
@@ -2818,14 +3346,17 @@ def self_test():
     assert FAST_DETAIL_WORKERS >= 1
     assert FAST_AI_CANDIDATE_LIMIT <= 20
     assert callable(send_rich_text)
-    logger.info("Career News Bot self-test passed.")
+    logger.info("Career News Bot V2 self-test passed.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--source-test", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
+    elif args.source_test:
+        source_test()
     else:
         run()

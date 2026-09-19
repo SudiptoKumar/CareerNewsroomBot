@@ -1,149 +1,202 @@
-# Career News Bot
+# CareerNewsroomBot V2
 
-Fast, incremental Bangladesh job-news pipeline for Career Newsroom with a polished, standardized post format.
+Fast, incremental Bangladesh job-news pipeline for Career Newsroom.
 
-## Core goal
+## Goal
 
-Each scheduled run should finish in **about 5 minutes or less under normal source/network conditions**.
-The bot does **not** crawl the historical job archive on every run.
+Each scheduled run is designed to finish in **under 5 minutes under normal source/network conditions**, while avoiding the historical-archive crawl and large AI batches that slowed older versions.
 
 ```text
-Dedicated source URLs
-        ↓
-Latest listing pages only
-        ↓
-Early duplicate + cheap relevance filter
-        ↓
-Small detail-page shortlist
-        ↓
-Parallel detail retrieval
-        ↓
-Source-backed extraction
-        ↓
-Deterministic ranking
-        ↓
-Optional ONE Cerebras review of top private candidates
-        ↓
-3–5 Government first
-        ↓
-Fill remaining slots with private BBA/MBA jobs
-        ↓
-Hard maximum 20
-        ↓
-Consistency validation
-        ↓
-Polish formatter: available-fields-only table + English-only output + DD-MM-YYYY dates
-        ↓
-Telegram Rich Message
+Government: Teletalk API → Dohaj fallback
+Private:    Bdjobs API → Ever Jobs bridge (optional) → Bdjobs HTML → Dohaj
+                         ↓
+                 early dedup + relevance gate
+                         ↓
+                    small shortlist
+                         ↓
+                parallel detail retrieval
+                         ↓
+                source-backed extraction
+                         ↓
+                 deterministic ranking
+                         ↓
+             ONE optional Cerebras review
+                         ↓
+                 3–5 government first
+                         ↓
+               fill with private jobs
+                         ↓
+                    max 20 posts
+                         ↓
+                 Telegram Rich Message
 ```
 
 ## Publication rules
 
 - Maximum **20 posts per run**.
-- Minimum target **5 posts** when at least 5 eligible new jobs exist.
-- **3–5 government jobs first** whenever at least 3 valid new government jobs are available.
-- Government jobs have **no BBA/MBA filter**.
-- Private jobs must be relevant to BBA/MBA/business candidates.
-- Private jobs must also pass a hard early-career experience gate. By default, the maximum accepted explicit experience band is **3 years**. Examples such as `3-7 years` and `7+ years` are rejected before AI ranking, and the same hard gate is rechecked immediately before publication so later enrichment cannot reintroduce a senior role.
-- Private ranking priority after the hard gate:
-  1. BBA/MBA and related business education fit
-  2. Fresher/no-experience/early-career suitability
-  3. Role relevance
-  4. Publish freshness
-  5. Deadline usefulness
-  6. Job-information quality
-  7. Optional AI editorial fit
-- Photo feature is completely disabled.
-- Application Start/Application End/Application Period are not displayed. Only Deadline and Posted are displayed as date rows.
-- Missing source fields are omitted from the table. The bot never inserts `—` placeholders for unavailable information.
-- Bengali script is blocked from publication. Government vacancy counts and other Bengali fields are translated/normalized before rendering.
-- Telegram posts do **not** use `protect_content`; subscribers remain free to forward/share/save posts according to the channel/client rules. The bot cannot independently hide Telegram’s native share/forward control while keeping forwarding enabled.
-- Rich Message tables have no Bot API width/min-width setting. Career News Bot uses a fixed divider width anchor so short posts render with a consistent practical bubble width on mobile clients while retaining the native table. Exact pixel width remains Telegram-client controlled.
+- Minimum target **5 posts** when enough eligible new jobs exist.
+- Government jobs occupy the first positions, with **3–5** published whenever enough valid new government vacancies are available.
+- Government jobs have **no BBA/MBA relevance gate**.
+- Private jobs must match the channel's BBA/MBA/business-candidate audience and must not require more than **3 years** of experience by default.
+- Missing source fields are omitted instead of replaced with `—`.
+- Bengali script is blocked from final publication; government fields are translated/normalized before rendering.
+- Photo downloading and logo placeholders are disabled.
 
-## Source discovery
+## Sources
 
-### Government
+### 1. Government: Teletalk AllJobs API
+
+Primary endpoint:
+
+`https://alljobs.teletalk.com.bd/api/v1/published-jobs/search?searchKeyword=`
+
+V2 reads one broad published-jobs response and normalizes source-native fields such as:
+
+- `job_primary_id`
+- `job_title`
+- `org_name`
+- `vacancy`
+- `deadline_date`
+- `application_site_url`
+
+This endpoint and field set are documented by an independent open-source Teletalk AllJobs search project. See:
+
+`https://github.com/SazidulAlam47/teletalk-alljobs-govjob-search`
+
+The bot does not depend on this project at runtime.
+
+### 2. Government fallback: Dohaj
 
 `https://dohaj.com/gov-jobs`
 
-V1 reads the latest government listing page first and goes to another page only when the current candidate pool is insufficient. It does not scan the full government archive every run.
+Dohaj government is queried only when Teletalk does not provide at least the minimum government candidate count.
 
-### Dohaj private
+### 3. Private: Bdjobs backend API
 
-The bot uses the existing dedicated business-oriented sections:
+`https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch`
 
-- `https://dohaj.com/category/accounting-finance`
-- `https://dohaj.com/category/marketing-sales`
-- `https://dohaj.com/category/hr-org-development`
-- `https://dohaj.com/category/gen-mgt-admin`
-- `https://dohaj.com/category/commercial-supply-chain`
-- `https://dohaj.com/category/secretary-receptionist`
-- `https://dohaj.com/category/bank-non-bank-fin-institution`
-- `https://dohaj.com/category/customer-service-call-centre`
-- `https://dohaj.com/category/media-advertisement-event-mgt`
-- `https://dohaj.com/category/production-operation`
-- `https://dohaj.com/category/ngo-development`
-- `https://dohaj.com/jobs/all`
+V2 uses the current unparameterized response as a **bounded newest-page probe**. The exact public pagination contract is not documented well enough to justify guessing parameter names, so V2 does not send speculative `page`, `pageno`, or `PageIndex` requests.
 
-Only the latest listing windows are read. Discovery stops when the private candidate pool reaches its target.
+The API response is mapped directly into the bot's internal schema and is filtered for BBA/MBA/business relevance before detail-page work.
 
-### Bdjobs
+### 4. Optional private fallback: Ever Jobs
 
-The official Bdjobs search page is used as the source. Page 1 is read first; later pages are used only when the private pool is still too small. The listing-link parser is part of the Polish build and is regression-tested so a missing helper cannot silently turn Bdjobs discovery into zero candidates.
+Ever Jobs explicitly lists **BDJobs** as a Bangladesh source and describes its BDJobs adapter as HTML parsing with Cheerio. Its REST API exposes `POST /api/jobs/search` and accepts `siteType: ["bdjobs"]`.
 
-## Detail retrieval
+Repository:
 
-Only shortlisted jobs receive detail-page requests.
+`https://github.com/ever-jobs/ever-jobs`
 
-Detail pages are fetched concurrently with a bounded worker pool. Default: **8 workers**.
+V2 can call a **self-hosted Ever Jobs instance** only when `EVER_JOBS_API_URL` is configured. It is optional and is not required to run CareerNewsroomBot.
 
-For Dohaj, the extractor uses the **full visible page text first** because important Job Summary fields can be outside the article text selected by high-precision extraction. It then supplements that text with the article extraction when useful. This preserves authoritative fields such as vacancy, age, location, salary, education, experience, employment type and workplace. If a labeled Experience field is missed by the first parser, the extractor performs a second label-specific recovery from the full page text.
+### 5. Private fallback: direct Bdjobs HTML
 
-V1 does not use Exa search or Exa content retrieval. Direct source retrieval is authoritative and faster. If a detail page fails, that candidate is skipped rather than starting a slow external search workflow.
+`https://jobs.bdjobs.com/jobsearch-cache.asp`
 
-## AI usage
+The raw HTML path is retained because the Bdjobs site has a client-rendered job-search interface. V2 invokes it only when the API/optional Ever Jobs path does not supply enough candidates.
 
-Cerebras is optional. Deterministic filtering/ranking happens first.
+### 6. Private: Dohaj business sections
 
-Only **one compact Cerebras batch**, containing at most 20 private candidates, is sent for editorial suitability review. If Cerebras returns a quota/rate-limit/error response, V1 immediately continues with deterministic ranking. There are no multi-batch retry loops.
+The existing dedicated business-heavy Dohaj category feeds remain in place. Page 1 is queried concurrently; page 2 is used only if the private candidate pool remains short.
 
-## Ranking
+## Bdjobs strategy
 
-Private score emphasizes:
+The important change from the previous version is **bounded fallback routing**:
 
-- BBA/MBA fit
-- Fresher/early-career fit
-- Relevant business function
-- Freshness
-- Deadline
-- Information completeness
-- Optional AI tie-break
+```text
+Bdjobs API
+   ↓ insufficient?
+Ever Jobs bridge, if configured
+   ↓ insufficient?
+Bdjobs HTML
+   ↓
+stop when candidate target is reached
+```
 
-Government jobs use a separate freshness/deadline/quality score and are selected before private jobs.
+The bot no longer runs every Bdjobs path at full size on every cycle, and it no longer guesses undocumented API pagination parameters.
 
-## Duplicate protection
+The API path is based on the endpoint already used by independent job-scraping software, but V2 treats current freshness/pagination as an operational concern rather than assuming the endpoint is an officially documented public API.
 
-V1 uses:
+## Deduplication
+
+V2 uses:
 
 1. Canonical source URL
 2. Persistent `posted_urls.txt`
-3. Persistent `news_state.json` events
-4. Normalized title + company + location identity
-5. Application-target identity when available
-6. Fuzzy title/company/location matching
-7. Cross-source mirror detection between Dohaj and Bdjobs
+3. Persistent `news_state.json`
+4. Source-native job IDs where available
+5. Normalized title + company + location
+6. Application-target identity
+7. Fuzzy title/company/location matching
+8. Cross-source mirror detection
 
-A job appearing in several Dohaj categories is treated as one vacancy.
+A Bdjobs job mirrored on Dohaj, or the same Teletalk recruitment appearing through another source, can therefore be collapsed before publication.
 
-## Field consistency
+## Filtering and ranking
 
-Each job is converted into one source-backed record. The Telegram post is rendered only from that record.
+### Private
 
-This prevents mismatches such as one job's vacancy appearing in another job, salary becoming vacancy, responsibilities becoming Experience, incorrect date formats, or the wrong source being shown.
+Hard gate:
 
-### Table fields
+- BBA/MBA/business relevance
+- non-senior role
+- maximum 3 years explicit experience by default
+- active deadline
+- not already posted
 
-The polished format keeps one fixed field order across private and government jobs:
+Ranking considers:
+
+1. BBA/MBA and related business education fit
+2. Fresher / early-career suitability
+3. Role relevance
+4. Posting freshness
+5. Deadline usefulness
+6. Information completeness
+7. Optional AI editorial score
+
+### Government
+
+Government posts are ranked separately using:
+
+- posting freshness
+- deadline urgency
+- source-backed information quality
+
+## AI usage
+
+Cerebras is optional.
+
+Deterministic filtering and ranking happen first. At most **20 private candidates** are sent in **one compact Cerebras request** for editorial review. If Cerebras is unavailable, rate-limited, or returns an error, V2 immediately falls back to deterministic ranking. There is no multi-batch retry loop.
+
+## Retrieval performance
+
+Only shortlisted jobs receive detail-page requests, and those requests run concurrently with a bounded worker pool.
+
+Default controls:
+
+```text
+MAX_STORIES_PER_RUN=20
+MIN_STORIES_PER_RUN=5
+MIN_GOVERNMENT_POSTS_PER_RUN=3
+MAX_GOVERNMENT_POSTS_PER_RUN=5
+FAST_PRIVATE_CANDIDATE_TARGET=60
+FAST_GOVERNMENT_CANDIDATE_TARGET=10
+FAST_DETAIL_WORKERS=8
+FAST_AI_CANDIDATE_LIMIT=20
+FAST_DISCOVERY_TIMEOUT=15
+FAST_DETAIL_TIMEOUT=18
+TELETALK_API_TIMEOUT=15
+EVER_JOBS_TIMEOUT=15
+POST_DELAY_SECONDS=1.0
+MAX_PRIVATE_EXPERIENCE_YEARS=3
+MAX_BDJOBS_DISCOVERY_PAGES=1
+```
+
+## Telegram output
+
+Telegram Bot API `sendRichMessage` is used for publishing.
+
+The job snapshot keeps one consistent field order:
 
 - Location
 - Employment
@@ -157,51 +210,24 @@ The polished format keeps one fixed field order across private and government jo
 - Deadline
 - Posted
 
-Only source-backed fields that actually exist are shown. **Unavailable fields are omitted**, not displayed as `—`. Application Start and Application End are separate rows, with one date per row.
+Unavailable fields are omitted.
 
-Experience appears only for real duration/fresher status. Technical skills, responsibilities and `Area of Experience` text are not treated as Experience.
+The Rich Message also includes the Career News pull-quote, hashtags, linked channel identity and source link used by the current design.
 
-## Polish formatting
+## GitHub Actions
 
-- Company names are normalized to readable title case instead of appearing in all-lowercase source casing.
-- Detail values are normalized to readable casing.
-- Age is rendered as `18-30 Years` or `25 Years`; phrases such as `at least 25 years` are removed.
-- All displayed dates use `DD-MM-YYYY`.
-- Government posts use `Source: Dohaj`, not `Source: Dohaj Government Jobs`.
-- Government circular titles and Bengali fields are converted to English before publication. One compact Cerebras translation call is used for Bengali government fields when available; a local English/Latin fallback keeps the post publishable if the AI service is unavailable.
+The included workflow:
 
-## Telegram design
+- checks out the repository
+- installs Python dependencies
+- runs `py_compile`
+- runs the V2 self-test
+- runs the production bot
+- persists `news_state.json` and `posted_urls.txt`
 
-The polished version uses Telegram Bot API `sendRichMessage` with native Rich Message blocks. The table is:
+The workflow keeps a small execution safety margin above the target runtime; the pipeline itself is designed around a much smaller discovery and AI workload than the old archive-crawl design.
 
-- bordered
-- striped
-- non-compact, matching the previous wider table presentation
-
-No photo block, logo fallback, placeholder image or generated image is used.
-
-`APPLY NOW` is shown when a verified application URL exists. Otherwise `READ MORE` opens the source page.
-
-## Runtime controls
-
-```text
-MAX_STORIES_PER_RUN=20
-MIN_STORIES_PER_RUN=5
-MIN_GOVERNMENT_POSTS_PER_RUN=3
-MAX_GOVERNMENT_POSTS_PER_RUN=5
-FAST_PRIVATE_CANDIDATE_TARGET=60
-FAST_GOVERNMENT_CANDIDATE_TARGET=10
-FAST_DETAIL_WORKERS=8
-FAST_AI_CANDIDATE_LIMIT=20
-FAST_DISCOVERY_TIMEOUT=15
-FAST_DETAIL_TIMEOUT=18
-POST_DELAY_SECONDS=1.0
-MAX_PRIVATE_EXPERIENCE_YEARS=3
-```
-
-## GitHub secrets
-
-Required:
+## Required secrets
 
 ```text
 TELEGRAM_BOT_TOKEN
@@ -212,40 +238,40 @@ Optional:
 ```text
 CEREBRAS_API_KEY
 CEREBRAS_MODEL
+EVER_JOBS_API_URL
+EVER_JOBS_API_KEY
 ```
 
-`EXA_API_KEY` is not required in V1.
+`EXA_API_KEY` and Agent Reach are not required.
 
-## Regression fixes in Polish 1.1
+## Source diagnostics
 
-- Restored the Bdjobs official-listing candidate parser that was missing from the previous Polish package.
-- Switched Dohaj structured-field extraction to full visible page text with label fallbacks.
-- Removed unavailable table rows instead of rendering `—` placeholders.
-- Restored the previous wider Rich Message table setting (`is_compact=false`).
-- Added a hard private-job experience cap of 3 years.
-- Added self-tests for missing-field behavior, Dohaj field extraction, Bdjobs discovery, and 7+ years rejection.
+Run:
+
+```bash
+python main.py --source-test
+```
+
+This checks the Teletalk API, Bdjobs API, Bdjobs HTML listing and Dohaj government page from the current environment and reports response status, elapsed time and available result counts.
 
 ## Validation
+
+Run:
 
 ```bash
 python -m py_compile main.py
 python main.py --self-test
 ```
 
-## Career News Bot regression fixes
+The self-test covers field extraction, experience gating, source-native job IDs, Teletalk record mapping, Bdjobs record mapping, duplicate behavior, government-first selection and Rich Message rendering.
 
-- Removed `Application Start`, `Application End`, and `Application Period` from the rendered table.
-- Added Bengali-vacancy translation, including Bengali numerals such as `৩৩৮` -> `338`.
-- Added final no-Bengali publication validation for title, company and table fields.
-- Added a second experience extraction pass and defense-in-depth private experience filtering.
-- Removed `protect_content`; forwarding/sharing remains enabled.
-- Added a centered Rich Message pull-quote between 22-character dividers.
-- Added clickable `Career News (linked to https://t.me/CareerNewsroom)` channel identity after hashtags, backed by the channel URL.
-- Restored a stable practical message-width anchor because the Rich Message table API does not expose a minimum-width property.
+## Important source-status notes
 
-Pipeline version: `Career News Bot`.
+Ever Jobs currently lists BDJobs as an HTML/Cheerio source. A separate TypeScript JobSpy implementation currently reports BDJobs as having moved to the Angular SPA at `bdjobs.com/h/jobs` backed by `apiv1.bdjobs.com`. That is why V2 does not treat any single scraper as permanently authoritative.
 
+Current public source references:
 
-## Career News Bot deployment guard
-
-The workflow verifies that `main.py` contains `PIPELINE_VERSION = "Career News Bot"` before running the bot. This prevents GitHub Actions from silently executing an older Polish build. State persistence retries the Git push up to three times after fetching/rebasing `main`, reducing the chance that a transient remote commit error leaves duplicate-protection state unpublished.
+- Ever Jobs: `https://github.com/ever-jobs/ever-jobs`
+- Teletalk AllJobs search project: `https://github.com/SazidulAlam47/teletalk-alljobs-govjob-search`
+- TypeScript JobSpy BDJobs status: `https://github.com/alpharomercoma/ts-jobspy/blob/main/README.md`
+- JobSpy JS changelog: `https://github.com/borgius/jobspy-js/blob/master/CHANGELOG.md`
