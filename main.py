@@ -22,11 +22,10 @@ except ImportError:
 from bs4 import BeautifulSoup
 
 try:
-    from scrapling.fetchers import Fetcher as ScraplingFetcher, DynamicFetcher as ScraplingDynamicFetcher, StealthyFetcher as ScraplingStealthyFetcher
+    from scrapling.fetchers import Fetcher as ScraplingFetcher, DynamicFetcher as ScraplingDynamicFetcher
 except ImportError:
     ScraplingFetcher = None
     ScraplingDynamicFetcher = None
-    ScraplingStealthyFetcher = None
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -48,12 +47,12 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot V0"
+PIPELINE_VERSION = "Career News Bot V6"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules for Career News Bot V0:
+# Publication rules for CareerNewsroom V6:
 # - Ingest roughly 100 newest Bdjobs candidates, not just 20 search hits.
 # - Reduce 100 -> ~40 with cheap deterministic scoring, then enrich only those.
 # - Score private jobs on a 100-point BBA/MBA career-fit model.
@@ -74,18 +73,18 @@ MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES"
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
 
-# Scrapling is the primary acquisition layer for the official Bdjobs listing/detail pages.
-# V0 uses a real Chrome browser for the JS-rendered Bdjobs SPA because GitHub Actions
-# HTTP requests were observed returning 403.
+# Scrapling is the HTML acquisition layer for the official Bdjobs listing/detail pages.
+# The browser renderer is intentionally disabled in production because the current SPA
+# can return HTTP 200 while exposing zero job-card records.
 SCRAPLING_ENABLED = (os.environ.get("SCRAPLING_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"})
-SCRAPLING_DYNAMIC_ENABLED = (os.environ.get("SCRAPLING_DYNAMIC_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"})
+SCRAPLING_DYNAMIC_ENABLED = (os.environ.get("SCRAPLING_DYNAMIC_ENABLED", "0").strip().lower() not in {"0", "false", "no", "off"})
 SCRAPLING_STATIC_TIMEOUT = int(os.environ.get("SCRAPLING_STATIC_TIMEOUT", "15"))
 SCRAPLING_DYNAMIC_TIMEOUT_MS = int(os.environ.get("SCRAPLING_DYNAMIC_TIMEOUT_MS", "15000"))
 SCRAPLING_DYNAMIC_WAIT_MS = int(os.environ.get("SCRAPLING_DYNAMIC_WAIT_MS", "1500"))
 SCRAPLING_DYNAMIC_MAX_CANDIDATES = int(os.environ.get("SCRAPLING_DYNAMIC_MAX_CANDIDATES", "40"))
 SCRAPLING_BROWSER_EXECUTABLE = (os.environ.get("SCRAPLING_BROWSER_EXECUTABLE") or "").strip()
 
-# Source policy: no Dohaj acquisition or fallback in production.
+# Source policy: no Dohaj acquisition or fallback.
 # Official sources used in production are Teletalk for government and Bdjobs for private.
 # The private collector intentionally targets a broad pool before ranking.
 FAST_PRIVATE_CANDIDATE_TARGET = int(os.environ.get("FAST_PRIVATE_CANDIDATE_TARGET", "100"))
@@ -98,30 +97,7 @@ PRIVATE_RESEARCH_TARGET = int(os.environ.get("PRIVATE_RESEARCH_TARGET", "40"))
 PRIVATE_QUALITY_FLOOR = int(os.environ.get("PRIVATE_QUALITY_FLOOR", "60"))
 
 BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
-BDJOBS_DYNAMIC_SEARCH_URL = "https://bdjobs.com/h/jobs/"
-# Current Bdjobs public functional-category routes. Browser discovery visits these
-# sequentially so category coverage is real, not inferred only from titles.
-BDJOBS_CATEGORIES = [
-    (1, "Accounting / Finance"),
-    (2, "Bank / Non-Bank Financial Institution"),
-    (3, "Commercial / Supply Chain"),
-    (9, "Marketing / Sales"),
-    (17, "HR / Organization Development"),
-    (7, "General Management / Admin"),
-    (16, "Customer Service / Call Centre"),
-    (10, "Media / Advertisement / Event Management"),
-    (13, "Research / Consultancy"),
-    (12, "NGO / Development"),
-    (20, "Hospitality / Travel / Tourism"),
-    (6, "Garments / Textile"),
-    (8, "IT / Telecom (business roles only)"),
-    (4, "Education / Training (business roles only)"),
-]
-BDJOBS_CATEGORY_URL = "https://bdjobs.com/h/jobs/?fcatId={}"
-BDJOBS_BROWSER_CATEGORY_LIMIT = int(os.environ.get("BDJOBS_BROWSER_CATEGORY_LIMIT", "14"))
-BDJOBS_BROWSER_PER_CATEGORY = int(os.environ.get("BDJOBS_BROWSER_PER_CATEGORY", "12"))
-BDJOBS_BROWSER_TIMEOUT_MS = int(os.environ.get("BDJOBS_BROWSER_TIMEOUT_MS", "20000"))
-BDJOBS_BROWSER_WAIT_MS = int(os.environ.get("BDJOBS_BROWSER_WAIT_MS", "2500"))
+BDJOBS_DYNAMIC_SEARCH_URL = "https://bdjobs.com/h/jobs"
 # Bdjobs backend search endpoint is a bounded newest-page probe. Its current pagination
 # contract is not publicly documented/verified, so V4 does not guess parameter names.
 # If one page is insufficient, the acquisition ladder moves to another independent path.
@@ -687,87 +663,49 @@ def _scrapling_static_html(url, *, params=None, timeout=None):
         return None
 
 
-def _scrapling_dynamic_html(url, *, wait_selector=None, capture_xhr=None):
-    """Real-browser acquisition for Bdjobs.
-
-    This is intentionally different from the old HTTP-only fallback. It launches
-    the installed Chrome binary, executes the site's JavaScript, keeps normal
-    resources enabled, waits for the rendered app, and can capture matching XHR
-    responses. Scrapling documents `real_chrome`, `network_idle`, `wait_selector`,
-    and `capture_xhr` for this mode.
-    """
-    if not SCRAPLING_ENABLED or not SCRAPLING_DYNAMIC_ENABLED:
+def _scrapling_dynamic_html(url, *, wait_selector=None):
+    """One-shot browser render for JS-heavy pages, intentionally last-resort."""
+    if not SCRAPLING_ENABLED or not SCRAPLING_DYNAMIC_ENABLED or ScraplingDynamicFetcher is None:
         return None
-    if ScraplingDynamicFetcher is None and ScraplingStealthyFetcher is None:
-        return None
-
-    executable = _browser_executable()
-    common = {
+    kwargs = {
         "headless": True,
-        "timeout": max(8000, BDJOBS_BROWSER_TIMEOUT_MS),
-        "wait": max(0, BDJOBS_BROWSER_WAIT_MS),
-        "network_idle": True,
+        "disable_resources": True,
         "load_dom": True,
+        "wait": max(0, SCRAPLING_DYNAMIC_WAIT_MS),
+        "timeout": max(5000, SCRAPLING_DYNAMIC_TIMEOUT_MS),
         "retries": 1,
-        "retry_delay": 0.5,
+        "retry_delay": 0.25,
         "google_search": False,
-        "extra_headers": {
-            "Accept-Language": "en-US,en;q=0.9",
-            "Cache-Control": "no-cache",
-        },
-        "real_chrome": True,
-        "allow_webgl": True,
+        "extra_headers": HEADERS,
     }
-    if executable:
-        common["executable_path"] = executable
     if wait_selector:
-        common["wait_selector"] = wait_selector
-        common["wait_selector_state"] = "attached"
-    if capture_xhr:
-        common["capture_xhr"] = capture_xhr
+        kwargs["wait_selector"] = wait_selector
+    executable = _browser_executable()
+    if executable:
+        kwargs["executable_path"] = executable
+    try:
+        response = ScraplingDynamicFetcher.fetch(request_safe_url(url), **kwargs)
+        status = int(getattr(response, "status", 0) or 0)
+        if status >= 400 or status == 0:
+            return None
+        body = _decode_scrapling_body(response)
+        final_url = safe_text(getattr(response, "url", "")) or url
+        return {"status": status, "text": body, "url": final_url, "backend": "scrapling_dynamic"}
+    except Exception as exc:
+        logger.warning("Scrapling dynamic fetch failed %s: %s", url, exc)
+        return None
 
-    for fetcher, label in (
-        (ScraplingDynamicFetcher, "dynamic"),
-        (ScraplingStealthyFetcher, "stealthy"),
-    ):
-        if fetcher is None:
-            continue
-        kwargs = dict(common)
-        # StealthyFetcher has a different high-protection contract and does not
-        # require the DynamicFetcher-only `load_dom` argument.
-        if label == "stealthy":
-            kwargs.pop("load_dom", None)
-            kwargs.pop("real_chrome", None)
-            kwargs.pop("google_search", None)
-            kwargs["solve_cloudflare"] = True
-        try:
-            response = fetcher.fetch(request_safe_url(url), **kwargs)
-            status = int(getattr(response, "status", 0) or 0)
-            body = _decode_scrapling_body(response)
-            if status >= 400 or status == 0 or not body:
-                logger.warning("Bdjobs browser %s status=%s url=%s", label, status, url)
-                continue
-            captured = getattr(response, "captured_xhr", None)
-            return {
-                "status": status,
-                "text": body,
-                "url": safe_text(getattr(response, "url", "")) or url,
-                "backend": f"scrapling_{label}",
-                "captured_xhr": captured,
-            }
-        except Exception as exc:
-            logger.warning("Bdjobs browser %s failed %s: %s", label, url, exc)
-    return None
 
-def _dynamic_page_candidates(rendered, category_id=None, category_name=""):
+def _scrapling_dynamic_bdjobs_candidates():
+    """Render the current Bdjobs SPA only when the faster source paths are short."""
+    rendered = _scrapling_dynamic_html(BDJOBS_DYNAMIC_SEARCH_URL)
     if not rendered or not rendered.get("text"):
         return []
     page_html = rendered["text"]
-    base_url = rendered.get("url") or BDJOBS_DYNAMIC_SEARCH_URL
     soup = BeautifulSoup(page_html, "html.parser")
     found=[]; seen=set()
     for a in soup.find_all("a", href=True):
-        href=urljoin(base_url, safe_text(a.get("href")))
+        href=urljoin(rendered.get("url") or BDJOBS_DYNAMIC_SEARCH_URL, safe_text(a.get("href")))
         if not is_bdjobs_job_url(href):
             continue
         canonical=canonical_url(href)
@@ -778,67 +716,23 @@ def _dynamic_page_candidates(rendered, category_id=None, category_name=""):
             continue
         parent=a.find_parent(["article","li","div","section","tr"])
         card_text=_clean_one_line(parent.get_text(" ",strip=True)) if parent else title
+        blob=f"{title} {card_text}".lower()
+        if not any(term in blob for term in BDJOBS_NATIVE_CATEGORY_HINTS):
+            # A rendered SPA can omit card metadata; title alone still gets a
+            # second-stage business filter from our normal research pipeline.
+            if not any(term in title.lower() for term in BUSINESS_ROLE_TERMS):
+                continue
         seen.add(canonical)
         found.append({
-            "title":title, "url":href, "canonical":canonical,
-            "source":"Bdjobs", "source_url":href,
-            "discovery":"bdjobs_browser_category" if category_id else "bdjobs_browser",
-            "category_id":category_id, "category_name":category_name,
-            "excerpt":trim_source_text(card_text,2200),
+            "title":title,"url":href,"canonical":canonical,"source":"Bdjobs","source_url":href,
+            "discovery":"bdjobs_scrapling_dynamic","excerpt":trim_source_text(card_text,2200),
             "discovered_at":now_iso(),
         })
-        if len(found)>=BDJOBS_BROWSER_PER_CATEGORY:
+        if len(found)>=SCRAPLING_DYNAMIC_MAX_CANDIDATES:
             break
+    logger.info("BDJOBS SCRAPLING DYNAMIC DISCOVERY: %d",len(found))
     return found
 
-
-def _scrapling_dynamic_bdjobs_candidates():
-    """Primary private-source discovery through a real Chrome-rendered Bdjobs app."""
-    if not SCRAPLING_DYNAMIC_ENABLED:
-        logger.warning("BDJOBS BROWSER DISCOVERY DISABLED")
-        return []
-
-    merged=[]; seen=set()
-    # Category-first acquisition. A single browser request is not reused across
-    # categories because a fresh navigation is less likely to leave stale SPA state.
-    for category_id, category_name in BDJOBS_CATEGORIES[:BDJOBS_BROWSER_CATEGORY_LIMIT]:
-        url=BDJOBS_CATEGORY_URL.format(category_id)
-        rendered=_scrapling_dynamic_html(
-            url,
-            wait_selector="a[href]",
-            capture_xhr=r"(?:api|job|search)",
-        )
-        items=_dynamic_page_candidates(rendered, category_id, category_name)
-        accepted=0
-        for item in items:
-            if item["canonical"] in seen:
-                continue
-            seen.add(item["canonical"]); merged.append(item); accepted += 1
-        logger.info(
-            "BDJOBS BROWSER CATEGORY | %s | status=%s | candidates=%d | merged=%d",
-            category_name, (rendered or {}).get("status", "FAIL"), accepted, len(merged)
-        )
-
-    # Broad current listing is a second browser pass. It catches jobs that are
-    # uncategorized or newly indexed while category lanes provide coverage.
-    if len(merged) < FAST_PRIVATE_CANDIDATE_TARGET:
-        rendered=_scrapling_dynamic_html(
-            BDJOBS_DYNAMIC_SEARCH_URL,
-            wait_selector="a[href]",
-            capture_xhr=r"(?:api|job|search)",
-        )
-        items=_dynamic_page_candidates(rendered)
-        for item in items:
-            if item["canonical"] in seen:
-                continue
-            seen.add(item["canonical"]); merged.append(item)
-            if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
-                break
-        logger.info(
-            "BDJOBS BROWSER BROAD | status=%s | candidates=%d | merged=%d",
-            (rendered or {}).get("status", "FAIL"), len(items), len(merged)
-        )
-    return merged
 
 def extract_dohaj_page(category_url, category_name, page_no=1, limit=12):
     """Fetch one current Dohaj listing page and keep only a small latest window."""
@@ -1225,7 +1119,7 @@ def _bdjobs_api_candidates(records):
 def _bdjobs_api_fetch(page_no):
     """Fetch only the newest unparameterized Bdjobs API page.
 
-    V0 intentionally avoids guessing undocumented pagination parameters.
+    V6 intentionally avoids guessing undocumented pagination parameters.
     Any additional depth must come from an independent path (Ever Jobs bridge
     or the direct HTML listing) rather than duplicate API responses."""
     if page_no != 1:
@@ -1248,7 +1142,7 @@ def _discover_bdjobs_api():
 
     The response is useful for structured fields, but current freshness and
     pagination behavior are not sufficiently documented to justify guessing
-    request parameters. V0 therefore limits this path to the newest response
+    request parameters. V6 therefore limits this path to the newest response
     and uses independent fallbacks when the candidate pool remains short."""
     discovered = []
     seen = set()
@@ -1280,12 +1174,13 @@ def _discover_bdjobs_api():
 
 
 def discover_bdjobs():
-    """Bdjobs private discovery.
+    """Bounded Bdjobs acquisition ladder.
 
-    V0 makes the real browser the primary acquisition mechanism because the
-    production logs proved that ordinary HTTP requests from GitHub Actions are
-    returning 403. API/static HTTP are retained only as diagnostic/secondary
-    paths after browser acquisition.
+    1. Official Bdjobs JSON API.
+    2. Official Bdjobs listing page via Scrapling static HTTP.
+
+    No Dohaj, Ever Jobs, or browser-source fallback is used. The ladder stops as soon
+    as enough Bdjobs candidates are available.
     """
     seen=set(); merged=[]
 
@@ -1299,24 +1194,20 @@ def discover_bdjobs():
             seen.add(canonical); merged.append(item); accepted += 1
             if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
                 break
-        logger.info("BDJOBS %s DISCOVERY: raw=%d accepted=%d merged=%d",
-                    label, len(items or []), accepted, len(merged))
+        logger.info("BDJOBS %s DISCOVERY: %d | accepted=%d | merged=%d",label,len(items or []),accepted,len(merged))
 
-    browser_items=_scrapling_dynamic_bdjobs_candidates()
-    merge_items("BROWSER", browser_items)
+    api_items=_discover_bdjobs_api()
+    merge_items("API", api_items)
+    if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
+        return merged
 
-    # If browser acquisition fails completely, try the official API and static
-    # listing once. This is a recovery path, not the primary architecture.
-    if not merged:
-        api_items=_discover_bdjobs_api()
-        merge_items("API_RECOVERY", api_items)
-    if not merged:
-        html_items=_discover_bdjobs_html_fallback()
-        merge_items("HTML_RECOVERY", html_items)
+    html_items=_discover_bdjobs_html_fallback()
+    merge_items("HTML", html_items)
+    if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
+        return merged
 
-    if not merged:
-        raise RuntimeError("BDJOBS_PRIVATE_SOURCE_FAILED: browser/API/static produced 0 candidates")
     return merged
+
 
 def discover_all():
     """Discover from the two primary official sources only.
@@ -2266,16 +2157,8 @@ def request_safe_url(url):
 def retrieve_job_content(item):
     url=request_safe_url(item["url"])
     try:
-        fetched=None
+        fetched=_scrapling_static_html(url, timeout=FAST_DETAIL_TIMEOUT)
         backend=""
-        if is_domain_allowed(url, BDJOBS_DOMAINS) and SCRAPLING_DYNAMIC_ENABLED:
-            fetched=_scrapling_dynamic_html(
-                url,
-                wait_selector="body",
-                capture_xhr=r"(?:api|job|detail)",
-            )
-        if not fetched:
-            fetched=_scrapling_static_html(url, timeout=FAST_DETAIL_TIMEOUT)
         if fetched:
             page_html=fetched["text"]; final_url=fetched["url"]; backend=fetched["backend"]
         else:
@@ -3292,9 +3175,9 @@ def _probe_get(url, params=None, timeout=10, json_expected=False):
 
 
 def source_test():
-    print("CAREER NEWS BOT V0 SOURCE TEST")
+    print("CAREER NEWS BOT V6 SOURCE TEST")
     print(f"Scrapling static: {'available' if ScraplingFetcher and SCRAPLING_ENABLED else 'disabled/unavailable'}")
-    print(f"Scrapling dynamic: {'enabled' if ScraplingDynamicFetcher and SCRAPLING_DYNAMIC_ENABLED else 'disabled/unavailable'}")
+    print("Scrapling dynamic: disabled for production")
     probes=[
         ("Teletalk API",TELETALK_API_URL,{"searchKeyword":""},TELETALK_API_TIMEOUT,True),
         ("Bdjobs API",BDJOBS_API_URL,None,FAST_DISCOVERY_TIMEOUT,True),
@@ -3319,19 +3202,15 @@ def source_test():
             print(f"Scrapling static Bdjobs: OK | status={probe['status']} time={elapsed}s bytes={len(probe['text'].encode('utf-8', errors='ignore'))} candidates={count} final={probe['url']}")
         else:
             print(f"Scrapling static Bdjobs: FAIL | time={elapsed}s")
-    if (ScraplingDynamicFetcher or ScraplingStealthyFetcher) and SCRAPLING_DYNAMIC_ENABLED:
+    if ScraplingDynamicFetcher and SCRAPLING_DYNAMIC_ENABLED and _browser_executable():
         started=time.monotonic()
-        probe=_scrapling_dynamic_html(
-            BDJOBS_DYNAMIC_SEARCH_URL,
-            wait_selector="a[href]",
-            capture_xhr=r"(?:api|job|search)",
-        )
+        probe=_scrapling_dynamic_html(BDJOBS_DYNAMIC_SEARCH_URL)
         elapsed=round(time.monotonic()-started,2)
         if probe:
-            count=len(_dynamic_page_candidates(probe))
-            print(f"Scrapling browser Bdjobs: OK | backend={probe.get('backend')} status={probe['status']} time={elapsed}s candidates={count} final={probe['url']}")
+            count=len(_bdjobs_listing_candidates(probe["text"], probe["url"]))
+            print(f"Scrapling dynamic Bdjobs: OK | status={probe['status']} time={elapsed}s candidates={count} final={probe['url']}")
         else:
-            print(f"Scrapling browser Bdjobs: FAIL | time={elapsed}s")
+            print(f"Scrapling dynamic Bdjobs: FAIL | time={elapsed}s")
     print("Production sources: Teletalk government + Bdjobs private")
     print("Fallback policy: none across job boards")
     return results
@@ -3372,7 +3251,7 @@ def _prepare_shortlists(discovered):
 def run():
     started = time.monotonic()
     logger.info(
-        "CAREER NEWS BOT V0 | browser-first Bdjobs intelligence funnel | max=%d | private_research=%d | ai_audit=%d",
+        "CAREER NEWS BOT V6 | 100-job intelligence funnel | max=%d | private_research=%d | ai_audit=%d",
         MAX_STORIES_PER_RUN, PRIVATE_RESEARCH_TARGET, FAST_AI_CANDIDATE_LIMIT,
     )
     prune_state()
@@ -3486,7 +3365,7 @@ def run():
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "Career News Bot V0"
+    assert PIPELINE_VERSION == "Career News Bot V6"
     assert MAX_STORIES_PER_RUN == 20
     assert FAST_PRIVATE_CANDIDATE_TARGET >= 80
     assert PRIVATE_RESEARCH_TARGET >= 20
@@ -3538,17 +3417,6 @@ def self_test():
     assert admin["deadline"] == "2026-10-17"
     assert admin["posted_date"] == "2026-09-17"
     assert admin["source"] == "Bdjobs"
-
-    dynamic_fixture = _dynamic_page_candidates(
-        {"text": """<html><body>
-        <article><a href="/h/jobs/1535001">Management Trainee Officer</a><span>Bank business graduate</span></article>
-        <article><a href="/h/jobs/1535002">Accounts Executive</a><span>Finance BBA</span></article>
-        </body></html>""", "url": "https://bdjobs.com/h/jobs/?fcatId=2", "status": 200},
-        2, "Bank / Non-Bank Financial Institution"
-    )
-    assert len(dynamic_fixture) == 2
-    assert dynamic_fixture[0]["category_id"] == 2
-    assert dynamic_fixture[0]["discovery"] == "bdjobs_browser_category"
 
     tel_fixture = {"job_primary_id":"TL-1001","job_title":"Steno-Typist Cum-Computer Operator",
                    "org_name":"Example Government Department","vacancy":"12","deadline_date":"2026-10-10",
@@ -3628,7 +3496,7 @@ def self_test():
         body = b"<html><body><h1>ok</h1></body></html>"
     assert "<h1>ok</h1>" in _decode_scrapling_body(_FakeScraplingResponse())
 
-    logger.info("Career News Bot V0 self-test passed.")
+    logger.info("Career News Bot V6 self-test passed.")
 
 
 if __name__ == "__main__":

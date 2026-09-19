@@ -1,142 +1,181 @@
-# Career News Bot V0
+# CareerNewsroomBot V6
 
-Production-oriented Bangladesh job intelligence bot for Telegram.
+CareerNewsroom V6 is a fast Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates. It is designed to reduce a broad latest-job pool into a small set of high-value, actionable Telegram posts.
 
-## What V0 changes
-
-The previous production logs showed that GitHub Actions HTTP requests to Bdjobs were returning `403`, so V0 changes the private-source acquisition layer instead of changing the ranking model again.
-
-### Source architecture
+## Production sources
 
 ```text
 Government
-  Teletalk API
-      ↓
-  government candidates
+  Teletalk AllJobs API
+        │
+        ├─ active/current validation
+        ├─ source-native dedup
+        └─ freshness + deadline ranking
+        │
+        ▼
+  Government stream (up to 5)
 
 Private
-  Real Chrome + Scrapling
-      ↓
-  Bdjobs functional-category pages
-      ↓
-  14 category lanes
-      ↓
-  broad current Bdjobs listing
-      ↓
-  candidate pool
-      ↓
-  deterministic BBA/MBA business ranking
-      ↓
-  detail enrichment
-      ↓
-  optional Cerebras semantic audit
-      ↓
-  diversity-aware selection
-      ↓
+  Bdjobs API + official Bdjobs HTML
+        │
+        ├─ broad latest-job collection (~100)
+        ├─ canonical dedup
+        ├─ cheap 100 → 40 funnel
+        ├─ detail enrichment only for finalists
+        ├─ deterministic 100-point career score
+        ├─ one optional Cerebras semantic audit
+        └─ diversity-aware reranking
+        │
+        ▼
+  Private stream
+
+Government + Private
+        │
+        ▼
+  hard maximum 20
+        │
+        ▼
   Telegram Rich Messages
 ```
 
-### Bdjobs browser acquisition
+### Source policy
 
-V0 uses Scrapling's browser fetcher with the Chrome executable available on the GitHub runner.
+- Dohaj is completely outside the production acquisition path.
+- Ever Jobs is not required.
+- Bdjobs DynamicFetcher/browser rendering is disabled in the production path.
+- Teletalk is the government source.
+- Bdjobs is the private source.
+- The bot does not silently substitute another job board.
 
-Important settings:
+## Why the private pipeline changed
 
-```text
-SCRAPLING_DYNAMIC_ENABLED=1
-SCRAPLING_BROWSER_EXECUTABLE=/usr/bin/google-chrome
-BDJOBS_BROWSER_CATEGORY_LIMIT=14
-BDJOBS_BROWSER_PER_CATEGORY=12
-BDJOBS_BROWSER_TIMEOUT_MS=20000
-BDJOBS_BROWSER_WAIT_MS=2500
-```
+The Bdjobs job-search page exposes functional categories, organization/industry filters, location, posted-within filters, deadline filters, job nature, job level, fresher/experience bands and jobs-per-page options including 100. The page can also show Featured jobs ahead of normal listings. V6 therefore does not trust visual order as the definition of “best” or “latest”; it collects the available recent candidates and ranks them using their actual posted/deadline data.
 
-The browser path is the **primary** Bdjobs source. The old API/static HTTP paths are only recovery paths after browser acquisition returns zero candidates.
+Current source reference: `https://jobs.bdjobs.com/jobsearch-cache.asp`
 
-The browser collector:
+The Teletalk search API returns structured government fields including source job ID, title, organization, vacancy, deadline and application URL.
 
-1. Opens each relevant Bdjobs functional category sequentially.
-2. Waits for the JavaScript-rendered page.
-3. Extracts real Bdjobs job links from the rendered DOM.
-4. Records the category lane used for discovery.
-5. Runs a broad current-jobs browser pass for additional coverage.
-6. Deduplicates before ranking.
-7. Uses the same browser-first approach for Bdjobs detail retrieval.
+Current source reference: `https://alljobs.teletalk.com.bd/api/v1/published-jobs/search?searchKeyword=`
 
-Scrapling supports browser rendering, real Chrome, wait conditions, network-idle waiting and XHR capture. The implementation uses those capabilities rather than relying on a plain HTTP GET. urlScrapling dynamic fetching documentationhttps://scrapling.readthedocs.io/en/latest/fetching/dynamic.html
+## 100 → 40 → 20 selection model
 
-## Failure behavior
+### Stage 1: Broad discovery
 
-V0 does **not** treat zero Bdjobs candidates as a successful private-source run.
+The private collector targets about 100 unique Bdjobs records. The parser intentionally does **not** require a business keyword at this point. This is important because a generic title such as `Executive`, `Officer`, `Assistant` or `Associate` can still turn out to be an excellent BBA/MBA vacancy once the authoritative fields are available.
 
-If:
+### Stage 2: Cheap funnel
 
-```text
-browser = 0
-API recovery = 0
-HTML recovery = 0
-```
+The broad pool is quickly sorted using only fields available from the listing response:
 
-the job fails with:
-
-```text
-BDJOBS_PRIVATE_SOURCE_FAILED
-```
-
-This is intentional. A run that has only government jobs because the private source was inaccessible is not considered a healthy Career News Bot run.
-
-## Candidate intelligence
-
-The existing intelligence layer is retained:
-
-- BBA/MBA education relevance
-- business-role/function relevance
-- fresher and early-career fit
-- posting freshness
+- business-role signal
+- fresher/trainee/intern signal
+- posted-date freshness
 - deadline urgency
-- salary
-- vacancy
-- information quality
-- business career family
-- duplicate/event detection
-- company and career-family diversity
-- optional Cerebras semantic audit
+- specialist/non-business title signal
 
-Experience is a ranking signal, not a universal hard cutoff.
+Only the best ~40 private candidates receive the more expensive research/enrichment step.
 
-## Sources
+### Stage 3: Deep source-backed enrichment
 
-Production sources:
+Bdjobs API records already carry structured fields and therefore do not need a detail request merely to become rankable. HTML-discovered records receive authoritative detail-page retrieval. Detail retrieval is concurrent and bounded.
 
-- Government: Teletalk AllJobs
-- Private: Bdjobs
+A detail request can enrich descriptions or recover an application URL, but a failed detail page must not destroy an otherwise complete API candidate.
 
-No Dohaj acquisition is used.
+## Private 100-point career score
 
-## Schedule
+Each researched private job receives a transparent base score:
 
-GitHub Actions runs every 3 hours in Asia/Dhaka:
+| Factor | Points | What it measures |
+|---|---:|---|
+| BBA/MBA education fit | 25 | Explicit BBA/MBA or business-degree eligibility |
+| Business role/function fit | 20 | Finance, banking, marketing, sales, HR, supply chain, management, operations, etc. |
+| Career-stage fit | 15 | Fresher/intern/0–1 year gets the strongest score, then gradually declines with experience |
+| Freshness | 15 | Posted today/recently receives the strongest score |
+| Deadline | 10 | Active and actionable deadlines receive more weight |
+| Salary | 5 | Numeric salary disclosure and relative salary strength |
+| Vacancy | 5 | More openings receive a small, diminishing bonus |
+| Information quality | 5 | Completeness of source-backed job fields |
+| **Total** | **100** | |
+
+Experience is a **ranking signal**, not an automatic three-year rejection. A 5-year BBA/MBA business role can still be relevant, but an equivalent fresher/early-career role receives a higher career-stage score. Clearly specialist technical, medical and senior leadership roles are filtered/downranked based on the actual role evidence.
+
+## Career-family classification
+
+The ranking engine maps private jobs into business career families such as:
+
+- Finance & Accounting
+- Banking & Financial Services
+- Marketing & Brand
+- Sales & Business Development
+- HR & Recruitment
+- Supply Chain & Procurement
+- Management & Administration
+- Operations
+- Corporate & Compliance
+- Research & Analytics
+- Customer & Client Service
+- NGO & Development
+- Retail & Branch Operations
+- Merchandising
+
+This lets the final selector avoid filling the entire feed with near-identical roles when other strong business careers are available.
+
+## Cerebras role
+
+Cerebras is an optional **semantic auditor**, not the final publisher.
+
+One compact batch reviews up to 32 high-ranked private candidates for hidden mismatches such as:
+
+- the title looking business-oriented while the actual mandatory degree is unrelated;
+- specialist licensing/degree requirements;
+- material contradictions between the title and description;
+- an apparently junior title carrying clearly senior requirements.
+
+The AI returns a semantic-fit signal and a red-flag signal. The deterministic score remains the main ranking authority. If Cerebras fails, the pipeline continues using the deterministic score.
+
+## Final selection
+
+Government jobs are selected independently and placed first, up to 5. They receive no BBA/MBA suitability gate. Private jobs then fill the remaining slots.
+
+Private selection uses a small diversity adjustment so one company or career family does not monopolize the feed. The adjustment is intentionally weaker than job quality, so variety cannot routinely push a genuinely excellent vacancy below mediocre jobs.
+
+The final feed is capped at 20 posts. It can publish fewer than 20 when the available candidates do not meet the quality floor.
+
+## Duplicate protection
+
+V6 keeps:
+
+- canonical URL identity
+- source-native job IDs where available
+- persistent `posted_urls.txt`
+- persistent `news_state.json`
+- normalized title/company/location identity
+- event identity
+- fuzzy duplicate detection
+
+This also prevents repeat publication when a vacancy is rediscovered through both Bdjobs acquisition paths.
+
+## Runtime defaults
 
 ```text
-0 */3 * * *
+MAX_STORIES_PER_RUN=20
+FAST_PRIVATE_CANDIDATE_TARGET=100
+FAST_GOVERNMENT_CANDIDATE_TARGET=10
+PRIVATE_RESEARCH_TARGET=40
+FAST_DETAIL_WORKERS=10
+FAST_AI_CANDIDATE_LIMIT=32
+PRIVATE_QUALITY_FLOOR=60
+FAST_DISCOVERY_TIMEOUT=15
+FAST_DETAIL_TIMEOUT=18
+MAX_BDJOBS_DISCOVERY_PAGES=2
+POST_DELAY_SECONDS=1.0
+SCRAPLING_ENABLED=1
+SCRAPLING_DYNAMIC_ENABLED=0
 ```
 
-Manual `workflow_dispatch` is also available.
+## GitHub secrets
 
-## Runtime target
-
-```text
-Private discovery target: 120
-Per-category browser window: 12
-Private deep research: 40
-Cerebras audit: up to 32
-Final maximum: 20
-GitHub job timeout: 8 minutes
-```
-
-The browser collector is intentionally sequential across categories to reduce simultaneous requests to Bdjobs.
-
-## Required GitHub secrets
+Required:
 
 ```text
 TELEGRAM_BOT_TOKEN
@@ -151,26 +190,14 @@ CEREBRAS_MODEL
 
 ## Validation
 
-Run locally:
-
 ```bash
 python -m py_compile main.py
 python main.py --self-test
 python main.py --source-test
 ```
 
-`--source-test` is a live network diagnostic and must be run in an environment that can reach Bdjobs.
+`--source-test` is a live diagnostic and depends on GitHub Actions having outbound network access.
 
-## Important limitation
+## Telegram output
 
-A local test environment cannot prove that a GitHub-hosted runner will receive a successful Bdjobs browser response. V0 therefore includes explicit browser-source logging so the first GitHub run can distinguish:
-
-```text
-Chrome launch
-→ Bdjobs navigation
-→ rendered page
-→ category candidates
-→ detail retrieval
-```
-
-from the old opaque `403 → 0 candidates` failure.
+The existing Career Newsroom Rich Message design is preserved. Missing source fields are omitted instead of populated with misleading placeholder values. Photo blocks remain disabled.
