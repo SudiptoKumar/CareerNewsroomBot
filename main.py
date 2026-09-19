@@ -69,11 +69,11 @@ DISCOVERY_LOOKBACK_DAYS = int(os.environ.get("DISCOVERY_LOOKBACK_DAYS", "21"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
 MAX_EXA_CANDIDATES = int(os.environ.get("MAX_EXA_CANDIDATES", "100"))
 MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "3"))
-MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "40"))
+MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "32"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
 
-# Scrapling is the HTML acquisition layer for the official Bdjobs listing/detail pages.
+# Scrapling is the fast HTML acquisition layer for official Bdjobs listing/detail pages.
 # The browser renderer is intentionally disabled in production because the current SPA
 # can return HTTP 200 while exposing zero job-card records.
 SCRAPLING_ENABLED = (os.environ.get("SCRAPLING_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"})
@@ -84,9 +84,9 @@ SCRAPLING_DYNAMIC_WAIT_MS = int(os.environ.get("SCRAPLING_DYNAMIC_WAIT_MS", "150
 SCRAPLING_DYNAMIC_MAX_CANDIDATES = int(os.environ.get("SCRAPLING_DYNAMIC_MAX_CANDIDATES", "40"))
 SCRAPLING_BROWSER_EXECUTABLE = (os.environ.get("SCRAPLING_BROWSER_EXECUTABLE") or "").strip()
 
-# Source policy: no Dohaj acquisition or fallback.
+# Source policy: no cross-board private fallback. Production private acquisition stays on Bdjobs.
 # Official sources used in production are Teletalk for government and Bdjobs for private.
-# The private collector intentionally targets a broad pool before ranking.
+# Private discovery uses a broad newest pool once per run, then local category intelligence.
 FAST_PRIVATE_CANDIDATE_TARGET = int(os.environ.get("FAST_PRIVATE_CANDIDATE_TARGET", "160"))
 FAST_GOVERNMENT_CANDIDATE_TARGET = int(os.environ.get("FAST_GOVERNMENT_CANDIDATE_TARGET", "10"))
 FAST_DETAIL_WORKERS = int(os.environ.get("FAST_DETAIL_WORKERS", "10"))
@@ -96,14 +96,24 @@ FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
 BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY = int(os.environ.get("BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY", "10"))
 BDJOBS_CATEGORY_WORKERS = int(os.environ.get("BDJOBS_CATEGORY_WORKERS", "8"))
 MAX_PRIVATE_POST_AGE_DAYS = int(os.environ.get("MAX_PRIVATE_POST_AGE_DAYS", "5"))
-PRIVATE_RESEARCH_TARGET = int(os.environ.get("PRIVATE_RESEARCH_TARGET", "40"))
+PRIVATE_RESEARCH_TARGET = int(os.environ.get("PRIVATE_RESEARCH_TARGET", "32"))
 PRIVATE_QUALITY_FLOOR = int(os.environ.get("PRIVATE_QUALITY_FLOOR", "64"))
+
+# Bdjobs anti-abuse policy: production discovery intentionally uses only the
+# two routes that were observed working in previous successful runs. Do not
+# fan out to 14 category pages every cycle. Category targeting is performed
+# locally after the broad newest pool is acquired. This keeps request volume
+# low enough for a 3-hour schedule and avoids turning a transient 403 into a
+# self-inflicted source outage.
+BDJOBS_CACHE_MAX_DAYS = int(os.environ.get("BDJOBS_CACHE_MAX_DAYS", "5"))
+
 
 BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_DYNAMIC_SEARCH_URL = "https://bdjobs.com/h/jobs"
-# Bdjobs backend search endpoint is a bounded newest-page probe. Its current pagination
-# contract is not publicly documented/verified, so V4 does not guess parameter names.
-# If one page is insufficient, the acquisition ladder moves to another independent path.
+# Bdjobs API and legacy cache listing are the production acquisition routes.
+# Current category links redirect into the Angular SPA, while repeated category
+# probing from GitHub-hosted IPs has produced 403s. We therefore acquire the
+# newest broad pool once, then classify it locally into the configured career lanes.
 BDJOBS_API_URL = "https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 
@@ -619,7 +629,7 @@ def get_cerebras():
 
 
 # ============================================================
-# SOURCE DISCOVERY: DOHAJ LATEST WINDOWS
+# SOURCE HELPERS / STABLE HTTP ACQUISITION
 # ============================================================
 
 def _listing_date_from_text(card_text):
@@ -1044,7 +1054,8 @@ def _discover_bdjobs_html_fallback():
                 if len(discovered)>=FAST_PRIVATE_CANDIDATE_TARGET: break
             if page_no==1 and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
                 for n,href in _bdjobs_pagination_links(page_html,response_url):
-                    if n==2: pages.append((n,href)); break
+                    if 2 <= n <= MAX_BDJOBS_DISCOVERY_PAGES:
+                        pages.append((n,href))
     except Exception as exc:
         logger.warning("BDJOBS HTML discovery failed: %s",exc)
     logger.info("BDJOBS HTML DISCOVERY (raw): %d",len(discovered))
@@ -1135,9 +1146,9 @@ def _bdjobs_api_candidates(records):
 def _bdjobs_api_fetch(page_no):
     """Fetch only the newest unparameterized Bdjobs API page.
 
-    The structured API lane intentionally avoids guessing undocumented pagination parameters.
-    Any additional depth must come from an independent path (Ever Jobs bridge
-    or the direct HTML listing) rather than duplicate API responses."""
+    The structured API lane intentionally probes only the first current response.
+    Additional candidates come from the broad legacy/cache listing, not speculative
+    category/API fan-out."""
     if page_no != 1:
         return []
     headers = dict(HEADERS); headers.update(BDJOBS_API_HEADERS)
@@ -1190,60 +1201,14 @@ def _discover_bdjobs_api():
 
 
 def _bdjobs_category_url_variants(category):
-    """Known Bdjobs category URL variants, ordered from the legacy mobile/search
-    route to the newer cache route. Bdjobs has changed query casing/route behavior
-    over time, so one hard-coded URL is not a reliable acquisition strategy."""
+    """Return the source-native URL for diagnostics/documentation only.
+
+    Production does not fetch every category URL. The current site redirects
+    category routes into the SPA, and broad acquisition followed by local
+    category classification is considerably less request-heavy.
+    """
     cid = safe_text(category.get("id"))
-    return [
-        f"https://jobs.bdjobs.com/jobsearch.asp?fcatid={cid}&req=mob&requestType=new",
-        f"https://jobs.bdjobs.com/jobsearch.asp?fcatId={cid}&req=mob&requestType=new",
-        f"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatid={cid}",
-        f"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId={cid}",
-        f"https://bdjobs.com/jobsearch.asp?fcatid={cid}&req=mob&requestType=new",
-    ]
-
-
-def _bdjobs_source_warmup():
-    """Warm a normal Bdjobs web session before category/API requests.
-
-    Some Bdjobs routes are protected more aggressively when hit cold. Warmup is
-    best-effort and never considered a successful discovery result by itself.
-    """
-    warm_urls = (
-        "https://jobs.bdjobs.com/",
-        "https://jobs.bdjobs.com/jobsearch-cache.asp",
-    )
-    for url in warm_urls:
-        try:
-            r = session.get(url, headers=HEADERS, timeout=min(FAST_DISCOVERY_TIMEOUT, 10), allow_redirects=True)
-            logger.info("BDJOBS WARMUP | status=%s | bytes=%d | url=%s", r.status_code, len(r.content), r.url)
-            if r.status_code < 400 and r.cookies:
-                session.cookies.update(r.cookies)
-        except Exception as exc:
-            logger.debug("Bdjobs warmup failed %s: %s", url, exc)
-
-
-def _fetch_bdjobs_category_page(category):
-    """Try several source-native category routes, then stop on a clear block.
-
-    We do not concurrently hammer all 14 routes. A small sequential ladder is
-    more stable against transient 403 responses and gives us a clean source
-    health signal before falling back to the general newest-jobs pool.
-    """
-    for url in _bdjobs_category_url_variants(category):
-        try:
-            fetched = _scrapling_static_html(url, timeout=FAST_DISCOVERY_TIMEOUT)
-            if fetched and fetched.get("text"):
-                return fetched
-            response = session.get(request_safe_url(url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
-            if response.status_code < 400 and response.text:
-                return {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
-            if response.status_code in (401, 403, 429):
-                logger.info("BDJOBS ROUTE BLOCK | status=%s | url=%s", response.status_code, url)
-        except Exception as exc:
-            logger.debug("Bdjobs category fetch failed %s: %s", url, exc)
-    return None
-
+    return [f"https://jobs.bdjobs.com/JobSearch.asp?fcatId={cid}&icatId=&requestType=new"]
 
 def _infer_bdjobs_category(title, text=""):
     blob = f"{safe_text(title)} {safe_text(text)}".lower()
@@ -1271,161 +1236,116 @@ def _infer_bdjobs_category(title, text=""):
     return best[1] if best else "Other Business"
 
 
-def _discover_bdjobs_category(category):
-    fetched = _fetch_bdjobs_category_page(category)
-    if not fetched:
-        logger.warning("BDJOBS CATEGORY FAIL | %s | id=%s", category["name"], category["id"])
-        return []
-    items = _bdjobs_listing_candidates(
-        fetched["text"], fetched.get("url") or category["url"],
-        category=category, limit=BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY
-    )
-    logger.info("BDJOBS CATEGORY | %s | id=%s | candidates=%d | backend=%s", category["name"], category["id"], len(items), fetched.get("backend", ""))
-    return items
+def _cached_bdjobs_candidates():
+    """Use recently researched but unpublished Bdjobs jobs during a transient block.
 
-
-def _discover_bdjobs_categories():
-    """Category-first discovery with an anti-bot-aware circuit breaker.
-
-    The requirement is to inspect every configured category, but once Bdjobs is
-    clearly returning 403/429 across routes, repeatedly retrying all categories
-    only wastes the run. We therefore probe sequentially, record the health, and
-    let the general newest-jobs fallback recover the candidate pool.
+    The cache is intentionally short-lived and only contains official Bdjobs
+    records written by the normal research stage. This prevents one temporary
+    403 from producing an empty private feed without ever publishing stale jobs.
     """
-    items = []
+    cutoff = datetime.now(BD_TZ) - timedelta(days=BDJOBS_CACHE_MAX_DAYS)
+    cached = []
     seen = set()
-    blocked_streak = 0
-    attempted = 0
-    for category in BDJOBS_BBA_MBA_CATEGORIES:
-        attempted += 1
-        result = _discover_bdjobs_category(category)
-        if result:
-            blocked_streak = 0
-        else:
-            blocked_streak += 1
-        for item in result:
-            key = item.get("canonical")
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            items.append(item)
-        # Four consecutive empty category probes is enough evidence that the
-        # source route is blocked. Do not burn time on ten more identical 403s.
-        if blocked_streak >= 4:
-            logger.warning("BDJOBS CATEGORY CIRCUIT BREAKER | consecutive_failures=%d | switching_to_broad_fallback", blocked_streak)
-            break
-        time.sleep(0.12)
-    logger.info("BDJOBS CATEGORY DISCOVERY TOTAL | raw_unique=%d | categories_attempted=%d/%d", len(items), attempted, len(BDJOBS_BBA_MBA_CATEGORIES))
-    return items
-
-
-def _discover_bdjobs_broad_fallback():
-    """Recover private candidates from Bdjobs' current newest-job listing.
-
-    The current public listing exposes a large newest-first pool and explicitly
-    supports Posted within filters. If category routes are blocked, this route
-    keeps the bot useful while preserving category lanes through local inference
-    and authoritative detail-page enrichment.
-    """
-    discovered = []
-    seen = set()
-    queue = [(1, BDJOBS_SEARCH_URL)]
-    # The public "New Jobs" page is a useful second route if the cache listing is
-    # blocked or yields too few links.
-    fallback_urls = [
-        "https://jobs.bdjobs.com/bn/otherjobsbn.asp?JobType=new",
-        "https://bdjobs.com/wap/html/test.asp",
-    ]
-    pages_seen = set()
-    while queue and len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
-        page_no, page_url = queue.pop(0)
-        if page_url in pages_seen:
+    for key, item in STATE.get("queue", {}).items():
+        if not isinstance(item, dict) or safe_text(item.get("source")) != "Bdjobs":
             continue
-        pages_seen.add(page_url)
-        fetched = _scrapling_static_html(page_url, timeout=FAST_DISCOVERY_TIMEOUT)
-        if not fetched:
-            try:
-                response = session.get(request_safe_url(page_url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
-                if response.status_code >= 400 or not response.text:
-                    logger.info("BDJOBS BROAD FAIL | status=%s | url=%s", response.status_code, page_url)
-                    continue
-                fetched = {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
-            except Exception as exc:
-                logger.warning("BDJOBS broad fallback failed %s: %s", page_url, exc)
-                continue
-        page_html = fetched["text"]
-        response_url = fetched.get("url") or page_url
-        items = _bdjobs_listing_candidates(page_html, response_url, limit=None)
-        for item in items:
-            if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
-                continue
-            inferred = _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", ""))
-            item["source_category"] = inferred
-            item["source_category_id"] = next((c["id"] for c in BDJOBS_BBA_MBA_CATEGORIES if c["name"] == inferred), "")
-            item["discovery"] = "bdjobs_broad_latest"
-            seen.add(item["canonical"])
-            discovered.append(item)
-            if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
-                break
-        if page_no == 1 and len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
-            for n, href in _bdjobs_pagination_links(page_html, response_url):
-                if 2 <= n <= MAX_BDJOBS_DISCOVERY_PAGES:
-                    queue.append((n, href))
-    if len(discovered) < FAST_PRIVATE_CANDIDATE_TARGET:
-        for url in fallback_urls:
-            if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
-                break
-            fetched = _scrapling_static_html(url, timeout=FAST_DISCOVERY_TIMEOUT)
-            if not fetched:
-                try:
-                    response = session.get(request_safe_url(url), headers=HEADERS, timeout=FAST_DISCOVERY_TIMEOUT, allow_redirects=True)
-                    if response.status_code >= 400 or not response.text:
-                        continue
-                    fetched = {"status": response.status_code, "text": response.text, "url": response.url, "backend": "requests"}
-                except Exception:
-                    continue
-            for item in _bdjobs_listing_candidates(fetched["text"], fetched.get("url") or url):
-                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
-                    continue
-                item["source_category"] = _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", ""))
-                item["discovery"] = "bdjobs_broad_fallback"
-                seen.add(item["canonical"])
-                discovered.append(item)
-                if len(discovered) >= FAST_PRIVATE_CANDIDATE_TARGET:
-                    break
-    logger.info("BDJOBS BROAD FALLBACK | candidates=%d", len(discovered))
-    return discovered
+        url = canonical_url(item.get("source_url") or item.get("url") or key)
+        if not url or url in seen or url in POSTED_URLS:
+            continue
+        dt = parse_datetime(item.get("last_seen") or item.get("posted_date") or item.get("first_seen"))
+        if not dt or dt < cutoff:
+            continue
+        if deadline_status(item) == "expired":
+            continue
+        cached_item = dict(item)
+        cached_item["canonical"] = url
+        cached_item["discovery"] = "bdjobs_recent_cache"
+        cached_item["source_category"] = safe_text(cached_item.get("source_category")) or _infer_bdjobs_category(cached_item.get("title", ""), cached_item.get("raw_text", ""))
+        cached.append(cached_item)
+        seen.add(url)
+    cached.sort(key=lambda j: (-posted_freshness_score(j), -deadline_urgency_score(j), j.get("canonical", "")))
+    logger.info("BDJOBS CACHE FALLBACK | candidates=%d | max_age=%dd", len(cached), BDJOBS_CACHE_MAX_DAYS)
+    return cached
+
+
+def _tag_and_count_bdjobs_categories(items):
+    """Assign every broad candidate to a local business category and log coverage."""
+    counts = {c["name"]: 0 for c in BDJOBS_BBA_MBA_CATEGORIES}
+    other = 0
+    for item in items or []:
+        category = safe_text(item.get("source_category")) or _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", "") or item.get("raw_text", ""))
+        item["source_category"] = category
+        item["source_category_id"] = next((c["id"] for c in BDJOBS_BBA_MBA_CATEGORIES if c["name"] == category), "")
+        if category in counts:
+            counts[category] += 1
+        else:
+            other += 1
+    covered = sum(1 for v in counts.values() if v)
+    compact = " | ".join(f"{name}={counts[name]}" for name in counts if counts[name])
+    logger.info("BDJOBS CATEGORY COVERAGE | covered=%d/%d | other=%d | %s", covered, len(counts), other, compact or "none")
+    return items
+
 
 def discover_bdjobs():
-    """Production Bdjobs discovery ladder.
+    """Low-request Bdjobs discovery with a recent-state safety net.
 
-    Order: warm session -> source-native category lanes -> broad newest listing ->
-    structured API probe. No single route is allowed to zero the entire private
-    stream.
+    Primary order:
+      1. official Bdjobs JSON search response;
+      2. official broad legacy/cache listing;
+      3. recently researched, unpublished Bdjobs records from local state.
+
+    The production job intentionally does NOT perform 14 category HTTP probes.
+    Current category links are SPA redirects and repeated probing has caused
+    GitHub-hosted traffic to receive 403. Categories remain part of the
+    selection algorithm through local classification and diversity quotas.
     """
-    _bdjobs_source_warmup()
-    merged=[]; seen=set()
-    def merge(label, items):
-        accepted=0
-        for item in items or []:
-            key=safe_text(item.get("canonical")) or canonical_url(item.get("source_url") or item.get("url") or "")
-            if not key or key in seen or key in POSTED_URLS: continue
-            item["canonical"]=key
-            if not item.get("source_category"):
-                item["source_category"]=_infer_bdjobs_category(item.get("title",""), item.get("excerpt","") or item.get("raw_text",""))
-            seen.add(key); merged.append(item); accepted+=1
-        logger.info("BDJOBS %s DISCOVERY | raw=%d accepted=%d merged=%d",label,len(items or []),accepted,len(merged))
-    merge("CATEGORIES",_discover_bdjobs_categories())
-    if len(merged)<FAST_PRIVATE_CANDIDATE_TARGET:
-        merge("BROAD",_discover_bdjobs_broad_fallback())
-    if len(merged)<FAST_PRIVATE_CANDIDATE_TARGET:
-        merge("API",_discover_bdjobs_api())
-    if not merged:
-        logger.error("BDJOBS PRIVATE SOURCE UNHEALTHY | no private candidates acquired from any ladder")
-    else:
-        logger.info("BDJOBS PRIVATE SOURCE HEALTHY | candidates=%d",len(merged))
-    return merged[:FAST_PRIVATE_CANDIDATE_TARGET]
+    merged = []
+    seen = set()
 
+    def merge(label, items):
+        accepted = 0
+        for item in items or []:
+            key = safe_text(item.get("canonical")) or canonical_url(item.get("source_url") or item.get("url") or "")
+            if not key or key in seen or key in POSTED_URLS:
+                continue
+            item["canonical"] = key
+            if not item.get("source_category"):
+                item["source_category"] = _infer_bdjobs_category(item.get("title", ""), item.get("excerpt", "") or item.get("raw_text", ""))
+            seen.add(key)
+            merged.append(item)
+            accepted += 1
+            if len(merged) >= FAST_PRIVATE_CANDIDATE_TARGET:
+                break
+        logger.info("BDJOBS %s DISCOVERY | raw=%d accepted=%d merged=%d", label, len(items or []), accepted, len(merged))
+
+    # One structured request. The previous production run showed this endpoint
+    # can deliver a compact, already-structured set of newest records.
+    api_items = _discover_bdjobs_api()
+    merge("API", api_items)
+
+    # One broad listing request, plus at most the small pagination depth exposed
+    # by that page. This is deliberately bounded and never multiplied by category.
+    if len(merged) < FAST_PRIVATE_CANDIDATE_TARGET:
+        html_items = _discover_bdjobs_html_fallback()
+        merge("HTML", html_items)
+
+    # During a temporary source block, reuse fresh state rather than publishing a
+    # misleading government-only run. State candidates are still date/deadline checked
+    # again by the normal gate before publication.
+    fresh = _tag_and_count_bdjobs_categories(merged)
+    if len(merged) < FAST_PRIVATE_CANDIDATE_TARGET:
+        cached = _cached_bdjobs_candidates()
+        if cached:
+            merge("CACHE", cached)
+            fresh = _tag_and_count_bdjobs_categories(merged)
+
+    if not merged:
+        logger.error("BDJOBS PRIVATE SOURCE UNHEALTHY | fresh and cached private candidates both empty")
+    elif any(item.get("discovery") == "bdjobs_recent_cache" for item in merged):
+        logger.warning("BDJOBS PRIVATE SOURCE HEALTHY+STATE | live candidates supplemented by recent state")
+    else:
+        logger.info("BDJOBS PRIVATE SOURCE HEALTHY | candidates=%d", len(merged))
+    return merged[:FAST_PRIVATE_CANDIDATE_TARGET]
 def discover_all():
     """Discover from the two primary official sources only.
 
@@ -3386,46 +3306,39 @@ def _probe_get(url, params=None, timeout=10, json_expected=False):
 
 
 def source_test():
+    """Low-impact live diagnostics. Never fan out across 14 categories."""
     print("CAREER NEWS BOT SOURCE TEST")
     print(f"Scrapling static: {'available' if ScraplingFetcher and SCRAPLING_ENABLED else 'disabled/unavailable'}")
-    print("Scrapling dynamic: disabled for production")
-    probes=[
-        ("Teletalk API",TELETALK_API_URL,{"searchKeyword":""},TELETALK_API_TIMEOUT,True),
-        ("Bdjobs API",BDJOBS_API_URL,None,FAST_DISCOVERY_TIMEOUT,True),
-        ("Bdjobs HTML",BDJOBS_SEARCH_URL,None,FAST_DISCOVERY_TIMEOUT,False),
+    probes = [
+        ("Teletalk API", TELETALK_API_URL, {"searchKeyword": ""}, TELETALK_API_TIMEOUT, True),
+        ("Bdjobs API", BDJOBS_API_URL, None, FAST_DISCOVERY_TIMEOUT, True),
+        ("Bdjobs HTML", BDJOBS_SEARCH_URL, None, FAST_DISCOVERY_TIMEOUT, False),
     ]
-    results=[]
-    for label,url,params,timeout,jexp in probes:
-        result=_probe_get(url,params=params,timeout=timeout,json_expected=jexp); results.append((label,result))
-        extra=f"status={result.get('status')} time={result.get('elapsed')}s bytes={result.get('bytes',0)}"
-        if label=="Teletalk API" and result.get("ok"):
-            records=_teletalk_records(result.get("payload") or {}); extra+=f" jobs={len(records)}"
-        elif label=="Bdjobs API" and result.get("ok"):
-            payload=result.get("payload") or {}; extra+=f" jobs={len(list(payload.get('data') or []))+len(list(payload.get('premiumData') or [])) if isinstance(payload,dict) else 0}"
+    results = []
+    for label, url, params, timeout, json_expected in probes:
+        result = _probe_get(url, params=params, timeout=timeout, json_expected=json_expected)
+        results.append((label, result))
+        extra = f"status={result.get('status')} time={result.get('elapsed')}s bytes={result.get('bytes', 0)}"
+        if label == "Teletalk API" and result.get("ok"):
+            records = _teletalk_records(result.get("payload") or {})
+            extra += f" jobs={len(records)}"
+        elif label == "Bdjobs API" and result.get("ok"):
+            payload = result.get("payload") or {}
+            total = len(list(payload.get("data") or [])) + len(list(payload.get("premiumData") or [])) if isinstance(payload, dict) else 0
+            extra += f" jobs={total}"
         print(f"{label}: {'OK' if result.get('ok') else 'FAIL'} | {extra}")
-        if result.get("error"): print(f"  error={result['error']}")
-    if ScraplingFetcher and SCRAPLING_ENABLED:
-        total=0
-        for category in BDJOBS_BBA_MBA_CATEGORIES:
-            probe=_fetch_bdjobs_category_page(category)
-            if not probe:
-                print(f"CATEGORY FAIL | {category['id']} | {category['name']}")
-                continue
-            count=len(_bdjobs_listing_candidates(probe["text"], probe["url"], category=category, limit=BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY))
-            total += count
-            print(f"CATEGORY OK | {category['id']} | {category['name']} | candidates={count} | backend={probe.get('backend','')}")
-        print(f"Bdjobs category total candidate windows: {total}")
-    if ScraplingDynamicFetcher and SCRAPLING_DYNAMIC_ENABLED and _browser_executable():
-        started=time.monotonic()
-        probe=_scrapling_dynamic_html(BDJOBS_DYNAMIC_SEARCH_URL)
-        elapsed=round(time.monotonic()-started,2)
-        if probe:
-            count=len(_bdjobs_listing_candidates(probe["text"], probe["url"]))
-            print(f"Scrapling dynamic Bdjobs: OK | status={probe['status']} time={elapsed}s candidates={count} final={probe['url']}")
-        else:
-            print(f"Scrapling dynamic Bdjobs: FAIL | time={elapsed}s")
-    print("Production sources: Teletalk government + Bdjobs category-first private")
-    print("Fallback policy: no cross-board fallback; private discovery stays on official Bdjobs")
+        if result.get("error"):
+            print(f"  error={result['error']}")
+
+    html_probe = next((r for label, r in results if label == "Bdjobs HTML"), None)
+    if html_probe and html_probe.get("ok"):
+        print("Bdjobs HTML direct probe: reachable")
+    else:
+        print("Bdjobs HTML direct probe: blocked/unavailable")
+
+    print("Production discovery: 1 Bdjobs API + 1 broad Bdjobs listing + local category classification")
+    print("Category HTTP fan-out: disabled")
+    print("Fallback policy: recent unpublished Bdjobs state only; no cross-board private fallback")
     return results
 
 
@@ -3465,11 +3378,14 @@ def _prepare_shortlists(discovered):
 
 def run():
     started=time.monotonic()
-    logger.info("CAREER NEWS BOT | category-first BBA/MBA intelligence | categories=%d | max=%d | research=%d | ai=%d | fresh<=%dd",len(BDJOBS_BBA_MBA_CATEGORIES),MAX_STORIES_PER_RUN,PRIVATE_RESEARCH_TARGET,FAST_AI_CANDIDATE_LIMIT,MAX_PRIVATE_POST_AGE_DAYS)
+    logger.info("CAREER NEWS BOT | broad Bdjobs acquisition + local BBA/MBA category intelligence | categories=%d | max=%d | research=%d | ai=%d | fresh<=%dd",len(BDJOBS_BBA_MBA_CATEGORIES),MAX_STORIES_PER_RUN,PRIVATE_RESEARCH_TARGET,FAST_AI_CANDIDATE_LIMIT,MAX_PRIVATE_POST_AGE_DAYS)
     prune_state()
     discovered=discover_all()
     gov_items,private_pool=_prepare_shortlists(discovered)
     logger.info("DISCOVERY POOL | government=%d private=%d total=%d",len(gov_items),len(private_pool),len(discovered))
+    if not private_pool:
+        logger.error("PRIVATE DISCOVERY FAILED | Bdjobs returned no fresh or cached private candidates. Aborting before publication so a broken source cannot masquerade as a successful run.")
+        raise RuntimeError("Bdjobs private source unavailable")
     cheap_ranked=sorted(private_pool,key=lambda j:(-discovery_priority_score(j),-posted_freshness_score(j),-deadline_urgency_score(j),j.get("canonical","")))
     private_research_items=cheap_ranked[:PRIVATE_RESEARCH_TARGET]
     logger.info("FUNNEL | private_discovered=%d -> private_research=%d",len(private_pool),len(private_research_items))
@@ -3550,13 +3466,15 @@ def self_test():
     assert FAST_AI_CANDIDATE_LIMIT <= 40
     assert MAX_GOVERNMENT_POSTS_PER_RUN == 5
     assert callable(send_rich_text)
+    assert BDJOBS_CACHE_MAX_DAYS >= MAX_PRIVATE_POST_AGE_DAYS
+    assert MAX_BDJOBS_DISCOVERY_PAGES <= 3
 
     assert is_noise_title("Our Valuable Partners", "https://jobs.bdjobs.com/jobdetails.asp?id=123")
     assert not is_noise_title("Management Trainee Officer", "https://jobs.bdjobs.com/jobdetails.asp?id=123")
     assert is_bdjobs_job_url("https://jobs.bdjobs.com/jobdetails.asp?id=1534666")
     assert is_bdjobs_job_url("https://bdjobs.com/h/jobs/1534666")
     assert not is_bdjobs_job_url("https://bdjobs.com/h/jobs")
-    assert "fcatid=1" in _bdjobs_category_url_variants(BDJOBS_BBA_MBA_CATEGORIES[0])[0]
+    assert "fcatId=1" in _bdjobs_category_url_variants(BDJOBS_BBA_MBA_CATEGORIES[0])[0]
     assert _infer_bdjobs_category("Accounts Executive", "Finance and accounting") == "Accounting / Finance"
     assert _infer_bdjobs_category("Sales Executive", "Business development and marketing") == "Marketing / Sales"
 

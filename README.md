@@ -1,14 +1,14 @@
 # Career News Bot
 
-Career News Bot is a category-first Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates.
+Career News Bot is a Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates. It publishes Telegram Rich Messages from two production sources: Teletalk for government jobs and Bdjobs for private jobs.
 
 ## Sources
 
 ### Government
-Teletalk AllJobs API is the government source. Government vacancies are evaluated for active validity/freshness and are not passed through the BBA/MBA private-job relevance filter.
+Teletalk AllJobs API is the government source. Government vacancies are evaluated separately and are not passed through the private BBA/MBA relevance gate.
 
 ### Private
-Bdjobs is the only private-job source. checks every configured BBA/MBA-oriented category on every run:
+Bdjobs is the only private-job source. The bot uses 14 configured career categories as its **local intelligence/selection lanes**:
 
 1. Accounting / Finance
 2. Bank / Non-Bank Financial Institution
@@ -25,42 +25,46 @@ Bdjobs is the only private-job source. checks every configured BBA/MBA-oriented 
 13. IT / Telecom - Business Roles
 14. Education / Training - Business Roles
 
-The collector uses multiple official Bdjobs category and listing routes because route behavior can vary. It does not use a second job board as a private-source fallback.
+The production collector does **not** request all 14 Bdjobs category URLs every run. The current category routes redirect into the Angular jobs application, and repeated category probing from GitHub-hosted traffic has been producing 403 responses. Instead, the bot acquires the newest broad Bdjobs pool with a very small request budget, then classifies every candidate locally into the same career lanes. This preserves category-aware ranking and diversity without repeatedly hammering Bdjobs.
 
-Bdjobs' public search page currently exposes the same functional category system together with Posted within windows through 5 days, deadline windows, job level, fresher/experience, age range, job nature and up to 100 jobs per page. the bot uses those source concepts but applies the final freshness rule from authoritative job data instead of depending on undocumented filter parameter names.
+## Why the acquisition was changed
 
-## Discovery strategy
+Previous production logs showed an important pattern: the same Bdjobs API and cache listing routes had returned HTTP 200 shortly before a later run returned HTTP 403. The failing version also performed a 14-category fan-out and ran live source diagnostics immediately before the real bot run. That created unnecessary repeated requests.
 
-Every configured category is attempted on each run. If Bdjobs returns repeated 403/429 responses, the collector stops hammering blocked category routes and switches to the newest public Bdjobs listing, then infers category lanes locally and verifies shortlisted jobs from authoritative detail pages.
-
-The structured Bdjobs JSON search API is a final supplementary lane. It is never the only private discovery path.
-
-The private funnel is:
+The repaired design therefore uses:
 
 ```text
-14 category lanes
-        + newest Bdjobs listing fallback
-        + structured API when available
-                       |
-                       v
-                cross-category dedup
-                       |
-                 broad recall pool
-                       |
-                 cheap first score
-                       |
-                   top ~40
-                       |
-              detail-page enrichment
-                       |
-             100-point private score
-                       |
-             Cerebras semantic audit
-                       |
-             diversity-aware rerank
-                       |
-                  best 12-20
+Teletalk API                     Bdjobs API (1 probe)
+      |                                  |
+      |                           Bdjobs broad cache listing
+      |                           (1-3 pages, only when needed)
+      |                                  |
+      +--------------------+-------------+
+                           |
+                    Candidate Pool
+                           |
+                URL/Event Deduplication
+                           |
+              Local category classification
+                           |
+               Cheap discovery priority
+                           |
+                 Detail enrichment
+                           |
+               Deterministic BBA/MBA gate
+                           |
+               100-point private score
+                           |
+                Cerebras semantic audit
+                           |
+             Diversity-aware final ranking
+                           |
+                    Telegram posts
 ```
+
+There is also a short **recent Bdjobs state cache**. When the live Bdjobs source is temporarily unavailable, fresh unpublished candidates from the previous successful runs can be reused. The cache is still rechecked for deadline and five-day freshness before publication.
+
+A Bdjobs outage with no fresh source data and no recent cache is treated as a real source failure. The run aborts before publication instead of reporting a misleading government-only success.
 
 ## Private ranking: 100 points
 
@@ -78,35 +82,45 @@ The private funnel is:
 | Category confidence | 5 |
 | **Total** | **100** |
 
-Experience is ranked smoothly from fresher to experienced instead of using the old hard 3-year rejection. Private jobs with a verified posted date older than 5 days are excluded from publication, and expired jobs are excluded.
+Experience is ranked smoothly from fresher to experienced instead of using a universal three-year rejection. Private jobs with a verified posted date older than 5 days are excluded. Expired jobs are excluded.
 
-The 18-30 age target is a ranking preference, not a universal hard rejection. Wider age ranges can still survive when the overall job is otherwise relevant.
+## Cerebras
 
-## Semantic audit
-
-Cerebras receives only the strongest private candidates. It checks for hidden mismatches such as specialist degree requirements, title/description contradictions and seniority that is not obvious from a title.
-
-AI does not own the publication decision. The deterministic score remains the core ranking signal, with semantic audit used as a bounded adjustment and red-flag signal.
+Cerebras is a semantic auditor for the strongest private candidates. It checks hidden education mismatch, specialist-degree requirements, seniority mismatch and title/description contradictions. The deterministic score remains the core ranking signal.
 
 ## Final selection
 
-The selector is quality-first and diversity-aware. It gives a small bonus to an otherwise underrepresented source category and penalizes company or career-family monopolies. There are no fixed category quotas, so weak jobs are not published just to fill a category.
+The selector is quality-first and diversity-aware. Underrepresented business categories get a small coverage bonus while company and career-family monopolies are penalized. There are no fixed category quotas, so weak jobs are not published merely to fill a category.
 
-Government jobs are selected separately and placed before private jobs.
+Government jobs are selected separately and appear before private jobs.
+
+## Production request strategy
+
+The normal scheduled run is every 3 hours. Private discovery is intentionally conservative:
+
+```text
+1 Bdjobs API probe
+1 Bdjobs broad listing probe
+Optional page 2/3 only when the first page exposes pagination
+0 category HTTP fan-out
+0 live source-test before every production run
+```
+
+This is specifically designed to avoid the 403 pattern seen in repeated GitHub Actions runs.
 
 ## Runtime configuration
 
 ```text
 MAX_STORIES_PER_RUN=20
 MAX_GOVERNMENT_POSTS_PER_RUN=5
-BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY=10
-BDJOBS_CATEGORY_WORKERS=1
 FAST_PRIVATE_CANDIDATE_TARGET=160
-PRIVATE_RESEARCH_TARGET=40
+PRIVATE_RESEARCH_TARGET=32
 FAST_DETAIL_WORKERS=10
 FAST_AI_CANDIDATE_LIMIT=32
 MAX_PRIVATE_POST_AGE_DAYS=5
 PRIVATE_QUALITY_FLOOR=64
+MAX_BDJOBS_DISCOVERY_PAGES=3
+BDJOBS_CACHE_MAX_DAYS=5
 ```
 
 ## Required secrets
@@ -129,10 +143,12 @@ python -m py_compile main.py
 python main.py --self-test
 ```
 
-Use `python main.py --source-test` from a manual GitHub Actions run to inspect category routes, the newest-listing fallback, and Teletalk/Bdjobs source health.
+The `--source-test` command performs only low-impact probes of Teletalk, the Bdjobs API and the broad Bdjobs listing. It does not fan out across the 14 categories.
 
-## Source notes
+## GitHub Actions
 
-Bdjobs currently exposes New Jobs and Deadline Tomorrow pages in addition to category search. The category-first collector is intentional because it gives the bot explicit coverage of the business career areas instead of relying on a single mixed listing.
+The workflow runs every 3 hours in Asia/Dhaka. Live source diagnostics are **opt-in** for a manually dispatched workflow and no longer run automatically before the production bot.
 
-The Teletalk AllJobs search endpoint used by the government lane is documented by an open-source integration that records job ID, title, organization, vacancy, deadline and application URL.
+## Important operational behavior
+
+A source returning HTTP 403 is not treated as an empty source. It is recorded as blocked. If there is no recent private cache, the run exits as failed rather than silently publishing only government jobs.
