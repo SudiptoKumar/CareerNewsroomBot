@@ -1,158 +1,137 @@
-# CareerNewsroomBot V5
+# CareerNewsroomBot V1
 
-Fast, incremental Bangladesh job-news pipeline for Career Newsroom.
+CareerNewsroom V1 is a category-first Bangladesh job-intelligence pipeline for BBA/MBA students, graduates, freshers and early-career business candidates.
 
-## Production source architecture
-
-V5 intentionally uses **only two job-board sources**:
-
-```text
-Government jobs
-    Teletalk AllJobs API
-            │
-            ▼
-      government pool
-
-Private jobs
-    Bdjobs API
-            │
-            ▼
-    Bdjobs official HTML
-            │
-            ▼
-       private pool
-
-            └──────────────┐
-                           ▼
-                    canonical dedup
-                           ▼
-                  bounded research
-                           ▼
-               deterministic filtering
-                           ▼
-                  private ranking
-                           ▼
-              one optional Cerebras review
-                           ▼
-                 government first, up to 5
-                           ▼
-                    fill with private
-                           ▼
-                     hard max 20
-                           ▼
-                 Telegram Rich Message
-```
-
-### Important source policy
-
-- **Dohaj has been removed from the production acquisition pipeline.**
-- Dohaj is not a government fallback.
-- Dohaj is not a private fallback.
-- Ever Jobs is not used.
-- Bdjobs DynamicFetcher/browser scraping is not used in the normal production pipeline.
-- If Teletalk returns fewer government jobs, the bot simply has fewer government jobs.
-- If Bdjobs returns fewer private jobs, the bot simply has fewer private jobs.
-- The bot does not silently substitute a different job board.
-
-This makes source attribution predictable and prevents the previous run from becoming dominated by Dohaj listings.
-
-## Publication rules
-
-- Hard maximum: **20 posts per run**.
-- Minimum target: **5 posts** when enough eligible new jobs exist.
-- Government jobs are selected separately and appear first, with a maximum of **5**.
-- There is **no artificial government minimum**.
-- Government jobs do not receive a BBA/MBA relevance gate.
-- Private jobs are filtered for BBA/MBA/business relevance.
-- Private jobs with an explicit experience requirement above 3 years are excluded by default.
-- Already-published jobs are removed using persistent state and canonical/event deduplication.
-
-## Government source: Teletalk
-
-Primary endpoint:
-
-`https://alljobs.teletalk.com.bd/api/v1/published-jobs/search?searchKeyword=`
-
-The bot reads the structured published-job response and keeps source-native identifiers such as the government job ID, title, organization, vacancy, deadline and application URL.
-
-The bot does not fall back to another job board when Teletalk has fewer records.
-
-## Private source: Bdjobs
-
-V5 uses two official Bdjobs acquisition paths:
-
-1. **Bdjobs JSON search endpoint**
-   `https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch`
-2. **Official Bdjobs listing HTML**
-   `https://jobs.bdjobs.com/jobsearch-cache.asp`
-
-The JSON response is preferred because it provides structured fields. The official listing page is used to enlarge the candidate pool when the API response is insufficient.
-
-The current Bdjobs site has migrated toward an Angular SPA. V5 therefore does not depend on a guessed browser DOM or an undocumented browser-rendered card structure. The previous DynamicFetcher path returned HTTP 200 with zero extracted jobs in the production run, so it was removed from the normal pipeline.
-
-Independent current scraper projects also report that Bdjobs has moved to the Angular SPA backed by `apiv1.bdjobs.com`, while maintaining separate provider-specific extraction logic. This is why V5 keeps the working official API/static paths instead of treating a successful browser HTTP status as proof that jobs were extracted.
-
-## Deduplication
-
-The pipeline uses:
-
-- canonical URL
-- persistent `posted_urls.txt`
-- persistent `news_state.json`
-- source job IDs when available
-- normalized title/company/location
-- event identity
-- fuzzy duplicate detection
-
-The same recruitment mirrored across different URLs can be collapsed before publication.
-
-## Filtering
+## Sources
 
 ### Government
-
-Government jobs are validated as genuine Teletalk records, checked for expiry/duplication, and ranked using freshness, deadline urgency and source-backed information quality. No BBA/MBA suitability filter is applied.
+Teletalk AllJobs API is the government source. Government vacancies are evaluated for active validity/freshness and are not passed through the BBA/MBA private-job relevance filter.
 
 ### Private
+Bdjobs is the only private-job source. V1 checks every configured BBA/MBA-oriented category on every run:
 
-Private jobs must:
+1. Accounting / Finance
+2. Bank / Non-Bank Financial Institution
+3. Commercial / Supply Chain
+4. Marketing / Sales
+5. HR / Organization Development
+6. General Management / Admin
+7. Customer Service / Call Centre
+8. Media / Advertisement / Event Management
+9. Research / Consultancy
+10. NGO / Development
+11. Hospitality / Travel / Tourism
+12. Garments / Textile
+13. IT / Telecom - Business Roles
+14. Education / Training - Business Roles
 
-- come from Bdjobs
-- have a usable title and company
-- have an active deadline when a deadline is supplied
-- match the BBA/MBA/business audience
-- stay within the early-career experience cap
+The legacy `jobs.bdjobs.com/jobsearch.asp?fcatId=...` URLs are used because they are still useful server-rendered category pages for discovery. Some categories now redirect to Bdjobs' newer `/h/jobs/?fcatId=...` application. V1 treats these as the same source and does not use a second job board as fallback.
 
-Private ranking considers education fit, early-career suitability, role relevance, freshness, deadline usefulness and information quality.
+Bdjobs' public search page currently exposes the same functional category system together with Posted within windows through 5 days, deadline windows, job level, fresher/experience, age range, job nature and up to 100 jobs per page. V1 uses those source concepts but applies the final freshness rule from authoritative job data instead of depending on undocumented filter parameter names. citeturn851991view0
 
-## Cerebras
+## Discovery strategy
 
-Cerebras is optional. Deterministic filtering happens before AI review. At most one compact review is performed for the highest-ranked private candidates. If Cerebras fails or is unavailable, deterministic ranking continues without blocking the run.
+Every configured category is queried on every run. A bounded number of candidates is collected from each category so large categories such as Marketing/Sales cannot consume the entire discovery budget.
 
-## Performance design
+The structured Bdjobs JSON search API is added as a supplementary lane when the category windows do not already fill the private candidate target.
 
-The previous production run completed in about one minute, so V5 does not add heavyweight browser scraping. Detail retrieval remains bounded and parallelized.
+The private funnel is:
 
-Important defaults:
+```text
+14 categories x bounded candidate window
+        + Bdjobs structured API when needed
+                       |
+                       v
+                cross-category dedup
+                       |
+                 broad recall pool
+                       |
+                 cheap first score
+                       |
+                   top ~40
+                       |
+              detail-page enrichment
+                       |
+             100-point private score
+                       |
+             Cerebras semantic audit
+                       |
+             diversity-aware rerank
+                       |
+                  best 12-20
+```
+
+## Private ranking: 100 points
+
+| Factor | Points |
+|---|---:|
+| BBA/MBA education fit | 20 |
+| Business career/function fit | 20 |
+| Fresher/early-career fit | 10 |
+| Preferred age fit around 18-30 | 5 |
+| Posted freshness | 15 |
+| Deadline actionability | 10 |
+| Salary | 5 |
+| Vacancy | 5 |
+| Information quality | 5 |
+| Category confidence | 5 |
+| **Total** | **100** |
+
+Experience is ranked smoothly from fresher to experienced instead of using the old hard 3-year rejection. Private jobs with a verified posted date older than 5 days are excluded from publication, and expired jobs are excluded.
+
+The 18-30 age target is a ranking preference, not a universal hard rejection. Wider age ranges can still survive when the overall job is otherwise relevant.
+
+## Semantic audit
+
+Cerebras receives only the strongest private candidates. It checks for hidden mismatches such as specialist degree requirements, title/description contradictions and seniority that is not obvious from a title.
+
+AI does not own the publication decision. The deterministic score remains the core ranking signal, with semantic audit used as a bounded adjustment and red-flag signal.
+
+## Final selection
+
+The selector is quality-first and diversity-aware. It gives a small bonus to an otherwise underrepresented source category and penalizes company or career-family monopolies. There are no fixed category quotas, so weak jobs are not published just to fill a category.
+
+Government jobs are selected separately and placed before private jobs.
+
+## Runtime configuration
 
 ```text
 MAX_STORIES_PER_RUN=20
-MIN_STORIES_PER_RUN=5
 MAX_GOVERNMENT_POSTS_PER_RUN=5
-FAST_PRIVATE_CANDIDATE_TARGET=60
-FAST_GOVERNMENT_CANDIDATE_TARGET=10
-FAST_DETAIL_WORKERS=8
-FAST_AI_CANDIDATE_LIMIT=20
-FAST_DISCOVERY_TIMEOUT=15
-FAST_DETAIL_TIMEOUT=18
-TELETALK_API_TIMEOUT=15
-MAX_PRIVATE_EXPERIENCE_YEARS=3
-SCRAPLING_ENABLED=1
-SCRAPLING_DYNAMIC_ENABLED=0
-MAX_BDJOBS_DISCOVERY_PAGES=1
+BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY=10
+BDJOBS_CATEGORY_WORKERS=8
+FAST_PRIVATE_CANDIDATE_TARGET=160
+PRIVATE_RESEARCH_TARGET=40
+FAST_DETAIL_WORKERS=10
+FAST_AI_CANDIDATE_LIMIT=32
+MAX_PRIVATE_POST_AGE_DAYS=5
+PRIVATE_QUALITY_FLOOR=64
 ```
 
-## Telegram output
+## Required secrets
 
-The bot publishes text-only Telegram Rich Messages with the current Career Newsroom layout. The job snapshot includes available fields such as location, employment, workplace, education, experience, salary, vacancy, age, application, deadline and posted date.
+```text
+TELEGRAM_BOT_TOKEN
+```
 
-Missing fields are omitted rather than filled with misleading placeholders.
+Optional:
+
+```text
+CEREBRAS_API_KEY
+CEREBRAS_MODEL
+```
+
+## Validation
+
+```bash
+python -m py_compile main.py
+python main.py --self-test
+```
+
+Use `python main.py --source-test` from a manual GitHub Actions run to inspect every configured Bdjobs category and the Teletalk/Bdjobs source health.
+
+## Source notes
+
+Bdjobs currently exposes New Jobs and Deadline Tomorrow pages in addition to category search. The category-first collector is intentional because it gives the bot explicit coverage of the business career areas instead of relying on a single mixed listing. citeturn899899view0turn899899view1
+
+The Teletalk AllJobs search endpoint used by the government lane is documented by an open-source integration that records job ID, title, organization, vacancy, deadline and application URL. citeturn917758search1
