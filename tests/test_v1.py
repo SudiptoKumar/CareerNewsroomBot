@@ -122,6 +122,69 @@ def test_listing_parser_keeps_job_url_and_fields():
     assert row["listing_fields"]["education"] == "BBA"
     assert row["listing_fields"]["vacancy"] == "2"
     assert row["listing_fields"]["deadline"] == "2026-09-25"
+    assert row["listing_fields"]["company"] == "ABC Finance Ltd."
+
+
+
+def test_listing_company_inference_from_current_card_shape():
+    html = """
+    <html><body>
+      <div class="job-card">
+        <a href="/jobdetails/?id=555003&ln=1">Management Trainee</a>
+        <div class="company">Example Bank PLC</div>
+        <div>Job Location</div><div>Dhaka</div>
+        <div>Experience required</div><div>0 to 1 year(s)</div>
+        <div>Deadline</div><div>25 Sep 2026</div>
+        <div>Education required</div><div>BBA / MBA</div>
+      </div>
+    </body></html>
+    """
+    rows = main._bdjobs_listing_candidates(
+        html,
+        "https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",
+        1,
+        "Accounting / Finance",
+    )
+    assert rows and rows[0]["listing_fields"]["company"] == "Example Bank PLC"
+
+
+def test_spa_shell_is_not_a_valid_detail_page():
+    html = """
+    <html>
+      <head><style>.foo{--tw-gradient-to-position:}</style></head>
+      <body><app-root></app-root><script>window.__APP__={}</script></body>
+    </html>
+    """
+    ok, reason = main._looks_like_job_document(html, detail=True)
+    assert not ok
+    assert reason in {"empty_visible_text", "bdjobs_application_shell", "thin_or_non_job_page:0"}
+
+
+def test_direct_html_is_normalized_before_field_extraction():
+    html = """
+    <html><head><style>body{--tw-gradient-to-position:}</style></head>
+    <body>
+      <h1>Management Trainee</h1>
+      <p>Company Name</p><p>Example Bank</p>
+      <p>Education</p><p>BBA / MBA</p>
+      <p>Experience</p><p>0 to 1 year(s)</p>
+      <p>Deadline</p><p>2026-10-01</p>
+    </body></html>
+    """
+    fetched = {
+        "ok": True, "status": 200, "text": html,
+        "url": "https://jobs.bdjobs.com/jobdetails.asp?id=1",
+        "backend": "curl_cffi:safari18_0_ios", "cloudflare": False,
+    }
+    normalized = main._detail_payload_from_fetch(fetched)
+    assert "--tw-" not in normalized["text"]
+    assert "<style>" not in normalized["text"]
+    parsed = main.extract_job_fields(
+        normalized["text"], normalized["html"], normalized["url"],
+        {"title": "Management Trainee", "url": normalized["url"]},
+    )
+    assert parsed["title"] == "Management Trainee"
+    assert parsed["company"] == "Example Bank"
 
 
 def test_distinct_source_ids_are_not_fuzzy_deduped():

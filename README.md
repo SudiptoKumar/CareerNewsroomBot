@@ -17,6 +17,36 @@ Private    → Bdjobs category discovery
 
 No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
 
+## #dev_tips
+
+### Bypass Cloudflare with simple method
+
+Having trouble scraping sites protected by Cloudflare?
+
+Cloudflare doesn't just look at your User-Agent header; it looks at your JA3/JA4 TLS handshake. Standard Python requests gets blocked instantly at the cryptographic level.
+
+The Fix:
+
+Use the Python library `curl_cffi`. It uses curl-impersonate under the hood to perfectly fake the HTTP/2 and TLS signatures of real browsers.
+
+The Pro-Tip:
+
+Rotate iOS Safari fingerprints For example (impersonate="safari18_0_ios"). Cloudflare gives massive Trust Scores to Apple/iOS devices because they are rarely used in botnets. It works like magic! 🪄👨‍💻
+
+And
+
+### Dev tips bypass Cloudflare quickly
+
+Try fetching a plain-text version through Jina’s proxy:
+
+```text
+https://r.jina.ai/https://example.com/
+```
+
+It returns readable output ( no JS, no cookies), so you can parse values easily )
+
+**Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation and Jina Reader fallback. These methods are not guaranteed to bypass every site's protection.
+
 ## Private discovery: category first
 
 The Bdjobs private lane uses the configured BBA/MBA-relevant category universe:
@@ -119,6 +149,24 @@ PRIVATE DETAIL FAILED
 ```
 
 This makes a zero-private run diagnosable instead of appearing as a normal successful publication run.
+
+## Permanent detail-page protection
+
+The Bdjobs detail route can return an application shell with HTTP `200` while the actual job content is not present. Career News V1 now validates **visible page text after removing script/style content**, so CSS/JavaScript size can never make a non-job shell look like a valid detail page.
+
+```text
+curl_cffi + iOS Safari fingerprint
+        ↓
+visible-content validation
+        ↓
+fingerprint rotation
+        ↓
+Jina Reader
+        ↓
+same-card listing preservation
+```
+
+Listing preservation also extracts the company from the same job card when the card has no explicit `Company` label. A detail failure therefore does not erase a usable private candidate.
 
 ## Private intelligence pipeline
 

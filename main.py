@@ -551,14 +551,100 @@ def _bdjobs_pagination_links(page_html, base_url, max_pages=CATEGORY_PAGE_LIMIT)
     return sorted(links.items())
 
 def _bdjobs_card_container(anchor):
-    for parent in anchor.parents:
-        if getattr(parent, "name", "") in {"article", "li", "section", "tr"}:
-            return parent
-        if getattr(parent, "name", "") == "div":
-            text = _clean_one_line(parent.get_text(" ", strip=True))
-            if 30 <= len(text) <= 2500 and any(k in text.lower() for k in ("deadline", "published", "experience", "vacancy", "apply")):
-                return parent
-    return anchor.parent
+    """Choose a compact ancestor containing the useful Bdjobs card metadata.
+
+    Current Bdjobs cards may split title, company, and metadata across nested divs.
+    Selecting the first matching parent can return a title-only wrapper.
+    """
+    title = _clean_one_line(anchor.get_text(" ", strip=True))
+    markers = (
+        "job location", "location", "experience required", "experience",
+        "deadline", "education required", "education", "vacancy",
+        "job work place", "workplace", "salary", "apply", "age",
+    )
+    best = None
+    for depth, parent in enumerate(anchor.parents, start=1):
+        name = getattr(parent, "name", "")
+        if name in {"body", "html"}:
+            break
+        if not hasattr(parent, "get_text"):
+            continue
+        text_value = _clean_one_line(parent.get_text(" ", strip=True))
+        if not title or title not in text_value or not (30 <= len(text_value) <= 3500):
+            continue
+        lowered = text_value.lower()
+        marker_count = sum(1 for marker in markers if marker in lowered)
+        if marker_count == 0:
+            continue
+        size_penalty = max(0, len(text_value) - 1400) / 500
+        score = marker_count * 10 - depth * 0.5 - size_penalty
+        candidate = (score, marker_count, -depth, parent)
+        if best is None or candidate[:3] > best[:3]:
+            best = candidate
+    return best[3] if best else anchor.parent
+
+
+def _infer_listing_company(anchor, parent, title, card_text):
+    """Recover company names when the card has no explicit Company label."""
+    title = _clean_one_line(title)
+    if not title or parent is None:
+        return ""
+
+    try:
+        raw_lines = []
+        for value in parent.get_text("\n", strip=True).splitlines():
+            value = _clean_one_line(value)
+            if value:
+                raw_lines.append(value)
+
+        norm_title = re.sub(r"\s+", " ", title).casefold()
+        for idx, line in enumerate(raw_lines):
+            if re.sub(r"\s+", " ", line).casefold() == norm_title:
+                for nxt in raw_lines[idx + 1:idx + 7]:
+                    low = nxt.lower()
+                    if low.startswith((
+                        "job location", "location", "experience", "deadline",
+                        "education", "vacancy", "salary", "age", "employment",
+                        "job work place", "workplace"
+                    )):
+                        break
+                    if len(nxt) <= 180 and not low.startswith(("image:", "logo", "featured")):
+                        candidate = re.split(
+                            r"\s+(?:Job Location|Location|Experience required|Experience|Deadline|"
+                            r"Education required|Education|Vacancy|Salary|Age|Employment Status)\b",
+                            nxt, maxsplit=1, flags=re.I
+                        )[0]
+                        candidate = re.sub(
+                            r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
+                            r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
+                            "",
+                            candidate,
+                            flags=re.I,
+                        )
+                        candidate = _clean_one_line(candidate)
+                        if candidate:
+                            return candidate
+    except Exception:
+        pass
+
+    compact = _clean_one_line(card_text)
+    if compact:
+        boundary = r"(?=\s+(?:Job Location|Location|Experience required|Experience|Deadline|Education required|Education|Vacancy|Salary|Age|Employment Status)\b)"
+        match = re.search(rf"^{re.escape(title)}\s+(.+?){boundary}", compact, flags=re.I)
+        if match:
+            candidate = re.split(
+                r"\s+(?:Job Location|Location|Experience required|Experience|Deadline|Education required|"
+                r"Education|Vacancy|Salary|Age|Employment Status)\b",
+                match.group(1), maxsplit=1, flags=re.I,
+            )[0]
+            candidate = re.sub(
+                r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
+                r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
+                "", candidate, flags=re.I,
+            )
+            return _clean_one_line(candidate)
+    return ""
+
 
 def _listing_field(card_text, labels, patterns=()):
     value = _summary_value(card_text, labels) if "_summary_value" in globals() else ""
@@ -622,8 +708,12 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             continue
         parent = _bdjobs_card_container(a)
         card_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
-        posted = _listing_date_from_text(card_text)
         baseline = _extract_listing_baseline(card_text)
+        if not baseline.get("company") and parent:
+            inferred_company = _infer_listing_company(a, parent, title, card_text)
+            if inferred_company:
+                baseline["company"] = _clean_one_line(inferred_company)
+        posted = _listing_date_from_text(card_text)
         parsed_href = urlparse(href)
         id_match = re.search(r"(?:^|[?&])id=(\d+)", parsed_href.query, re.I)
         if not id_match:
@@ -1810,22 +1900,63 @@ def _detail_url_variants(item):
 
 
 def _looks_like_job_document(body, *, url="", detail=True):
-    text=safe_text(body)
-    if not text:
+    """Validate visible job content, never raw HTML/CSS/JS length.
+
+    Some Bdjobs detail URLs return an application shell with HTTP 200. The shell
+    can be large because of CSS/JS while containing almost no visible job data.
+    """
+    raw = safe_text(body)
+    if not raw:
         return False, "empty_body"
-    if is_cloudflare_response(200, {}, text):
+
+    is_html = "<html" in raw.lower() or "<body" in raw.lower() or "</" in raw
+    visible = _text_from_html(raw) if is_html else raw
+    visible = safe_text(visible)
+    if not visible:
+        return False, "empty_visible_text"
+
+    if is_cloudflare_response(200, {}, raw):
         return False, "cloudflare_challenge"
-    lowered=text.lower()
+
+    lowered = visible.lower()
     if detail:
-        markers=("job summary", "experience", "education", "deadline", "apply by bdjobs", "company name", "job location", "salary")
-        marker_hits=sum(1 for x in markers if x in lowered)
-        if marker_hits < 2 and len(text) < DETAIL_MIN_TEXT_CHARS:
-            return False, f"thin_or_non_job_page:{len(text)}"
-        if any(x in lowered for x in ("our valuable partners", "find jobs in the no. 1 job site", "active filters")) and marker_hits < 2:
-            return False, "listing_shell_returned"
-        if len(text) < DETAIL_MIN_TEXT_CHARS:
-            return False, f"thin_detail:{len(text)}"
+        markers = (
+            "job summary", "experience", "education", "deadline",
+            "apply by bdjobs", "company name", "job location", "salary",
+            "vacancy", "employment status", "job work place",
+        )
+        marker_hits = sum(1 for x in markers if x in lowered)
+
+        shell_markers = (
+            "find jobs in the no. 1 job site",
+            "active filters",
+            "job search",
+            "my bdjobs",
+            "career resources",
+            "accessibility adjustments",
+        )
+        if any(x in lowered for x in shell_markers) and marker_hits < 3:
+            return False, "bdjobs_application_shell"
+
+        if marker_hits < 2 and len(visible) < DETAIL_MIN_TEXT_CHARS:
+            return False, f"thin_or_non_job_page:{len(visible)}"
+        if len(visible) < DETAIL_MIN_TEXT_CHARS:
+            return False, f"thin_detail:{len(visible)}"
     return True, "ok"
+
+
+def _detail_payload_from_fetch(fetched):
+    """Normalize direct/Jina acquisition into visible text plus optional HTML."""
+    if not fetched:
+        return None
+    raw = safe_text(fetched.get("text", ""))
+    backend = safe_text(fetched.get("backend", ""))
+    page_html = raw if backend.startswith("curl_cffi:") and "<" in raw else ""
+    visible = _text_from_html(page_html) if page_html else raw
+    result = dict(fetched)
+    result["html"] = page_html
+    result["text"] = visible
+    return result
 
 
 def _fetch_bdjobs_detail(item):
@@ -1842,22 +1973,30 @@ def _fetch_bdjobs_detail(item):
             body=safe_text(direct.get("text"))
             ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
             if ok:
+                direct=_detail_payload_from_fetch(direct)
                 direct["detail_quality"]="direct_valid"
                 DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
                 return direct
             last_reason=reason
-            logger.info("BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s", item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason)
+            logger.info(
+                "BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s",
+                item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason
+            )
 
         if JINA_ENABLED:
             fallback=_fetch_jina(variant, timeout=max(JINA_TIMEOUT, DETAIL_TIMEOUT))
             if fallback:
                 ok,reason=_looks_like_job_document(fallback.get("text",""), url=variant, detail=True)
                 if ok:
+                    fallback=_detail_payload_from_fetch(fallback)
                     fallback["detail_quality"]="jina_valid"
                     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":fallback}
                     return fallback
                 last_reason=reason
-                logger.info("BDJOBS DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id",""), reason)
+                logger.info(
+                    "BDJOBS DETAIL JINA REJECT | id=%s | backend=%s | status=%s | reason=%s",
+                    item.get("source_job_id",""), fallback.get("backend",""), fallback.get("status",""), reason
+                )
 
     logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s", item.get("source_job_id",""), last_reason)
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
@@ -1892,8 +2031,8 @@ def retrieve_job_content(item):
         return None
 
     backend=fetched.get("backend", "")
-    page_html=fetched.get("text", "") if backend.startswith("curl_cffi") else ""
-    full_text=_text_from_html(page_html) if page_html else safe_text(fetched.get("text", ""))
+    page_html=fetched.get("html", "")
+    full_text=safe_text(fetched.get("text", ""))
     article_text=None
     if page_html and trafilatura:
         try:
@@ -2688,8 +2827,25 @@ def source_test():
         sample=candidates[0]
         detail=_fetch_bdjobs_detail(sample)
         if detail:
-            parsed=extract_job_fields(detail.get("text",""),detail.get("text","") if detail.get("backend","").startswith("curl_cffi") else "",sample["url"],sample)
-            print(f"Bdjobs detail: OK | id={sample.get('source_job_id','')} | backend={detail.get('backend')} | quality={detail.get('detail_quality')} | chars={len(detail.get('text',''))} | title={parsed.get('title') or sample.get('title')} | company={parsed.get('company')}")
+            parsed=extract_job_fields(
+                detail.get("text",""),
+                detail.get("html",""),
+                sample["url"],
+                sample,
+            )
+            sample_company = sample.get("company") or (sample.get("listing_fields") or {}).get("company", "")
+            sane_title = bool(parsed.get("title")) and len(parsed.get("title","")) <= 180 and "--tw-" not in parsed.get("title","")
+            sane_company = bool(parsed.get("company") or sample_company) and len(parsed.get("company") or sample_company) <= 180 and "--tw-" not in (parsed.get("company") or sample_company)
+            status = "OK" if sane_title and sane_company else "INVALID_PARSE"
+            print(
+                f"Bdjobs detail: {status} | id={sample.get('source_job_id','')} | "
+                f"backend={detail.get('backend')} | quality={detail.get('detail_quality')} | "
+                f"chars={len(detail.get('text',''))} | title={parsed.get('title') or sample.get('title')} | "
+                f"company={parsed.get('company') or sample_company}"
+            )
+            if status != "OK":
+                fallback=_listing_fallback_content(sample)
+                print(f"Bdjobs detail fallback: {'AVAILABLE' if fallback else 'UNAVAILABLE'}")
         else:
             fallback=_listing_fallback_content(sample)
             print(f"Bdjobs detail: FALLBACK | id={sample.get('source_job_id','')} | listing_chars={len((fallback or {}).get('text',''))}")
@@ -2870,6 +3026,10 @@ def self_test():
     assert is_cloudflare_response(200,{},"<title>Just a moment...</title>")
     assert not is_cloudflare_response(200,{},"<html>normal</html>")
     assert (JINA_PREFIX+request_safe_url("https://example.com/job?id=1")).startswith("https://r.jina.ai/https://example.com")
+    shell_fixture = """<html><head><style>.foo{--tw-gradient-to-position:}</style></head>
+    <body><app-root></app-root><script>console.log("app shell")</script></body></html>"""
+    ok, reason = _looks_like_job_document(shell_fixture, detail=True)
+    assert not ok and reason in {"empty_visible_text", "bdjobs_application_shell", "thin_or_non_job_page:0"}
 
     fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"2026-09-18","validThrough":"2026-10-18","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: 18 Oct 2026</p></body></html>'''
     fake={"title":"Management Trainee","url":"https://jobs.bdjobs.com/jobdetails.asp?id=123","canonical":canonical_url("https://jobs.bdjobs.com/jobdetails.asp?id=123"),"source":"Bdjobs","discovery":"self_test"}
