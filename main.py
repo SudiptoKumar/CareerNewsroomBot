@@ -47,12 +47,12 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot V3"
+PIPELINE_VERSION = "Career News Bot V4"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules for CareerNewsroom V3:
+# Publication rules for CareerNewsroom V4:
 # - Total hard maximum: 20 posts per run.
 # - Minimum total target: 5 posts when enough eligible jobs exist.
 # - Government: 3-5 posts FIRST in every run when 3-5 eligible/unposted government
@@ -104,7 +104,7 @@ MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS"
 BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_DYNAMIC_SEARCH_URL = "https://bdjobs.com/h/jobs"
 # Bdjobs backend search endpoint is a bounded newest-page probe. Its current pagination
-# contract is not publicly documented/verified, so V3 does not guess parameter names.
+# contract is not publicly documented/verified, so V4 does not guess parameter names.
 # If one page is insufficient, the acquisition ladder moves to another independent path.
 BDJOBS_API_URL = "https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
@@ -355,6 +355,13 @@ def clean_generated_text(text):
 
 
 def is_noise_title(title, url=""):
+    normalized_noise = re.sub(r"\s+", " ", safe_text(title)).strip().lower()
+    if normalized_noise in {
+        "our valuable partners", "valuable partners", "our partners",
+        "job search", "find jobs", "active filters", "sign in", "login",
+        "register", "home", "quick links",
+    }:
+        return True
     blob = f"{safe_text(title)} {safe_text(url)}".lower()
     return any(term in blob for term in NOISE_TITLE_TERMS)
 
@@ -789,7 +796,7 @@ def _discover_private_section(url):
 
 def discover_dohaj_government():
     government=[]; seen=set()
-    # Secondary government fallback only. Teletalk is the primary path in V3.
+    # Secondary government fallback only. Teletalk is the primary path in V4.
     for page_no in range(1,DOHAJ_GOVERNMENT_MAX_PAGES+1):
         items=extract_dohaj_page(DOHAJ_GOVERNMENT_URL,"Government Jobs",page_no,FAST_GOVERNMENT_CANDIDATE_TARGET)
         for item in items:
@@ -901,7 +908,7 @@ def _discover_teletalk_api():
 
 
 def _discover_ever_jobs_bdjobs():
-    """Optional self-hosted Ever Jobs bridge. Never required for V3 operation."""
+    """Optional self-hosted Ever Jobs bridge. Never required for V4 operation."""
     if not EVER_JOBS_API_URL: return []
     discovered=[]; seen=set()
     headers={"Accept":"application/json","Content-Type":"application/json"}
@@ -1101,18 +1108,17 @@ def _bdjobs_api_record_fields(record):
 
 
 def _bdjobs_api_candidates(records):
-    """Gate each record against the same BBA/MBA + early-career hard filters
-    used before publication. The API already supplies every field that gate
-    needs, so irrelevant categories (IT, medical, engineering...) are dropped
-    right here instead of spending a detail-page fetch on them later."""
+    """Normalize the official API records without applying audience gates early.
+
+    The search API is the freshest structured source. Filtering it by the partial
+    listing fields caused valid business jobs to disappear before the authoritative
+    detail page could enrich them. Discovery therefore keeps real job records; the
+    normal deterministic gate runs after detail retrieval.
+    """
     found = []
     for record in records:
         fields = _bdjobs_api_record_fields(record)
         if not fields or is_noise_title(fields["title"], fields["url"]):
-            continue
-        if private_experience_too_high(fields):
-            continue
-        if bba_mba_candidate_score(fields) < 25:
             continue
         found.append(fields)
     return found
@@ -1121,7 +1127,7 @@ def _bdjobs_api_candidates(records):
 def _bdjobs_api_fetch(page_no):
     """Fetch only the newest unparameterized Bdjobs API page.
 
-    V3 intentionally avoids guessing undocumented pagination parameters.
+    V4 intentionally avoids guessing undocumented pagination parameters.
     Any additional depth must come from an independent path (Ever Jobs bridge
     or the direct HTML listing) rather than duplicate API responses."""
     if page_no != 1:
@@ -1144,7 +1150,7 @@ def _discover_bdjobs_api():
 
     The response is useful for structured fields, but current freshness and
     pagination behavior are not sufficiently documented to justify guessing
-    request parameters. V3 therefore limits this path to the newest response
+    request parameters. V4 therefore limits this path to the newest response
     and uses independent fallbacks when the candidate pool remains short."""
     discovered = []
     seen = set()
@@ -1218,8 +1224,12 @@ def discover_bdjobs():
     # Final fallback for the current Angular SPA. It is deliberately a single
     # browser render after the fast API, optional bridge, and static HTML paths
     # have failed to provide enough candidates.
-    dynamic_items=_scrapling_dynamic_bdjobs_candidates()
-    merge_items("SCRAPLING_DYNAMIC", dynamic_items)
+    # Dynamic browser rendering is a last-resort recovery only. The live SPA shell
+    # can render successfully while exposing no job-card DOM, so do not spend ~12-15s
+    # on it when the official API + static listing already produced a healthy pool.
+    if len(merged) < 20:
+        dynamic_items=_scrapling_dynamic_bdjobs_candidates()
+        merge_items("SCRAPLING_DYNAMIC", dynamic_items)
     return merged
 
 
@@ -3085,7 +3095,7 @@ def _probe_get(url, params=None, timeout=10, json_expected=False):
 
 
 def source_test():
-    print("CAREER NEWS BOT V3 SOURCE TEST")
+    print("CAREER NEWS BOT V4 SOURCE TEST")
     print(f"Scrapling static: {'available' if ScraplingFetcher and SCRAPLING_ENABLED else 'disabled/unavailable'}")
     print(f"Scrapling dynamic: {'available' if ScraplingDynamicFetcher and SCRAPLING_DYNAMIC_ENABLED else 'disabled/unavailable'} | browser={_browser_executable() or 'not found'}")
     probes=[
@@ -3162,7 +3172,7 @@ def _prepare_shortlists(discovered):
 
 def run():
     started=time.monotonic()
-    logger.info("CAREER NEWS BOT V3 | Scrapling-backed fast pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
+    logger.info("CAREER NEWS BOT V4 | Scrapling-backed fast pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
     prune_state()
     discovered=discover_all()
     gov_items,private_items=_prepare_shortlists(discovered)
@@ -3232,6 +3242,9 @@ def run():
 # ============================================================
 
 def self_test():
+    assert is_noise_title("Our Valuable Partners", "https://jobs.bdjobs.com/jobdetails.asp?id=123")
+    assert not is_noise_title("Management Trainee Officer", "https://jobs.bdjobs.com/jobdetails.asp?id=123")
+
     # Private extraction fixture: every table field must map to its own source label.
     fixture="""
     <html><head>
@@ -3466,10 +3479,9 @@ def self_test():
     assert any(x["url"].endswith("id=101") for x in bd_candidates)
     assert any(x["url"].endswith("id=103") for x in bd_candidates)
 
-    # Bdjobs JSON API regression test: fixture modeled on the live API response
-    # shape (verified against the real endpoint). One BBA-eligible early-career
-    # record, one irrelevant category, one over-experience business record --
-    # only the first should survive discovery-time filtering.
+    # Bdjobs JSON API regression test: discovery preserves real source records.
+    # Audience/experience gates are intentionally applied after authoritative detail
+    # enrichment, not while the API search record is still partial.
     bd_api_records=[
         {
             "Jobid":"1534666","jobTitle":"ADMIN EXECUTIVE","companyName":"Averroes International School",
@@ -3493,8 +3505,8 @@ def self_test():
         },
     ]
     bd_api_filtered=_bdjobs_api_candidates(bd_api_records)
-    assert len(bd_api_filtered)==1, f"expected only the BBA-eligible record, got {[x['title'] for x in bd_api_filtered]}"
-    bd_api_job=bd_api_filtered[0]
+    assert len(bd_api_filtered)==3, f"expected all real API records to survive discovery, got {[x['title'] for x in bd_api_filtered]}"
+    bd_api_job=next(x for x in bd_api_filtered if x["title"]=="ADMIN EXECUTIVE")
     assert bd_api_job["title"]=="ADMIN EXECUTIVE"
     assert bd_api_job["company"]=="Averroes International School"
     assert "BBA" in bd_api_job["education"]
@@ -3541,7 +3553,7 @@ def self_test():
     tel_b=dict(tel_researched,source_job_id="B")
     assert job_event_key(tel_a)!=job_event_key(tel_b)
 
-    assert PIPELINE_VERSION == "Career News Bot V3"
+    assert PIPELINE_VERSION == "Career News Bot V4"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
@@ -3564,7 +3576,7 @@ def self_test():
         body=b"<html><body><h1>ok</h1></body></html>"
     assert "<h1>ok</h1>" in _decode_scrapling_body(_FakeScraplingResponse())
 
-    logger.info("Career News Bot V3 self-test passed.")
+    logger.info("Career News Bot V4 self-test passed.")
 
 
 if __name__ == "__main__":
