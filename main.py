@@ -47,17 +47,17 @@ TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").str
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot V4"
+PIPELINE_VERSION = "Career News Bot V5"
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules for CareerNewsroom V4:
+# Publication rules for CareerNewsroom V5:
 # - Total hard maximum: 20 posts per run.
 # - Minimum total target: 5 posts when enough eligible jobs exist.
-# - Government: 3-5 posts FIRST in every run when 3-5 eligible/unposted government
-#   vacancies are available. No BBA/MBA suitability gate is applied to government jobs.
-# - Private: only BBA/MBA/business-candidate-relevant jobs.
+# - Government comes first, up to 5 valid Teletalk vacancies when available.
+#   There is no artificial minimum and no BBA/MBA suitability gate for government.
+# - Private jobs come only from Bdjobs and must be relevant to the BBA/MBA/business audience.
 # - Private ranking prioritizes education fit, then low/no experience, then freshness,
 #   deadline, and verified job quality.
 MIN_STORIES_PER_RUN = 5
@@ -74,23 +74,19 @@ MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES"
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
 
-# Scrapling is the HTML acquisition layer for source pages. Static Fetcher is
-# preferred because it is lightweight; browser rendering is used only for the
-# Bdjobs SPA when the fast API/static paths do not produce enough candidates.
+# Scrapling is the HTML acquisition layer for the official Bdjobs listing/detail pages.
+# The browser renderer is intentionally disabled in production because the current SPA
+# can return HTTP 200 while exposing zero job-card records.
 SCRAPLING_ENABLED = (os.environ.get("SCRAPLING_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"})
-SCRAPLING_DYNAMIC_ENABLED = (os.environ.get("SCRAPLING_DYNAMIC_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"})
+SCRAPLING_DYNAMIC_ENABLED = (os.environ.get("SCRAPLING_DYNAMIC_ENABLED", "0").strip().lower() not in {"0", "false", "no", "off"})
 SCRAPLING_STATIC_TIMEOUT = int(os.environ.get("SCRAPLING_STATIC_TIMEOUT", "15"))
 SCRAPLING_DYNAMIC_TIMEOUT_MS = int(os.environ.get("SCRAPLING_DYNAMIC_TIMEOUT_MS", "15000"))
 SCRAPLING_DYNAMIC_WAIT_MS = int(os.environ.get("SCRAPLING_DYNAMIC_WAIT_MS", "1500"))
 SCRAPLING_DYNAMIC_MAX_CANDIDATES = int(os.environ.get("SCRAPLING_DYNAMIC_MAX_CANDIDATES", "40"))
 SCRAPLING_BROWSER_EXECUTABLE = (os.environ.get("SCRAPLING_BROWSER_EXECUTABLE") or "").strip()
 
-# Dohaj has source-owned fixed category feeds. The categories below cover the
-# business-heavy areas where BBA/MBA candidates commonly search, plus the main
-# all-jobs feed for recent roles that may be filed under a changing category.
-DOHAJ_PRIVATE_PAGES_PER_SECTION = int(os.environ.get("DOHAJ_PRIVATE_PAGES_PER_SECTION", "2"))
-DOHAJ_GOVERNMENT_MAX_PAGES = int(os.environ.get("DOHAJ_GOVERNMENT_MAX_PAGES", "3"))
-DOHAJ_CATEGORY_LINKS_PER_PAGE = int(os.environ.get("DOHAJ_CATEGORY_LINKS_PER_PAGE", "12"))
+# Source policy: no Dohaj acquisition or fallback.
+# Official sources used in production are Teletalk for government and Bdjobs for private.
 FAST_PRIVATE_CANDIDATE_TARGET = int(os.environ.get("FAST_PRIVATE_CANDIDATE_TARGET", "60"))
 FAST_GOVERNMENT_CANDIDATE_TARGET = int(os.environ.get("FAST_GOVERNMENT_CANDIDATE_TARGET", "10"))
 FAST_DETAIL_WORKERS = int(os.environ.get("FAST_DETAIL_WORKERS", "8"))
@@ -118,11 +114,8 @@ TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
 TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 
-# Optional self-hosted Ever Jobs bridge. Disabled unless explicitly configured.
-# Ever Jobs exposes POST /api/jobs/search and supports siteType=["bdjobs"].
-EVER_JOBS_API_URL = (os.environ.get("EVER_JOBS_API_URL") or "").strip().rstrip("/")
-EVER_JOBS_API_KEY = (os.environ.get("EVER_JOBS_API_KEY") or "").strip()
-EVER_JOBS_TIMEOUT = int(os.environ.get("EVER_JOBS_TIMEOUT", "15"))
+# No third-party job-board bridge is required. The production pipeline uses only
+# the official Teletalk government API and official Bdjobs API/listing pages.
 
 DOHAJ_DOMAIN = "dohaj.com"
 
@@ -1127,7 +1120,7 @@ def _bdjobs_api_candidates(records):
 def _bdjobs_api_fetch(page_no):
     """Fetch only the newest unparameterized Bdjobs API page.
 
-    V4 intentionally avoids guessing undocumented pagination parameters.
+    V5 intentionally avoids guessing undocumented pagination parameters.
     Any additional depth must come from an independent path (Ever Jobs bridge
     or the direct HTML listing) rather than duplicate API responses."""
     if page_no != 1:
@@ -1150,7 +1143,7 @@ def _discover_bdjobs_api():
 
     The response is useful for structured fields, but current freshness and
     pagination behavior are not sufficiently documented to justify guessing
-    request parameters. V4 therefore limits this path to the newest response
+    request parameters. V5 therefore limits this path to the newest response
     and uses independent fallbacks when the candidate pool remains short."""
     discovered = []
     seen = set()
@@ -1184,13 +1177,11 @@ def _discover_bdjobs_api():
 def discover_bdjobs():
     """Bounded Bdjobs acquisition ladder.
 
-    1. Official backend API, newest unparameterized page only.
-    2. Optional self-hosted Ever Jobs bridge, when configured.
-    3. Scrapling static HTTP + direct HTML listing fallback.
-    4. Scrapling DynamicFetcher for the current Angular SPA, only as the final fallback.
+    1. Official Bdjobs JSON API.
+    2. Official Bdjobs listing page via Scrapling static HTTP.
 
-    The ladder stops as soon as the private candidate target is reached.
-    Each rung is invoked lazily so an unnecessary fallback never costs time.
+    No Dohaj, Ever Jobs, or browser-source fallback is used. The ladder stops as soon
+    as enough Bdjobs candidates are available.
     """
     seen=set(); merged=[]
 
@@ -1211,51 +1202,36 @@ def discover_bdjobs():
     if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
         return merged
 
-    ever_items=_discover_ever_jobs_bdjobs()
-    merge_items("EVER", ever_items)
-    if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
-        return merged
-
     html_items=_discover_bdjobs_html_fallback()
     merge_items("HTML", html_items)
     if len(merged)>=FAST_PRIVATE_CANDIDATE_TARGET:
         return merged
 
-    # Final fallback for the current Angular SPA. It is deliberately a single
-    # browser render after the fast API, optional bridge, and static HTML paths
-    # have failed to provide enough candidates.
-    # Dynamic browser rendering is a last-resort recovery only. The live SPA shell
-    # can render successfully while exposing no job-card DOM, so do not spend ~12-15s
-    # on it when the official API + static listing already produced a healthy pool.
-    if len(merged) < 20:
-        dynamic_items=_scrapling_dynamic_bdjobs_candidates()
-        merge_items("SCRAPLING_DYNAMIC", dynamic_items)
     return merged
 
 
 def discover_all():
-    # Source discovery is parallelized across primary government, private and Bdjobs paths.
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    """Discover from the two primary official sources only.
+
+    There is deliberately no cross-source fallback: Teletalk owns the government
+    stream and Bdjobs owns the private stream. A source returning fewer jobs simply
+    contributes fewer jobs for that run.
+    """
+    with ThreadPoolExecutor(max_workers=2) as executor:
         f_teletalk=executor.submit(_discover_teletalk_api)
-        f_dohaj=executor.submit(discover_dohaj)
         f_bdjobs=executor.submit(discover_bdjobs)
         try: government=f_teletalk.result()
         except Exception as exc: logger.warning("Teletalk source worker failed: %s",exc); government=[]
-        try: dohaj_private=f_dohaj.result()
-        except Exception as exc: logger.warning("Dohaj private source worker failed: %s",exc); dohaj_private=[]
         try: bdjobs=f_bdjobs.result()
         except Exception as exc: logger.warning("Bdjobs source worker failed: %s",exc); bdjobs=[]
 
-    # Only use Dohaj government when the primary Teletalk source is insufficient.
-    if len(government)<MIN_GOVERNMENT_POSTS_PER_RUN:
-        government.extend(discover_dohaj_government())
-
     all_items=[]; seen=set()
-    for item in government+dohaj_private+bdjobs:
-        canonical=item.get("canonical") or canonical_url(item.get("source_url",""))
-        if not canonical or canonical in seen: continue
+    for item in government+bdjobs:
+        canonical=item.get("canonical") or canonical_url(item.get("source_url", ""))
+        if not canonical or canonical in seen:
+            continue
         seen.add(canonical); all_items.append(item)
-    logger.info("DISCOVERED | Teletalk=%d | DohajPrivate=%d | Bdjobs=%d | merged=%d",len(government),len(dohaj_private),len(bdjobs),len(all_items))
+    logger.info("DISCOVERED | Teletalk=%d | Bdjobs=%d | merged=%d",len(government),len(bdjobs),len(all_items))
     return all_items
 
 
@@ -1884,7 +1860,9 @@ def translate_government_jobs(jobs):
         return jobs
     source_snapshots=[]
     for job in gov:
-        job["source"]="Dohaj"
+        # Preserve the authoritative source identity. Government jobs are now
+        # sourced directly from Teletalk, so translation must never relabel them.
+        job["source"] = job.get("source") or "Teletalk"
         if not job.get("company"):
             job["company"]=infer_government_organization(job.get("title","")) or "Government Organization"
         source_fields={k:safe_text(job.get(k,"")) for k in ("title","company","location","salary","experience","education","employment_type","workplace","age","vacancy","application_method","selection_process","category")}
@@ -2481,14 +2459,14 @@ def deterministic_job_gate(job):
     # merely because a company/employer field is absent or a date could not be parsed.
     if job.get("is_government"):
         source=safe_text(job.get("source"))
-        if source not in {"Dohaj", "Teletalk"} and not is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN, TELETALK_DOMAIN]):
+        if source != "Teletalk" and not is_domain_allowed(job.get("source_url", ""), [TELETALK_DOMAIN]):
             return False, "government_source_not_allowed"
         return True, "ok_government"
     if not job.get("company"):
         return False, "missing_company"
     if deadline_status(job) == "expired":
         return False, "expired"
-    if not (is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS) or is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN])):
+    if not is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS):
         return False, "source_not_allowed"
     if private_experience_too_high(job):
         return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
@@ -3012,7 +2990,7 @@ def rich_message_blocks(job):
     # stays behind the link, so no raw URL is exposed in the post.
     blocks.append({"type":"paragraph","text":{"type":"bold","text":_rich_url("Career News","https://t.me/CareerNewsroom")}})
 
-    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else safe_text(job.get("source","Source"))
+    source=safe_text(job.get("source","Source"))
     source_url=safe_text(job.get("source_url"))
     footer=["Source: "]
     footer.append(_rich_url(source,source_url) if source_url else source)
@@ -3057,7 +3035,7 @@ def plain_job_text(job):
         lines.append(f"{_field_icon(label)} {label}: {value}")
     tags=" ".join(job_hashtags(job))
     if tags: lines.extend(["",tags])
-    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else job.get("source","Source")
+    source=job.get("source","Source")
     lines.append(f"Source: {source}")
     return "\n".join(lines)
 
@@ -3102,7 +3080,6 @@ def source_test():
         ("Teletalk API",TELETALK_API_URL,{"searchKeyword":""},TELETALK_API_TIMEOUT,True),
         ("Bdjobs API",BDJOBS_API_URL,None,FAST_DISCOVERY_TIMEOUT,True),
         ("Bdjobs HTML",BDJOBS_SEARCH_URL,None,FAST_DISCOVERY_TIMEOUT,False),
-        ("Dohaj Government",DOHAJ_GOVERNMENT_URL,None,FAST_DISCOVERY_TIMEOUT,False),
     ]
     results=[]
     for label,url,params,timeout,jexp in probes:
@@ -3132,10 +3109,8 @@ def source_test():
             print(f"Scrapling dynamic Bdjobs: OK | status={probe['status']} time={elapsed}s candidates={count} final={probe['url']}")
         else:
             print(f"Scrapling dynamic Bdjobs: FAIL | time={elapsed}s")
-    if EVER_JOBS_API_URL:
-        print(f"Ever Jobs bridge: configured at {EVER_JOBS_API_URL}")
-    else:
-        print("Ever Jobs bridge: disabled (set EVER_JOBS_API_URL to enable)")
+    print("Production sources: Teletalk government + Bdjobs private")
+    print("Fallback policy: none across job boards")
     return results
 
 
@@ -3156,7 +3131,7 @@ def _research_items_parallel(items):
             if not researched: continue
             researched["source_url"]=item["url"]; researched["canonical"]=item["canonical"]
             researched["is_government"]=bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower()
-            researched["source"]=("Dohaj" if is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
+            researched["source"] = item.get("source") or source_name(item["url"])
             results.append(researched)
     return results
 
@@ -3172,7 +3147,7 @@ def _prepare_shortlists(discovered):
 
 def run():
     started=time.monotonic()
-    logger.info("CAREER NEWS BOT V4 | Scrapling-backed fast pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
+    logger.info("CAREER NEWS BOT V5 | official-source fast pipeline | max=%d | government-first up-to=%d",MAX_STORIES_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
     prune_state()
     discovered=discover_all()
     gov_items,private_items=_prepare_shortlists(discovered)
@@ -3270,7 +3245,7 @@ def self_test():
     <p>Application Deadline: 18 Oct 2026</p>
     </body></html>
     """
-    fake={"title":"Management Trainee","url":"https://dohaj.com/job-details/example-123","canonical":canonical_url("https://dohaj.com/job-details/example-123"),"source":"Dohaj","discovery":"self_test"}
+    fake={"title":"Management Trainee","url":"https://jobs.bdjobs.com/jobdetails.asp?id=123","canonical":canonical_url("https://jobs.bdjobs.com/jobdetails.asp?id=123"),"source":"Bdjobs","discovery":"self_test"}
     text_source=_text_from_html(fixture)
     fields=extract_job_fields(text_source,fixture,fake["url"],fake)
     fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
@@ -3322,7 +3297,7 @@ def self_test():
     assert compact_vacancy("Vacancy: 2") == "2"
     assert compact_vacancy("পদসংখ্যা: 09") == "09"
 
-    # Government Bengali summary fixture, including current Dohaj label/date style.
+    # Government Bengali summary fixture using the production Teletalk source identity.
     gov_text="""
     ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয় নিয়োগ ‍বিজ্ঞপ্তি ২০২৬
     আবেদন শুরুের সময়: ১৫ সেপ্টেম্বর ২০২৬ তারিখ সকাল ১০:০০ টা থেকে
@@ -3343,16 +3318,16 @@ def self_test():
     শেষ তারিখ
     মঙ্গলবার ৬ই অক্টোবর ২০২৬
     """
-    gov_item={"title":"Mymensingh","url":"https://dohaj.com/gov-job/mymensingh-division-commissioner-office-job-circular-2026","canonical":"dohaj.com/gov-job/mymensingh-division-commissioner-office-job-circular-2026","source":"Dohaj","is_government":True,"discovery":"self_test"}
+    gov_item={"title":"Mymensingh","url":"https://alljobs.teletalk.com.bd/?job_primary_id=gov-123","canonical":"alljobs.teletalk.com.bd/?job_primary_id=gov-123","source":"Teletalk","is_government":True,"discovery":"self_test"}
     gov_fields=extract_job_fields(gov_text,"<h1>Mymensingh Division Commissioner Office Job Circular</h1>",gov_item["url"],gov_item)
     assert gov_fields["company"]=="ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়"
     assert gov_fields["location"]=="Mymensingh"
     assert gov_fields["posted_date"]=="2026-09-16"
     assert gov_fields["deadline"]=="2026-10-06"
-    assert gov_fields["source"]=="Dohaj"
+    assert gov_fields["source"]=="Teletalk"
     assert gov_fields["application_start"]=="2026-09-15"
     assert gov_fields["application_end"]=="2026-10-06"
-    unicode_url="https://dohaj.com/gov-job/তথ্য-ও-যোগাযোগ-প্রযুক্তি-বিভাগ-নিয়োগ-বিজ্ঞপ্তি-2025"
+    unicode_url="https://alljobs.teletalk.com.bd/job/তথ্য-ও-যোগাযোগ-বিজ্ঞপ্তি-2025"
     safe_url=request_safe_url(unicode_url)
     assert "%" in safe_url and "তথ্য" not in safe_url
     assert canonical_url(unicode_url)==canonical_url(safe_url)
@@ -3370,7 +3345,7 @@ def self_test():
     assert any("Government Organization" in str(b.get("text","")) for b in no_company_blocks if isinstance(b,dict))
 
     # Strong duplicate filter, including cross-source mirrors.
-    a={"source_url":"https://dohaj.com/job-details/a","title":"Accounts Executive","company":"Example Ltd","location":"Dhaka","posted_date":"2026-09-18"}
+    a={"source_url":"https://alljobs.teletalk.com.bd/?job_primary_id=99","title":"Accounts Executive","company":"Example Ltd","location":"Dhaka","posted_date":"2026-09-18"}
     b={"source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=99","title":"Accounts Executive","company":"Example Ltd.","location":"Dhaka","posted_date":"2026-09-18"}
     assert likely_same_job(a,b)
 
@@ -3383,11 +3358,11 @@ def self_test():
     # Hard max and government-first selection.
     govs=[]
     for i in range(7):
-        g={**gov_fields,"canonical":f"gov-{i}","source_url":f"https://dohaj.com/gov-job/{i}","event_id":f"gov-{i}","posted_date":"2026-09-18","deadline":"2026-10-10"}
+        g={**gov_fields,"canonical":f"gov-{i}","source_url":f"https://alljobs.teletalk.com.bd/?job_primary_id={i}","event_id":f"gov-{i}","posted_date":"2026-09-18","deadline":"2026-10-10"}
         govs.append(g)
     priv=[]
     for i in range(30):
-        p={**fresh,"canonical":f"priv-{i}","source_url":f"https://dohaj.com/job-details/priv-{i}","event_id":f"priv-{i}","judge_publish":True,"judge_score":80,"private_rank_score":80,"bba_mba_target_score":80}
+        p={**fresh,"canonical":f"priv-{i}","source_url":f"https://jobs.bdjobs.com/jobdetails.asp?id={1000+i}","event_id":f"priv-{i}","judge_publish":True,"judge_score":80,"private_rank_score":80,"bba_mba_target_score":80}
         priv.append(p)
     selected=select_final_jobs(priv,govs)
     assert len(selected)<=20
@@ -3434,7 +3409,7 @@ def self_test():
     </body></html>
     """
     dohaj_text=_text_from_html(dohaj_fixture)
-    dohaj_item={"title":"HR & Admin Officer","url":"https://dohaj.com/job-details/hr-admin-officer","is_government":False,"source":"Dohaj","listing_posted":"","listing_deadline":""}
+    dohaj_item={"title":"HR & Admin Officer","url":"https://jobs.bdjobs.com/jobdetails.asp?id=2026","is_government":False,"source":"Bdjobs","listing_posted":"","listing_deadline":""}
     dohaj_fields=extract_job_fields(dohaj_text,dohaj_fixture,dohaj_item["url"],dohaj_item)
     assert dohaj_fields["company"]=="Global Asia Bangladesh Limited"
     assert dohaj_fields["location"]=="Dhaka (Uttara)"
@@ -3553,7 +3528,7 @@ def self_test():
     tel_b=dict(tel_researched,source_job_id="B")
     assert job_event_key(tel_a)!=job_event_key(tel_b)
 
-    assert PIPELINE_VERSION == "Career News Bot V4"
+    assert PIPELINE_VERSION == "Career News Bot V5"
     assert MAX_STORIES_PER_RUN == 20
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
     assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
@@ -3576,7 +3551,7 @@ def self_test():
         body=b"<html><body><h1>ok</h1></body></html>"
     assert "<h1>ok</h1>" in _decode_scrapling_body(_FakeScraplingResponse())
 
-    logger.info("Career News Bot V4 self-test passed.")
+    logger.info("Career News Bot V5 self-test passed.")
 
 
 if __name__ == "__main__":
