@@ -26,7 +26,7 @@ try:
     import trafilatura
 except ImportError:
     trafilatura = None
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -624,6 +624,80 @@ def _bdjobs_card_container(anchor):
     return best[3] if best else anchor.parent
 
 
+def _listing_context_window(anchor, next_job_anchor=None, max_chars=5000):
+    """Collect the visible text between this job link and the next job link.
+
+    Bdjobs currently renders several card values as siblings of the title anchor,
+    so relying only on an anchor's immediate/ancestor container can lose location,
+    experience, deadline, and education. This linear DOM window preserves the
+    actual card sequence without requiring brittle class names.
+    """
+    pieces = []
+    anchor_text_nodes = set(anchor.find_all(string=True))
+    next_text_nodes = set(next_job_anchor.find_all(string=True)) if next_job_anchor is not None else set()
+    for node in anchor.next_elements:
+        if next_job_anchor is not None:
+            if node is next_job_anchor:
+                break
+            if isinstance(node, NavigableString) and node in next_text_nodes:
+                break
+        if isinstance(node, NavigableString):
+            if node in anchor_text_nodes:
+                continue
+            value = _clean_one_line(str(node))
+            if not value:
+                continue
+            pieces.append(value)
+        elif getattr(node, "name", "") == "img":
+            # The live Bdjobs search cards use icon images whose ALT text is the
+            # actual metadata label ("Job Location", "Experience required",
+            # "Deadline for apply the job", "Education required"). BeautifulSoup
+            # get_text() drops ALT attributes, so explicitly preserve them.
+            value = _clean_one_line(node.get("alt") or node.get("aria-label") or node.get("title") or "")
+            if value and value.lower() not in {"logo", "image"}:
+                pieces.append(value)
+        if sum(len(x) + 1 for x in pieces) >= max_chars:
+            break
+    return _clean_one_line(" ".join(pieces))[:max_chars]
+
+
+def _infer_listing_company_from_context(title, context_text):
+    """Infer the unlabeled company directly after the job title."""
+    title = _clean_one_line(title)
+    text = _clean_one_line(context_text)
+    if not title or not text:
+        return ""
+    markers = (
+        "Job Location", "Location", "Work Location",
+        "Experience required", "Experience", "Deadline",
+        "Education required", "Education", "Vacancy", "Salary",
+        "Age", "Employment Status", "Employment", "Workplace",
+        "Published", "Posted",
+    )
+    boundary = r"(?=\s+(?:" + "|".join(re.escape(x) for x in markers) + r")\b)"
+    match = re.search(rf"^(.+?){boundary}", text, flags=re.I)
+    if match:
+        candidate = _clean_one_line(match.group(1))
+        candidate = re.sub(
+            r"^(?:Image:\s*)+",
+            "",
+            candidate,
+            flags=re.I,
+        )
+        candidate = re.sub(
+            r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
+            r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
+            "",
+            candidate,
+            flags=re.I,
+        )
+        candidate = _clean_one_line(candidate)
+        if candidate and normalize_title(candidate) != normalize_title(title):
+            if not re.search(r"\.(?:gif|png|jpe?g|webp|svg)$", candidate, re.I):
+                return candidate
+    return ""
+
+
 def _infer_listing_company(anchor, parent, title, card_text):
     """Recover company names from current and legacy Bdjobs card layouts."""
     title = _clean_one_line(title)
@@ -740,31 +814,81 @@ def _extract_listing_baseline(card_text):
 
 
 def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_name=""):
-    """Extract genuine Bdjobs job links and preserve useful listing-card fields."""
+    """Extract genuine Bdjobs jobs from current/legacy card layouts.
+
+    The current Bdjobs page places the company and metadata in sibling nodes
+    after the title link. We therefore use the text window up to the next job
+    link as a structural fallback, while retaining the compact ancestor parser.
+    """
     soup = BeautifulSoup(page_html or "", "html.parser")
-    found, seen = [], set()
+    job_anchors = []
     for a in soup.find_all("a", href=True):
         href = urljoin(page_url, safe_text(a.get("href")))
         if not is_bdjobs_job_url(href):
             continue
+        title = _clean_one_line(a.get_text(" ", strip=True))
+        if not title or is_noise_title(title, href):
+            continue
+        job_anchors.append(a)
+
+    found, seen = [], set()
+    for idx, a in enumerate(job_anchors):
+        href = urljoin(page_url, safe_text(a.get("href")))
         canonical = canonical_url(href)
         if not canonical or canonical in seen:
             continue
         title = _clean_one_line(a.get_text(" ", strip=True))
-        if not title or is_noise_title(title, href):
-            continue
+
         parent = _bdjobs_card_container(a)
-        card_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
-        baseline = _extract_listing_baseline(card_text)
+        ancestor_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
+        window_text = _listing_context_window(
+            a,
+            job_anchors[idx + 1] if idx + 1 < len(job_anchors) else None,
+            max_chars=5000,
+        )
+
+        # Prefer the compact card when it contains real metadata; otherwise use
+        # the DOM window. In either case, supplement missing fields from the
+        # window instead of replacing populated values.
+        baseline = _extract_listing_baseline(ancestor_text)
+        window_baseline = _extract_listing_baseline(window_text)
+        for key, value in window_baseline.items():
+            if value and not baseline.get(key):
+                baseline[key] = value
+
         if not baseline.get("company") and parent:
-            inferred_company = _infer_listing_company(a, parent, title, card_text)
+            inferred_company = _infer_listing_company(a, parent, title, ancestor_text)
             if inferred_company:
                 baseline["company"] = _clean_one_line(inferred_company)
+        if not baseline.get("company"):
+            inferred_company = _infer_listing_company_from_context(title, window_text)
+            if inferred_company:
+                baseline["company"] = inferred_company
+
+        # If the ancestor is title-only, the linear window is the actual card
+        # context. Keep the richer one as the excerpt used by fallback research.
+        card_text = window_text if window_text and len(window_text) >= len(ancestor_text) * 0.35 else ancestor_text
+        if not card_text:
+            card_text = title
+
+        # Re-run baseline extraction on the chosen excerpt and merge any fields
+        # missing from the first pass.
+        chosen_baseline = _extract_listing_baseline(card_text)
+        for key, value in chosen_baseline.items():
+            if value and not baseline.get(key):
+                baseline[key] = value
+
+        if not baseline.get("company"):
+            inferred_company = _infer_listing_company_from_context(title, card_text)
+            if inferred_company:
+                baseline["company"] = inferred_company
+
         posted = _listing_date_from_text(card_text)
         parsed_href = urlparse(href)
         id_match = re.search(r"(?:^|[?&])id=(\d+)", parsed_href.query, re.I)
         if not id_match:
             id_match = re.search(r"/h/jobs/(\d+)(?:/|$)", parsed_href.path, re.I)
+
         seen.add(canonical)
         found.append({
             "title": title,
@@ -777,10 +901,10 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             "discovery": "bdjobs_category_html",
             "category_id": category_id,
             "category_name": category_name,
-            "excerpt": trim_source_text(card_text, 2200),
+            "excerpt": trim_source_text(card_text, 3500),
             "listing_posted": posted,
             "listing_deadline": baseline.get("deadline") or normalize_date_text(
-                _first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])
+                _first_match(card_text, [r"(?:Deadline(?: for apply the job)?|শেষ তারিখ)\s*[:：-]?\s*(?:Deadline\s*[:：-]?\s*)?([^|]+)"])
             ),
             "listing_fields": baseline,
             "discovered_at": now_iso(),
@@ -958,7 +1082,15 @@ def discover_bdjobs():
                     break
         if len(all_items) >= PRIVATE_DISCOVERY_MAX:
             break
-    logger.info("BDJOBS CATEGORY-FIRST | raw=%d target=%d max=%d | categories=%d", len(all_items), PRIVATE_DISCOVERY_TARGET, PRIVATE_DISCOVERY_MAX, len(BDBJOBS_CATEGORIES))
+    enriched = sum(
+        1 for item in all_items
+        if item.get("company")
+        and sum(1 for k in ("location","education","experience","deadline") if (item.get("listing_fields") or {}).get(k))
+    )
+    logger.info(
+        "BDJOBS CATEGORY-FIRST | raw=%d target=%d max=%d | categories=%d | listing_rich=%d",
+        len(all_items), PRIVATE_DISCOVERY_TARGET, PRIVATE_DISCOVERY_MAX, len(BDBJOBS_CATEGORIES), enriched,
+    )
     return all_items[:PRIVATE_DISCOVERY_MAX]
 
 def _teletalk_record_fields(record):
@@ -3376,10 +3508,22 @@ def source_test():
         print(f"Bdjobs category {cid}: FAIL | time={elapsed}s")
         return
     candidates=_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"])
-    print(f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | candidates={len(candidates)} | time={elapsed}s")
+    rich_candidates=sum(
+        1 for c in candidates
+        if c.get("company")
+        and sum(1 for k in ("location","education","experience","deadline") if (c.get("listing_fields") or {}).get(k)) >= 3
+    )
+    print(
+        f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | "
+        f"candidates={len(candidates)} | listing_rich={rich_candidates} | time={elapsed}s"
+    )
     if fetched.get("cloudflare"): print("  Cloudflare: detected")
     if not candidates:
         print("Bdjobs detail: SKIPPED | no job candidate on category page")
+        raise RuntimeError("Bdjobs category returned no job candidates")
+    if rich_candidates == 0:
+        print("Bdjobs listing: INVALID | candidates found but listing metadata is sparse")
+        raise RuntimeError("Bdjobs listing parser returned no rich candidates")
     else:
         sample=candidates[0]
         detail=_fetch_bdjobs_detail(sample)

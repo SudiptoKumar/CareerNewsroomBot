@@ -17,6 +17,33 @@ Private    → Bdjobs category discovery
 
 No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
 
+
+
+## Current Production Quota
+
+```text
+Private jobs per run:    minimum 10
+Government jobs per run: minimum 3
+Total jobs per run:      maximum 20
+```
+
+The quota is enforced after source parsing, normalization, relevance gates, snapshot integrity checks, ranking, and duplicate checks. The bot does not fabricate or pad posts to reach the minimums.
+
+## Bdjobs Listing Parser Reliability
+
+Current Bdjobs search cards expose metadata through image ALT labels such as:
+
+```text
+Job Location
+Experience required
+Deadline for apply the job
+Education required
+```
+
+The parser preserves those ALT labels and uses a DOM text window from each job link to the next job link. This prevents a title-only ancestor from causing the listing record to lose company, location, experience, deadline, and education.
+
+A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication.
+
 #dev_tips
 
 ### Bypass Cloudflare with simple method

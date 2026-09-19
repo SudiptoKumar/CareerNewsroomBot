@@ -542,3 +542,122 @@ def test_snapshot_eligibility_happens_before_quota_selection():
     assert rejected == 2
     assert [j["source_job_id"] for j in private] == ["2"]
     assert [j["source_job_id"] for j in government] == ["4"]
+
+
+def test_current_bdjobs_sibling_card_window_recovers_listing_fields():
+    html = """
+    <html><body>
+      <section class="job-card">
+        <div class="title-row">
+          <h3><a href="/jobdetails/?id=600001&ln=1">Executive - Digital Marketing</a></h3>
+        </div>
+        <div class="company-row">ESNL EVERGREEN AGRO ECO RESORT LIMITED</div>
+        <div class="meta"><span>Image: Job Location</span><strong>Anywhere in Bangladesh</strong></div>
+        <div class="meta"><span>Image: Experience required</span><strong>At least 2 year(s)</strong></div>
+        <div class="meta"><span>Image: Deadline for apply the job</span><strong>25 Sep 2026</strong></div>
+        <div class="meta"><span>Image: Education required</span><ul><li>Minimum Bachelor's degree in any discipline</li></ul></div>
+      </section>
+      <section class="job-card">
+        <div class="title-row">
+          <h3><a href="/jobdetails/?id=600002&ln=1">Management Trainee</a></h3>
+        </div>
+        <div class="company-row">Example Bank PLC</div>
+        <div class="meta"><span>Image: Job Location</span><strong>Dhaka</strong></div>
+        <div class="meta"><span>Image: Experience required</span><strong>0 to 1 year(s)</strong></div>
+        <div class="meta"><span>Image: Deadline for apply the job</span><strong>30 Sep 2026</strong></div>
+        <div class="meta"><span>Image: Education required</span><ul><li>BBA / MBA preferred</li></ul></div>
+      </section>
+    </body></html>
+    """
+    rows = main._bdjobs_listing_candidates(
+        html,
+        "https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",
+        1,
+        "Accounting / Finance",
+    )
+    assert len(rows) == 2
+    first = rows[0]["listing_fields"]
+    assert rows[0]["company"] == "ESNL EVERGREEN AGRO ECO RESORT LIMITED"
+    assert first["location"] == "Anywhere in Bangladesh"
+    assert first["experience"] == "At least 2 year"
+    assert first["deadline"] == "2026-09-25"
+    assert "Bachelor" in first["education"]
+    second = rows[1]["listing_fields"]
+    assert rows[1]["company"] == "Example Bank PLC"
+    assert second["location"] == "Dhaka"
+    assert second["experience"] == "0 to 1 year"
+    assert second["deadline"] == "2026-09-30"
+    assert second["education"] == "BBA/MBA"
+
+
+def test_current_bdjobs_window_produces_publishable_private_record():
+    html = """
+    <section class="job-card">
+      <h3><a href="/jobdetails/?id=600003&ln=1">Business Development Executive</a></h3>
+      <div>ABC Business Ltd.</div>
+      <div>Job Location</div><div>Dhaka</div>
+      <div>Experience required</div><div>0 to 2 year(s)</div>
+      <div>Deadline for apply the job</div><div>30 Sep 2026</div>
+      <div>Education required</div><div>Bachelor's degree in any discipline</div>
+    </section>
+    """
+    rows = main._bdjobs_listing_candidates(
+        html,
+        "https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=3",
+        3,
+        "Commercial / Supply Chain",
+    )
+    assert rows
+    item = rows[0]
+    # Simulate the same fallback path used when a current Bdjobs detail page
+    # returns the Angular shell.
+    old = main._fetch_bdjobs_detail
+    main._fetch_bdjobs_detail = lambda _item: None
+    try:
+        job = main.research_job(item)
+    finally:
+        main._fetch_bdjobs_detail = old
+    assert job["company"] == "ABC Business Ltd."
+    assert job["location"] == "Dhaka"
+    assert job["experience"] == "0 to 2 year"
+    assert job["education"] == "Bachelor's"
+    assert job["deadline"] == "2026-09-30"
+    ok, reason = main.snapshot_integrity(job)
+    assert ok, reason
+    assert main.deterministic_job_gate(job)[0]
+
+
+def test_bdjobs_search_page_sequence_with_image_labels_is_rich():
+    html = """
+    <div class="job-card">
+      <div><a href="/jobdetails/?id=700001&ln=1">Relationship Officer</a></div>
+      <div>United Commercial Bank PLC</div>
+      <div><img alt="Job Location" src="/x.gif"></div><div>Anywhere in Bangladesh</div>
+      <div><img alt="Experience required" src="/x.gif"></div><div>At least 3 year(s)</div>
+      <div><img alt="Deadline for apply the job" src="/x.gif"></div><div>15 Oct 2026</div>
+      <div><img alt="Education required" src="/x.gif"></div><div>4-year Bachelor's degree in any discipline</div>
+    </div>
+    <div class="job-card">
+      <div><a href="/jobdetails/?id=700002&ln=1">Sales Executive</a></div>
+      <div>Example Company Ltd.</div>
+      <div><img alt="Job Location" src="/x.gif"></div><div>Dhaka</div>
+      <div><img alt="Experience required" src="/x.gif"></div><div>0 to 2 year(s)</div>
+      <div><img alt="Deadline for apply the job" src="/x.gif"></div><div>30 Sep 2026</div>
+      <div><img alt="Education required" src="/x.gif"></div><div>BBA / MBA</div>
+    </div>
+    """
+    rows = main._bdjobs_listing_candidates(
+        html,
+        "https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=2",
+        2,
+        "Bank / Non-Bank Financial Institution",
+    )
+    assert len(rows) == 2
+    for row in rows:
+        fields = row["listing_fields"]
+        assert row["company"]
+        assert fields["location"]
+        assert fields["experience"]
+        assert fields["deadline"]
+        assert fields["education"]
+        assert sum(bool(fields.get(k)) for k in ("location","education","experience","deadline")) >= 3
