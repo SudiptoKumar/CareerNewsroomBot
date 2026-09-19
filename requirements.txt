@@ -3,4 +3,5 @@ requests
 urllib3
 beautifulsoup4
 trafilatura
+cerebras_cloud_sdk
 scrapling[fetchers]==0.4.15
