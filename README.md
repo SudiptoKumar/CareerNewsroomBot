@@ -1,10 +1,12 @@
-# Career News V1
+# CareerNewsroom
 
-BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
+Production BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
+
+Pipeline release: Career News V1.
 
 ## Purpose
 
-Career News V1 searches a controlled set of Bangladesh job-board categories, builds a broad comparison pool, removes duplicates and invalid records, ranks the strongest private jobs, verifies only the strongest detail pages, optionally audits them with Cerebras, applies company/category diversity, and publishes a dynamic set of high-quality opportunities.
+CareerNewsroom searches a controlled set of Bangladesh job-board categories, builds a broad comparison pool, removes duplicates and invalid records, ranks the strongest private jobs, verifies only the strongest detail pages, optionally audits them with Cerebras, applies company/category diversity, and publishes a dynamic set of high-quality opportunities.
 
 The system is designed to avoid the previous failure mode where a large global job pool is collected first and category relevance is determined afterward.
 
@@ -44,39 +46,31 @@ The parser preserves those ALT labels and uses a DOM text window from each job l
 
 A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication. In production, the detail lane first uses `curl_cffi`, then renders the real Bdjobs page with Scrapling/StealthyFetcher when the site returns the Angular shell, and only then falls back to Jina/listing data.
 
-#dev_tips
+## Resilient Bdjobs acquisition
 
-### Bypass Cloudflare with simple method
-
-Having trouble scraping sites protected by Cloudflare?
-
-Cloudflare doesn't just look at your User-Agent header; it looks at your JA3/JA4 TLS handshake. Standard Python requests gets blocked instantly at the cryptographic level.
-
-The Fix:
-
-Use the Python library `curl_cffi`. It uses curl-impersonate under the hood to perfectly fake the HTTP/2 and TLS signatures of real browsers.
-
-The Pro-Tip:
-
-Rotate iOS Safari fingerprints For example (impersonate="safari18_0_ios"). Cloudflare gives massive Trust Scores to Apple/iOS devices because they are rarely used in botnets. It works like magic! 🪄👨‍💻
-
-And
-
-### Dev tips bypass Cloudflare quickly
-
-Try fetching a plain-text version through Jina’s proxy:
+Bdjobs detail pages are currently client-rendered. CareerNewsroom uses a bounded acquisition chain:
 
 ```text
-https://r.jina.ai/https://example.com/
+curl_cffi browser impersonation
+        ↓
+current Bdjobs /h/details route
+        ↓
+Patchright-powered Scrapling render
+        ↓
+DOM-aware validation and extraction
+        ↓
+Jina Reader fallback
+        ↓
+listing preservation when enrichment is unavailable
 ```
 
-It returns readable output ( no JS, no cookies), so you can parse values easily )
+The browser lane waits for the Bdjobs summary container and can also wait for network quiescence. No part of the parser relies on Tailwind utility classes or the first `<h1>`.
 
-**Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation, a Patchright-powered Scrapling browser render, and Jina Reader fallback. The browser dependency is installed with `patchright install chromium --with-deps` in GitHub Actions. These methods are not guaranteed to bypass every site's protection.
+Current dependency pin: `scrapling[fetchers]==0.4.15`.
 
 ### Source-first extraction → AI selection
 
-Career News V1 extracts the complete cleaned Bdjobs source document before AI review. It keeps structured source fields and the full cleaned source content. Cerebras is used only to classify relevance, identify internships, audit contradictions, and choose which available fields should appear in the compact snapshot. It never creates factual values.
+CareerNewsroom extracts the complete cleaned Bdjobs source document before AI review. It keeps structured source fields and the full cleaned source content. Cerebras is used only to classify relevance, identify internships, audit contradictions, and choose which available fields should appear in the compact snapshot. It never creates factual values.
 
 ```text
 source facts → normalization → AI selection → render the original source facts
@@ -146,8 +140,29 @@ The minimum-fill paths still require a fresh, non-expired business role, no clea
 
 ### Jina Reader safety
 
-Jina Reader returns LLM-friendly Markdown. Career News V1 converts that Markdown to plain parser-safe text before field extraction, removing image/link syntax, headings, asset filenames and page-chrome artifacts. This prevents strings such as `name-share-details.gif` or `[![Image ...](...)](...)` from appearing in Telegram posts.
+Jina Reader returns LLM-friendly Markdown. CareerNewsroom converts that Markdown to plain parser-safe text before field extraction, removing image/link syntax, headings, asset filenames and page-chrome artifacts. This prevents strings such as `name-share-details.gif` or `[![Image ...](...)](...)` from appearing in Telegram posts.
 
+
+## Bdjobs rendered-detail parser
+
+Bdjobs detail pages currently use an Angular application shell. The production browser lane waits for `app-summary #allSection`, captures the rendered HTML, and parses stable Angular tags and IDs.
+
+The parser uses these anchors:
+
+```text
+app-details-main              → job-detail container
+button > h2 + next h2          → company + title
+app-summary #allSection        → Vacancy / Age / Location / Salary / Experience / Published
+#requirements                  → Education / Experience / Additional Requirements
+#skills                        → skill chips
+label p + value p              → Workplace / Employment Status / Job Location
+Application Deadline           → deadline
+app-company-info-card          → company address / size
+```
+
+The listing title is the trusted identity. Rendered-page title candidates are accepted only when they match that listing identity. A missing rendered title falls back to the listing title; an explicit mismatch never overwrites listing data.
+
+The detail validity gate is structural. A page is not considered a usable Bdjobs detail document merely because it contains thousands of characters from footer or navigation content.
 
 ## Private discovery: category first
 
@@ -238,7 +253,7 @@ Jina fallback format:
 https://r.jina.ai/<original-url>
 ```
 
-Scrapling is not required for the V1 runtime path. `curl_cffi` is the browser-impersonation layer and Jina is the plain-text fallback.
+Scrapling is required for the protected client-rendered Bdjobs detail fallback. `curl_cffi` is the first HTTP acquisition layer and Jina is the plain-text fallback when the browser path is unavailable.
 
 A detail-page failure is not allowed to silently delete a candidate. When the Bdjobs detail page is blocked, thin, or unavailable, the pipeline records the failure and preserves a job when the listing already contains enough source-backed fields.
 
@@ -254,7 +269,7 @@ This makes a zero-private run diagnosable instead of appearing as a normal succe
 
 ## Permanent detail-page protection
 
-The Bdjobs detail route can return an application shell with HTTP `200` while the actual job content is not present. Career News V1 now validates **visible page text after removing script/style content**, so CSS/JavaScript size can never make a non-job shell look like a valid detail page.
+The Bdjobs detail route can return an application shell with HTTP `200` while the actual job content is not present. CareerNewsroom now validates the rendered Bdjobs DOM structurally before merging detail fields, so CSS/JavaScript size can never make a non-job shell look like a valid detail page.
 
 ```text
 curl_cffi + iOS Safari fingerprint
@@ -419,10 +434,14 @@ State tracks source identity, job identity, dates, ranking values, lifecycle sta
 
 Candidates receive an explicit lifecycle disposition rather than silently disappearing between stages.
 
+## Production validation
+
+The production repository intentionally contains no `tests/` directory and the GitHub Actions workflow does not run `pytest`. Deterministic regression checks live in `main.py --self-test` so the production tree stays compact. The validation used for this release also checks the real Angular Bdjobs extraction pattern: footer `<h1>` rejection, header `<h2>` title identity, title-suffix cleanup, wrong-job protection, summary/requirements extraction, and browser wait configuration.
+
 ## Repository tree
 
 ```text
-Career News V1/
+CareerNewsroom/
 │
 ├── README.md
 ├── requirements.txt
