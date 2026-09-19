@@ -1,4 +1,4 @@
-name: CareerNewsroom V5
+name: CareerNewsroom V1
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v5
+  group: careernewsroom-v1
   cancel-in-progress: false
 
 jobs:
@@ -28,13 +28,19 @@ jobs:
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       SCRAPLING_ENABLED: "1"
       PYTHONUNBUFFERED: "1"
-      FAST_PRIVATE_CANDIDATE_TARGET: "60"
+      FAST_PRIVATE_CANDIDATE_TARGET: "160"
       FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
-      FAST_DETAIL_WORKERS: "8"
-      FAST_AI_CANDIDATE_LIMIT: "20"
+      FAST_DETAIL_WORKERS: "10"
+      FAST_AI_CANDIDATE_LIMIT: "32"
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
+      PRIVATE_RESEARCH_TARGET: "40"
+      PRIVATE_QUALITY_FLOOR: "64"
+      BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY: "10"
+      BDJOBS_CATEGORY_WORKERS: "8"
+      MAX_PRIVATE_POST_AGE_DAYS: "5"
+      SCRAPLING_DYNAMIC_ENABLED: "0"
 
     steps:
       - name: Checkout repository
@@ -60,14 +66,14 @@ jobs:
           python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
           echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V5 self-test
+      - name: Run V1 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run CareerNewsroom V5
+      - name: Run CareerNewsroom V1
         run: python main.py
 
       - name: Save state
@@ -80,6 +86,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom V5 state"
+            git commit -m "Update CareerNewsroom V1 state"
             git push
           fi
