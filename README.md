@@ -1,4 +1,4 @@
-# CareerNewsroomBot V2
+# CareerNewsroomBot V3
 
 Fast, incremental Bangladesh job-news pipeline for Career Newsroom.
 
@@ -50,7 +50,7 @@ Primary endpoint:
 
 `https://alljobs.teletalk.com.bd/api/v1/published-jobs/search?searchKeyword=`
 
-V2 reads one broad published-jobs response and normalizes source-native fields such as:
+V3 reads one broad published-jobs response and normalizes source-native fields such as:
 
 - `job_primary_id`
 - `job_title`
@@ -75,7 +75,7 @@ Dohaj government is queried only when Teletalk does not provide at least the min
 
 `https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch`
 
-V2 uses the current unparameterized response as a **bounded newest-page probe**. The exact public pagination contract is not documented well enough to justify guessing parameter names, so V2 does not send speculative `page`, `pageno`, or `PageIndex` requests.
+V3 uses the current unparameterized response as a **bounded newest-page probe**. The exact public pagination contract is not documented well enough to justify guessing parameter names, so V3 does not send speculative `page`, `pageno`, or `PageIndex` requests.
 
 The API response is mapped directly into the bot's internal schema and is filtered for BBA/MBA/business relevance before detail-page work.
 
@@ -87,13 +87,13 @@ Repository:
 
 `https://github.com/ever-jobs/ever-jobs`
 
-V2 can call a **self-hosted Ever Jobs instance** only when `EVER_JOBS_API_URL` is configured. It is optional and is not required to run CareerNewsroomBot.
+V3 can call a **self-hosted Ever Jobs instance** only when `EVER_JOBS_API_URL` is configured. It is optional and is not required to run CareerNewsroomBot.
 
 ### 5. Private fallback: direct Bdjobs HTML
 
 `https://jobs.bdjobs.com/jobsearch-cache.asp`
 
-The raw HTML path is retained because the Bdjobs site has a client-rendered job-search interface. V2 invokes it only when the API/optional Ever Jobs path does not supply enough candidates.
+The raw HTML path is retained because the Bdjobs site has a client-rendered job-search interface. V3 invokes it only when the API/optional Ever Jobs path does not supply enough candidates.
 
 ### 6. Private: Dohaj business sections
 
@@ -115,11 +115,11 @@ stop when candidate target is reached
 
 The bot no longer runs every Bdjobs path at full size on every cycle, and it no longer guesses undocumented API pagination parameters.
 
-The API path is based on the endpoint already used by independent job-scraping software, but V2 treats current freshness/pagination as an operational concern rather than assuming the endpoint is an officially documented public API.
+The API path is based on the endpoint already used by independent job-scraping software, but V3 treats current freshness/pagination as an operational concern rather than assuming the endpoint is an officially documented public API.
 
 ## Deduplication
 
-V2 uses:
+V3 uses:
 
 1. Canonical source URL
 2. Persistent `posted_urls.txt`
@@ -166,7 +166,7 @@ Government posts are ranked separately using:
 
 Cerebras is optional.
 
-Deterministic filtering and ranking happen first. At most **20 private candidates** are sent in **one compact Cerebras request** for editorial review. If Cerebras is unavailable, rate-limited, or returns an error, V2 immediately falls back to deterministic ranking. There is no multi-batch retry loop.
+Deterministic filtering and ranking happen first. At most **20 private candidates** are sent in **one compact Cerebras request** for editorial review. If Cerebras is unavailable, rate-limited, or returns an error, V3 immediately falls back to deterministic ranking. There is no multi-batch retry loop.
 
 ## Retrieval performance
 
@@ -189,6 +189,11 @@ TELETALK_API_TIMEOUT=15
 EVER_JOBS_TIMEOUT=15
 POST_DELAY_SECONDS=1.0
 MAX_PRIVATE_EXPERIENCE_YEARS=3
+SCRAPLING_ENABLED=1
+SCRAPLING_DYNAMIC_ENABLED=1
+SCRAPLING_DYNAMIC_TIMEOUT_MS=15000
+SCRAPLING_DYNAMIC_WAIT_MS=1500
+SCRAPLING_DYNAMIC_MAX_CANDIDATES=40
 MAX_BDJOBS_DISCOVERY_PAGES=1
 ```
 
@@ -221,7 +226,7 @@ The included workflow:
 - checks out the repository
 - installs Python dependencies
 - runs `py_compile`
-- runs the V2 self-test
+- runs the V3 self-test
 - runs the production bot
 - persists `news_state.json` and `posted_urls.txt`
 
@@ -267,7 +272,7 @@ The self-test covers field extraction, experience gating, source-native job IDs,
 
 ## Important source-status notes
 
-Ever Jobs currently lists BDJobs as an HTML/Cheerio source. A separate TypeScript JobSpy implementation currently reports BDJobs as having moved to the Angular SPA at `bdjobs.com/h/jobs` backed by `apiv1.bdjobs.com`. That is why V2 does not treat any single scraper as permanently authoritative.
+Ever Jobs currently lists BDJobs as an HTML/Cheerio source. A separate TypeScript JobSpy implementation currently reports BDJobs as having moved to the Angular SPA at `bdjobs.com/h/jobs` backed by `apiv1.bdjobs.com`. That is why V3 does not treat any single scraper as permanently authoritative.
 
 Current public source references:
 
