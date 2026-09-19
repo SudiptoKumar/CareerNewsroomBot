@@ -1082,124 +1082,31 @@ def discover_bdjobs():
     )
     return all_items[:PRIVATE_DISCOVERY_MAX]
 
-def _teletalk_value(record, aliases):
-    """Read a source field from common flat/nested Teletalk API shapes without guessing values."""
-    if not isinstance(record, dict):
-        return ""
-    wanted={re.sub(r"[^a-z0-9]", "", safe_text(alias).lower()) for alias in aliases}
-
-    def walk(obj, depth=0):
-        if depth>3 or not isinstance(obj, dict):
-            return ""
-        for key, value in obj.items():
-            norm=re.sub(r"[^a-z0-9]", "", safe_text(key).lower())
-            if norm in wanted and value is not None:
-                if isinstance(value, (str, int, float, bool)):
-                    return safe_text(value)
-            if isinstance(value, dict):
-                found=walk(value, depth+1)
-                if found:
-                    return found
-        return ""
-
-    return walk(record)
-
-
-def _teletalk_optional_url(record):
-    return _teletalk_value(record, (
-        "detail_url", "detailUrl", "details_url", "detailsUrl", "job_url", "jobUrl",
-        "job_detail_url", "jobDetailUrl", "vacancy_url", "vacancyUrl",
-    ))
-
-
 def _teletalk_record_fields(record):
     if not isinstance(record, dict):
         return None
-    source_id = _teletalk_value(record, (
-        "job_primary_id", "jobPrimaryId", "job_id", "jobId", "id"
-    ))
-    title = _clean_one_line(_teletalk_value(record, (
-        "job_title", "jobTitle", "title", "position", "post_name"
-    )))
+    source_id = safe_text(record.get("job_primary_id") or record.get("jobPrimaryId") or record.get("id"))
+    title = _clean_one_line(record.get("job_title") or record.get("jobTitle") or record.get("title"))
     if not source_id or not title:
         return None
-
-    company = _clean_one_line(_teletalk_value(record, (
-        "org_name", "orgName", "organization", "organization_name", "company",
-        "employer", "office_name", "department_name"
-    )))
-    vacancy = compact_vacancy(_teletalk_value(record, (
-        "vacancy", "vacancies", "number_of_vacancy", "numberOfVacancy", "positions"
-    )))
-    deadline = normalize_date_text(_teletalk_value(record, (
-        "deadline_date", "deadlineDate", "deadline", "application_deadline", "applicationDeadline"
-    )))
-    posted = normalize_date_text(_teletalk_value(record, (
-        "published_date", "publish_date", "posted_date", "postedDate", "datePosted", "publishedDate"
-    )))
-    apply_url = safe_text(_teletalk_value(record, (
-        "application_site_url", "applicationSiteUrl", "apply_url", "applyUrl", "application_url", "applicationUrl"
-    )))
-
-    # The published-jobs API currently exposes a compact core payload, but retain
-    # additional source fields when present so a richer API response can be used
-    # without another code change. These values are never invented.
-    education = _strip_html_fragment(_teletalk_value(record, (
-        "education", "education_qualification", "educationQualification",
-        "educational_qualification", "educationalQualification"
-    )))
-    location = _clean_one_line(_teletalk_value(record, (
-        "location", "job_location", "jobLocation", "job_location_name", "jobLocationName", "district", "work_location"
-    )))
-    salary = compact_salary(_teletalk_value(record, (
-        "salary", "salary_range", "salaryRange", "offered_salary", "offeredSalary",
-        "pay_scale", "payScale", "salary_scale", "salaryScale"
-    )))
-    experience = compact_experience(_teletalk_value(record, (
-        "experience", "experience_required", "experienceRequired", "experience_requirement", "experienceRequirement"
-    )))
-    age = compact_age(_teletalk_value(record, (
-        "age", "age_limit", "ageLimit", "age_requirement", "ageRequirement"
-    )))
-    employment = compact_employment(_teletalk_value(record, (
-        "employment_type", "employmentType", "job_type", "jobType", "employment_status", "employmentStatus"
-    )))
-    workplace = compact_workplace(_teletalk_value(record, (
-        "workplace", "work_place", "workPlace", "job_work_place", "jobWorkPlace"
-    )))
-    category = _clean_one_line(_teletalk_value(record, (
-        "category", "job_category", "jobCategory", "category_name", "categoryName"
-    )))
-    application_method = compact_application(_teletalk_value(record, (
-        "application_method", "applicationMethod", "application_process", "applicationProcess", "apply_method", "applyMethod"
-    )), apply_url)
-    selection_process = compact_selection(_teletalk_value(record, (
-        "selection_process", "selectionProcess", "recruitment_process", "recruitmentProcess", "selection_procedure", "selectionProcedure"
-    )))
-    application_period = _clean_one_line(_teletalk_value(record, (
-        "application_period", "applicationPeriod", "application_date", "applicationDate"
-    )))
-    application_start = normalize_date_text(_teletalk_value(record, (
-        "application_start", "applicationStart", "start_date", "startDate"
-    )))
-    application_end = normalize_date_text(_teletalk_value(record, (
-        "application_end", "applicationEnd", "end_date", "endDate"
-    )))
-    detail_url = _teletalk_optional_url(record)
-
-    source_url = detail_url or f"https://alljobs.teletalk.com.bd/?job_primary_id={quote(source_id)}"
-    raw_parts = [title, company, location, salary, experience, education, vacancy, age, employment, workplace, category, application_method, selection_process, application_period, application_start, application_end, posted, deadline]
-    raw_text = " | ".join(x for x in raw_parts if safe_text(x))
+    company = _clean_one_line(record.get("org_name") or record.get("orgName") or record.get("organization") or record.get("company"))
+    vacancy = compact_vacancy(record.get("vacancy"))
+    deadline = normalize_date_text(record.get("deadline_date") or record.get("deadlineDate") or record.get("deadline"))
+    posted = normalize_date_text(record.get("published_date") or record.get("publish_date") or record.get("posted_date") or record.get("postedDate"))
+    apply_url = safe_text(record.get("application_site_url") or record.get("applicationSiteUrl") or record.get("apply_url") or record.get("applyUrl"))
+    education = _strip_html_fragment(record.get("education") or record.get("education_qualification") or "")
+    location = _clean_one_line(record.get("location") or record.get("job_location") or "")
+    employment = compact_employment(record.get("employment_type") or record.get("job_type") or record.get("jobType"))
+    source_url = f"https://alljobs.teletalk.com.bd/?job_primary_id={quote(source_id)}"
     return {
-        "title": title, "company": company, "location": location, "salary": salary, "experience": experience,
+        "title": title, "company": company, "location": location, "salary": "", "experience": "",
         "education": compact_education(education), "vacancy": vacancy, "employment_type": employment,
-        "workplace": workplace, "age": age, "category": category, "application_method": application_method,
-        "selection_process": selection_process, "application_period": application_period,
-        "application_start": application_start, "application_end": application_end,
+        "workplace": "", "age": "", "category": "", "application_method": "Online" if apply_url else "",
+        "selection_process": "", "application_period": "", "application_start": "", "application_end": "",
         "posted_date": posted, "deadline": deadline, "source": "Teletalk", "source_url": source_url,
         "url": source_url, "apply_url": apply_url, "source_job_id": source_id,
-        "discovery": "teletalk_api", "is_government": True, "raw_text": raw_text,
-        "raw_api_record": record, "detail_url": detail_url,
+        "discovery": "teletalk_api", "is_government": True,
+        "raw_text": " | ".join(x for x in [title, company, location, education] if x),
     }
 
 def _teletalk_records(payload):
@@ -1461,12 +1368,6 @@ def clean_source_field(value):
 def clean_job_title(value, fallback=""):
     primary = clean_source_field(value)
     backup = clean_source_field(fallback)
-    # Bdjobs rendered pages can expose site/navigation metadata such as
-    # "Our Valuable Partners" as the JSON-LD title or H1 instead of the
-    # actual vacancy title. The discovery title is source-backed and must
-    # win whenever the detail-page title is known noise.
-    if primary and is_noise_title(primary):
-        return backup or primary
     # Bdjobs page chrome occasionally gets attached to the H1/Markdown heading.
     if backup and (
         "bdjobs.com" in primary.lower()
@@ -2758,54 +2659,19 @@ def retrieve_job_content(item):
 
 def _research_teletalk_job(item):
     fields = dict(item.get("api_fields") or {})
-    detail_url = safe_text(fields.get("detail_url") or item.get("detail_url", ""))
-
-    # When the API record provides a real public detail URL, enrich from that
-    # source document exactly like other source-first records. The compact API
-    # remains authoritative for IDs, vacancy, deadline and application target.
-    detail_fields = {}
-    retrieval_backend = "teletalk_api"
-    detail_quality = "api_only"
-    source_content = safe_text(fields.get("raw_text", ""))
-    if detail_url:
-        try:
-            retrieved = _fetch_source_document(detail_url, timeout=DETAIL_TIMEOUT, referer=TELETALK_HOME_URL)
-        except Exception as exc:
-            logger.info("TELETALK DETAIL FETCH FAILED | id=%s | error=%s", fields.get("source_job_id", ""), exc)
-            retrieved = None
-        if retrieved and safe_text(retrieved.get("text")):
-            detail_fields = extract_job_fields(retrieved.get("text", ""), retrieved.get("html", ""), detail_url, {**item, "is_government": True, "title": fields.get("title", item.get("title", ""))})
-            retrieval_backend = retrieved.get("backend", "teletalk_detail")
-            detail_quality = "detail_valid"
-            source_content = safe_text(retrieved.get("text", ""))
-
-    # API values retain precedence for authoritative application and vacancy
-    # metadata; detail fields fill missing values such as salary/experience/age
-    # only when they are explicitly present in the source document.
-    authoritative = {
-        **detail_fields,
-        **{k:v for k,v in fields.items() if safe_text(v)},
-    }
-    authoritative["title"] = fields.get("title") or detail_fields.get("title", "")
-    authoritative["company"] = fields.get("company") or detail_fields.get("company", "")
-    authoritative["source_url"] = fields.get("source_url") or item.get("source_url", "")
-    authoritative["url"] = authoritative["source_url"]
-    authoritative["apply_url"] = fields.get("apply_url") or detail_fields.get("apply_url", "")
-    authoritative["source"] = "Teletalk"
-    authoritative["source_job_id"] = fields.get("source_job_id") or item.get("source_job_id", "")
-    authoritative["canonical"] = item.get("canonical", canonical_url(authoritative["source_url"]))
-    authoritative["retrieval_backend"] = retrieval_backend
-    authoritative["detail_quality"] = detail_quality
-    authoritative["raw_text"] = source_content[:MAX_JOB_CONTENT_CHARS]
-    authoritative["raw_source_fields"] = fields.get("raw_api_record") or {}
-    authoritative["listing_posted"] = item.get("listing_posted", fields.get("posted_date", ""))
-    authoritative["listing_deadline"] = item.get("listing_deadline", fields.get("deadline", ""))
-    authoritative["is_government"] = True
-    authoritative["application_method"] = compact_application(authoritative.get("application_method", ""), authoritative.get("apply_url", ""))
-    authoritative["audience_pre_score"] = job_family_score(authoritative.get("title", ""), authoritative.get("raw_text", ""))
-    authoritative["bba_mba_target_score"] = bba_mba_candidate_score(authoritative)
-    authoritative["event_id"] = job_event_key(authoritative)
-    return authoritative
+    fields.update({
+        "canonical": item.get("canonical", canonical_url(item.get("source_url", ""))),
+        "source": "Teletalk", "source_url": item.get("source_url", fields.get("source_url", "")),
+        "apply_url": fields.get("apply_url", item.get("apply_url", "")),
+        "retrieval_backend": "teletalk_api", "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""), "is_government": True,
+        "source_job_id": fields.get("source_job_id", item.get("source_job_id", "")),
+    })
+    fields["application_method"] = compact_application(fields.get("application_method", ""), fields.get("apply_url", ""))
+    fields["audience_pre_score"] = job_family_score(fields.get("title", ""), fields.get("raw_text", ""))
+    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
+    fields["event_id"] = job_event_key(fields)
+    return fields
 
 def _valid_merged_field(key, value, *, title="", company=""):
     value=_clean_one_line(value)
@@ -2816,8 +2682,6 @@ def _valid_merged_field(key, value, *, title="", company=""):
         return False
     if key in {"title","company"}:
         if len(value)>180 or "bdjobs.com" in low or "name-share-details" in low:
-            return False
-        if key == "title" and is_noise_title(value):
             return False
         if re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", value, re.I):
             return False
@@ -3349,10 +3213,13 @@ def rank_jobs(jobs):
         ai_score = max(0, min(100, int(row.get("score", 0)))) if ai_available else None
         candidate = dict(job)
         available_display=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(candidate.get(key))]
-        # The AI judge may score/filter a job, but it is not allowed to decide which
-        # verified source fields become visible. Publication uses the complete
-        # source-backed snapshot field set.
-        display_fields=available_display
+        ai_display=[key for key in (row.get("display_fields") or []) if key in available_display]
+        display_fields=list(dict.fromkeys(ai_display or available_display))
+        for core_key in ("deadline","posted_date","location"):
+            if core_key in available_display and core_key not in display_fields:
+                display_fields.append(core_key)
+        if not is_internship_job(candidate) and "experience" in available_display and "experience" not in display_fields:
+            display_fields.append("experience")
         candidate.update({
             "ai_score": ai_score if ai_available else None,
             "judge_publish": bool(row.get("publish", True)) if ai_available else True,
@@ -3846,12 +3713,7 @@ def split_snapshot_eligible(jobs):
 
 
 def job_snapshot_rows(job):
-    """Render the complete 11-field source snapshot in a stable order.
-
-    Missing values are shown explicitly as ``Not specified`` so the Telegram post
-    keeps a consistent full-detail structure. The placeholder is never counted as
-    source information by snapshot_field_quality().
-    """
+    """Return only source-backed available fields; dates shown are Deadline and Posted only."""
     mapping_all=[
         ("Location","location"),
         ("Employment","employment_type"),
@@ -3865,15 +3727,18 @@ def job_snapshot_rows(job):
         ("Deadline","deadline"),
         ("Posted","posted_date"),
     ]
-    missing={"","—","--","n/a","na","not available","not specified","none","null"}
+    wanted=set(job.get("display_fields") or [key for _,key in mapping_all if safe_text(job.get(key))])
+    mapping=[(label,key) for label,key in mapping_all if key in wanted]
     rows=[]
-    for label,key in mapping_all:
+    for label,key in mapping:
         raw=english_display_text(job.get(key))
-        if raw.lower() in missing:
-            rows.append((label,"Not specified"))
+        if not raw or raw.lower() in {"—","--","n/a","na","not available","not specified","none","null"}:
             continue
-        value=english_display_text(format_table_value(label,raw))
-        rows.append((label,value if value and value!="—" else "Not specified"))
+        value=format_table_value(label,raw)
+        value=english_display_text(value)
+        if not value or value=="—":
+            continue
+        rows.append((label,value))
     return rows
 
 
