@@ -38,7 +38,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.901972+06:00",
-      "last_seen": "2026-09-20T01:24:40.901985+06:00"
+      "last_seen": "2026-09-20T01:47:09.006063+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14728": {
       "title": "Certificate Assistant",
@@ -75,9 +75,14 @@
       "bba_mba_target_score": 0,
       "event_id": "d8612265cb8c0411b0dd2a4c",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-20T01:24:40.902040+06:00",
-      "last_seen": "2026-09-20T01:24:40.902042+06:00"
+      "last_seen": "2026-09-20T01:47:09.006195+06:00",
+      "posted_at": "2026-09-20T01:47:14.290781+06:00",
+      "pipeline_version": "Career News V1",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14732": {
       "title": "Store Officer",
@@ -116,7 +121,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902067+06:00",
-      "last_seen": "2026-09-20T01:24:40.902069+06:00"
+      "last_seen": "2026-09-20T01:47:09.006394+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14744": {
       "title": "Upper Division Assistant",
@@ -243,7 +248,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902131+06:00",
-      "last_seen": "2026-09-20T01:24:40.902133+06:00"
+      "last_seen": "2026-09-20T01:47:09.006161+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14730": {
       "title": "Security Guard",
@@ -324,9 +329,14 @@
       "bba_mba_target_score": 3,
       "event_id": "957e30fe68051c61446e80a4",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-20T01:24:40.902170+06:00",
-      "last_seen": "2026-09-20T01:24:40.902171+06:00"
+      "last_seen": "2026-09-20T01:47:09.006327+06:00",
+      "posted_at": "2026-09-20T01:47:11.580588+06:00",
+      "pipeline_version": "Career News V1",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 67
     },
     "alljobs.teletalk.com.bd?job_primary_id=14745": {
       "title": "Steno-Typist Cum-Computer Operator",
@@ -409,7 +419,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902206+06:00",
-      "last_seen": "2026-09-20T01:24:40.902208+06:00"
+      "last_seen": "2026-09-20T01:47:09.006261+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14734": {
       "title": "Account Assistant",
@@ -448,7 +458,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902225+06:00",
-      "last_seen": "2026-09-20T01:24:40.902226+06:00"
+      "last_seen": "2026-09-20T01:47:09.005830+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14740": {
       "title": "Sepoy",
@@ -485,9 +495,14 @@
       "bba_mba_target_score": 0,
       "event_id": "48757a1e17021eea51a19516",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-20T01:24:40.902244+06:00",
-      "last_seen": "2026-09-20T01:24:40.902245+06:00"
+      "last_seen": "2026-09-20T01:47:09.006363+06:00",
+      "posted_at": "2026-09-20T01:47:12.966315+06:00",
+      "pipeline_version": "Career News V1",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 60.667
     },
     "alljobs.teletalk.com.bd?job_primary_id=14742": {
       "title": "Computer Operator",
@@ -524,9 +539,14 @@
       "bba_mba_target_score": 3,
       "event_id": "2ac858afd101c60559121919",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-20T01:24:40.902261+06:00",
-      "last_seen": "2026-09-20T01:24:40.902263+06:00"
+      "last_seen": "2026-09-20T01:47:09.006095+06:00",
+      "posted_at": "2026-09-20T01:47:15.630271+06:00",
+      "pipeline_version": "Career News V1",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14735": {
       "title": "Draftsman",
@@ -565,7 +585,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902277+06:00",
-      "last_seen": "2026-09-20T01:24:40.902278+06:00"
+      "last_seen": "2026-09-20T01:47:09.005902+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14743": {
       "title": "Head Assistant",
@@ -648,7 +668,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902313+06:00",
-      "last_seen": "2026-09-20T01:24:40.902314+06:00"
+      "last_seen": "2026-09-20T01:47:09.006295+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14738": {
       "title": "Data Entry Operator",
@@ -687,7 +707,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902331+06:00",
-      "last_seen": "2026-09-20T01:24:40.902332+06:00"
+      "last_seen": "2026-09-20T01:47:09.006228+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14733": {
       "title": "Estimator/Sub-Assistant Engineer",
@@ -726,7 +746,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902352+06:00",
-      "last_seen": "2026-09-20T01:24:40.902354+06:00"
+      "last_seen": "2026-09-20T01:47:09.005952+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14746": {
       "title": "Office Assistant Cum-Computer Typist",
@@ -763,9 +783,14 @@
       "bba_mba_target_score": 3,
       "event_id": "843410fc316490f281b3bba0",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-20T01:24:40.902370+06:00",
-      "last_seen": "2026-09-20T01:24:40.902371+06:00"
+      "last_seen": "2026-09-20T01:47:09.005993+06:00",
+      "posted_at": "2026-09-20T01:47:10.203293+06:00",
+      "pipeline_version": "Career News V1",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 67
     },
     "alljobs.teletalk.com.bd?job_primary_id=14741": {
       "title": "Office Support Staff",
@@ -804,7 +829,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-20T01:24:40.902387+06:00",
-      "last_seen": "2026-09-20T01:24:40.902388+06:00"
+      "last_seen": "2026-09-20T01:47:09.006029+06:00"
     }
   },
   "events": {
@@ -897,6 +922,96 @@
       "selected_at": "2026-09-20T01:24:47.560466+06:00",
       "published_at": "2026-09-20T01:24:47.560467+06:00",
       "message_id": 792
+    },
+    "843410fc316490f281b3bba0": {
+      "event_id": "843410fc316490f281b3bba0",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14746",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14746",
+      "apply_url": "https://tax16.teletalk.com.bd/tax16_2026/",
+      "source": "Teletalk",
+      "source_job_id": "14746",
+      "title": "Office Assistant Cum-Computer Typist",
+      "company": "Taxes Zone-16, Dhaka(TAX16)",
+      "location": "",
+      "posted_date": "2026-09-19",
+      "deadline": "2026-10-10",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-20T01:47:10.203323+06:00",
+      "published_at": "2026-09-20T01:47:10.203326+06:00",
+      "message_id": 793
+    },
+    "957e30fe68051c61446e80a4": {
+      "event_id": "957e30fe68051c61446e80a4",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14747",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14747",
+      "apply_url": "https://tax16.teletalk.com.bd/tax16_2026/",
+      "source": "Teletalk",
+      "source_job_id": "14747",
+      "title": "Office Support Staff",
+      "company": "Taxes Zone-16, Dhaka(TAX16)",
+      "location": "",
+      "posted_date": "2026-09-19",
+      "deadline": "2026-10-10",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-20T01:47:11.580615+06:00",
+      "published_at": "2026-09-20T01:47:11.580618+06:00",
+      "message_id": 794
+    },
+    "48757a1e17021eea51a19516": {
+      "event_id": "48757a1e17021eea51a19516",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14740",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14740",
+      "apply_url": "https://cevmym.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14740",
+      "title": "Sepoy",
+      "company": "Customs, Excise and VAT Commissionerate, Mymensingh(CEVMYM)",
+      "location": "",
+      "posted_date": "2026-09-17",
+      "deadline": "2026-10-07",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-20T01:47:12.966342+06:00",
+      "published_at": "2026-09-20T01:47:12.966345+06:00",
+      "message_id": 795
+    },
+    "d8612265cb8c0411b0dd2a4c": {
+      "event_id": "d8612265cb8c0411b0dd2a4c",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14728",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14728",
+      "apply_url": "http://dcnaogaon.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14728",
+      "title": "Certificate Assistant",
+      "company": "Deputy Commissioner's Office Naogaon (Dcnaogaon)",
+      "location": "",
+      "posted_date": "2026-09-21",
+      "deadline": "2026-10-11",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-20T01:47:14.290809+06:00",
+      "published_at": "2026-09-20T01:47:14.290812+06:00",
+      "message_id": 796
+    },
+    "2ac858afd101c60559121919": {
+      "event_id": "2ac858afd101c60559121919",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14742",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14742",
+      "apply_url": "https://tax16.teletalk.com.bd/tax16_2026/",
+      "source": "Teletalk",
+      "source_job_id": "14742",
+      "title": "Computer Operator",
+      "company": "Taxes Zone-16, Dhaka(TAX16)",
+      "location": "",
+      "posted_date": "2026-09-19",
+      "deadline": "2026-10-10",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-20T01:47:15.630298+06:00",
+      "published_at": "2026-09-20T01:47:15.630301+06:00",
+      "message_id": 797
     }
   },
   "recent_titles": [
@@ -904,8 +1019,13 @@
     "steno typist cum computer operator",
     "security guard",
     "head assistant",
-    "upper division assistant"
+    "upper division assistant",
+    "office assistant cum computer typist",
+    "office support staff",
+    "sepoy",
+    "certificate assistant",
+    "computer operator"
   ],
-  "last_run": "2026-09-20T01:24:47.561296+06:00",
+  "last_run": "2026-09-20T01:47:15.631458+06:00",
   "pipeline_version": "Career News V1"
 }
