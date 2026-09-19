@@ -108,6 +108,18 @@ https://r.jina.ai/<original-url>
 
 Scrapling is not required for the V1 runtime path. `curl_cffi` is the browser-impersonation layer and Jina is the plain-text fallback.
 
+A detail-page failure is not allowed to silently delete a candidate. When the Bdjobs detail page is blocked, thin, or unavailable, the pipeline records the failure and preserves a job when the listing already contains enough source-backed fields.
+
+The production log exposes separate private detail counts:
+
+```text
+PRIVATE DETAIL SUCCESS
+PRIVATE DETAIL FALLBACK
+PRIVATE DETAIL FAILED
+```
+
+This makes a zero-private run diagnosable instead of appearing as a normal successful publication run.
+
 ## Private intelligence pipeline
 
 ```text

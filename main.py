@@ -75,6 +75,9 @@ ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"
 FUTURE_TOLERANCE_MINUTES = int(os.environ.get("FUTURE_TOLERANCE_MINUTES", "20"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
+DETAIL_MIN_TEXT_CHARS = int(os.environ.get("DETAIL_MIN_TEXT_CHARS", "220"))
+DETAIL_CACHE = {}
+DETAIL_CACHE_TTL_SECONDS = int(os.environ.get("DETAIL_CACHE_TTL_SECONDS", "900"))
 
 BDJOBS_LISTING_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_LEGACY_LISTING_URL = "https://jobs.bdjobs.com/jobsearch.asp"
@@ -393,6 +396,16 @@ def likely_same_job(a, b):
         return True
     if _same_application_target(a, b):
         return True
+
+    # Source-native IDs are authoritative for same-source vacancies. Two distinct
+    # Bdjobs/Teletalk IDs can legitimately share the same title/company/location,
+    # so never fuzzy-collapse them when both IDs are present and different.
+    source_a = safe_text(a.get("source")).lower()
+    source_b = safe_text(b.get("source")).lower()
+    id_a = safe_text(a.get("source_job_id"))
+    id_b = safe_text(b.get("source_job_id"))
+    if source_a and source_a == source_b and id_a and id_b and id_a != id_b:
+        return False
     ta = title_similarity(a.get("title", ""), b.get("title", ""))
     ca = SequenceMatcher(None, _normalized_company(a.get("company", "")), _normalized_company(b.get("company", ""))).ratio()
     la = title_similarity(a.get("location", ""), b.get("location", "")) if a.get("location") and b.get("location") else 0.0
@@ -547,8 +560,54 @@ def _bdjobs_card_container(anchor):
                 return parent
     return anchor.parent
 
+def _listing_field(card_text, labels, patterns=()):
+    value = _summary_value(card_text, labels) if "_summary_value" in globals() else ""
+    if value:
+        return _clean_one_line(value)
+    return _first_match(card_text, list(patterns)) if patterns else ""
+
+
+def _extract_listing_baseline(card_text):
+    """Extract only source-backed fields that commonly exist on Bdjobs cards.
+
+    Listing data is a fallback, not a substitute for detail enrichment. It keeps a
+    candidate alive when the detail page is temporarily blocked or thin.
+    """
+    text = _clean_one_line(card_text)
+    company = _first_match(text, [
+        r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|Rangpur|Mymensingh|Anywhere|Deadline|Experience|required|Education)\b|$)",
+    ])
+    experience = _first_match(text, [
+        r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary)\b|$)",
+    ])
+    deadline = _first_match(text, [
+        r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Salary)\b|$)",
+    ])
+    education = _first_match(text, [
+        r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary)\b|$)",
+    ])
+    location = _first_match(text, [
+        r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary)\b|$)",
+    ])
+    salary = _first_match(text, [
+        r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location)\b|$)",
+    ])
+    vacancy = _first_match(text, [
+        r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
+    ])
+    return {
+        "company": _clean_one_line(company),
+        "experience": compact_experience(experience),
+        "education": compact_education(education),
+        "deadline": normalize_date_text(deadline),
+        "location": compact_location(location),
+        "salary": compact_salary(salary),
+        "vacancy": compact_vacancy(vacancy),
+    }
+
+
 def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_name=""):
-    """Extract genuine job links. Relevance filtering is deliberately deferred."""
+    """Extract genuine Bdjobs job links and preserve useful listing-card fields."""
     soup = BeautifulSoup(page_html or "", "html.parser")
     found, seen = [], set()
     for a in soup.find_all("a", href=True):
@@ -564,6 +623,7 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
         parent = _bdjobs_card_container(a)
         card_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
         posted = _listing_date_from_text(card_text)
+        baseline = _extract_listing_baseline(card_text)
         parsed_href = urlparse(href)
         id_match = re.search(r"(?:^|[?&])id=(\d+)", parsed_href.query, re.I)
         if not id_match:
@@ -574,7 +634,8 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             "source_job_id": id_match.group(1) if id_match else "",
             "discovery": "bdjobs_category_html", "category_id": category_id, "category_name": category_name,
             "excerpt": trim_source_text(card_text, 2200), "listing_posted": posted,
-            "listing_deadline": normalize_date_text(_first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])),
+            "listing_deadline": baseline.get("deadline") or normalize_date_text(_first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])),
+            "listing_fields": baseline,
             "discovered_at": now_iso(),
         })
     return found
@@ -1729,33 +1790,135 @@ def _extract_apply_url_from_text(text, page_url):
             scored.append((score, candidate))
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
-def retrieve_job_content(item):
-    url = request_safe_url(item["url"])
-    fetched = _fetch_source_document(url, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
-    if not fetched:
-        logger.warning("DETAIL retrieval failed %s", url)
+def _detail_url_variants(item):
+    variants=[]
+    raw=safe_text(item.get("url"))
+    if raw:
+        variants.append(request_safe_url(raw))
+    job_id=safe_text(item.get("source_job_id"))
+    if job_id:
+        variants.extend([
+            f"https://jobs.bdjobs.com/jobdetails/?id={quote(job_id)}&ln=1",
+            f"https://jobs.bdjobs.com/jobdetails.asp?id={quote(job_id)}",
+        ])
+    out=[]; seen=set()
+    for value in variants:
+        c=canonical_url(value)
+        if c and c not in seen:
+            seen.add(c); out.append(value)
+    return out
+
+
+def _looks_like_job_document(body, *, url="", detail=True):
+    text=safe_text(body)
+    if not text:
+        return False, "empty_body"
+    if is_cloudflare_response(200, {}, text):
+        return False, "cloudflare_challenge"
+    lowered=text.lower()
+    if detail:
+        markers=("job summary", "experience", "education", "deadline", "apply by bdjobs", "company name", "job location", "salary")
+        marker_hits=sum(1 for x in markers if x in lowered)
+        if marker_hits < 2 and len(text) < DETAIL_MIN_TEXT_CHARS:
+            return False, f"thin_or_non_job_page:{len(text)}"
+        if any(x in lowered for x in ("our valuable partners", "find jobs in the no. 1 job site", "active filters")) and marker_hits < 2:
+            return False, "listing_shell_returned"
+        if len(text) < DETAIL_MIN_TEXT_CHARS:
+            return False, f"thin_detail:{len(text)}"
+    return True, "ok"
+
+
+def _fetch_bdjobs_detail(item):
+    key=cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
+    cached=DETAIL_CACHE.get(key)
+    if cached and time.monotonic()-cached.get("ts",0) < DETAIL_CACHE_TTL_SECONDS:
+        return cached.get("result")
+
+    variants=_detail_url_variants(item)
+    last_reason="no_url"
+    for variant in variants:
+        direct=_fetch_with_curl(variant, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
+        if direct:
+            body=safe_text(direct.get("text"))
+            ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
+            if ok:
+                direct["detail_quality"]="direct_valid"
+                DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
+                return direct
+            last_reason=reason
+            logger.info("BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s", item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason)
+
+        if JINA_ENABLED:
+            fallback=_fetch_jina(variant, timeout=max(JINA_TIMEOUT, DETAIL_TIMEOUT))
+            if fallback:
+                ok,reason=_looks_like_job_document(fallback.get("text",""), url=variant, detail=True)
+                if ok:
+                    fallback["detail_quality"]="jina_valid"
+                    DETAIL_CACHE[key]={"ts":time.monotonic(),"result":fallback}
+                    return fallback
+                last_reason=reason
+                logger.info("BDJOBS DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id",""), reason)
+
+    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s", item.get("source_job_id",""), last_reason)
+    DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
+    return None
+
+
+def _listing_fallback_content(item):
+    baseline=item.get("listing_fields") or {}
+    text_parts=[item.get("title",""), baseline.get("company",""), baseline.get("location",""), baseline.get("education",""), baseline.get("experience",""), baseline.get("salary",""), baseline.get("vacancy",""), item.get("listing_deadline",""), item.get("excerpt","")]
+    text=" | ".join(_clean_one_line(x) for x in text_parts if _clean_one_line(x))
+    if not text or len(text) < 120:
         return None
-    backend = fetched.get("backend", "")
-    page_html = fetched.get("text", "") if backend.startswith("curl_cffi") else ""
-    full_text = _text_from_html(page_html) if page_html else safe_text(fetched.get("text", ""))
-    article_text = None
+    return {
+        "text": trim_source_text(text, MAX_JOB_CONTENT_CHARS),
+        "html": "", "final_url": item.get("url", ""), "apply_url": "",
+        "backend": "bdjobs_listing_fallback", "cloudflare": False, "detail_quality": "listing_fallback",
+    }
+
+def retrieve_job_content(item):
+    source=item.get("source", "Bdjobs")
+    if source == "Bdjobs":
+        fetched=_fetch_bdjobs_detail(item)
+    else:
+        fetched=_fetch_source_document(item["url"], timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
+
+    if not fetched:
+        fallback=_listing_fallback_content(item)
+        if fallback:
+            logger.info("DETAIL FALLBACK | source=Bdjobs | id=%s | backend=bdjobs_listing_fallback", item.get("source_job_id", ""))
+            return fallback
+        logger.warning("DETAIL retrieval failed | source=%s | id=%s | url=%s | reason=no_detail_or_listing_data", source, item.get("source_job_id", ""), item.get("url", ""))
+        return None
+
+    backend=fetched.get("backend", "")
+    page_html=fetched.get("text", "") if backend.startswith("curl_cffi") else ""
+    full_text=_text_from_html(page_html) if page_html else safe_text(fetched.get("text", ""))
+    article_text=None
     if page_html and trafilatura:
         try:
-            article_text = trafilatura.extract(page_html, include_comments=False, include_tables=True, favor_precision=True)
+            article_text=trafilatura.extract(page_html, include_comments=False, include_tables=True, favor_precision=True)
         except Exception:
-            article_text = None
-    raw_text = full_text or article_text or safe_text(fetched.get("text", ""))
-    if article_text and len(article_text) > len(raw_text) * 0.35 and article_text not in raw_text:
+            article_text=None
+    raw_text=full_text or article_text or safe_text(fetched.get("text", ""))
+    if article_text and len(article_text) > len(raw_text)*0.35 and article_text not in raw_text:
         raw_text += "\n" + article_text
-    if not raw_text or len(raw_text) < 180:
+    if not raw_text or len(raw_text) < DETAIL_MIN_TEXT_CHARS:
+        fallback=_listing_fallback_content(item)
+        if fallback:
+            logger.info("DETAIL THIN -> LISTING FALLBACK | id=%s | backend=%s | chars=%d", item.get("source_job_id",""), backend, len(raw_text))
+            return fallback
+        logger.info("DETAIL PARSE EMPTY | id=%s | backend=%s | chars=%d", item.get("source_job_id",""), backend, len(raw_text))
         return None
-    apply_url = extract_apply_url(page_html, fetched.get("url") or url, item.get("source", "Bdjobs")) if page_html else ""
+
+    apply_url=extract_apply_url(page_html, fetched.get("url") or item.get("url"), source) if page_html else ""
     if not apply_url:
-        apply_url = _extract_apply_url_from_text(raw_text, fetched.get("url") or url)
+        apply_url=_extract_apply_url_from_text(raw_text, fetched.get("url") or item.get("url"))
     return {
         "text": raw_text[:MAX_JOB_CONTENT_CHARS], "html": page_html,
-        "final_url": fetched.get("url") or url, "apply_url": apply_url,
+        "final_url": fetched.get("url") or item.get("url"), "apply_url": apply_url,
         "backend": backend, "cloudflare": bool(fetched.get("cloudflare")),
+        "detail_quality": fetched.get("detail_quality", "direct_valid"),
     }
 
 def _research_teletalk_job(item):
@@ -1777,31 +1940,45 @@ def _research_teletalk_job(item):
 def research_job(item):
     if item.get("source") == "Teletalk" and item.get("api_fields"):
         return _research_teletalk_job(item)
-    retrieved = retrieve_job_content(item)
+
+    retrieved=retrieve_job_content(item)
     if not retrieved:
         return None
-    fields = extract_job_fields(retrieved["text"], retrieved.get("html", ""), item["url"], item)
-    apply_url = retrieved.get("apply_url", "")
+
+    fields=extract_job_fields(retrieved["text"], retrieved.get("html", ""), item["url"], item)
+    listing=item.get("listing_fields") or {}
+    # Enrichment may improve a field, but an empty detail extraction must never erase
+    # trustworthy listing data.
+    for key,value in listing.items():
+        if not fields.get(key) and value:
+            fields[key]=value
+
+    apply_url=retrieved.get("apply_url", "")
     if not apply_url and fields.get("application_method"):
-        apply_url = _extract_apply_url_from_text(fields["application_method"], item["url"])
+        apply_url=_extract_apply_url_from_text(fields["application_method"], item["url"])
     fields.update({
-        "canonical": item["canonical"], "apply_url": apply_url, "retrieval_backend": retrieved.get("backend", ""),
-        "raw_text": retrieved["text"], "listing_posted": item.get("listing_posted", ""),
-        "listing_deadline": item.get("listing_deadline", ""), "source_job_id": item.get("source_job_id", ""),
-        "source_category_id": item.get("category_id", ""), "source_category_name": item.get("category_name", ""),
+        "canonical": item["canonical"], "apply_url": apply_url,
+        "retrieval_backend": retrieved.get("backend", ""),
+        "detail_quality": retrieved.get("detail_quality", ""),
+        "raw_text": retrieved["text"],
+        "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""),
+        "source_job_id": item.get("source_job_id", ""),
+        "source_category_id": item.get("category_id", ""),
+        "source_category_name": item.get("category_name", ""),
         "is_government": bool(item.get("is_government")),
     })
     if not fields.get("posted_date") and item.get("listing_posted"):
-        fields["posted_date"] = item["listing_posted"]
+        fields["posted_date"]=item["listing_posted"]
     if not fields.get("deadline") and item.get("listing_deadline"):
-        fields["deadline"] = item["listing_deadline"]
-    fields["source"] = item.get("source") or source_name(item.get("url", ""))
-    fields["title"] = fields.get("title") or item.get("title", "")
-    fields["company"] = fields.get("company") or item.get("company", "")
-    fields["application_method"] = compact_application(fields.get("application_method", ""), apply_url)
-    fields["audience_pre_score"] = job_family_score(fields.get("title", ""), retrieved["text"][:9000])
-    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
-    fields["event_id"] = job_event_key(fields)
+        fields["deadline"]=item["listing_deadline"]
+    fields["source"]=item.get("source") or source_name(item.get("url", ""))
+    fields["title"]=fields.get("title") or item.get("title", "")
+    fields["company"]=fields.get("company") or listing.get("company") or item.get("company", "")
+    fields["application_method"]=compact_application(fields.get("application_method", ""), apply_url)
+    fields["audience_pre_score"]=job_family_score(fields.get("title", ""), retrieved["text"][:9000])
+    fields["bba_mba_target_score"]=bba_mba_candidate_score(fields)
+    fields["event_id"]=job_event_key(fields)
     return fields
 
 
@@ -2492,104 +2669,182 @@ def source_test():
     print(f"Jina fallback: {'enabled' if JINA_ENABLED else 'disabled'}")
     print(f"Fingerprints: {', '.join(CURL_IMPERSONATES)}")
     tel=_probe_get(TELETALK_API_URL,params={"searchKeyword":""},timeout=TELETALK_API_TIMEOUT,json_expected=True)
-    if tel.get("ok"): print(f"Teletalk API: OK | jobs={len(_teletalk_records(tel.get('payload') or {}))} | time={tel['elapsed']}s")
-    else: print(f"Teletalk API: FAIL | status={tel.get('status')} | error={tel.get('error','')}")
-    cid=next(iter(BDBJOBS_CATEGORIES)); url=_absolute_category_url(cid); started=time.monotonic(); fetched=_fetch_source_document(url,timeout=DISCOVERY_TIMEOUT,referer=BDJOBS_LISTING_URL); elapsed=round(time.monotonic()-started,2)
-    if fetched:
-        count=len(_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"]))
-        print(f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | candidates={count} | time={elapsed}s")
-        if fetched.get("cloudflare"): print("  Cloudflare: detected")
-    else: print(f"Bdjobs category {cid}: FAIL | time={elapsed}s")
+    if tel.get("ok"):
+        print(f"Teletalk API: OK | jobs={len(_teletalk_records(tel.get('payload') or {}))} | time={tel['elapsed']}s")
+    else:
+        print(f"Teletalk API: FAIL | status={tel.get('status')} | error={tel.get('error','')}")
+
+    cid=next(iter(BDBJOBS_CATEGORIES)); url=_absolute_category_url(cid); started=time.monotonic()
+    fetched=_fetch_source_document(url,timeout=DISCOVERY_TIMEOUT,referer=BDJOBS_LISTING_URL); elapsed=round(time.monotonic()-started,2)
+    if not fetched:
+        print(f"Bdjobs category {cid}: FAIL | time={elapsed}s")
+        return
+    candidates=_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"])
+    print(f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | candidates={len(candidates)} | time={elapsed}s")
+    if fetched.get("cloudflare"): print("  Cloudflare: detected")
+    if not candidates:
+        print("Bdjobs detail: SKIPPED | no job candidate on category page")
+    else:
+        sample=candidates[0]
+        detail=_fetch_bdjobs_detail(sample)
+        if detail:
+            parsed=extract_job_fields(detail.get("text",""),detail.get("text","") if detail.get("backend","").startswith("curl_cffi") else "",sample["url"],sample)
+            print(f"Bdjobs detail: OK | id={sample.get('source_job_id','')} | backend={detail.get('backend')} | quality={detail.get('detail_quality')} | chars={len(detail.get('text',''))} | title={parsed.get('title') or sample.get('title')} | company={parsed.get('company')}")
+        else:
+            fallback=_listing_fallback_content(sample)
+            print(f"Bdjobs detail: FALLBACK | id={sample.get('source_job_id','')} | listing_chars={len((fallback or {}).get('text',''))}")
     print("Production: Teletalk government + Bdjobs private")
     print("Discovery: category-first; no global-first 100-job path")
-    print("Fallback: curl_cffi -> fingerprint rotation -> Jina")
+    print("Fallback: curl_cffi -> fingerprint rotation -> Jina -> listing preservation")
+
 # ============================================================
 # MAIN
 # ============================================================
 
 def _research_items_parallel(items):
-    results = []
-    if not items: return results
+    results=[]
+    metrics={"attempted":len(items),"success":0,"detail_success":0,"detail_fallback":0,"failed":0,"government":0,"private":0,"private_failed":0,"government_failed":0}
+    if not items:
+        return results,metrics
     with ThreadPoolExecutor(max_workers=max(1, DETAIL_WORKERS)) as pool:
-        futures = {pool.submit(research_job, item): item for item in items}
+        futures={pool.submit(research_job,item):item for item in items}
         for future in as_completed(futures):
-            item = futures[future]
-            try: researched = future.result()
-            except Exception as exc: logger.warning("RESEARCH failed %s: %s", item.get("url"), exc); researched = None
-            if not researched: continue
-            researched["source_url"] = item.get("source_url") or item.get("url")
-            researched["canonical"] = item.get("canonical") or canonical_url(item.get("url",""))
-            researched["source"] = item.get("source") or source_name(item.get("url",""))
-            researched["is_government"] = bool(item.get("is_government"))
+            item=futures[future]
+            try:
+                researched=future.result()
+            except Exception as exc:
+                logger.warning("RESEARCH worker failed | source=%s | id=%s | title=%s | error=%s", item.get("source",""), item.get("source_job_id",""), item.get("title",""), exc)
+                researched=None
+            if not researched:
+                metrics["failed"]+=1
+                if item.get("is_government"):
+                    metrics["government_failed"]+=1
+                else:
+                    metrics["private_failed"]+=1
+                continue
+            metrics["success"]+=1
+            if item.get("is_government"):
+                metrics["government"]+=1
+            else:
+                metrics["private"]+=1
+                quality=researched.get("detail_quality", "")
+                if quality == "listing_fallback": metrics["detail_fallback"]+=1
+                else: metrics["detail_success"]+=1
+            researched["source_url"]=item.get("source_url") or item.get("url")
+            researched["canonical"]=item.get("canonical") or canonical_url(item.get("url",""))
+            researched["source"]=item.get("source") or source_name(item.get("url",""))
+            researched["is_government"]=bool(item.get("is_government"))
             results.append(researched)
-    return results
+    return results,metrics
 
 def _prepare_shortlists(discovered):
-    unique = build_unique_job_pool(discovered)
-    gov = [x for x in unique if x.get("is_government")]
-    private = [x for x in unique if not x.get("is_government")]
-    private.sort(key=lambda j:(-bba_mba_candidate_score(j), -posted_freshness_score({"posted_date":j.get("listing_posted")}), j.get("canonical","")))
-    gov.sort(key=lambda j:(-posted_freshness_score({"posted_date":j.get("listing_posted")}), -deadline_urgency_score({"deadline":j.get("listing_deadline")}), j.get("canonical","")))
+    unique=build_unique_job_pool(discovered)
+    gov=[x for x in unique if x.get("is_government")]
+    private=[x for x in unique if not x.get("is_government")]
+    private.sort(key=lambda j:(
+        -bba_mba_candidate_score(j),
+        -posted_freshness_score({"posted_date":j.get("listing_posted")}),
+        j.get("canonical","")
+    ))
+    gov.sort(key=lambda j:(
+        -posted_freshness_score({"posted_date":j.get("listing_posted")}),
+        -deadline_urgency_score({"deadline":j.get("listing_deadline")}),
+        j.get("canonical","")
+    ))
     return gov[:GOVERNMENT_DISCOVERY_TARGET], private[:PRIVATE_DETAIL_TARGET]
 
 def run(*, dry_run=False, print_ranking=False):
-    started = time.monotonic()
+    started=time.monotonic()
     logger.info("CAREER NEWS V1 | category-first | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
-    discovered = discover_all()
-    gov_items, private_items = _prepare_shortlists(discovered)
-    logger.info("SHORTLISTS | government=%d private=%d", len(gov_items), len(private_items))
-    researched = _research_items_parallel(gov_items + private_items)
-    verified = []
+    discovered=discover_all()
+    gov_items,private_items=_prepare_shortlists(discovered)
+    logger.info("===== PRIVATE FUNNEL =====")
+    logger.info("PRIVATE DISCOVERY | %d", sum(1 for x in discovered if not x.get("is_government")))
+    logger.info("PRIVATE TOP DETAIL | %d", len(private_items))
+    logger.info("GOVERNMENT SHORTLIST | %d", len(gov_items))
+
+    researched,research_metrics=_research_items_parallel(gov_items+private_items)
+    logger.info("PRIVATE DETAIL SUCCESS | %d", research_metrics["detail_success"])
+    logger.info("PRIVATE DETAIL FALLBACK | %d", research_metrics["detail_fallback"])
+    logger.info("PRIVATE DETAIL FAILED | %d", research_metrics["private_failed"])
+
+    verified=[]
+    gate_counts={}
     for job in researched:
-        ok, reason = deterministic_job_gate(job)
+        ok,reason=deterministic_job_gate(job)
+        gate_counts[reason]=gate_counts.get(reason,0)+1
         if not ok:
-            logger.info("DROP gate: %s | %s | %s", reason, job.get("source",""), job.get("title","")); continue
+            logger.info("DROP gate | reason=%s | source=%s | id=%s | title=%s", reason, job.get("source",""), job.get("source_job_id",""), job.get("title",""))
+            job["pipeline_status"]="rejected"
+            job["rejection_reason"]=reason
+            continue
         save_job_to_queue(job)
-        if not candidate_already_posted(job): verified.append(job)
+        if not candidate_already_posted(job):
+            verified.append(job)
+        else:
+            job["pipeline_status"]="already_posted"
     save_state(STATE)
-    unique = build_unique_job_pool(verified)
-    government_jobs = [j for j in unique if j.get("is_government")]
-    private_jobs = [j for j in unique if not j.get("is_government")]
-    ranked_private = rank_jobs(private_jobs)
-    selected = select_final_jobs(ranked_private, government_jobs)
-    selected = translate_government_jobs(selected)
-    selected = [j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
+
+    unique=build_unique_job_pool(verified)
+    government_jobs=[j for j in unique if j.get("is_government")]
+    private_jobs=[j for j in unique if not j.get("is_government")]
+    logger.info("PRIVATE GATE PASSED | %d", len(private_jobs))
+    ranked_private=rank_jobs(private_jobs)
+    logger.info("PRIVATE SCORED | %d", len(ranked_private))
+    selected=select_final_jobs(ranked_private, government_jobs)
+    selected=translate_government_jobs(selected)
+    selected=[j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
     for job in selected:
         for key in ("title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category"):
-            if _contains_bengali(job.get(key,"")): job[key] = fallback_government_translate(job.get(key,""))
-        job["title"] = english_display_text(job.get("title","")); job["company"] = english_display_text(job.get("company",""))
-    logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), sum(1 for j in selected if j.get("is_government")), sum(1 for j in selected if not j.get("is_government")), len(discovered), time.monotonic()-started)
+            if _contains_bengali(job.get(key,"")):
+                job[key]=fallback_government_translate(job.get(key,""))
+        job["title"]=english_display_text(job.get("title","")); job["company"]=english_display_text(job.get("company",""))
+
+    private_final=sum(1 for j in selected if not j.get("is_government"))
+    gov_final=sum(1 for j in selected if j.get("is_government"))
+    logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), gov_final, private_final, len(discovered), time.monotonic()-started)
+    logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(ranked_private), private_final)
+    logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
+
     if print_ranking:
         print("=== CAREER NEWS V1 PRIVATE RANKING ===")
-        for i, job in enumerate(ranked_private[:25],1):
+        for i,job in enumerate(ranked_private[:25],1):
             print(f"{i}. {job.get('final_score',0):.1f} | {job.get('title','')} | {job.get('company','')} | {job.get('career_category','')}")
+
+    if private_items and research_metrics["private"] == 0 and research_metrics["private_failed"] > 0:
+        logger.error("PRIVATE PIPELINE HEALTH | no private research records survived. Government lane may continue, but private lane is unhealthy.")
+
     if dry_run:
-        logger.info("DRY RUN | selected=%d | Telegram not contacted", len(selected))
-        STATE["last_run"] = now_iso(); STATE["pipeline_version"] = PIPELINE_VERSION; save_state(STATE)
-        return {"selected":selected,"published":0}
-    published = 0
-    for index, job in enumerate(selected,1):
-        blocks = fit_rich_blocks(job)
-        if rich_blocks_visible_length(blocks) > MAX_RICH_CHARACTERS: continue
-        store_selected_event(job, published=False)
-        result = send_rich_text(blocks, job)
+        logger.info("DRY RUN | selected=%d | Telegram not contacted",len(selected))
+        STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
+        return {"selected":selected,"published":0,"metrics":{**research_metrics,"gate_counts":gate_counts}}
+
+    published=0
+    for index,job in enumerate(selected,1):
+        blocks=fit_rich_blocks(job)
+        if rich_blocks_visible_length(blocks)>MAX_RICH_CHARACTERS:
+            logger.warning("PUBLISH skipped | too_long | id=%s | title=%s",job.get("source_job_id",""),job.get("title","")); continue
+        store_selected_event(job,published=False)
+        result=send_rich_text(blocks,job)
         if not result.get("ok"):
-            result = send_bot_api_text_fallback(job, plain_job_text(job))
+            result=send_bot_api_text_fallback(job,plain_job_text(job))
         if result.get("ok"):
-            published += 1
-            message = result.get("result",{}); message_id = message.get("message_id") if isinstance(message,dict) else None
-            canonical = canonical_url(job.get("source_url", "")); POSTED_URLS.add(canonical); save_posted_url(canonical)
-            item = STATE["queue"].get(job.get("canonical"))
+            published+=1
+            message=result.get("result",{}); message_id=message.get("message_id") if isinstance(message,dict) else None
+            canonical=canonical_url(job.get("source_url","")); POSTED_URLS.add(canonical); save_posted_url(canonical)
+            item=STATE["queue"].get(job.get("canonical"))
             if item:
                 item.update({"status":"posted","posted_at":now_iso(),"pipeline_version":PIPELINE_VERSION,"deterministic_score":job.get("deterministic_score",0),"ai_score":job.get("ai_score",0),"final_score":job.get("final_score",job.get("government_rank_score",0))})
-            store_selected_event(job, published=True, message_id=message_id)
+            store_selected_event(job,published=True,message_id=message_id)
             STATE["recent_titles"].append(normalize_title(job.get("title","")))
+        else:
+            logger.error("PUBLISH failed | source=%s | id=%s | title=%s",job.get("source",""),job.get("source_job_id",""),job.get("title",""))
         save_state(STATE)
-        if POST_DELAY_SECONDS > 0 and index < len(selected): time.sleep(POST_DELAY_SECONDS)
-    STATE["last_run"] = now_iso(); STATE["pipeline_version"] = PIPELINE_VERSION; save_state(STATE)
-    logger.info("Finished Career News V1. Published=%d | elapsed=%.1fs", published, time.monotonic()-started)
-    return {"selected":selected,"published":published}
+        if POST_DELAY_SECONDS>0 and index<len(selected): time.sleep(POST_DELAY_SECONDS)
+    STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
+    logger.info("Finished Career News V1. Published=%d | elapsed=%.1fs",published,time.monotonic()-started)
+    return {"selected":selected,"published":published,"metrics":{**research_metrics,"gate_counts":gate_counts}}
 
 
 # ============================================================
@@ -2630,7 +2885,34 @@ def self_test():
     listing='''<html><body><div><a href="/jobdetails.asp?id=101">Accounts Executive</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div><div><a href="/jobdetails.asp?id=102">Software Engineer</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div></body></html>'''
     candidates=_bdjobs_listing_candidates(listing,"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",1,"Accounting / Finance"); assert {x["source_job_id"] for x in candidates} == {"101","102"}
     tel=_teletalk_record_fields({"job_primary_id":"TL-1001","job_title":"Accounts Assistant","org_name":"Example Government Department","vacancy":"12","deadline_date":"2026-10-10","application_site_url":"https://example.teletalk.com.bd/"}); assert tel["source"]=="Teletalk" and tel["source_job_id"]=="TL-1001"
-    a={"source":"Bdjobs","source_job_id":"1","title":"Marketing Executive","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=1","posted_date":"2026-09-19"}; b={"source":"Bdjobs","source_job_id":"2","title":"Executive - Marketing","company":"Example Limited","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=2","posted_date":"2026-09-19"}; assert likely_same_job(a,b)
+    a={"source":"Bdjobs","source_job_id":"1","title":"Marketing Executive","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=1","posted_date":"2026-09-19"}; b={"source":"Bdjobs","source_job_id":"","title":"Executive - Marketing","company":"Example Limited","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=2","posted_date":"2026-09-19"}; assert likely_same_job(a,b)
+    c={"source":"Bdjobs","source_job_id":"10","title":"Assistant Manager","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=10","posted_date":"2026-09-19"}; d=dict(c,source_job_id="11",source_url="https://jobs.bdjobs.com/jobdetails.asp?id=11"); assert not likely_same_job(c,d)
+    listing_item={
+        "title":"Accounts Executive", "url":"https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1",
+        "canonical":canonical_url("https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1"), "source":"Bdjobs",
+        "source_job_id":"777001", "category_id":1, "category_name":"Accounting / Finance",
+        "listing_posted":"2026-09-19", "listing_deadline":"2026-10-01",
+        "listing_fields":{"company":"Example Finance Ltd.","experience":"1 to 2 years","education":"BBA","deadline":"2026-10-01","location":"Dhaka","salary":"Tk. 30,000","vacancy":"3"},
+        "excerpt":"Accounts Executive Example Finance Ltd. Dhaka Experience required: 1 to 2 year(s) Deadline: Oct 1, 2026 Education required: BBA Vacancy: 3",
+    }
+    original_retrieve=retrieve_job_content
+    try:
+        globals()["retrieve_job_content"] = lambda item: _listing_fallback_content(item)
+        fallback_job=research_job(listing_item)
+    finally:
+        globals()["retrieve_job_content"] = original_retrieve
+    assert fallback_job["company"] == "Example Finance Ltd." and fallback_job["education"] == "BBA"
+    assert fallback_job["experience"] == "1 to 2 years" and fallback_job["vacancy"] == "3"
+    assert fallback_job["detail_quality"] == "listing_fallback"
+    assert deterministic_job_gate(fallback_job)[0]
+
+    original_detail= _fetch_bdjobs_detail
+    try:
+        globals()["_fetch_bdjobs_detail"] = lambda item: None
+        assert retrieve_job_content(listing_item)["detail_quality"] == "listing_fallback"
+    finally:
+        globals()["_fetch_bdjobs_detail"] = original_detail
+
     logger.info("Career News V1 self-test passed.")
 
 
