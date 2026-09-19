@@ -76,9 +76,9 @@ GOVERNMENT_DISCOVERY_TARGET = int(os.environ.get("GOVERNMENT_DISCOVERY_TARGET", 
 CATEGORY_PAGE_LIMIT = int(os.environ.get("CATEGORY_PAGE_LIMIT", "4"))
 CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "20"))
 CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "12"))
-DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "6"))
+DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
 DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
-DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "22"))
+DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "14"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
@@ -104,8 +104,8 @@ CURL_IMPERSONATES = tuple(x.strip() for x in os.environ.get(
 CURL_MAX_FINGERPRINT_ATTEMPTS = max(1, int(os.environ.get("CURL_MAX_FINGERPRINT_ATTEMPTS", "4")))
 CURL_VERIFY_SSL = os.environ.get("CURL_VERIFY_SSL", "1").strip().lower() not in {"0", "false", "no", "off"}
 JINA_ENABLED = os.environ.get("JINA_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
-JINA_TIMEOUT = int(os.environ.get("JINA_TIMEOUT", "25"))
-JINA_RPM_LIMIT = max(1, int(os.environ.get("JINA_RPM_LIMIT", "18")))
+JINA_TIMEOUT = int(os.environ.get("JINA_TIMEOUT", "10"))
+JINA_RPM_LIMIT = max(1, int(os.environ.get("JINA_RPM_LIMIT", "24")))
 JINA_WINDOW_SECONDS = int(os.environ.get("JINA_WINDOW_SECONDS", "60"))
 JINA_REQUEST_TIMES = deque()
 JINA_RATE_LOCK = threading.Lock()
@@ -686,31 +686,43 @@ def _infer_listing_company(anchor, parent, title, card_text):
 
 
 def _extract_listing_baseline(card_text):
-    """Extract trustworthy fields from labelled or line-oriented Bdjobs cards."""
+    """Extract source-backed fields from current/legacy Bdjobs listing cards.
+
+    Current search results often flatten labels without punctuation, e.g.
+    ``Job LocationDhaka`` and ``Experience required 0 to 1 year(s)``.
+    """
     text = _clean_one_line(card_text)
+    text = re.sub(r"\bImage:\s*", " ", text, flags=re.I)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+
     fields = {
-        "company": _first_match(text, [
-            r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|Rangpur|Mymensingh|Anywhere|Deadline|Experience|required|Education|Vacancy|Location|Posted|Published)\b|$)",
-        ]),
-        "experience": _first_match(text, [
-            r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary|Posted|Published)\b|$)",
-        ]),
-        "deadline": _first_match(text, [
-            r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Age|Job Location|Location|Salary|Posted|Published)\b|$)",
-        ]),
-        "education": _first_match(text, [
-            r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary|Posted|Published)\b|$)",
-        ]),
-        "location": _first_match(text, [
-            r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary|Posted|Published)\b|$)",
-        ]),
-        "salary": _first_match(text, [
-            r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Posted|Published)\b|$)",
-        ]),
-        "vacancy": _first_match(text, [
-            r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
-        ]),
+        "company": _first_match(text, [r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Job Location|Location|Work Location|Experience|required|Deadline|Education|Vacancy|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
+        "experience": _first_match(text, [r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
+        "deadline": _first_match(text, [r"(?:Deadline for apply the job|Deadline|শেষ তারিখ)\s*[:：-]?\s*(?:Deadline\s*[:：-]?\s*)?(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Age|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
+        "education": _first_match(text, [r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
+        "location": _first_match(text, [r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
+        "salary": _first_match(text, [r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Posted|Published|Employment|Workplace)\b|$)"]),
+        "vacancy": _first_match(text, [r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b"]),
+        "employment_type": _first_match(text, [r"(?:Employment Status|Employment Type|Job Type|চাকরির ধরন)\s*[:：-]?\s*(.+?)(?=\s+(?:Workplace|Job Work Place|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
+        "workplace": _first_match(text, [r"(?:Job Work Place|Workplace|Work Place|কর্মক্ষেত্র)\s*[:：-]?\s*(.+?)(?=\s+(?:Employment Status|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
+        "age": _first_match(text, [r"(?:Age|Age Limit|Age Requirements|বয়স|বয়স|বয়সসীমা|বয়সসীমা)\s*[:：-]?\s*(.+?)(?=\s+(?:Salary|Vacancy|Deadline|Education|required|Job Location|Location|Posted|Published)\b|$)"]),
+        "posted": _first_match(text, [r"(?:Published|Posted|Date Posted|Publication Date|প্রকাশিত|প্রকাশ তারিখ|প্রকাশের তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education|Experience|Vacancy|Job Location|Location|Salary|Employment|Workplace)\b|$)"]),
+        "application_method": _first_match(text, [r"(?:Application|Application Process|Application Procedure|How to Apply|আবেদন প্রক্রিয়া|আবেদন প্রক্রিয়া|আবেদনের নিয়ম|আবেদনের নিয়ম)\s*[:：-]?\s*(.+?)(?=\s+(?:Selection Process|Deadline|Posted|Published|Salary)\b|$)"]),
     }
+
+    inline = {
+        "location": r"(?:Job Location|Location|Work Location)(?!\s*required)\s*(.+?)(?=\s+(?:Experience required|Experience|Deadline for apply the job|Deadline|Education required|Education|Salary|Vacancy|$))",
+        "experience": r"(?:Experience required|Experience|অভিজ্ঞতা)\s+(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Salary|Vacancy|Job Location|Location|$))",
+        "deadline": r"(?:Deadline for apply the job|Deadline|শেষ তারিখ)\s*(?:Deadline\s*[:：-]?\s*)?(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Job Location|Location|Salary|Vacancy|$))",
+        "education": r"(?:Education required|Education|শিক্ষাগত যোগ্যতা)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Salary|Vacancy|$))",
+        "salary": r"(?:Salary|Salary Range|Compensation)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Education|Vacancy|$))",
+        "vacancy": r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
+        "posted": r"(?:Published|Posted|Date Posted|Publication Date|প্রকাশিত|প্রকাশ তারিখ|প্রকাশের তারিখ)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Salary|Education|Vacancy|$))",
+    }
+    for key, pattern in inline.items():
+        if not fields.get(key):
+            fields[key] = _first_match(text, [pattern])
+
     return {
         "company": _clean_one_line(fields["company"]),
         "experience": compact_experience(fields["experience"]),
@@ -719,6 +731,11 @@ def _extract_listing_baseline(card_text):
         "location": compact_location(fields["location"]),
         "salary": compact_salary(fields["salary"]),
         "vacancy": compact_vacancy(fields["vacancy"]),
+        "employment_type": compact_employment(fields["employment_type"]),
+        "workplace": compact_workplace(fields["workplace"]),
+        "age": compact_age(fields["age"]),
+        "posted_date": normalize_date_text(fields["posted"]),
+        "application_method": compact_application(fields["application_method"]),
     }
 
 
@@ -848,7 +865,7 @@ def _fetch_jina(url, *, timeout=None):
             "backend": "jina_reader", "cloudflare": False,
         }
     except Exception as exc:
-        logger.warning("Jina fallback failed %s: %s", url, exc)
+        logger.info("JINA READER FAILED | url=%s | error=%s", url, exc)
         return None
 
 
@@ -1143,8 +1160,8 @@ JOB_LABELS = (
     "Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process",
     "Application Period", "Application Date", "Interview Date", "Walk-in Date",
     "Published", "Posted", "Date Posted", "Publication Date",
-    "প্রতিষ্ঠানের নাম", "চাকুরি স্থান", "চাকরি স্থান", "বয়সসীমা", "বয়সসীমা", "বেতন",
-    "চাকরির ধরন", "প্রকাশিত", "শেষ তারিখ", "অভিজ্ঞতা", "শিক্ষাগত যোগ্যতা", "পদ সংখ্যা", "পদসংখ্যা",
+    "প্রতিষ্ঠানের নাম", "চাকুরি স্থান", "চাকরি স্থান", "চাকরির সারসংক্ষেপ", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "বেতন",
+    "চাকরির ধরন", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "শেষ তারিখ", "অভিজ্ঞতা", "শিক্ষাগত যোগ্যতা", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ",
     "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম", "নিয়োগ প্রক্রিয়া", "নিয়োগ প্রক্রিয়া",
     "Application Deadline", "Deadline", "Last Date", "Apply Before",
     "Responsibilities & Context", "Responsibilities", "Job Description", "Requirements", "Additional Requirements",
@@ -1262,6 +1279,7 @@ def compact_experience(value, raw_text=""):
         blob = _clean_one_line(recovered)
     if not blob:
         return ""
+    blob = blob.translate(BENGALI_DIGIT_MAP).replace("বছরের", "years").replace("বছর", "years").replace("থেকে", "to")
     patterns = [
         r"\b(fresh(?:er|ers)|fresher|no\s+experience|entry[- ]level|entry level)\b",
         r"\b(at\s+least\s+\d+\s+years?)\b",
@@ -1380,6 +1398,12 @@ def compact_employment(value):
         return "Contract"
     if "freelance" in blob:
         return "Freelance"
+    if "ফুল টাইম" in blob or "ফুলটাইম" in blob:
+        return "Full Time"
+    if "পার্ট টাইম" in blob or "পার্টটাইম" in blob:
+        return "Part Time"
+    if "চুক্তিভিত্তিক" in blob:
+        return "Contract"
     return ""
 
 
@@ -1391,7 +1415,7 @@ def compact_workplace(value):
         return "Remote"
     if "hybrid" in blob:
         return "Hybrid"
-    if "office" in blob or "on-site" in blob or "onsite" in blob:
+    if "office" in blob or "on-site" in blob or "onsite" in blob or "অফিসে" in blob:
         return "On-site"
     return ""
 
@@ -1822,21 +1846,21 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "কার্যালয়ের নাম", "কার্যালয়ের নাম"
     ]))
 
-    location = _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান"])
+    location = _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
     salary = _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
-    age = _summary_value(text, ["বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়সসীমা", "বয়সসীমা"])
+    age = _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা"])
     employment = _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
-    published = _summary_value(text, ["প্রকাশিত", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত"])
+    published = _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
     deadline = _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
 
     # Detail-section fields. Use the same source text as a fallback because some
     # source templates expose the value outside the Job Summary card.
     experience = _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
     education = _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
-    vacancy = _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"])
+    vacancy = _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
-    workplace = _summary_value(text, ["Job Work Place", "Workplace", "Work Place"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
+    workplace = _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
     category = _label_value(text, ["Category", "Job Category"])
     application_method = _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
@@ -1970,17 +1994,20 @@ def _extract_apply_url_from_text(text, page_url):
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def _detail_url_variants(item):
+    """Prefer the current Bdjobs detail route, with bounded legacy routes after it."""
     variants = []
-    raw = safe_text(item.get("url"))
-    if raw:
-        variants.append(request_safe_url(raw))
+    raw = safe_text(item.get("url") or item.get("source_url"))
     job_id = safe_text(item.get("source_job_id"))
     if job_id:
+        qid = quote(job_id)
         variants.extend([
-            f"https://jobs.bdjobs.com/jobdetails/?id={quote(job_id)}&ln=1",
-            f"https://jobs.bdjobs.com/jobdetails.asp?id={quote(job_id)}",
-            f"https://bdjobs.com/h/jobs/{quote(job_id)}",
+            f"https://bdjobs.com/h/details/{qid}?ln=1",
+            f"https://jobs.bdjobs.com/jobdetails.asp?id={qid}&ln=1",
+            f"https://jobs.bdjobs.com/bn/jobdetailsbn.asp?id={qid}&ln=1",
+            f"https://bdjobs.com/h/jobs/{qid}",
         ])
+    if raw:
+        variants.append(request_safe_url(raw))
     out, seen = [], set()
     for value in variants:
         c = canonical_url(value)
@@ -2057,16 +2084,74 @@ def _detail_payload_from_fetch(fetched):
 
 
 def _fetch_bdjobs_detail(item):
+    """Fetch one Bdjobs detail page without multiplying identical slow fallbacks.
+
+    Important production rule:
+    A HTTP-200 Angular/application shell is a *content failure*, not a transport
+    failure. Do not try every legacy URL variant after that. One direct attempt
+    followed by one Jina Reader attempt is enough; listing data remains the final
+    deterministic fallback.
+    """
     key=cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
     cached=DETAIL_CACHE.get(key)
     if cached and time.monotonic()-cached.get("ts",0) < DETAIL_CACHE_TTL_SECONDS:
         return cached.get("result")
 
     variants=_detail_url_variants(item)
+    if not variants:
+        DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
+        return None
+
+    primary=variants[0]
     last_reason="no_url"
-    for variant in variants:
-        direct=_fetch_with_curl(variant, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
-        if direct:
+
+    # 1) Direct browser-impersonated request.
+    direct=_fetch_with_curl(primary, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
+    if direct:
+        body=safe_text(direct.get("text"))
+        ok,reason=_looks_like_job_document(body, url=direct.get("url") or primary, detail=True)
+        if ok:
+            direct=_detail_payload_from_fetch(direct)
+            direct["detail_quality"]="direct_valid"
+            DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
+            return direct
+        last_reason=reason
+        logger.info(
+            "BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s",
+            item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason
+        )
+
+        # A 200 shell/thin page is deterministic content failure. Do NOT rotate
+        # through legacy URLs because they normally return the same application
+        # shell and multiply latency by ~3x.
+        transport_failed = int(direct.get("status") or 0) in {0, 404, 410, 429, 500, 502, 503, 504}
+    else:
+        transport_failed = True
+
+    # 2) One Jina Reader attempt on the canonical/current detail URL.
+    if JINA_ENABLED:
+        jina_timeout = min(10, max(5, int(JINA_TIMEOUT)))
+        fallback=_fetch_jina(primary, timeout=jina_timeout)
+        if fallback:
+            ok,reason=_looks_like_job_document(fallback.get("text",""), url=primary, detail=True)
+            if ok:
+                fallback=_detail_payload_from_fetch(fallback)
+                fallback["detail_quality"]="jina_valid"
+                DETAIL_CACHE[key]={"ts":time.monotonic(),"result":fallback}
+                return fallback
+            last_reason=reason
+            logger.info(
+                "BDJOBS DETAIL JINA REJECT | id=%s | backend=%s | status=%s | reason=%s",
+                item.get("source_job_id",""), fallback.get("backend",""), fallback.get("status",""), reason
+            )
+
+    # 3) Only use legacy variants when the primary endpoint actually failed
+    # at the transport/HTTP layer. Never use them after a valid 200 shell.
+    if transport_failed:
+        for variant in variants[1:]:
+            direct=_fetch_with_curl(variant, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL, max_attempts=2)
+            if not direct:
+                continue
             body=safe_text(direct.get("text"))
             ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
             if ok:
@@ -2075,25 +2160,6 @@ def _fetch_bdjobs_detail(item):
                 DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
                 return direct
             last_reason=reason
-            logger.info(
-                "BDJOBS DETAIL DIRECT REJECT | id=%s | backend=%s | status=%s | reason=%s",
-                item.get("source_job_id",""), direct.get("backend",""), direct.get("status",""), reason
-            )
-
-        if JINA_ENABLED:
-            fallback=_fetch_jina(variant, timeout=max(JINA_TIMEOUT, DETAIL_TIMEOUT))
-            if fallback:
-                ok,reason=_looks_like_job_document(fallback.get("text",""), url=variant, detail=True)
-                if ok:
-                    fallback=_detail_payload_from_fetch(fallback)
-                    fallback["detail_quality"]="jina_valid"
-                    DETAIL_CACHE[key]={"ts":time.monotonic(),"result":fallback}
-                    return fallback
-                last_reason=reason
-                logger.info(
-                    "BDJOBS DETAIL JINA REJECT | id=%s | backend=%s | status=%s | reason=%s",
-                    item.get("source_job_id",""), fallback.get("backend",""), fallback.get("status",""), reason
-                )
 
     logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s", item.get("source_job_id",""), last_reason)
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
@@ -2173,30 +2239,90 @@ def _research_teletalk_job(item):
     fields["event_id"] = job_event_key(fields)
     return fields
 
+def _valid_merged_field(key, value, *, title="", company=""):
+    value=_clean_one_line(value)
+    if not value:
+        return False
+    low=value.lower()
+    if low in {"none","null","n/a","na","not specified","not available","--","-"}:
+        return False
+    if key in {"title","company"}:
+        if len(value)>180 or "bdjobs.com" in low or "name-share-details" in low:
+            return False
+        if re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", value, re.I):
+            return False
+        if key=="company" and title and normalize_title(value)==normalize_title(title):
+            return False
+    if key=="location" and ("bdjobs.com" in low or len(value)>200):
+        return False
+    if key=="education" and len(value)>500:
+        return False
+    if key in {"experience","age"} and len(value)>120:
+        return False
+    if key in {"salary","vacancy","employment_type","workplace","application_method","selection_process"} and len(value)>220:
+        return False
+    return True
+
+
+def merge_job_fields(detail_fields, listing_fields, item):
+    """Merge detail enrichment without ever erasing a trustworthy listing value."""
+    detail=detail_fields or {}
+    listing=listing_fields or {}
+    merged={}
+    keys=(
+        "title","company","location","employment_type","workplace","education","experience",
+        "salary","vacancy","age","application_method","selection_process","application_period",
+        "application_start","application_end","deadline","posted_date","category",
+    )
+    base_title=safe_text(item.get("title") or listing.get("title") or detail.get("title"))
+    base_company=safe_text(item.get("company") or listing.get("company") or detail.get("company"))
+    for key in keys:
+        for candidate in (detail.get(key), listing.get(key), item.get(key)):
+            if _valid_merged_field(key,candidate,title=base_title,company=base_company):
+                merged[key]=candidate
+                break
+    merged["title"]=merged.get("title") or base_title
+    merged["company"]=merged.get("company") or base_company
+    merged["source_url"]=safe_text(item.get("source_url") or item.get("url"))
+    merged["source"]=safe_text(item.get("source")) or "Bdjobs"
+    merged["source_job_id"]=safe_text(item.get("source_job_id"))
+    if not merged.get("posted_date"):
+        merged["posted_date"]=safe_text(item.get("listing_posted"))
+    if not merged.get("deadline"):
+        merged["deadline"]=safe_text(item.get("listing_deadline"))
+    return merged
+
+
 def research_job(item):
     if item.get("source") == "Teletalk" and item.get("api_fields"):
         return _research_teletalk_job(item)
 
     retrieved=retrieve_job_content(item)
     if not retrieved:
-        return None
+        # Listing data remains the source of truth when enrichment completely fails.
+        fallback=_listing_fallback_content(item)
+        if not fallback:
+            return None
+        retrieved=fallback
 
+    # A listing fallback is deliberately built from already-normalized listing data.
+    # Treating the fallback's re-parsed text as higher-precedence "detail" data can
+    # resurrect stale excerpt values and overwrite richer listing fields. Only a
+    # genuinely fetched detail/Jina document is allowed to override the listing.
     fields=extract_job_fields(retrieved["text"], retrieved.get("html", ""), item["url"], item)
     listing=item.get("listing_fields") or {}
-    # Enrichment may improve a field, but an empty detail extraction must never erase
-    # trustworthy listing data.
-    for key,value in listing.items():
-        if not fields.get(key) and value:
-            fields[key]=value
+    detail_fields = {} if retrieved.get("detail_quality") == "listing_fallback" else fields
+    fields=merge_job_fields(detail_fields, listing, item)
 
-    apply_url=retrieved.get("apply_url", "")
+    apply_url=retrieved.get("apply_url", "") or item.get("apply_url", "")
     if not apply_url and fields.get("application_method"):
         apply_url=_extract_apply_url_from_text(fields["application_method"], item["url"])
     fields.update({
         "canonical": item["canonical"], "apply_url": apply_url,
+        "source_url": item.get("source_url") or item.get("url", ""),
         "retrieval_backend": retrieved.get("backend", ""),
         "detail_quality": retrieved.get("detail_quality", ""),
-        "raw_text": retrieved["text"],
+        "raw_text": retrieved.get("text", ""),
         "listing_posted": item.get("listing_posted", ""),
         "listing_deadline": item.get("listing_deadline", ""),
         "source_job_id": item.get("source_job_id", ""),
@@ -2212,7 +2338,7 @@ def research_job(item):
     fields["title"]=fields.get("title") or item.get("title", "")
     fields["company"]=fields.get("company") or listing.get("company") or item.get("company", "")
     fields["application_method"]=compact_application(fields.get("application_method", ""), apply_url)
-    fields["audience_pre_score"]=job_family_score(fields.get("title", ""), retrieved["text"][:9000])
+    fields["audience_pre_score"]=job_family_score(fields.get("title", ""), retrieved.get("text", "")[:9000])
     fields["bba_mba_target_score"]=bba_mba_candidate_score(fields)
     fields["event_id"]=job_event_key(fields)
     return fields
@@ -3041,6 +3167,44 @@ def english_display_text(value):
     return _clean_one_line(text)
 
 
+def snapshot_field_quality(job):
+    """Count useful source-backed fields that can actually be displayed."""
+    fields=("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date")
+    return sum(1 for key in fields if english_display_text(job.get(key)))
+
+
+def snapshot_integrity(job):
+    """Reject sparse/contaminated records before Telegram publication."""
+    if not safe_text(job.get("title")) or not safe_text(job.get("company")):
+        return False, "missing_identity"
+    if not safe_text(job.get("source_url")):
+        return False, "missing_source_url"
+    for key in ("title","company","location","education","experience","salary","vacancy"):
+        value=safe_text(job.get(key)).lower()
+        if any(token in value for token in ("name-share-details", "matching_lock_en", "![image", "bdjobs.com/h/images")):
+            return False, "source_chrome_in_field"
+    minimum=2 if job.get("is_government") else 3
+    count=snapshot_field_quality(job)
+    if count < minimum:
+        return False, f"snapshot_too_sparse:{count}"
+    return True, "ok"
+
+
+def split_snapshot_eligible(jobs):
+    """Partition jobs before final selection so snapshot failures can never consume quota slots."""
+    private, government = [], []
+    rejected = 0
+    for job in jobs:
+        ok, reason = snapshot_integrity(job)
+        if ok:
+            (government if job.get("is_government") else private).append(job)
+            continue
+        rejected += 1
+        job["pipeline_status"] = "rejected"
+        job["rejection_reason"] = reason
+    return private, government, rejected
+
+
 def job_snapshot_rows(job):
     """Return only source-backed available fields; dates shown are Deadline and Posted only."""
     mapping=[
@@ -3338,12 +3502,42 @@ def run(*, dry_run=False, print_ranking=False):
     unique=build_unique_job_pool(verified)
     government_jobs=[j for j in unique if j.get("is_government")]
     private_jobs=[j for j in unique if not j.get("is_government")]
-    logger.info("PRIVATE GATE PASSED | %d", len(private_jobs))
-    ranked_private=rank_jobs(private_jobs)
+
+    # Snapshot integrity is an eligibility gate, not a post-selection cleanup step.
+    # Otherwise a sparse selected record could be removed after the source-mix
+    # selector has already consumed the 10 private / 3 government slots, leaving
+    # the final run below quota with no chance to refill.
+    snapshot_private, snapshot_government, snapshot_rejected = split_snapshot_eligible(private_jobs + government_jobs)
+    for job in private_jobs + government_jobs:
+        if job.get("pipeline_status") == "rejected":
+            logger.info(
+                "DROP snapshot | reason=%s | source=%s | id=%s | title=%s",
+                job.get("rejection_reason", "unknown"), job.get("source", ""), job.get("source_job_id", ""), job.get("title", ""),
+            )
+
+    logger.info(
+        "SNAPSHOT ELIGIBILITY | private=%d government=%d rejected=%d",
+        len(snapshot_private), len(snapshot_government), snapshot_rejected,
+    )
+    logger.info("PRIVATE GATE PASSED | %d", len(snapshot_private))
+    ranked_private=rank_jobs(snapshot_private)
     logger.info("PRIVATE SCORED | %d", len(ranked_private))
-    selected=select_final_jobs(ranked_private, government_jobs)
+    eligible_government=snapshot_government
+    selected=select_final_jobs(ranked_private, eligible_government)
     selected=translate_government_jobs(selected)
     selected=[j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
+    checked=[]
+    for job in selected:
+        ok_snapshot, snapshot_reason=snapshot_integrity(job)
+        if not ok_snapshot:
+            # Defensive second check after translation. This should be rare because
+            # eligibility was already enforced before selection.
+            logger.warning("PUBLISH CANDIDATE REJECTED | snapshot=%s | source=%s | id=%s | title=%s", snapshot_reason, job.get("source",""), job.get("source_job_id",""), job.get("title",""))
+            job["pipeline_status"]="rejected"
+            job["rejection_reason"]=snapshot_reason
+            continue
+        checked.append(job)
+    selected=checked
     for job in selected:
         for key in ("title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category"):
             if _contains_bengali(job.get(key,"")):
@@ -3368,8 +3562,10 @@ def run(*, dry_run=False, print_ranking=False):
             "GOVERNMENT QUOTA SHORTFALL | selected=%d required=%d | eligible government pool=%d",
             gov_final, MIN_GOVERNMENT_POSTS_PER_RUN, len(select_government_jobs(government_jobs)),
         )
-    logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(ranked_private), private_final)
+    logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d snapshot_eligible_private=%d snapshot_eligible_gov=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(snapshot_private), len(snapshot_government), len(ranked_private), private_final)
     logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
+    snapshot_counts=[snapshot_field_quality(j) for j in selected]
+    logger.info("SNAPSHOT QUALITY | selected=%d | >=3_fields=%d | avg_fields=%.1f", len(snapshot_counts), sum(1 for n in snapshot_counts if n>=3), (sum(snapshot_counts)/len(snapshot_counts) if snapshot_counts else 0.0))
 
     if print_ranking:
         print("=== CAREER NEWS V1 PRIVATE RANKING ===")

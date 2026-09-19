@@ -385,3 +385,160 @@ Posted
     parsed = main.extract_job_fields(text, "", item["url"], item)
     assert parsed["title"] == "Executive/ Sr. Executive (Sales & Marketing)"
     assert parsed["company"] == "Northsouth Group"
+
+
+def test_current_bdjobs_listing_labels_without_colons_are_parsed():
+    text = (
+        "Sales Representative (Odoo) Sysnova Information Systems "
+        "Image: Job LocationDhaka Image: Experience required 0 to 1 year(s) "
+        "Image: Deadline for apply the job 21 Sep 2026"
+    )
+    fields = main._extract_listing_baseline(text)
+    assert fields["location"] == "Dhaka"
+    assert fields["experience"] == "0 to 1 year"
+    assert fields["deadline"] == "2026-09-21"
+
+
+def test_merge_preserves_listing_fields_when_detail_only_has_deadline():
+    item = make_listing_item()
+    merged = main.merge_job_fields(
+        {"title": "Accounts Executive", "company": "Example Finance Ltd.", "deadline": "2026-10-01"},
+        {
+            "company": "Example Finance Ltd.", "location": "Dhaka", "education": "BBA",
+            "experience": "1 to 2 years", "salary": "Tk. 30,000", "vacancy": "3",
+            "employment_type": "Full Time", "workplace": "On-site", "age": "23-30 Years",
+            "application_method": "Online", "deadline": "2026-10-01", "posted_date": "2026-09-19",
+        },
+        item,
+    )
+    assert merged["location"] == "Dhaka"
+    assert merged["education"] == "BBA"
+    assert merged["experience"] == "1 to 2 years"
+    assert merged["salary"] == "Tk. 30,000"
+    assert merged["vacancy"] == "3"
+    assert merged["employment_type"] == "Full Time"
+    assert merged["workplace"] == "On-site"
+    assert merged["age"] == "23-30 Years"
+    assert merged["application_method"] == "Online"
+    assert merged["source_url"].startswith("https://jobs.bdjobs.com/")
+
+
+def test_sparse_snapshot_is_rejected_before_publish():
+    job = {
+        "title": "Investment Officer",
+        "company": "Example Bank PLC",
+        "source": "Bdjobs",
+        "source_url": "https://bdjobs.com/h/details/123456?ln=1",
+        "deadline": "2026-09-30",
+        "is_government": False,
+    }
+    ok, reason = main.snapshot_integrity(job)
+    assert not ok
+    assert reason == "snapshot_too_sparse:1"
+
+
+def test_rich_snapshot_accepts_source_backed_fields():
+    job = {
+        "title": "Investment Officer",
+        "company": "Example Bank PLC",
+        "source": "Bdjobs",
+        "source_url": "https://bdjobs.com/h/details/123456?ln=1",
+        "location": "Dhaka", "experience": "1 to 2 Years", "education": "BBA/MBA",
+        "salary": "Negotiable", "vacancy": "3", "deadline": "2026-09-30", "posted_date": "2026-09-19",
+        "is_government": False,
+    }
+    ok, reason = main.snapshot_integrity(job)
+    assert ok and reason == "ok"
+    assert main.snapshot_field_quality(job) >= 6
+
+
+def test_bangla_job_summary_extracts_all_snapshot_fields():
+    html = """
+    <html><body>
+    <h1>Investment Officer</h1>
+    <p>প্রতিষ্ঠানের নাম</p><p>Example Bank PLC</p>
+    <p>চাকরির সারসংক্ষেপ</p>
+    <p>খালি পদ</p><p>3</p>
+    <p>বয়স</p><p>২৪ থেকে ৩০ বছর</p>
+    <p>কর্মস্হল</p><p>Dhaka</p>
+    <p>বেতন</p><p>আলোচনা সাপেক্ষ</p>
+    <p>অভিজ্ঞতা</p><p>১ থেকে ২ বছর</p>
+    <p>প্রকাশ তারিখ</p><p>19 Sep 2026</p>
+    <p>শেষ তারিখ</p><p>30 Sep 2026</p>
+    <p>শিক্ষাগত যোগ্যতা</p><p>BBA/MBA</p>
+    <p>কর্মক্ষেত্র</p><p>অফিসে</p>
+    <p>চাকরির ধরন</p><p>ফুল টাইম</p>
+    </body></html>
+    """
+    parsed = main.extract_job_fields(
+        main._text_from_html(html), html,
+        "https://bdjobs.com/h/details/123457?ln=1",
+        {"title": "Investment Officer", "listing_fields": {}},
+    )
+    assert parsed["company"] == "Example Bank PLC"
+    assert parsed["vacancy"] == "3"
+    assert parsed["age"] == "24-30 Years"
+    assert parsed["location"] == "Dhaka"
+    assert parsed["experience"] == "1 to 2 years"
+    assert parsed["posted_date"] == "2026-09-19"
+    assert parsed["deadline"] == "2026-09-30"
+    assert parsed["employment_type"] == "Full Time"
+    assert parsed["workplace"] == "On-site"
+
+
+def test_screenshot_style_detail_fallback_keeps_rich_snapshot(monkeypatch):
+    item = make_listing_item()
+    item["listing_fields"] = {
+        "company": "Chino Carts",
+        "location": "Dhaka (Dakshinkhan)",
+        "experience": "At Least 1 Year",
+        "education": "BBA",
+        "salary": "Negotiable",
+        "vacancy": "5",
+        "age": "23 Years",
+        "application_method": "Online",
+        "deadline": "2026-09-25",
+        "posted_date": "2026-09-19",
+    }
+    item["title"] = "Customer Support Executive E-Commerce"
+    item["url"] = "https://jobs.bdjobs.com/jobdetails/?id=888001&ln=1"
+    item["source_url"] = item["url"]
+    item["source_job_id"] = "888001"
+    monkeypatch.setattr(main, "_fetch_bdjobs_detail", lambda _item: None)
+    job = main.research_job(item)
+    assert job["company"] == "Chino Carts"
+    rows = dict(main.job_snapshot_rows(job))
+    assert rows["Location"] == "Dhaka (Dakshinkhan)"
+    assert rows["Experience"] == "At Least 1 Year"
+    assert rows["Salary"] == "Negotiable"
+    assert rows["Vacancy"] == "5"
+    assert rows["Age"] == "23 Years"
+    assert rows["Application"] == "Online"
+    assert rows["Deadline"] == "25-09-2026"
+    assert rows["Posted"] == "19-09-2026"
+    # The item excerpt still contains an old vacancy value (3); fallback parsing
+    # must never override the authoritative listing_fields value (5).
+    assert job["vacancy"] == "5"
+    ok, reason = main.snapshot_integrity(job)
+    assert ok and reason == "ok"
+    assert main.snapshot_field_quality(job) >= 8
+
+
+def test_snapshot_eligibility_happens_before_quota_selection():
+    sparse_private = {
+        "title": "Investment Officer", "company": "Example Bank PLC", "source": "Bdjobs",
+        "source_url": "https://bdjobs.com/h/details/1?ln=1", "deadline": "2026-09-30",
+        "final_score": 95, "is_government": False,
+    }
+    rich_private = dict(sparse_private, source_job_id="2", source_url="https://bdjobs.com/h/details/2?ln=1",
+        location="Dhaka", experience="0 to 2 years", education="BBA", salary="Negotiable")
+    sparse_gov = {
+        "title": "Government Officer", "company": "Government Organization", "source": "Teletalk",
+        "source_url": "https://alljobs.teletalk.com.bd/", "deadline": "2026-09-30",
+        "final_score": 90, "is_government": True,
+    }
+    rich_gov = dict(sparse_gov, source_job_id="4", location="Dhaka", vacancy="5")
+    private, government, rejected = main.split_snapshot_eligible([sparse_private, rich_private, sparse_gov, rich_gov])
+    assert rejected == 2
+    assert [j["source_job_id"] for j in private] == ["2"]
+    assert [j["source_job_id"] for j in government] == ["4"]

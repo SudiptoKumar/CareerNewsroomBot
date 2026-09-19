@@ -47,6 +47,38 @@ It returns readable output ( no JS, no cookies), so you can parse values easily 
 
 **Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation and Jina Reader fallback. These methods are not guaranteed to bypass every site's protection.
 
+### Job Snapshot data contract
+
+The Telegram Job Snapshot is generated from one normalized `JobRecord`. Detail research is enrichment only and must never erase trustworthy listing data. Field precedence is:
+
+```text
+verified detail value
+        ↓
+listing value
+        ↓
+existing normalized value
+        ↓
+omit field when still missing
+```
+
+The display order is:
+
+```text
+Location
+Employment
+Workplace
+Education
+Experience
+Salary
+Vacancy
+Age
+Application
+Deadline
+Posted
+```
+
+No value is fabricated. A sparse or contaminated private record with fewer than 3 usable snapshot fields is rejected before final selection; government records require at least 2. This prevents Telegram posts that contain only a deadline when the source data contains additional fields.
+
 ### Runtime quality and publication guardrails
 
 Each run is allowed up to 15 minutes so the pipeline can spend more time on research and semantic auditing instead of stopping early.
@@ -216,11 +248,11 @@ Hard validity gate
       ↓
 100-point deterministic score
       ↓
-Top 40 detail candidates
+Top 60 detail candidates
       ↓
 Detail enrichment
       ↓
-Top 30–35 semantic audit
+Top 50 semantic audit
       ↓
 85% deterministic + 15% AI
       ↓
@@ -299,6 +331,8 @@ target total            = 15
 ```
 
 The minimums are enforced whenever enough current, qualifying source records exist. The bot never invents or pads with obviously weak vacancies just to satisfy a quota.
+
+Snapshot integrity is checked before final selection, so rejected sparse records do not consume quota slots. A defensive second check runs immediately before Telegram publication.
 
 Private selection uses soft diversity penalties:
 
@@ -399,11 +433,13 @@ PRIVATE_MIN_FILL_SCORE=58
 PRIVATE_HARD_FILL_SCORE=55
 PRIVATE_MIN_INFORMATION_QUALITY=3
 PRIVATE_HARD_MIN_INFORMATION_QUALITY=3
-DETAIL_WORKERS=6
+DETAIL_WORKERS=8
+DETAIL_TIMEOUT=14
+JINA_TIMEOUT=10
 QUALITY_FLOOR=65
 MAX_STORIES_PER_RUN=20
 TARGET_STORIES_PER_RUN=15
-JINA_RPM_LIMIT=18
+JINA_RPM_LIMIT=24
 ```
 
 ## Local commands
