@@ -5,6 +5,12 @@ on:
     - cron: "0 */3 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
+    inputs:
+      diagnostics:
+        description: "Run low-impact source diagnostics before the bot"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -15,7 +21,6 @@ concurrency:
 
 jobs:
   run-career-bot:
-    # Pin the currently stable runner image; avoid the announced ubuntu-latest migration during this bot's production lifecycle.
     runs-on: ubuntu-24.04
     timeout-minutes: 6
 
@@ -33,10 +38,10 @@ jobs:
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
-      PRIVATE_RESEARCH_TARGET: "40"
+      PRIVATE_RESEARCH_TARGET: "32"
       PRIVATE_QUALITY_FLOOR: "64"
-      BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY: "10"
-      BDJOBS_CATEGORY_WORKERS: "1"
+      MAX_BDJOBS_DISCOVERY_PAGES: "3"
+      BDJOBS_CACHE_MAX_DAYS: "5"
       MAX_PRIVATE_POST_AGE_DAYS: "5"
       SCRAPLING_DYNAMIC_ENABLED: "0"
 
@@ -67,11 +72,12 @@ jobs:
       - name: Run self-test
         run: python main.py --self-test
 
-      - name: Run live source diagnostics (manual runs only)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Run optional source diagnostics (diagnostic-only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostics == true }}
         run: python main.py --source-test
 
       - name: Run Career News Bot
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.diagnostics != true }}
         run: python main.py
 
       - name: Save state
