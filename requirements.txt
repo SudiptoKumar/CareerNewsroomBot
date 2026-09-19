@@ -3,6 +3,3 @@ requests
 urllib3
 beautifulsoup4
 trafilatura
-# Fast HTTP + optional browser rendering for JS-heavy job pages.
-# Current Scrapling release: 0.4.15 (Python >=3.10).
-scrapling[fetchers]==0.4.15
