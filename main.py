@@ -46,12 +46,6 @@ from bs4 import BeautifulSoup, NavigableString
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-try:
-    from cerebras.cloud.sdk import Cerebras
-except ImportError:
-    Cerebras = None
-
-
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -61,6 +55,11 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").strip()
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
+CEREBRAS_API_URL = os.environ.get("CEREBRAS_API_URL", "https://api.cerebras.ai/v1/chat/completions").strip()
+CEREBRAS_TIMEOUT_SECONDS = float(os.environ.get("CEREBRAS_TIMEOUT_SECONDS", "35"))
+CEREBRAS_REQUEST_RETRIES = max(0, int(os.environ.get("CEREBRAS_REQUEST_RETRIES", "1")))
+CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS = max(0.0, float(os.environ.get("CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS", "4")))
+CEREBRAS_REASONING_EFFORT = os.environ.get("CEREBRAS_REASONING_EFFORT", "low").strip() or "low"
 PIPELINE_VERSION = "CareerNewsroom"
 STATE_FORMAT_VERSION = 5
 POSTED_FILE = "posted_urls.txt"
@@ -89,9 +88,10 @@ INTERNSHIP_AI_TARGET = int(os.environ.get("INTERNSHIP_AI_TARGET", "8"))
 MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "2"))
 PRIVATE_SNAPSHOT_MIN_FIELDS = int(os.environ.get("PRIVATE_SNAPSHOT_MIN_FIELDS", "4"))
 GOVERNMENT_SNAPSHOT_MIN_FIELDS = int(os.environ.get("GOVERNMENT_SNAPSHOT_MIN_FIELDS", "3"))
-AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
-AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "8"))
+AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "24"))
+AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "12"))
 AI_RETRY_COUNT = int(os.environ.get("AI_RETRY_COUNT", "1"))
+PRIVATE_REQUIRE_EXPERIENCE = os.environ.get("PRIVATE_REQUIRE_EXPERIENCE", "0").strip().lower() in {"1", "true", "yes", "on"}
 GOVERNMENT_DISCOVERY_TARGET = int(os.environ.get("GOVERNMENT_DISCOVERY_TARGET", "20"))
 CATEGORY_PAGE_LIMIT = int(os.environ.get("CATEGORY_PAGE_LIMIT", "4"))
 CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "20"))
@@ -99,7 +99,6 @@ CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "12"))
 DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
 DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
 DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "14"))
-LEGACY_DETAIL_TIMEOUT = int(os.environ.get("LEGACY_DETAIL_TIMEOUT", "8"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
@@ -563,17 +562,107 @@ def prune_state():
 # CLIENTS
 # ============================================================
 
-cerebras = None
+class CerebrasRateLimitError(RuntimeError):
+    pass
 
 
-def get_cerebras():
-    global cerebras
-    if Cerebras is None or not CEREBRAS_API_KEY:
+def _cerebras_rate_limit_wait(headers):
+    """Return server-advised wait seconds, capped by configuration elsewhere."""
+    for name in ("retry-after", "x-ratelimit-reset-tokens-minute", "x-ratelimit-reset-requests-day"):
+        value = safe_text(headers.get(name))
+        if not value:
+            continue
+        try:
+            seconds = float(value)
+            if seconds >= 0:
+                return seconds
+        except (TypeError, ValueError):
+            continue
+    return 0.0
+
+
+_cerebras_http = requests.Session()
+_cerebras_http.headers.update({
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+})
+
+
+def _cerebras_chat_json(messages, *, response_format=None, max_completion_tokens=1800, label="request"):
+    """Call Cerebras directly so 429 responses cannot trigger a hidden 60s SDK retry."""
+    if not CEREBRAS_API_KEY:
         return None
-    if cerebras is None:
-        cerebras = Cerebras(api_key=CEREBRAS_API_KEY)
-    return cerebras
+    payload = {
+        "model": CEREBRAS_MODEL,
+        "messages": messages,
+        "temperature": 0.0,
+        "max_completion_tokens": int(max_completion_tokens),
+    }
+    if CEREBRAS_MODEL.lower() == "gpt-oss-120b" and CEREBRAS_REASONING_EFFORT:
+        payload["reasoning_effort"] = CEREBRAS_REASONING_EFFORT
+    if response_format is not None:
+        payload["response_format"] = response_format
 
+    for attempt in range(1, CEREBRAS_REQUEST_RETRIES + 2):
+        try:
+            started = time.monotonic()
+            response = _cerebras_http.post(
+                CEREBRAS_API_URL,
+                headers={"Authorization": f"Bearer {CEREBRAS_API_KEY}"},
+                json=payload,
+                timeout=CEREBRAS_TIMEOUT_SECONDS,
+            )
+            elapsed = time.monotonic() - started
+
+            if response.status_code == 429:
+                wait = _cerebras_rate_limit_wait(response.headers)
+                if wait <= CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS and attempt <= CEREBRAS_REQUEST_RETRIES:
+                    logger.warning(
+                        "CEREBRAS RATE LIMITED | label=%s | attempt=%d | wait=%.2fs",
+                        label, attempt, wait,
+                    )
+                    if wait > 0:
+                        time.sleep(wait)
+                    continue
+                logger.warning(
+                    "CEREBRAS RATE LIMITED | label=%s | attempt=%d | server_wait=%.2fs | action=deterministic_fallback",
+                    label, attempt, wait,
+                )
+                raise CerebrasRateLimitError(f"HTTP 429; advised_wait={wait:.2f}s")
+
+            if response.status_code in {500, 502, 503, 504} and attempt <= CEREBRAS_REQUEST_RETRIES:
+                wait = min(2.0, 0.5 * attempt)
+                logger.warning(
+                    "CEREBRAS TRANSIENT HTTP %d | label=%s | attempt=%d | retry_in=%.1fs",
+                    response.status_code, label, attempt, wait,
+                )
+                time.sleep(wait)
+                continue
+
+            if response.status_code >= 400:
+                excerpt = trim_source_text(response.text, 500)
+                raise RuntimeError(f"HTTP {response.status_code}: {excerpt}")
+
+            body = response.json()
+            logger.info(
+                "CEREBRAS OK | label=%s | attempt=%d | elapsed=%.2fs",
+                label, attempt, elapsed,
+            )
+            return body
+        except CerebrasRateLimitError:
+            raise
+        except (requests.RequestException, ValueError, RuntimeError) as exc:
+            if attempt <= CEREBRAS_REQUEST_RETRIES:
+                wait = min(2.0, 0.5 * attempt)
+                logger.warning(
+                    "CEREBRAS REQUEST RETRY | label=%s | attempt=%d | retry_in=%.1fs | error=%s",
+                    label, attempt, wait, exc,
+                )
+                time.sleep(wait)
+                continue
+            raise
+
+    return None
 
 
 # ============================================================
@@ -1001,7 +1090,12 @@ def discover_bdjobs_category(category_id, config):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
 
-    for base_url in (_absolute_category_url(category_id), _absolute_category_url(category_id, legacy=True)):
+    primary_url = _absolute_category_url(category_id)
+    legacy_url = _absolute_category_url(category_id, legacy=True)
+    base_urls = [primary_url]
+    base_url_index = 0
+    while base_url_index < len(base_urls):
+        base_url = base_urls[base_url_index]
         if len(collected) >= cap:
             break
         next_url = base_url
@@ -1045,6 +1139,11 @@ def discover_bdjobs_category(category_id, config):
                 break
             if new_count == 0:
                 break
+        if not collected and base_url_index == 0:
+            # Legacy listing is now a rescue path, not a second request on every category.
+            base_urls.append(legacy_url)
+            logger.info("BDJOBS CATEGORY LEGACY FALLBACK | %s", category_name)
+        base_url_index += 1
     logger.info("BDJOBS CATEGORY | %s | %d", category_name, len(collected))
     return collected
 
@@ -1845,8 +1944,7 @@ def translate_government_jobs(jobs):
         job["age"]=compact_age(job.get("age")) or job.get("age","")
         job["application_method"]=compact_application(job.get("application_method"),job.get("apply_url","")) or job.get("application_method","")
         job["employment_type"]=compact_employment(job.get("employment_type")) or job.get("employment_type","")
-    client=get_cerebras()
-    if not client or not source_snapshots:
+    if not CEREBRAS_API_KEY or not source_snapshots:
         return jobs
     payload=[]
     for idx,(job,source_fields) in enumerate(source_snapshots,1):
@@ -1856,18 +1954,18 @@ def translate_government_jobs(jobs):
             *[f"{k}: {source_fields.get(k,'')}" for k in source_fields],
         ]))
     try:
-        response=client.chat.completions.create(
-            model=CEREBRAS_MODEL,
-            messages=[
+        response=_cerebras_chat_json(
+            [
                 {"role":"system","content":"Return only the supplied fields translated into natural English suitable for a Telegram job post."},
                 {"role":"user","content":"\n\n".join(payload)},
             ],
             response_format={"type":"json_schema","json_schema":{"name":"government_job_translation","strict":True,"schema":GOV_TRANSLATE_SCHEMA}},
-            reasoning_effort="low",
-            temperature=0.0,
             max_completion_tokens=1800,
+            label="government_translation",
         )
-        rows=json.loads(safe_text(response.choices[0].message.content)).get("results",[])
+        if not response:
+            return jobs
+        rows=json.loads(safe_text(response.get("choices", [{}])[0].get("message", {}).get("content", ""))).get("results",[])
         for row in rows:
             try: idx=int(row.get("id"))
             except Exception: continue
@@ -2652,12 +2750,12 @@ def _extract_apply_url_from_text(text, page_url):
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def _detail_url_variants(item):
-    """Return deterministic Bdjobs detail routes from current to legacy.
+    """Return the known Bdjobs detail routes in deterministic order.
 
-    Current /h/details pages may serve an Angular shell to non-browser HTTP clients.
-    The /hn/details server-rendered route and the legacy jobs.bdjobs.com route are
-    intentionally tried before Jina so a real source document can supply the full
-    Job Snapshot.
+    The optimized acquisition path consumes the current Angular /h route first and
+    uses /hn as the only alternate current route before bounded Jina fallback.
+    Legacy ASP routes remain discoverable here for compatibility with an explicitly
+    supplied raw source URL, but are not probed on every job.
     """
     variants = []
     raw = safe_text(item.get("url") or item.get("source_url"))
@@ -2795,12 +2893,10 @@ def _scrapling_visible_text(page):
 def _fetch_bdjobs_with_scrapling(item):
     """Render a real Bdjobs detail document after HTTP clients receive an app shell.
 
-    Important: the browser is the production fallback, not a decorative extra.
-    The old workflow installed Playwright but Scrapling StealthyFetcher uses
-    Patchright, so the browser executable was never installed and every detail
-    request fell back to the sparse listing card. This function also tries the
-    current and legacy detail routes, captures the rendered HTML, and runs the
-    Cloudflare solver when the page requires it.
+    The browser is the production fallback. Scrapling StealthyFetcher uses Patchright,
+    so the workflow installs the Patchright Chromium runtime explicitly. The optimized
+    browser lane tries only the two current Angular routes and captures rendered HTML
+    before source-field extraction.
     """
     global SCRAPLING_BROWSER_FETCH_COUNT
     if not SCRAPLING_BROWSER_ENABLED or StealthyFetcher is None:
@@ -2816,8 +2912,12 @@ def _fetch_bdjobs_with_scrapling(item):
     if not variants:
         return None
 
+    # Browser is reserved for the two current Angular routes. Legacy ASP routes are no longer
+    # opened for every job because the successful production runs showed the browser path already
+    # resolves the current /h details page for the full shortlist.
+    browser_variants = variants[:2]
     last_reason = "no_route"
-    for route in variants[:5]:
+    for route in browser_variants:
         try:
             page = StealthyFetcher.fetch(
                 request_safe_url(route),
@@ -2882,14 +2982,13 @@ def _fetch_bdjobs_detail(item):
     """Acquire one real Bdjobs detail document with bounded fallbacks.
 
     Flow:
-      1. current /h/details
-      2. current /hn/details when the first route is an application shell
-      3. legacy jobs.bdjobs.com server-rendered detail
-      4. one Jina Reader request
-      5. listing preservation handled by research_job/retrieve_job_content
+      1. one direct current /h/details request
+      2. Scrapling browser /h render, then /hn rescue
+      3. bounded Jina Reader request against /hn then /h
+      4. listing preservation handled by research_job/retrieve_job_content
 
-    Legacy routes are tried on *content failure* as well as transport failure,
-    because HTTP 200 Angular shells are a known current-site behavior.
+    The previous per-job legacy ASP probing is intentionally removed because the
+    production browser path already resolves the current Angular detail page.
     """
     key=cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
     cached=DETAIL_CACHE.get(key)
@@ -2904,33 +3003,27 @@ def _fetch_bdjobs_detail(item):
     last_reason="no_url"
     attempted=[]
     primary=variants[0]
-    for idx, variant in enumerate(variants[:4]):
-        timeout = DETAIL_TIMEOUT if idx == 0 else LEGACY_DETAIL_TIMEOUT
-        referer = item.get("url") or BDJOBS_LISTING_URL
-        direct=_fetch_with_curl(variant, timeout=timeout, referer=referer, max_attempts=(CURL_MAX_FINGERPRINT_ATTEMPTS if idx == 0 else 2))
-        attempted.append(variant)
-        if not direct:
-            last_reason="transport_failure"
-            continue
+    referer = item.get("url") or BDJOBS_LISTING_URL
+    direct=_fetch_with_curl(primary, timeout=DETAIL_TIMEOUT, referer=referer, max_attempts=CURL_MAX_FINGERPRINT_ATTEMPTS)
+    attempted.append(primary)
+    if direct:
         body=safe_text(direct.get("text"))
-        ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
+        ok,reason=_looks_like_job_document(body, url=direct.get("url") or primary, detail=True)
         if ok:
             direct=_detail_payload_from_fetch(direct)
             direct["detail_quality"]="direct_valid"
-            direct["detail_route"] = variant
+            direct["detail_route"] = primary
             DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
-            logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=%s | backend=%s", item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""))
+            logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=%s | backend=%s", item.get("source_job_id",""), urlparse(primary).path, direct.get("backend",""))
             return direct
         last_reason=reason
         logger.info(
             "BDJOBS DETAIL REJECT | id=%s | route=%s | backend=%s | status=%s | reason=%s",
-            item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""), direct.get("status",""), reason,
+            item.get("source_job_id",""), urlparse(primary).path, direct.get("backend",""), direct.get("status",""), reason,
         )
+    else:
+        last_reason="transport_failure"
 
-        # Once a valid-looking source document has been found, stop. Only a rejected
-        # 200 shell/thin page triggers the next route.
-        if idx == 0:
-            continue
 
     # The current Bdjobs /h/details and /hn/details endpoints can return an Angular
     # shell to non-browser clients even with HTTP 200. At that point the correct
@@ -2944,7 +3037,7 @@ def _fetch_bdjobs_detail(item):
     # implementation sent Jina to the legacy route, which often returned less content.
     if JINA_ENABLED:
         jina_targets=[]
-        for route_index in (1, 0, 2):
+        for route_index in (1, 0):
             if route_index < len(variants) and variants[route_index] not in jina_targets:
                 jina_targets.append(variants[route_index])
         for jina_target in jina_targets[:2]:
@@ -2962,7 +3055,7 @@ def _fetch_bdjobs_detail(item):
             last_reason=reason
             logger.info("BDJOBS DETAIL JINA REJECT | id=%s | route=%s | reason=%s", item.get("source_job_id",""), urlparse(jina_target).path, reason)
 
-    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
+    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | direct_routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
     return None
 
@@ -3558,46 +3651,41 @@ def _call_judge_once(batch, batch_no, retry=False):
         + "\n\n" + "\n\n".join(payload)
     )
     try:
-        response = get_cerebras().chat.completions.create(
-            model=CEREBRAS_MODEL,
-            messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
+        body = _cerebras_chat_json(
+            [{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
             response_format={"type":"json_schema","json_schema":{"name":f"career_job_audit_{batch_no}","strict":True,"schema":JUDGE_SCHEMA}},
-            temperature=0.0,
-            max_completion_tokens=max(2400, 700 * max(1, len(batch))),
+            max_completion_tokens=max(1200, 240 * max(1, len(batch)) + 300),
+            label=f"judge_batch_{batch_no}",
         )
-        content = safe_text(response.choices[0].message.content)
+        if not body:
+            raise ValueError("empty_cerebras_response")
+        content = safe_text(body.get("choices", [{}])[0].get("message", {}).get("content", ""))
         rows = _validate_judge_rows(_extract_json_objects(content), len(batch))
         if rows:
-            return rows
+            return rows, "ok"
         raise ValueError("no_valid_judge_rows")
+    except CerebrasRateLimitError as exc:
+        logger.warning("CEREBRAS audit batch %d rate-limited; deterministic ranking will continue: %s", batch_no, exc)
+        return [], "rate_limited"
     except Exception as exc:
         logger.warning("CEREBRAS audit batch %d failed%s: %s", batch_no, " on retry" if retry else "", exc)
-        return []
+        return [], "failed"
 
 
 def judge_batch(batch, batch_no):
-    if not get_cerebras() or not batch:
+    if not CEREBRAS_API_KEY or not batch:
         return []
-    # Smaller batches materially reduce malformed/truncated structured-output risk.
     chunks = [batch[i:i + max(1, AI_BATCH_SIZE)] for i in range(0, len(batch), max(1, AI_BATCH_SIZE))]
     all_rows = []
-    offset = 0
     for chunk_no, chunk in enumerate(chunks, 1):
-        rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=False)
+        rows, status = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=False)
+        if not rows and status == "rate_limited":
+            break
         if not rows and AI_RETRY_COUNT > 0:
-            rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=True)
-        # If a multi-candidate call still fails, split it once more rather than
-        # losing the entire private audit population.
-        if not rows and len(chunk) > 1:
-            midpoint = max(1, len(chunk) // 2)
-            for sub_no, sub in enumerate((chunk[:midpoint], chunk[midpoint:]), 1):
-                if not sub:
-                    continue
-                sub_rows = _call_judge_once(sub, batch_no * 1000 + chunk_no * 10 + sub_no, retry=True)
-                all_rows.extend(sub_rows)
-        else:
-            all_rows.extend(rows)
-        offset += len(chunk)
+            rows, status = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=True)
+            if status == "rate_limited":
+                break
+        all_rows.extend(rows)
     return all_rows
 
 
@@ -3648,7 +3736,7 @@ def rank_jobs(jobs):
         candidate = dict(job)
         available_display=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(candidate.get(key))]
         ai_display=[key for key in (row.get("display_fields") or []) if key in available_display]
-        display_fields=list(dict.fromkeys(ai_display or available_display))
+        display_fields=list(dict.fromkeys(ai_display + [key for key in available_display if key not in ai_display]))
         for core_key in ("deadline","posted_date","location"):
             if core_key in available_display and core_key not in display_fields:
                 display_fields.append(core_key)
@@ -4119,7 +4207,9 @@ def snapshot_integrity(job):
         minimum=GOVERNMENT_SNAPSHOT_MIN_FIELDS
     else:
         minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
-        required_core=("location", "deadline") if is_internship_job(job) else ("location", "experience", "deadline")
+        required_core=("location", "deadline")
+        if PRIVATE_REQUIRE_EXPERIENCE and not is_internship_job(job):
+            required_core = ("location", "experience", "deadline")
         for key in required_core:
             if not safe_text(job.get(key)):
                 return False, f"private_missing_core_{key}"
@@ -4589,6 +4679,9 @@ def run(*, dry_run=False, print_ranking=False):
 def self_test():
     assert PIPELINE_VERSION == "CareerNewsroom"
     assert STATE_FORMAT_VERSION == 5
+    assert AI_BATCH_SIZE >= 12
+    assert AI_REVIEW_TARGET <= 24
+    assert CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS <= 4.0
     assert MAX_STORIES_PER_RUN == 20
     assert TARGET_STORIES_PER_RUN == 15
     assert MIN_PRIVATE_POSTS_PER_RUN == 10
@@ -4702,6 +4795,66 @@ def self_test():
     assert "#GovtJob" in job_hashtags(gov)
     internship["display_fields"]=["location","salary","vacancy","deadline","posted_date"]
     assert set(dict(job_snapshot_rows(internship))) >= {"Location","Salary","Vacancy","Deadline","Posted"}
+
+    # Missing Experience is optional by default; explicit >3 years is still rejected.
+    missing_exp = dict(bd_fields, experience="")
+    ok, reason = snapshot_integrity(missing_exp)
+    assert ok, reason
+
+    detail_variants = _detail_url_variants({"source_job_id": "1533487"})
+    assert detail_variants[0].endswith("/h/details/1533487?ln=1")
+    assert detail_variants[1].endswith("/hn/details/1533487?ln=1")
+    assert not any("jobdetails.asp" in x for x in detail_variants[:2])
+    assert _cerebras_rate_limit_wait({"x-ratelimit-reset-tokens-minute": "2.5"}) == 2.5
+    assert _cerebras_rate_limit_wait({"retry-after": "59"}) == 59.0
+    class _Fake429Response:
+        status_code = 429
+        headers = {"x-ratelimit-reset-tokens-minute": "59"}
+        text = "rate limited"
+    class _Fake429Session:
+        def __init__(self):
+            self.calls = 0
+        def post(self, *args, **kwargs):
+            self.calls += 1
+            return _Fake429Response()
+    fake_429_session = _Fake429Session()
+    original_ai_key = globals()["CEREBRAS_API_KEY"]
+    original_ai_http = globals()["_cerebras_http"]
+    try:
+        globals()["CEREBRAS_API_KEY"] = "test-key"
+        globals()["_cerebras_http"] = fake_429_session
+        try:
+            _cerebras_chat_json([], label="self_test_429")
+        except CerebrasRateLimitError:
+            pass
+        else:
+            raise AssertionError("429 did not enter deterministic fallback")
+        assert fake_429_session.calls == 1
+    finally:
+        globals()["CEREBRAS_API_KEY"] = original_ai_key
+        globals()["_cerebras_http"] = original_ai_http
+
+    # AI display selection may reorder fields, but it may never hide source-backed fields.
+    display_job = dict(bd_fields, source="Bdjobs", is_government=False, career_category="Accounting / Finance",
+                       source_content="source-backed fixture", raw_source_fields={}, source_url="https://bdjobs.com/h/details/999001?ln=1",
+                       canonical=canonical_url("https://bdjobs.com/h/details/999001?ln=1"))
+    original_ai_key = globals()["CEREBRAS_API_KEY"]
+    original_ai_call = globals()["_cerebras_chat_json"]
+    try:
+        globals()["CEREBRAS_API_KEY"] = "test-key"
+        globals()["_cerebras_chat_json"] = lambda *args, **kwargs: {
+            "choices": [{"message": {"content": json.dumps({"results": [{
+                "id": 1, "publish": True, "score": 90, "bba_mba_fit": 90, "early_career_fit": 90,
+                "role_fit": 90, "reason": "Fixture", "display_fields": ["salary"]
+            }]})}}]
+        }
+        ranked_fixture = rank_jobs([display_job])
+        assert ranked_fixture
+        source_display_keys={k for k in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(display_job.get(k))}
+        assert source_display_keys.issubset(set(ranked_fixture[0].get("display_fields", [])))
+    finally:
+        globals()["CEREBRAS_API_KEY"] = original_ai_key
+        globals()["_cerebras_chat_json"] = original_ai_call
 
     # Current Angular Bdjobs regression fixture: the real job title is an h2
     # following the company button. The only h1 is footer chrome.
