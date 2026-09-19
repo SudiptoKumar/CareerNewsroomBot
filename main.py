@@ -6,6 +6,12 @@ import html
 import argparse
 import logging
 import hashlib
+import shutil
+
+try:
+    import curl_cffi
+except ImportError:
+    curl_cffi = None
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -19,6 +25,7 @@ try:
 except ImportError:
     trafilatura = None
 from bs4 import BeautifulSoup
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -34,178 +41,125 @@ except ImportError:
 
 CEREBRAS_API_KEY = os.environ.get("CEREBRAS_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-
 TELEGRAM_CHANNEL = (os.environ.get("TELEGRAM_CHANNEL") or "@CareerNewsroom").strip()
 TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
-
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "Career News Bot"
+PIPELINE_VERSION = "Career News V1"
+STATE_FORMAT_VERSION = 5
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-# Publication rules requested for CareerNewsroom V4:
-# - Total hard maximum: 20 posts per run.
-# - Minimum total target: 5 posts when enough eligible jobs exist.
-# - Government: 3-5 posts FIRST in every run when 3-5 eligible/unposted government
-#   vacancies are available. No BBA/MBA suitability gate is applied to government jobs.
-# - Private: only BBA/MBA/business-candidate-relevant jobs.
-# - Private ranking prioritizes education fit, then low/no experience, then freshness,
-#   deadline, and verified job quality.
-MIN_STORIES_PER_RUN = 5
-MAX_STORIES_PER_RUN = 20
-MIN_GOVERNMENT_POSTS_PER_RUN = 3
-MAX_GOVERNMENT_POSTS_PER_RUN = 5
+TARGET_STORIES_PER_RUN = int(os.environ.get("TARGET_STORIES_PER_RUN", "15"))
+MAX_STORIES_PER_RUN = int(os.environ.get("MAX_STORIES_PER_RUN", "20"))
+QUALITY_FLOOR = float(os.environ.get("QUALITY_FLOOR", "65"))
+MAX_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MAX_GOVERNMENT_POSTS_PER_RUN", "5"))
 POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "1.0"))
-FUTURE_TOLERANCE_MINUTES = 20
-DISCOVERY_LOOKBACK_DAYS = int(os.environ.get("DISCOVERY_LOOKBACK_DAYS", "14"))
+
+MAX_POST_AGE_DAYS = int(os.environ.get("MAX_POST_AGE_DAYS", "5"))
+PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "120"))
+PRIVATE_DISCOVERY_MAX = int(os.environ.get("PRIVATE_DISCOVERY_MAX", "200"))
+PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "40"))
+PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "40"))
+AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "35"))
+GOVERNMENT_DISCOVERY_TARGET = int(os.environ.get("GOVERNMENT_DISCOVERY_TARGET", "20"))
+CATEGORY_PAGE_LIMIT = int(os.environ.get("CATEGORY_PAGE_LIMIT", "4"))
+CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "18"))
+CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "10"))
+DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
+DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
+DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "22"))
+TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
+MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
-MAX_EXA_CANDIDATES = int(os.environ.get("MAX_EXA_CANDIDATES", "100"))
-MAX_BDJOBS_DISCOVERY_PAGES = int(os.environ.get("MAX_BDJOBS_DISCOVERY_PAGES", "8"))
-MAX_BDJOBS_DETAIL_CANDIDATES = int(os.environ.get("MAX_BDJOBS_DETAIL_CANDIDATES", "160"))
+FUTURE_TOLERANCE_MINUTES = int(os.environ.get("FUTURE_TOLERANCE_MINUTES", "20"))
 MAX_RICH_CHARACTERS = 32768
 MAX_JOB_CONTENT_CHARS = 18000
 
-# Dohaj has source-owned fixed category feeds. The categories below cover the
-# business-heavy areas where BBA/MBA candidates commonly search, plus the main
-# all-jobs feed for recent roles that may be filed under a changing category.
-DOHAJ_PRIVATE_PAGES_PER_SECTION = int(os.environ.get("DOHAJ_PRIVATE_PAGES_PER_SECTION", "2"))
-DOHAJ_GOVERNMENT_MAX_PAGES = int(os.environ.get("DOHAJ_GOVERNMENT_MAX_PAGES", "3"))
-DOHAJ_CATEGORY_LINKS_PER_PAGE = int(os.environ.get("DOHAJ_CATEGORY_LINKS_PER_PAGE", "12"))
-FAST_PRIVATE_CANDIDATE_TARGET = int(os.environ.get("FAST_PRIVATE_CANDIDATE_TARGET", "60"))
-FAST_GOVERNMENT_CANDIDATE_TARGET = int(os.environ.get("FAST_GOVERNMENT_CANDIDATE_TARGET", "10"))
-FAST_DETAIL_WORKERS = int(os.environ.get("FAST_DETAIL_WORKERS", "8"))
-FAST_AI_CANDIDATE_LIMIT = int(os.environ.get("FAST_AI_CANDIDATE_LIMIT", "20"))
-FAST_DISCOVERY_TIMEOUT = int(os.environ.get("FAST_DISCOVERY_TIMEOUT", "15"))
-FAST_DETAIL_TIMEOUT = int(os.environ.get("FAST_DETAIL_TIMEOUT", "18"))
-# Private-channel experience gate: BBA/MBA students, freshers and early-career candidates.
-# 3 years is the maximum accepted experience band; 3-7 years / 7+ years are rejected.
-MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
-
-BDJOBS_SEARCH_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
+BDJOBS_LISTING_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
+BDJOBS_LEGACY_LISTING_URL = "https://jobs.bdjobs.com/jobsearch.asp"
+BDJOBS_DETAIL_BASE = "https://jobs.bdjobs.com/jobdetails.asp?id="
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
-DOHAJ_DOMAIN = "dohaj.com"
+TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
+TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
+TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
+JINA_PREFIX = "https://r.jina.ai/"
 
-DOHAJ_PRIVATE_SECTION_URLS = [
-    "https://dohaj.com/category/accounting-finance",
-    "https://dohaj.com/category/marketing-sales",
-    "https://dohaj.com/category/hr-org-development",
-    "https://dohaj.com/category/gen-mgt-admin",
-    "https://dohaj.com/category/commercial-supply-chain",
-    "https://dohaj.com/category/secretary-receptionist",
-    "https://dohaj.com/category/bank-non-bank-fin-institution",
-    "https://dohaj.com/category/customer-service-call-centre",
-    "https://dohaj.com/category/media-advertisement-event-mgt",
-    "https://dohaj.com/category/production-operation",
-    "https://dohaj.com/category/ngo-development",
-    "https://dohaj.com/jobs/all",
-]
-DOHAJ_GOVERNMENT_URL = "https://dohaj.com/gov-jobs"
-# Backward-compatible aliases for state/self-tests from earlier releases.
-DOHAJ_SECTION_URLS = DOHAJ_PRIVATE_SECTION_URLS + [DOHAJ_GOVERNMENT_URL]
-DOHAJ_TOP5_URLS = DOHAJ_SECTION_URLS
+CURL_IMPERSONATES = tuple(x.strip() for x in os.environ.get(
+    "CURL_IMPERSONATES", "safari18_0_ios,safari180_ios,safari184_ios,safari_ios"
+).split(",") if x.strip()) or ("safari18_0_ios",)
+CURL_MAX_FINGERPRINT_ATTEMPTS = max(1, int(os.environ.get("CURL_MAX_FINGERPRINT_ATTEMPTS", "4")))
+CURL_VERIFY_SSL = os.environ.get("CURL_VERIFY_SSL", "1").strip().lower() not in {"0", "false", "no", "off"}
+JINA_ENABLED = os.environ.get("JINA_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
+JINA_TIMEOUT = int(os.environ.get("JINA_TIMEOUT", "25"))
 
-DOHAJ_CATEGORY_NAMES = {
-    "accounting-finance": "Accounting/Finance",
-    "marketing-sales": "Marketing/Sales",
-    "hr-org-development": "HR/Org. Development",
-    "gen-mgt-admin": "General Management/Admin",
-    "commercial-supply-chain": "Commercial/Supply Chain",
-    "secretary-receptionist": "Secretary/Receptionist",
-    "bank-non-bank-fin-institution": "Bank/Non-Bank Fin. Institution",
-    "customer-service-call-centre": "Customer Service/Call Centre",
-    "media-advertisement-event-mgt": "Media/Advertisement/Event",
-    "production-operation": "Production/Operation",
-    "ngo-development": "NGO/Development",
-    "jobs": "All Jobs",
-    "gov-jobs": "Government Jobs",
+BDBJOBS_CATEGORIES = {
+    1:  {"name": "Accounting / Finance", "priority": 1},
+    2:  {"name": "Bank / Non-Bank Financial Institution", "priority": 1},
+    3:  {"name": "Commercial / Supply Chain", "priority": 1},
+    9:  {"name": "Marketing / Sales", "priority": 1},
+    17: {"name": "HR / Organization Development", "priority": 1},
+    7:  {"name": "General Management / Admin", "priority": 1},
+    16: {"name": "Customer Service / Call Centre", "priority": 2},
+    10: {"name": "Media / Advertisement / Event Management", "priority": 2},
+    13: {"name": "Research / Consultancy", "priority": 1},
+    12: {"name": "NGO / Development", "priority": 2},
+    20: {"name": "Hospitality / Travel / Tourism", "priority": 2},
+    6:  {"name": "Garments / Textile", "priority": 2},
+    8:  {"name": "IT / Telecom", "priority": 2},
+    4:  {"name": "Education / Training", "priority": 2},
 }
 
-BBA_MBA_TERMS = (
-    "bba", "mba", "bachelor of business administration", "master of business administration",
-    "business administration", "business studies", "bbs", "mbs", "commerce", "finance",
-    "accounting", "marketing", "human resources", "hrm", "management", "banking",
-    "business development", "supply chain", "commercial", "operations", "economics",
-)
-EARLY_CAREER_TERMS = (
-    "fresher", "freshers", "no experience", "entry level", "entry-level", "trainee",
-    "management trainee", "graduate trainee", "graduate program", "intern", "internship",
-    "0-1", "0 to 1", "0-2", "0 to 2", "0-3", "0 to 3", "1-2", "1 to 2", "1-3", "1 to 3",
-)
+# BBA/MBA business-role vocabulary used for deterministic classification and ranking.
 TARGET_FUNCTION_TERMS = (
-    "account", "finance", "audit", "tax", "bank", "relationship", "credit", "treasury",
-    "marketing", "sales", "brand", "hr", "human resource", "recruitment", "business development",
-    "management", "commercial", "procurement", "supply chain", "operations", "admin", "analyst",
-    "customer service", "merchandising", "corporate affairs", "front desk", "hotline", "f-commerce",
-    "coordination", "retail", "client service", "customer experience",
+    "account", "finance", "bank", "credit", "audit", "tax", "treasury",
+    "marketing", "sales", "brand", "digital marketing", "business development",
+    "partnership", "growth", "client acquisition", "human resource", "hr",
+    "recruitment", "talent acquisition", "hr operations", "procurement", "purchase",
+    "sourcing", "inventory", "logistics", "supply chain", "commercial", "import",
+    "export", "trade operation", "management trainee", "management executive",
+    "admin", "executive assistant", "customer service", "client service",
+    "customer experience", "relationship management", "e-commerce", "marketplace",
+    "online business", "digital operations", "operations", "process", "business analyst",
+    "account manager", "account management", "customer success", "merchandising",
+    "research", "consultancy", "ngo", "development", "hospitality", "travel", "tourism",
+    "event", "media", "advertisement", "corporate affairs",
 )
-
-BUSINESS_ROLE_TERMS = (
-    "executive", "officer", "assistant", "associate", "intern", "trainee", "management trainee",
-    "graduate trainee", "management", "sales", "marketing", "account", "finance", "bank",
-    "relationship", "credit", "hr", "human resource", "recruitment", "commercial", "procurement",
-    "supply chain", "operations", "admin", "analyst", "customer service", "business development",
-    "front desk", "receptionist", "coordinator", "merchandising", "corporate affairs",
-    "client service", "customer experience",
-)
-
+BUSINESS_ROLE_TERMS = TARGET_FUNCTION_TERMS
+EARLY_CAREER_TERMS = ("fresher", "fresh graduate", "fresh graduates", "no experience", "entry-level", "entry level", "intern", "internship", "trainee", "0-1 year", "0–1 year", "0 to 1 year")
 NON_BUSINESS_ROLE_TERMS = (
-    "software engineer", "web developer", "mobile developer", "frontend developer", "backend developer",
-    "full stack developer", "devops", "network engineer", "civil engineer", "electrical engineer",
-    "mechanical engineer", "biomedical engineer", "pharmacist", "medical officer", "doctor",
-    "nurse", "lab technologist", "teacher", "lecturer", "architect",
+    "software engineer", "software developer", "web developer", "frontend developer",
+    "backend developer", "full stack developer", "mobile developer", "app developer",
+    "devops", "data engineer", "machine learning engineer", "civil engineer",
+    "electrical engineer", "mechanical engineer", "doctor", "medical officer",
+    "pharmacist", "nurse", "architect", "laboratory specialist", "designer",
 )
-NOISE_TITLE_TERMS = (
-    "calculator", "quiz", "mcq", "question solution", "answer key", "exam result", "admission",
-    "scholarship", "career advice", "cv writing", "resume tips", "interview tips", "salary calculator",
-    "course", "training course", "webinar", "seminar", "job fair", "how to get a job", "job preparation",
-)
-SENIOR_TERMS = (
-    "chief", "cfo", "ceo", "director", "head of", "general manager", "agm", "dgm", "senior manager",
-    "vice president", "vp ", "8 years", "9 years", "10 years", "10+ years", "15 years", "20 years",
-)
+SENIOR_TERMS = ("ceo", "cfo", "chief executive", "chief financial", "director", "head of", "general manager", "deputy general manager", "assistant general manager", "dgm", "agm")
+NOISE_TITLE_TERMS = ("our valuable partners", "valuable partners", "job search", "find jobs", "active filters", "sign in", "login", "register", "cookie policy", "privacy policy")
 
+HEADERS = {
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": BDJOBS_LISTING_URL,
+    "Cache-Control": "no-cache",
+}
 SOURCE_NAMES = {
     "bdjobs.com": "Bdjobs",
     "jobs.bdjobs.com": "Bdjobs",
-    "dohaj.com": "Dohaj",
+    "alljobs.teletalk.com.bd": "Teletalk",
 }
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
-logger = logging.getLogger("career-news-bot")
-
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0 Safari/537.36"
-    )
-}
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+logger = logging.getLogger("career-news-v1")
 
 session = requests.Session()
 session.headers.update(HEADERS)
 retry_policy = Retry(
-    total=4,
-    connect=4,
-    read=4,
-    backoff_factor=1.5,
+    total=4, connect=4, read=4, backoff_factor=1.2,
     status_forcelist=[429, 500, 502, 503, 504],
-    allowed_methods=["GET"],
-    respect_retry_after_header=True,
+    allowed_methods=["GET", "POST"], respect_retry_after_header=True,
 )
-session.mount(
-    "https://",
-    HTTPAdapter(max_retries=retry_policy, pool_connections=20, pool_maxsize=20),
-)
-session.mount(
-    "http://",
-    HTTPAdapter(max_retries=retry_policy, pool_connections=20, pool_maxsize=20),
-)
-
+session.mount("https://", HTTPAdapter(max_retries=retry_policy, pool_connections=20, pool_maxsize=20))
+session.mount("http://", HTTPAdapter(max_retries=retry_policy, pool_connections=20, pool_maxsize=20))
 
 # ============================================================
 # HELPERS
@@ -314,33 +268,26 @@ def clean_generated_text(text):
 
 
 def is_noise_title(title, url=""):
+    normalized_noise = re.sub(r"\s+", " ", safe_text(title)).strip().lower()
+    if normalized_noise in {
+        "our valuable partners", "valuable partners", "our partners",
+        "job search", "find jobs", "active filters", "sign in", "login",
+        "register", "home", "quick links",
+    }:
+        return True
     blob = f"{safe_text(title)} {safe_text(url)}".lower()
     return any(term in blob for term in NOISE_TITLE_TERMS)
 
 
 def is_index_url(url):
     path = urlparse(safe_text(url)).path.lower().rstrip("/")
-    if "/category/" in path or path.endswith("/gov-jobs") or "/search" in path:
+    if "jobsearch" in path or path in {"", "/", "/h/jobs"}:
         return True
-    return "/job-details/" not in path and "/gov-job/" not in path and "/jobdetails" not in path and path.count("/") <= 2
-
-
-def is_dohaj_job_url(url):
-    if not is_domain_allowed(url, [DOHAJ_DOMAIN]):
-        return False
-    path = urlparse(safe_text(url)).path.lower()
-    return "/job-details/" in path or "/gov-job/" in path
-
-
-def dohaj_page_url(base_url, page_no):
-    if page_no <= 1:
-        return base_url
-    return base_url + ("&" if "?" in base_url else "?") + f"page={page_no}"
+    return "/jobdetails" not in path
 
 
 BDJOBS_JOB_RE = re.compile(
-    r"^https?://(?:www\.)?jobs\.bdjobs\.com/(?:jobdetails(?:\.asp)?)(?:/)?(?:\?|#)?[^#]*\bid=\d+",
-    re.I,
+    r"^https?://(?:www\.)?jobs\.bdjobs\.com/(?:jobdetails(?:\.asp)?)(?:/)?(?:\?|#)?[^#]*\bid=\d+", re.I
 )
 
 def is_bdjobs_job_url(url):
@@ -348,15 +295,18 @@ def is_bdjobs_job_url(url):
     if not is_domain_allowed(raw, BDJOBS_DOMAINS):
         return False
     parsed = urlparse(raw)
-    return "/jobdetails" in parsed.path.lower() and bool(re.search(r"(?:^|[?&])id=\d+", parsed.query, re.I))
+    path = parsed.path.lower().rstrip("/")
+    if "/jobdetails" in path and bool(re.search(r"(?:^|[?&])id=\d+", parsed.query, re.I)):
+        return True
+    return path.startswith("/h/jobs/") and len(path.split("/")) >= 4
+
+
+def is_teletalk_url(url):
+    return is_domain_allowed(url, [TELETALK_DOMAIN])
 
 
 def is_vacancy_url(url):
-    if is_dohaj_job_url(url):
-        return True
-    if is_bdjobs_job_url(url):
-        return True
-    return False
+    return is_bdjobs_job_url(url) or is_teletalk_url(url)
 
 
 def job_family_score(title, text):
@@ -421,8 +371,14 @@ def _job_identity_text(job):
 
 
 def job_event_key(job):
-    # Cross-source identity. This intentionally ignores the source domain so the same
-    # vacancy mirrored on Dohaj/Bdjobs is treated as one event.
+    # Prefer a source-native immutable job ID when the source provides one.
+    # Cross-source mirror detection still happens in likely_same_job/build_unique_job_pool.
+    source_id = safe_text(job.get("source_job_id"))
+    source = safe_text(job.get("source")).lower()
+    if source_id and source:
+        return hashlib.sha1(f"{source}:{source_id}".encode("utf-8")).hexdigest()[:24]
+    # Cross-source content identity. This intentionally ignores the source domain so
+    # the same vacancy mirrored on source/Bdjobs can still collapse into one event.
     return hashlib.sha1(_job_identity_text(job).encode("utf-8")).hexdigest()[:24]
 
 
@@ -459,6 +415,7 @@ def likely_same_job(a, b):
 
 def default_state():
     return {
+        "format_version": STATE_FORMAT_VERSION,
         "queue": {},
         "events": {},
         "recent_titles": [],
@@ -502,13 +459,13 @@ def save_posted_url(canonical):
 
 STATE = load_state()
 POSTED_URLS = load_posted_urls()
-# V4 field schema is intentionally incompatible with the old photo/field mappings.
+# V1 state uses a fresh queue schema while preserving only current-run compatible data.
 # Keep posted history, but do not reuse legacy pending queue records.
-if int(STATE.get("format_version", 0) or 0) < 4:
+if int(STATE.get("format_version", 0) or 0) < STATE_FORMAT_VERSION:
     for _key, _item in STATE.get("queue", {}).items():
         if isinstance(_item, dict) and _item.get("status") in {"pending", "selected"}:
             _item["status"] = "legacy_ignored"
-    STATE["format_version"] = 4
+    STATE["format_version"] = STATE_FORMAT_VERSION
 
 
 def prune_state():
@@ -546,106 +503,8 @@ def get_cerebras():
 
 
 # ============================================================
-# SOURCE DISCOVERY: DOHAJ TOP-5 ONLY
+# SOURCE DISCOVERY
 # ============================================================
-
-def _listing_date_from_text(card_text):
-    return normalize_date_text(_first_match(card_text, [
-        r"(?:Posted|Published|প্রকাশিত|পোস্টেড)\s*[:：-]?\s*([^|]+?)(?=\s+(?:Deadline|শেষ তারিখ|View|দেখুন)\b|$)",
-    ]))
-
-
-def extract_dohaj_page(category_url, category_name, page_no=1, limit=12):
-    """Fetch one current Dohaj listing page and keep only a small latest window."""
-    page_url=dohaj_page_url(category_url,page_no)
-    is_gov=category_name=="Government Jobs" or "/gov-jobs" in urlparse(category_url).path.lower()
-    try:
-        response=session.get(request_safe_url(page_url),headers=HEADERS,timeout=FAST_DISCOVERY_TIMEOUT)
-        if response.status_code>=400:
-            logger.warning("DOHAJ listing failed %s HTTP=%s",page_url,response.status_code); return []
-        soup=BeautifulSoup(response.text,"html.parser")
-        results=[]; seen=set()
-        for anchor in soup.find_all("a",href=True):
-            href=urljoin(response.url,safe_text(anchor.get("href")))
-            if not is_dohaj_job_url(href): continue
-            canonical=canonical_url(href)
-            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
-            title=safe_text(anchor.get_text(" ",strip=True))
-            if not title or is_noise_title(title,href): continue
-            parent=anchor.find_parent(["article","li","div","section"])
-            card_text=safe_text(parent.get_text(" ",strip=True)) if parent else title
-            deadline_match=re.search(r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:View|দেখুন)\b|$)",card_text,flags=re.I)
-            seen.add(canonical)
-            results.append({
-                "title":title,"url":href,"canonical":canonical,"source":"Dohaj","source_url":href,
-                "discovery":"dohaj_direct_latest","dohaj_category":category_name,"is_government":is_gov,
-                "excerpt":trim_source_text(card_text,1200),
-                "listing_deadline":normalize_date_text(deadline_match.group(1)) if deadline_match else "",
-                "listing_posted":_listing_date_from_text(card_text),"discovered_at":now_iso(),
-            })
-            if len(results)>=limit: break
-        logger.info("DOHAJ LATEST | %s | page=%d | %d",category_name,page_no,len(results))
-        return results
-    except Exception as exc:
-        logger.warning("DOHAJ listing error %s page=%d: %s",category_name,page_no,exc); return []
-
-
-def _dohaj_private_title_signal(title):
-    blob=safe_text(title).lower()
-    return bool(blob) and any(term in blob for term in BUSINESS_ROLE_TERMS) and not any(term in blob for term in NON_BUSINESS_ROLE_TERMS)
-
-
-def _discover_private_section(url):
-    path=urlparse(url).path.rstrip("/"); slug=path.split("/")[-1]
-    category_name="All Jobs" if path=="/jobs/all" else DOHAJ_CATEGORY_NAMES.get(slug,slug)
-    items=extract_dohaj_page(url,category_name,1,DOHAJ_CATEGORY_LINKS_PER_PAGE)
-    return [x for x in items if _dohaj_private_title_signal(x["title"])]
-
-
-def discover_dohaj():
-    government=[]; private=[]; seen=set()
-    # Government pagination is sequential because page 2 is only needed if page 1 is short.
-    for page_no in range(1,DOHAJ_GOVERNMENT_MAX_PAGES+1):
-        items=extract_dohaj_page(DOHAJ_GOVERNMENT_URL,"Government Jobs",page_no,FAST_GOVERNMENT_CANDIDATE_TARGET)
-        for item in items:
-            if item["canonical"] not in seen:
-                seen.add(item["canonical"]); government.append(item)
-        if len(government)>=FAST_GOVERNMENT_CANDIDATE_TARGET or (page_no>=2 and len(government)>=MIN_GOVERNMENT_POSTS_PER_RUN): break
-
-    # Private dedicated sections are independent, so fetch page 1 concurrently.
-    with ThreadPoolExecutor(max_workers=min(8,len(DOHAJ_PRIVATE_SECTION_URLS))) as executor:
-        futures=[executor.submit(_discover_private_section,url) for url in DOHAJ_PRIVATE_SECTION_URLS]
-        for future in as_completed(futures):
-            try: items=future.result()
-            except Exception as exc:
-                logger.warning("DOHAJ private section worker failed: %s",exc); continue
-            for item in items:
-                if item["canonical"] in seen: continue
-                seen.add(item["canonical"]); private.append(item)
-
-    # If page 1 did not provide enough private candidates, use page 2 only for the
-    # few sections most likely to contain business roles, still concurrently.
-    if len(private)<FAST_PRIVATE_CANDIDATE_TARGET and DOHAJ_PRIVATE_PAGES_PER_SECTION>=2:
-        priority_urls=DOHAJ_PRIVATE_SECTION_URLS[:8]
-        def page2(url):
-            path=urlparse(url).path.rstrip("/"); slug=path.split("/")[-1]
-            category_name="All Jobs" if path=="/jobs/all" else DOHAJ_CATEGORY_NAMES.get(slug,slug)
-            return [x for x in extract_dohaj_page(url,category_name,2,DOHAJ_CATEGORY_LINKS_PER_PAGE) if _dohaj_private_title_signal(x["title"])]
-        with ThreadPoolExecutor(max_workers=min(8,len(priority_urls))) as executor:
-            futures=[executor.submit(page2,url) for url in priority_urls]
-            for future in as_completed(futures):
-                try: items=future.result()
-                except Exception: continue
-                for item in items:
-                    if item["canonical"] in seen: continue
-                    seen.add(item["canonical"]); private.append(item)
-                    if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
-                if len(private)>=FAST_PRIVATE_CANDIDATE_TARGET: break
-
-    logger.info("DOHAJ FAST DISCOVERY: government=%d private=%d",len(government),len(private))
-    return government+private
-
-
 
 BDJOBS_NATIVE_CATEGORY_HINTS = (
     "account", "finance", "bank", "commercial", "management", "admin", "hr",
@@ -655,21 +514,43 @@ BDJOBS_NATIVE_CATEGORY_HINTS = (
     "trainee", "intern", "executive", "officer",
 )
 
-def _bdjobs_pagination_links(page_html, base_url):
-    soup = BeautifulSoup(page_html, "html.parser")
-    links = []
-    for a in soup.find_all("a", href=True):
-        label = safe_text(a.get_text(" ", strip=True))
-        href = urljoin(base_url, safe_text(a.get("href")))
-        if label.isdigit() and 1 <= int(label) <= MAX_BDJOBS_DISCOVERY_PAGES and is_domain_allowed(href, BDJOBS_DOMAINS):
-            links.append((int(label), href))
-    return sorted(dict(links).items())
+def _listing_date_from_text(card_text):
+    return normalize_date_text(_first_match(card_text, [
+        r"(?:Posted|Published|Date Posted|Publication Date|প্রকাশিত|পোস্টেড)\s*[:：-]?\s*([^|]+?)(?=\s+(?:Deadline|শেষ তারিখ|View|দেখুন)\b|$)",
+    ]))
 
-def _bdjobs_listing_candidates(page_html, page_url):
-    """Extract current Bdjobs vacancy links from the official listing page."""
-    soup = BeautifulSoup(page_html, "html.parser")
-    found = []
-    seen = set()
+def _absolute_category_url(category_id, legacy=False):
+    base = BDJOBS_LEGACY_LISTING_URL if legacy else BDJOBS_LISTING_URL
+    return f"{base}?fcatId={int(category_id)}"
+
+def _bdjobs_pagination_links(page_html, base_url, max_pages=CATEGORY_PAGE_LIMIT):
+    soup = BeautifulSoup(page_html or "", "html.parser")
+    links = {}
+    for a in soup.find_all("a", href=True):
+        label = _clean_one_line(a.get_text(" ", strip=True))
+        href = urljoin(base_url, safe_text(a.get("href")))
+        if not href or not is_domain_allowed(href, BDJOBS_DOMAINS):
+            continue
+        if label.isdigit():
+            n = int(label)
+            if 1 <= n <= max_pages:
+                links[n] = href
+    return sorted(links.items())
+
+def _bdjobs_card_container(anchor):
+    for parent in anchor.parents:
+        if getattr(parent, "name", "") in {"article", "li", "section", "tr"}:
+            return parent
+        if getattr(parent, "name", "") == "div":
+            text = _clean_one_line(parent.get_text(" ", strip=True))
+            if 30 <= len(text) <= 2500 and any(k in text.lower() for k in ("deadline", "published", "experience", "vacancy", "apply")):
+                return parent
+    return anchor.parent
+
+def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_name=""):
+    """Extract genuine job links. Relevance filtering is deliberately deferred."""
+    soup = BeautifulSoup(page_html or "", "html.parser")
+    found, seen = [], set()
     for a in soup.find_all("a", href=True):
         href = urljoin(page_url, safe_text(a.get("href")))
         if not is_bdjobs_job_url(href):
@@ -680,58 +561,244 @@ def _bdjobs_listing_candidates(page_html, page_url):
         title = _clean_one_line(a.get_text(" ", strip=True))
         if not title or is_noise_title(title, href):
             continue
-        parent = a.find_parent(["li", "div", "article", "section", "tr"])
+        parent = _bdjobs_card_container(a)
         card_text = _clean_one_line(parent.get_text(" ", strip=True)) if parent else title
-        blob = f"{title} {card_text}".lower()
-        if not any(term in blob for term in BDJOBS_NATIVE_CATEGORY_HINTS):
-            continue
+        posted = _listing_date_from_text(card_text)
+        parsed_href = urlparse(href)
+        id_match = re.search(r"(?:^|[?&])id=(\d+)", parsed_href.query, re.I)
+        if not id_match:
+            id_match = re.search(r"/h/jobs/(\d+)(?:/|$)", parsed_href.path, re.I)
         seen.add(canonical)
         found.append({
-            "title": title,
-            "url": href,
-            "canonical": canonical,
-            "source": "Bdjobs",
-            "source_url": href,
-            "discovery": "bdjobs_direct",
-            "excerpt": trim_source_text(card_text, 2200),
+            "title": title, "url": href, "canonical": canonical, "source": "Bdjobs", "source_url": href,
+            "source_job_id": id_match.group(1) if id_match else "",
+            "discovery": "bdjobs_category_html", "category_id": category_id, "category_name": category_name,
+            "excerpt": trim_source_text(card_text, 2200), "listing_posted": posted,
+            "listing_deadline": normalize_date_text(_first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])),
             "discovered_at": now_iso(),
         })
     return found
 
-def discover_bdjobs():
-    """Read only the newest Bdjobs page, using page 2 only if the private pool is short."""
-    discovered=[]; seen=set(); pages=[(1,BDJOBS_SEARCH_URL)]
+def is_cloudflare_response(status, headers, body):
+    h = " ".join(f"{k}:{v}" for k, v in (headers or {}).items()).lower()
+    b = safe_text(body).lower()
+    markers = (
+        "just a moment...", "performing security verification", "enable javascript and cookies",
+        "checking your browser", "cf-chl-", "challenge-platform", "cloudflare ray id",
+        "attention required! | cloudflare", "sorry, you have been blocked",
+    )
+    return "cf-mitigated" in h or status in {401, 403, 429, 503} or any(x in b for x in markers)
+
+def _fetch_with_curl(url, *, timeout=None, referer=None, max_attempts=None):
+    if curl_cffi is None:
+        return None
+    targets = list(CURL_IMPERSONATES)[:(max_attempts or CURL_MAX_FINGERPRINT_ATTEMPTS)]
+    for target in targets:
+        try:
+            headers = dict(HEADERS)
+            if referer:
+                headers["Referer"] = referer
+            response = curl_cffi.get(
+                request_safe_url(url), headers=headers, timeout=timeout or DISCOVERY_TIMEOUT,
+                allow_redirects=True, impersonate=target, verify=CURL_VERIFY_SSL,
+            )
+            status = int(getattr(response, "status_code", 0) or 0)
+            body = safe_text(getattr(response, "text", ""))
+            cf = is_cloudflare_response(status, getattr(response, "headers", {}), body)
+            result = {
+                "ok": 200 <= status < 400 and bool(body) and not cf, "status": status, "text": body,
+                "url": safe_text(getattr(response, "url", "")) or url,
+                "backend": f"curl_cffi:{target}", "impersonate": target,
+                "cloudflare": cf,
+            }
+            if cf:
+                logger.info("CLOUDFLARE CHALLENGE | fingerprint=%s | status=%s | rotating", target, status)
+                continue
+            return result
+        except Exception as exc:
+            logger.debug("curl_cffi target failed | %s | %s | %s", target, url, exc)
+    return None
+
+def _fetch_jina(url, *, timeout=None):
+    if not JINA_ENABLED:
+        return None
     try:
-        while pages and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
-            page_no,page_url=pages.pop(0)
-            response=session.get(page_url,headers=HEADERS,timeout=FAST_DISCOVERY_TIMEOUT)
-            if response.status_code>=400: continue
-            for item in _bdjobs_listing_candidates(response.text,response.url):
-                if item["canonical"] in seen or item["canonical"] in POSTED_URLS: continue
-                seen.add(item["canonical"]); discovered.append(item)
-                if len(discovered)>=FAST_PRIVATE_CANDIDATE_TARGET: break
-            if page_no==1 and len(discovered)<FAST_PRIVATE_CANDIDATE_TARGET:
-                for n,href in _bdjobs_pagination_links(response.text,response.url):
-                    if n==2: pages.append((n,href)); break
+        response = requests.get(
+            JINA_PREFIX + request_safe_url(url),
+            headers={"Accept": "text/plain, text/markdown", "User-Agent": "Career News V1/1.0"},
+            timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
+        )
+        body = safe_text(response.text)
+        if response.status_code >= 400 or not body:
+            return None
+        return {"ok": True, "status": response.status_code, "text": body, "url": url, "backend": "jina_reader", "cloudflare": False}
     except Exception as exc:
-        logger.warning("BDJOBS latest discovery failed: %s",exc)
-    logger.info("BDJOBS LATEST DISCOVERY: %d",len(discovered))
+        logger.warning("Jina fallback failed %s: %s", url, exc)
+        return None
+
+def _fetch_source_document(url, *, timeout=None, referer=None):
+    direct = _fetch_with_curl(url, timeout=timeout, referer=referer)
+    if direct and direct.get("cloudflare"):
+        logger.info("CLOUDFLARE DETECTED | %s | %s", url, direct.get("backend"))
+    elif direct and direct.get("ok"):
+        return direct
+    if direct and not direct.get("ok"):
+        logger.info("DIRECT FETCH FAILED | %s | status=%s", url, direct.get("status"))
+    fallback = _fetch_jina(url, timeout=max(JINA_TIMEOUT, timeout or DISCOVERY_TIMEOUT))
+    return fallback
+
+def discover_bdjobs_category(category_id, config):
+    category_name = config["name"]
+    cap = CATEGORY_P1_CAP if int(config.get("priority", 2)) == 1 else CATEGORY_P2_CAP
+    cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
+    collected, seen = [], set()
+
+    for base_url in (_absolute_category_url(category_id), _absolute_category_url(category_id, legacy=True)):
+        if len(collected) >= cap:
+            break
+        next_url = base_url
+        seen_pages = set()
+        for page_index in range(1, CATEGORY_PAGE_LIMIT + 1):
+            if next_url in seen_pages:
+                break
+            seen_pages.add(next_url)
+            fetched = _fetch_source_document(next_url, timeout=DISCOVERY_TIMEOUT, referer=BDJOBS_LISTING_URL)
+            if not fetched:
+                break
+            page_url = fetched.get("url") or next_url
+            candidates = _bdjobs_listing_candidates(fetched.get("text", ""), page_url, category_id, category_name)
+            page_dates = []
+            new_count = 0
+            for item in candidates:
+                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+                    continue
+                pdt = parse_datetime(item.get("listing_posted"))
+                if pdt:
+                    page_dates.append(pdt)
+                    if pdt < cutoff:
+                        continue
+                seen.add(item["canonical"])
+                item["discovery_backend"] = fetched.get("backend", "")
+                collected.append(item)
+                new_count += 1
+                if len(collected) >= cap:
+                    break
+            if len(collected) >= cap:
+                break
+            links = dict(_bdjobs_pagination_links(fetched.get("text", ""), page_url, CATEGORY_PAGE_LIMIT + 2))
+            next_url = links.get(page_index + 1, "")
+            if not next_url:
+                parsed = urlparse(next_url or page_url)
+                if page_index == 1 and page_dates and max(page_dates) >= cutoff:
+                    next_url = parsed._replace(query=(parsed.query + "&" if parsed.query else "") + "page=2").geturl()
+                else:
+                    break
+            if page_dates and max(page_dates) < cutoff:
+                break
+            if new_count == 0:
+                break
+    logger.info("BDJOBS CATEGORY | %s | %d", category_name, len(collected))
+    return collected
+
+def discover_bdjobs():
+    categories = sorted(BDBJOBS_CATEGORIES.items(), key=lambda kv: (int(kv[1].get("priority", 2)), kv[0]))
+    all_items, seen = [], set()
+    for priority in (1, 2):
+        group = [(cid, cfg) for cid, cfg in categories if int(cfg.get("priority", 2)) == priority]
+        with ThreadPoolExecutor(max_workers=min(6, max(1, len(group)))) as pool:
+            futures = [pool.submit(discover_bdjobs_category, cid, cfg) for cid, cfg in group]
+            for future in as_completed(futures):
+                try:
+                    items = future.result()
+                except Exception as exc:
+                    logger.warning("Bdjobs category worker failed: %s", exc)
+                    items = []
+                for item in items:
+                    canonical = item.get("canonical") or canonical_url(item.get("url", ""))
+                    if not canonical or canonical in seen or canonical in POSTED_URLS:
+                        continue
+                    seen.add(canonical)
+                    all_items.append(item)
+                    if len(all_items) >= PRIVATE_DISCOVERY_MAX:
+                        break
+                if len(all_items) >= PRIVATE_DISCOVERY_MAX:
+                    break
+        if len(all_items) >= PRIVATE_DISCOVERY_MAX:
+            break
+    logger.info("BDJOBS CATEGORY-FIRST | raw=%d target=%d max=%d | categories=%d", len(all_items), PRIVATE_DISCOVERY_TARGET, PRIVATE_DISCOVERY_MAX, len(BDBJOBS_CATEGORIES))
+    return all_items[:PRIVATE_DISCOVERY_MAX]
+
+def _teletalk_record_fields(record):
+    if not isinstance(record, dict):
+        return None
+    source_id = safe_text(record.get("job_primary_id") or record.get("jobPrimaryId") or record.get("id"))
+    title = _clean_one_line(record.get("job_title") or record.get("jobTitle") or record.get("title"))
+    if not source_id or not title:
+        return None
+    company = _clean_one_line(record.get("org_name") or record.get("orgName") or record.get("organization") or record.get("company"))
+    vacancy = compact_vacancy(record.get("vacancy"))
+    deadline = normalize_date_text(record.get("deadline_date") or record.get("deadlineDate") or record.get("deadline"))
+    posted = normalize_date_text(record.get("published_date") or record.get("publish_date") or record.get("posted_date") or record.get("postedDate"))
+    apply_url = safe_text(record.get("application_site_url") or record.get("applicationSiteUrl") or record.get("apply_url") or record.get("applyUrl"))
+    education = _strip_html_fragment(record.get("education") or record.get("education_qualification") or "")
+    location = _clean_one_line(record.get("location") or record.get("job_location") or "")
+    employment = compact_employment(record.get("employment_type") or record.get("job_type") or record.get("jobType"))
+    source_url = f"https://alljobs.teletalk.com.bd/?job_primary_id={quote(source_id)}"
+    return {
+        "title": title, "company": company, "location": location, "salary": "", "experience": "",
+        "education": compact_education(education), "vacancy": vacancy, "employment_type": employment,
+        "workplace": "", "age": "", "category": "", "application_method": "Online" if apply_url else "",
+        "selection_process": "", "application_period": "", "application_start": "", "application_end": "",
+        "posted_date": posted, "deadline": deadline, "source": "Teletalk", "source_url": source_url,
+        "url": source_url, "apply_url": apply_url, "source_job_id": source_id,
+        "discovery": "teletalk_api", "is_government": True,
+        "raw_text": " | ".join(x for x in [title, company, location, education] if x),
+    }
+
+def _teletalk_records(payload):
+    if not isinstance(payload, dict): return []
+    for key in ("govtJobs", "data", "jobs", "results"):
+        if isinstance(payload.get(key), list): return payload[key]
+    return []
+
+def _discover_teletalk_api():
+    discovered, seen = [], set()
+    try:
+        response = session.get(TELETALK_API_URL, params={"searchKeyword": ""}, headers=HEADERS, timeout=TELETALK_API_TIMEOUT)
+        response.raise_for_status(); payload = response.json()
+        for record in _teletalk_records(payload):
+            fields = _teletalk_record_fields(record)
+            if not fields: continue
+            canonical = canonical_url(fields["source_url"])
+            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
+            seen.add(canonical)
+            discovered.append({
+                "title": fields["title"], "url": fields["url"], "canonical": canonical, "source": "Teletalk",
+                "source_url": fields["source_url"], "source_job_id": fields["source_job_id"], "discovery": "teletalk_api",
+                "excerpt": trim_source_text(fields["raw_text"], 1800), "listing_posted": fields["posted_date"],
+                "listing_deadline": fields["deadline"], "discovered_at": now_iso(), "api_fields": fields, "is_government": True,
+            })
+            if len(discovered) >= GOVERNMENT_DISCOVERY_TARGET: break
+        logger.info("TELETALK API DISCOVERY: %d", len(discovered))
+    except Exception as exc:
+        logger.warning("Teletalk API discovery failed: %s", exc)
     return discovered
 
-
 def discover_all():
-    dohaj = discover_dohaj()
-    bdjobs = discover_bdjobs()
-    all_items = []
-    seen = set()
-    for item in dohaj + bdjobs:
-        canonical = item["canonical"]
-        if canonical in seen:
-            continue
-        seen.add(canonical)
-        all_items.append(item)
-    logger.info("DISCOVERED | Dohaj=%d | Bdjobs=%d | merged=%d", len(dohaj), len(bdjobs), len(all_items))
-    return all_items
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        ft = pool.submit(_discover_teletalk_api)
+        fb = pool.submit(discover_bdjobs)
+        try: government = ft.result()
+        except Exception as exc: logger.warning("Teletalk worker failed: %s", exc); government = []
+        try: bdjobs = fb.result()
+        except Exception as exc: logger.warning("Bdjobs worker failed: %s", exc); bdjobs = []
+    merged, seen = [], set()
+    for item in government + bdjobs:
+        canonical = item.get("canonical") or canonical_url(item.get("source_url", ""))
+        if canonical and canonical not in seen:
+            seen.add(canonical); merged.append(item)
+    logger.info("DISCOVERED | Teletalk=%d | Bdjobs=%d | merged=%d", len(government), len(bdjobs), len(merged))
+    return merged
 
 
 # ============================================================
@@ -748,6 +815,18 @@ def _text_from_html(page_html):
         bad.decompose()
     text = soup.get_text("\n", strip=True)
     return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def _strip_html_fragment(value):
+    """Bdjobs API text fields (eduRec/jobContext/jobDescription) carry inline
+    HTML rather than plain text. Strip tags without touching non-HTML values."""
+    raw = safe_text(value)
+    if not raw or "<" not in raw:
+        return raw
+    try:
+        return _clean_one_line(BeautifulSoup(raw, "html.parser").get_text(" ", strip=True))
+    except Exception:
+        return _clean_one_line(re.sub(r"<[^>]+>", " ", raw))
 
 
 def _jsonld_objects(page_html):
@@ -827,10 +906,8 @@ def extract_apply_url(page_html, page_url, source):
         if score < 70:
             continue
         target = safe_text(link["url"])
-        if source == "Dohaj" and is_domain_allowed(target, [DOHAJ_DOMAIN]):
-            # Dohaj itself is the details/source layer, not the original third-party application.
-            continue
-        return target
+        if target and target != page_url:
+            return target
     return ""
 
 
@@ -937,7 +1014,7 @@ def compact_experience(value, raw_text=""):
     # Only publish actual experience duration/fresher status. Never transform
     # technical skills, responsibilities or "area of experience" into a fake duration.
     blob = _clean_one_line(value)
-    # Dohaj sometimes renders the Experience label/value as a separate summary block.
+    # source sometimes renders the Experience label/value as a separate summary block.
     # If the first label extraction missed it, recover only the label-specific value.
     if not blob and raw_text:
         recovered = _label_value(raw_text, [
@@ -1347,7 +1424,9 @@ def translate_government_jobs(jobs):
         return jobs
     source_snapshots=[]
     for job in gov:
-        job["source"]="Dohaj"
+        # Preserve the authoritative source identity. Government jobs are now
+        # sourced directly from Teletalk, so translation must never relabel them.
+        job["source"] = job.get("source") or "Teletalk"
         if not job.get("company"):
             job["company"]=infer_government_organization(job.get("title","")) or "Government Organization"
         source_fields={k:safe_text(job.get(k,"")) for k in ("title","company","location","salary","experience","education","employment_type","workplace","age","vacancy","application_method","selection_process","category")}
@@ -1408,8 +1487,8 @@ def _html_h1(page_html):
         return ""
 
 
-def _dohaj_summary_lines(text):
-    """Return the most likely Dohaj Job Summary block, not an arbitrary page section."""
+def _summary_lines(text):
+    """Return the most likely source Job Summary block, not an arbitrary page section."""
     lines = [re.sub(r"\s+", " ", x).strip() for x in safe_text(text).splitlines() if safe_text(x)]
     start_indexes = [i for i, line in enumerate(lines)
                      if line.lower() in {"job summary", "চাকরির সারসংক্ষেপ"}]
@@ -1441,14 +1520,14 @@ def _dohaj_summary_lines(text):
         candidates.append((score, len(out), start_idx, out))
 
     # Prefer the block with the strongest concentration of actual summary labels.
-    # Break ties toward the later block, matching current Dohaj page structure.
+    # Break ties toward the later block, matching current source page structure.
     candidates.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
     return candidates[0][3] if candidates else lines
 
 
-def _dohaj_summary_value(text, labels):
+def _summary_value(text, labels):
     wanted = {re.sub(r"\s+", " ", safe_text(x).lower().rstrip(":-")).strip() for x in labels}
-    lines = _dohaj_summary_lines(text)
+    lines = _summary_lines(text)
     for i, line in enumerate(lines):
         norm = _normalized_line_label(line)
         if norm in wanted and i + 1 < len(lines):
@@ -1492,7 +1571,7 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     hiring = jsonld.get("hiringOrganization")
     if isinstance(hiring, dict):
         company = safe_text(hiring.get("name"))
-    company = (company or _dohaj_summary_value(text, [
+    company = (company or _summary_value(text, [
         "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম",
         "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম", "Company Name", "Company",
         "Organization Name", "Employer", "Department", "Ministry", "Office", "Directorate",
@@ -1504,21 +1583,21 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "কার্যালয়ের নাম", "কার্যালয়ের নাম"
     ]))
 
-    location = _dohaj_summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান"])
-    salary = _dohaj_summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
-    age = _dohaj_summary_value(text, ["বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়সসীমা", "বয়সসীমা"])
-    employment = _dohaj_summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
-    published = _dohaj_summary_value(text, ["প্রকাশিত", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত"])
-    deadline = _dohaj_summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
+    location = _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান"])
+    salary = _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
+    age = _summary_value(text, ["বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"]) or _label_value(text, ["Age", "Age Limit", "Age Requirements", "বয়সসীমা", "বয়সসীমা"])
+    employment = _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
+    published = _summary_value(text, ["প্রকাশিত", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত"])
+    deadline = _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
 
     # Detail-section fields. Use the same source text as a fallback because some
-    # Dohaj templates expose the value outside the Job Summary card.
-    experience = _dohaj_summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
-    education = _dohaj_summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
-    vacancy = _dohaj_summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"])
+    # source templates expose the value outside the Job Summary card.
+    experience = _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
+    education = _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
+    vacancy = _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
-    workplace = _dohaj_summary_value(text, ["Job Work Place", "Workplace", "Work Place"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
+    workplace = _summary_value(text, ["Job Work Place", "Workplace", "Work Place"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place"])
     category = _label_value(text, ["Category", "Job Category"])
     application_method = _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
@@ -1621,286 +1700,261 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "application_end": application_end,
         "posted_date": published_iso,
         "deadline": deadline_iso,
-        "source": "Dohaj" if is_domain_allowed(source_url, [DOHAJ_DOMAIN]) else source_name(source_url),
+        "source": source_name(source_url),
         "source_url": source_url,
         "url": source_url,
         "discovery": discovery_item.get("discovery", ""),
-        "dohaj_category": discovery_item.get("dohaj_category", ""),
+        "source_category_name": discovery_item.get("category_name", ""),
         "is_government": is_gov,
     }
 
 
 def request_safe_url(url):
-    """Percent-encode Unicode URL paths so requests can fetch Dohaj Bengali slugs safely."""
-    raw=safe_text(url)
-    parsed=urlparse(raw)
+    raw = safe_text(url)
+    parsed = urlparse(raw)
     if not parsed.scheme or not parsed.netloc:
         return raw
-    path=quote(unquote(parsed.path or "/"), safe="/:@-._~!$&'()*+,;=%")
+    path = quote(unquote(parsed.path or "/"), safe="/:@-._~!$&'()*+,;=%")
     return parsed._replace(path=path).geturl()
 
+def _extract_apply_url_from_text(text, page_url):
+    candidates = []
+    for value in re.findall(r"https?://[^\s<>\]\[\)\"']+", safe_text(text)):
+        candidates.append(value.rstrip(".,;"))
+    source_domain = normalized_domain(page_url)
+    scored = []
+    for candidate in candidates:
+        score = _apply_link_score({"url": candidate, "text": candidate}, source_domain)
+        if score >= 35:
+            scored.append((score, candidate))
+    return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def retrieve_job_content(item):
-    url=request_safe_url(item["url"])
-    try:
-        response=session.get(url,headers=HEADERS,timeout=FAST_DETAIL_TIMEOUT,allow_redirects=True)
-        response.raise_for_status()
-        page_html=response.text
-
-        # Dohaj keeps a large portion of the authoritative Job Summary in a page
-        # block that high-precision article extraction can omit. For source-backed
-        # structured fields, always use the full visible HTML text first.
-        full_text = _text_from_html(page_html)
-        article_text = trafilatura.extract(
-            page_html,
-            include_comments=False,
-            include_tables=True,
-            favor_precision=True,
-        ) if trafilatura else None
-
-        if is_domain_allowed(response.url, [DOHAJ_DOMAIN]):
-            raw_text = full_text
-        else:
-            raw_text = article_text or full_text
-
-        if not raw_text or len(raw_text) < 250:
-            return None
-
-        # Add article text only when it contributes content missing from the full page
-        # extraction. This preserves responsibilities/details without losing the summary.
-        if article_text and len(article_text) > len(raw_text) * 0.35 and article_text not in raw_text:
-            raw_text = raw_text + "\n" + article_text
-
-        return {
-            "text": raw_text[:MAX_JOB_CONTENT_CHARS],
-            "html": page_html,
-            "final_url": response.url,
-            "apply_url": extract_apply_url(page_html, response.url, item.get("source", "")),
-            "backend": "direct_http",
-        }
-    except Exception as exc:
-        logger.warning("DETAIL retrieval failed %s: %s",url,exc)
+    url = request_safe_url(item["url"])
+    fetched = _fetch_source_document(url, timeout=DETAIL_TIMEOUT, referer=BDJOBS_LISTING_URL)
+    if not fetched:
+        logger.warning("DETAIL retrieval failed %s", url)
         return None
+    backend = fetched.get("backend", "")
+    page_html = fetched.get("text", "") if backend.startswith("curl_cffi") else ""
+    full_text = _text_from_html(page_html) if page_html else safe_text(fetched.get("text", ""))
+    article_text = None
+    if page_html and trafilatura:
+        try:
+            article_text = trafilatura.extract(page_html, include_comments=False, include_tables=True, favor_precision=True)
+        except Exception:
+            article_text = None
+    raw_text = full_text or article_text or safe_text(fetched.get("text", ""))
+    if article_text and len(article_text) > len(raw_text) * 0.35 and article_text not in raw_text:
+        raw_text += "\n" + article_text
+    if not raw_text or len(raw_text) < 180:
+        return None
+    apply_url = extract_apply_url(page_html, fetched.get("url") or url, item.get("source", "Bdjobs")) if page_html else ""
+    if not apply_url:
+        apply_url = _extract_apply_url_from_text(raw_text, fetched.get("url") or url)
+    return {
+        "text": raw_text[:MAX_JOB_CONTENT_CHARS], "html": page_html,
+        "final_url": fetched.get("url") or url, "apply_url": apply_url,
+        "backend": backend, "cloudflare": bool(fetched.get("cloudflare")),
+    }
 
+def _research_teletalk_job(item):
+    fields = dict(item.get("api_fields") or {})
+    fields.update({
+        "canonical": item.get("canonical", canonical_url(item.get("source_url", ""))),
+        "source": "Teletalk", "source_url": item.get("source_url", fields.get("source_url", "")),
+        "apply_url": fields.get("apply_url", item.get("apply_url", "")),
+        "retrieval_backend": "teletalk_api", "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""), "is_government": True,
+        "source_job_id": fields.get("source_job_id", item.get("source_job_id", "")),
+    })
+    fields["application_method"] = compact_application(fields.get("application_method", ""), fields.get("apply_url", ""))
+    fields["audience_pre_score"] = job_family_score(fields.get("title", ""), fields.get("raw_text", ""))
+    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
+    fields["event_id"] = job_event_key(fields)
+    return fields
 
 def research_job(item):
-    # Retrieve the authoritative source page directly.
-    # blocked/thin pages; it is never the primary Bdjobs discovery layer.
+    if item.get("source") == "Teletalk" and item.get("api_fields"):
+        return _research_teletalk_job(item)
     retrieved = retrieve_job_content(item)
     if not retrieved:
         return None
     fields = extract_job_fields(retrieved["text"], retrieved.get("html", ""), item["url"], item)
     apply_url = retrieved.get("apply_url", "")
-    if not apply_url and fields["application_method"]:
-        urls = re.findall(r"https?://[^\s<>]+", fields["application_method"])
-        for candidate in urls:
-            if item.get("source") != "Dohaj" or not is_domain_allowed(candidate, [DOHAJ_DOMAIN]):
-                apply_url = candidate.rstrip(".,)")
-                break
+    if not apply_url and fields.get("application_method"):
+        apply_url = _extract_apply_url_from_text(fields["application_method"], item["url"])
     fields.update({
-        "canonical": item["canonical"], "apply_url": apply_url,
-        "retrieval_backend": retrieved.get("backend", ""),
-        "raw_text": retrieved["text"],
-        "listing_posted": item.get("listing_posted", ""),
-        "listing_deadline": item.get("listing_deadline", ""),
-        "is_government": bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower(),
+        "canonical": item["canonical"], "apply_url": apply_url, "retrieval_backend": retrieved.get("backend", ""),
+        "raw_text": retrieved["text"], "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""), "source_job_id": item.get("source_job_id", ""),
+        "source_category_id": item.get("category_id", ""), "source_category_name": item.get("category_name", ""),
+        "is_government": bool(item.get("is_government")),
     })
     if not fields.get("posted_date") and item.get("listing_posted"):
-        fields["posted_date"] = item.get("listing_posted")
+        fields["posted_date"] = item["listing_posted"]
     if not fields.get("deadline") and item.get("listing_deadline"):
-        fields["deadline"] = item.get("listing_deadline")
-    fields["source"] = "Dohaj" if is_domain_allowed(item["url"], [DOHAJ_DOMAIN]) else source_name(item["url"])
-    fields["title"] = fields["title"] or item.get("title", "")
-    fields["company"] = fields["company"] or item.get("company", "")
+        fields["deadline"] = item["listing_deadline"]
+    fields["source"] = item.get("source") or source_name(item.get("url", ""))
+    fields["title"] = fields.get("title") or item.get("title", "")
+    fields["company"] = fields.get("company") or item.get("company", "")
     fields["application_method"] = compact_application(fields.get("application_method", ""), apply_url)
-    fields["audience_pre_score"] = job_family_score(fields["title"], retrieved["text"][:9000])
+    fields["audience_pre_score"] = job_family_score(fields.get("title", ""), retrieved["text"][:9000])
     fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
     fields["event_id"] = job_event_key(fields)
     return fields
 
 
 # ============================================================
-# FRESHNESS / DEADLINE
+# FRESHNESS / DEADLINE / RANKING
 # ============================================================
-
-DISCOVERY_END = datetime.now(BD_TZ) + timedelta(minutes=FUTURE_TOLERANCE_MINUTES)
-DISCOVERY_START = datetime.now(BD_TZ) - timedelta(days=DISCOVERY_LOOKBACK_DAYS)
-
 
 def deadline_status(job):
     raw = safe_text(job.get("deadline"))
-    if not raw:
-        return "unknown"
+    if not raw: return "unknown"
     dt = parse_datetime(raw)
-    if not dt:
-        try:
-            dt = datetime.fromisoformat(raw).replace(tzinfo=BD_TZ)
-        except Exception:
-            return "unknown"
+    if not dt: return "unknown"
     return "expired" if dt < datetime.now(BD_TZ) else "active"
 
+def posted_age_days(job):
+    dt = parse_datetime(job.get("posted_date") or job.get("listing_posted"))
+    if not dt: return None
+    return max(0.0, (datetime.now(BD_TZ)-dt).total_seconds()/86400)
 
 def posted_freshness_score(job):
-    dt = parse_datetime(job.get("posted_date"))
-    if not dt:
-        return 8
-    age_hours = max(0, (datetime.now(BD_TZ)-dt).total_seconds()/3600)
-    if age_hours <= 24: return 24
-    if age_hours <= 72: return 20
-    if age_hours <= 120: return 16
-    if age_hours <= 168: return 12
-    if age_hours <= 336: return 7
-    return 2
-
+    age = posted_age_days(job)
+    if age is None: return 5
+    if age <= 1: return 15
+    if age <= 2: return 13
+    if age <= 3: return 11
+    if age <= 5: return 9
+    return 0
 
 def education_priority_score(job):
     blob = f"{job.get('education','')} {job.get('raw_text','')}".lower()
-    exact = 0
-    if re.search(r"\bbba\b|bachelor\s+of\s+business\s+administration|business\s+administration", blob):
-        exact += 1
-    if re.search(r"\bmba\b|master\s+of\s+business\s+administration", blob):
-        exact += 1
-    if exact >= 2: return 35
-    if exact == 1: return 32
-    if any(x in blob for x in ("bbs", "mbs", "business studies", "commerce")): return 29
-    if any(x in blob for x in ("bachelor", "bsc", "b.com", "honours", "honors", "graduate")): return 21
-    if any(x in blob for x in ("master", "degree")): return 18
-    return 10
-
-
-def _experience_years(value):
-    blob=_clean_one_line(value).lower()
-    if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level")):
-        return 0
-    m=re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob)
-    if m: return int(m.group(1))
-    m=re.search(r"(\d+)\+\s*years?", blob)
-    if m: return int(m.group(1))
-    m=re.search(r"(\d+)\s*years?", blob)
-    if m: return int(m.group(1))
-    return None
-
-
-def experience_priority_score(job):
-    exp=safe_text(job.get("experience"))
-    if not exp:
-        # Missing/unspecified experience is still useful to an early-career audience.
-        # Keep it just below explicit fresher roles and above roles demanding 3+ years.
-        return 29
-    years=_experience_years(exp)
-    if years == 0: return 30
-    if years is None: return 29
-    if years <= 1: return 28
-    if years <= 2: return 26
-    if years <= 3: return 23
-    if years <= 5: return 18
-    if years <= 7: return 11
+    has_bba = bool(re.search(r"\bbba\b|bachelor\s+of\s+business\s+administration|business\s+administration", blob))
+    has_mba = bool(re.search(r"\bmba\b|master\s+of\s+business\s+administration", blob))
+    if has_bba and has_mba: return 25
+    if has_bba or has_mba: return 24
+    if any(x in blob for x in ("bbs", "mbs", "business studies", "commerce", "management degree")): return 21
+    if any(x in blob for x in ("bachelor", "honours", "honors", "graduate", "degree")): return 17
+    if "master" in blob: return 15
     return 5
 
+def experience_upper_bound(value):
+    blob = _clean_one_line(value).lower()
+    if not blob: return None
+    if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level", "intern")): return 0
+    m = re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob)
+    if m: return int(m.group(2))
+    m = re.search(r"(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than)\s*(\d+)\s*years?", blob)
+    if m: return int(m.group(1))
+    m = re.search(r"(\d+)\s*\+\s*years?", blob)
+    if m: return int(m.group(1))
+    m = re.search(r"(\d+)\s*years?", blob)
+    return int(m.group(1)) if m else None
+
+def _experience_years(value):
+    blob = _clean_one_line(value).lower()
+    if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level", "intern")): return 0
+    m = re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob)
+    if m: return int(m.group(1))
+    upper = experience_upper_bound(value)
+    return upper
+
+def experience_priority_score(job):
+    years = _experience_years(job.get("experience", ""))
+    if years is None: return 10
+    if years <= 0: return 15
+    if years <= 1: return 14
+    if years <= 2: return 12
+    if years <= 3: return 10
+    if years <= 5: return 7
+    if years <= 7: return 4
+    return 1
 
 def deadline_urgency_score(job):
-    dt=parse_datetime(job.get("deadline"))
-    if not dt:
-        return 1
-    days=(dt-datetime.now(BD_TZ)).total_seconds()/86400
-    if days < 0: return -20
-    if days <= 1: return 12
-    if days <= 3: return 10
+    dt = parse_datetime(job.get("deadline"))
+    if not dt: return 2
+    days = (dt-datetime.now(BD_TZ)).total_seconds()/86400
+    if days < 0: return 0
+    if days <= 1: return 10
+    if days <= 3: return 9
     if days <= 7: return 8
     if days <= 14: return 6
-    return 3
+    if days <= 30: return 4
+    return 2
 
+def salary_attractiveness_score(job):
+    text = safe_text(job.get("salary", "")).lower()
+    nums = [int(x.replace(",", "")) for x in re.findall(r"\b\d{2,6}(?:,\d{3})?\b", text)]
+    nums = [x for x in nums if 1000 <= x <= 2000000]
+    if len(nums) >= 2:
+        midpoint = (nums[0]+nums[1])/2
+        return 5 if midpoint >= 60000 else 4 if midpoint >= 45000 else 3 if midpoint >= 30000 else 2
+    if nums:
+        return 5 if nums[0] >= 50000 else 4 if nums[0] >= 30000 else 3 if nums[0] >= 20000 else 2
+    return 1 if any(x in text for x in ("competitive", "negotiable")) else 0
+
+def vacancy_score(job):
+    m = re.search(r"\d+", safe_text(job.get("vacancy", "")).replace(",", ""))
+    if not m: return 0
+    n = int(m.group(0))
+    return 5 if n >= 10 else 4 if n >= 5 else 3 if n >= 2 else 1
+
+def information_quality_score(job):
+    fields = ("company", "education", "experience", "salary", "vacancy", "deadline", "location", "apply_url")
+    return min(5, round(sum(1 for k in fields if safe_text(job.get(k)))*5/len(fields)))
+
+def role_fit_score(job):
+    title = safe_text(job.get("title", "")).lower()
+    raw = f"{title} {safe_text(job.get('raw_text',''))}".lower()
+    title_hits = sum(1 for t in TARGET_FUNCTION_TERMS if t in title)
+    any_hits = sum(1 for t in TARGET_FUNCTION_TERMS if t in raw)
+    score = min(20, title_hits*6 + min(8, any_hits*2))
+    if any(t in title for t in NON_BUSINESS_ROLE_TERMS): return 0
+    return score
 
 def job_quality_score(job):
-    score=0
-    if job.get("title"): score+=1
-    if job.get("company"): score+=1
-    if job.get("location"): score+=1
-    if job.get("education"): score+=1
-    if job.get("experience"): score+=1
-    if job.get("salary"): score+=1
-    if job.get("deadline"): score+=1
-    if job.get("posted_date"): score+=1
-    if job.get("apply_url") or job.get("source_url"): score+=1
-    if job.get("application_method"): score+=1
-    return min(10, score)
-
-
-def private_rank_score(job):
-    education=education_priority_score(job)
-    experience=experience_priority_score(job)
-    freshness=posted_freshness_score(job)
-    deadline=max(0, min(12, deadline_urgency_score(job)))
-    quality=job_quality_score(job)
-    ai=min(5, max(0, int(job.get("judge_score", 0))/20))
-    role=int(job.get("role_fit", 0))
-    # Education is deliberately the largest factor, followed by experience level,
-    # then freshness/deadline/quality. This matches the stated audience priority.
-    return round(education + experience + freshness + deadline + quality + min(5, role/20) + ai, 3)
-
-
-def government_rank_score(job):
-    freshness=posted_freshness_score(job)
-    deadline=max(0, min(12, deadline_urgency_score(job)))
-    quality=job_quality_score(job)
-    return round(freshness + deadline + quality, 3)
-
-
-def experience_upper_bound(value):
-    """Return the strictest numeric upper bound represented by an experience field."""
-    blob=_clean_one_line(value).lower()
-    if not blob:
-        return None
-    if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level")):
-        return 0
-
-    m=re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob, flags=re.I)
-    if m:
-        return int(m.group(2))
-
-    m=re.search(r"(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than)\s*(\d+)\s*years?", blob, flags=re.I)
-    if m:
-        return int(m.group(1))
-
-    m=re.search(r"(\d+)\s*\+\s*years?", blob, flags=re.I)
-    if m:
-        return int(m.group(1))
-
-    m=re.search(r"(\d+)\s*years?", blob, flags=re.I)
-    if m:
-        return int(m.group(1))
-    return None
+    return information_quality_score(job)
 
 def private_experience_too_high(job):
-    """Hard gate any private role whose explicit experience band exceeds the early-career cap."""
-    upper=experience_upper_bound(job.get("experience",""))
+    upper = experience_upper_bound(job.get("experience", ""))
     return upper is not None and upper > MAX_PRIVATE_EXPERIENCE_YEARS
 
 def deterministic_job_gate(job):
-    if not job.get("title"):
-        return False, "missing_title"
-    if is_noise_title(job["title"], job.get("source_url", "")):
-        return False, "noise_title"
-    # Government jobs have no BBA/MBA suitability filter. Do not reject a circular
-    # merely because a company/employer field is absent or a date could not be parsed.
+    if not job.get("title"): return False, "missing_title"
+    if is_noise_title(job["title"], job.get("source_url", "")): return False, "noise_title"
     if job.get("is_government"):
-        if not is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN]):
-            return False, "government_source_not_dohaj"
+        if job.get("source") != "Teletalk" or not is_teletalk_url(job.get("source_url", "")): return False, "government_source_not_allowed"
+        if deadline_status(job) == "expired": return False, "expired"
         return True, "ok_government"
-    if not job.get("company"):
-        return False, "missing_company"
-    if deadline_status(job) == "expired":
-        return False, "expired"
-    if not (is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS) or is_domain_allowed(job.get("source_url", ""), [DOHAJ_DOMAIN])):
-        return False, "source_not_allowed"
-    if private_experience_too_high(job):
-        return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
-    target_score=bba_mba_candidate_score(job)
-    job["bba_mba_target_score"]=target_score
-    if target_score < 25:
-        return False, "not_bba_mba_business_candidate_relevant"
+    if not job.get("company"): return False, "missing_company"
+    if not is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS): return False, "source_not_allowed"
+    if deadline_status(job) == "expired": return False, "expired"
+    age = posted_age_days(job)
+    if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
+    if private_experience_too_high(job): return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
+    score = bba_mba_candidate_score(job)
+    job["bba_mba_target_score"] = score
+    if score < 25: return False, "not_bba_mba_business_candidate_relevant"
     return True, "ok_bba_mba_target"
 
+def private_rank_score(job):
+    components = {
+        "education": min(25, education_priority_score(job)),
+        "role": min(20, role_fit_score(job)),
+        "career_stage": min(15, experience_priority_score(job)),
+        "freshness": min(15, posted_freshness_score(job)),
+        "deadline": min(10, deadline_urgency_score(job)),
+        "salary": min(5, salary_attractiveness_score(job)),
+        "vacancy": min(5, vacancy_score(job)),
+        "information": min(5, information_quality_score(job)),
+    }
+    return round(sum(components.values()), 3), components
+
+def government_rank_score(job):
+    return round(min(35, posted_freshness_score(job)*(35/15)) + min(30, deadline_urgency_score(job)*3) + min(15, vacancy_score(job)*3) + min(20, information_quality_score(job)*4), 3)
 
 # ============================================================
 # CEREBRAS EDITORIAL JUDGE
@@ -1934,122 +1988,81 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the final editorial judge for @CareerNewsroom.
-
+You are the semantic audit layer for Career News V1.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
-
-Judge EACH job independently using only the supplied source-backed facts. Do not invent missing information.
-For PRIVATE jobs, publish only when the role is meaningfully suitable for a BBA/MBA/business candidate.
-For GOVERNMENT jobs from Dohaj's government section, allow publication when the vacancy is genuine,
-active/current enough to be useful, and located in Bangladesh. Government posts are a mandatory coverage stream.
-
-Strong private-job signals:
-- BBA, MBA, BBS, MBS, business administration, business studies, commerce
-- finance/accounting/audit/tax, banking, relationship/credit
-- marketing/sales/brand/business development
-- HR/recruitment
-- management/admin/commercial
-- supply chain/procurement/operations
-- analyst/customer/client service/front desk/receptionist/business coordination
-- management trainee, graduate trainee, internship, fresher, early-career
-
-Do not treat the mere word "MBA" inside a senior specialist requirement as enough.
-Do not publish clearly technical/medical/engineering/teaching roles for the private audience unless the
-source clearly states a business/management track suitable for BBA/MBA candidates.
-
-Output score meanings are only for filtering, not for public presentation:
-- 80-100 strong direct fit
-- 60-79 acceptable target fit
-- below 60 generally reject private jobs
-Government jobs can be published based on genuine government coverage even if their explicit degree fit is not stated.
-
+Use only supplied source-backed facts. Never invent missing fields.
+For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
+For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
 Return every input candidate.
 """
 
-
 def judge_batch(batch, batch_no):
-    if not get_cerebras():
-        logger.info("CEREBRAS unavailable; deterministic ranking only")
+    if not get_cerebras() or not batch:
         return []
-    payload_parts = []
-    for idx, job in enumerate(batch, start=1):
-        payload_parts.append("\n".join([
-            f"ID: {idx}",
-            f"Source: {job.get('source','')}",
-            f"Title: {job.get('title','')}",
-            f"Company: {job.get('company','')}",
-            f"Category: {job.get('category','')}",
-            f"Location: {job.get('location','')}",
-            f"Employment: {job.get('employment_type','')}",
-            f"Education: {trim_source_text(job.get('education',''), 180)}",
-            f"Experience: {trim_source_text(job.get('experience',''), 120)}",
-            f"Salary: {trim_source_text(job.get('salary',''), 100)}",
-            f"Vacancy: {job.get('vacancy','')}",
-            f"Posted: {job.get('posted_date','')}",
-            f"Deadline: {job.get('deadline','')}",
-            f"Workplace: {job.get('workplace','')}",
-            f"Business relevance pre-score: {job.get('audience_pre_score',0)}",
-            f"Listing evidence: {trim_source_text(job.get('raw_text',''), 650)}",
-            "",
+    payload = []
+    for idx, job in enumerate(batch, 1):
+        payload.append("\n".join([
+            f"ID: {idx}", f"Source: {job.get('source','')}", f"Title: {job.get('title','')}",
+            f"Company: {job.get('company','')}", f"Source category: {job.get('source_category_name','')}",
+            f"Career category: {job.get('career_category','')}", f"Education: {trim_source_text(job.get('education',''),220)}",
+            f"Experience: {trim_source_text(job.get('experience',''),140)}", f"Salary: {trim_source_text(job.get('salary',''),120)}",
+            f"Vacancy: {job.get('vacancy','')}", f"Posted: {job.get('posted_date','')}", f"Deadline: {job.get('deadline','')}",
+            f"Location: {job.get('location','')}", f"Workplace: {job.get('workplace','')}",
+            f"Responsibilities/description: {trim_source_text(job.get('raw_text',''),1000)}"
         ]))
     try:
         response = get_cerebras().chat.completions.create(
             model=CEREBRAS_MODEL,
-            messages=[
-                {"role": "system", "content": _judge_prompt()},
-                {"role": "user", "content": "\n".join(payload_parts)},
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": f"career_job_judgment_{batch_no}",
-                    "strict": True,
-                    "schema": JUDGE_SCHEMA,
-                },
-            },
-            reasoning_effort="low",
-            temperature=0.0,
-            max_completion_tokens=2000,
+            messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":"\n\n".join(payload)}],
+            response_format={"type":"json_schema","json_schema":{"name":f"career_job_audit_{batch_no}","strict":True,"schema":JUDGE_SCHEMA}},
+            temperature=0.0, max_completion_tokens=3200,
         )
         return json.loads(safe_text(response.choices[0].message.content)).get("results", [])
     except Exception as exc:
-        logger.error("CEREBRAS judge batch %d failed: %s", batch_no, exc)
+        logger.error("CEREBRAS audit batch %d failed: %s", batch_no, exc)
         return []
 
-
 def rank_jobs(jobs):
-    """Deterministic ranking first, with one optional compact Cerebras review."""
     if not jobs: return []
-    pre_ranked=sorted(jobs,key=lambda j:(-education_priority_score(j),-experience_priority_score(j),-posted_freshness_score(j),-deadline_urgency_score(j),-job_quality_score(j),j.get("canonical","")))
-    ai_candidates=pre_ranked[:FAST_AI_CANDIDATE_LIMIT]
-    judged_by_key={}
-    if get_cerebras() and ai_candidates:
-        logger.info("CEREBRAS SINGLE REVIEW | %d jobs",len(ai_candidates))
-        for row in judge_batch(ai_candidates,1):
-            try: idx=int(row.get("id"))
-            except Exception: continue
-            if 1<=idx<=len(ai_candidates): judged_by_key[ai_candidates[idx-1].get("canonical")]=row
-    ranked=[]
-    for job in pre_ranked:
-        # Defense-in-depth: experience can be enriched after the first gate.
-        if private_experience_too_high(job):
-            logger.info("DROP rank gate: experience_above_%d_years | %s", MAX_PRIVATE_EXPERIENCE_YEARS, job.get("title",""))
-            continue
-        row=judged_by_key.get(job.get("canonical"),{})
-        candidate=dict(job)
+    pre = []
+    for job in jobs:
+        if private_experience_too_high(job): continue
+        score, components = private_rank_score(job)
+        candidate = dict(job)
+        candidate["deterministic_score"] = score
+        candidate["deterministic_components"] = components
+        candidate["career_category"] = candidate.get("career_category") or _career_family(candidate)
+        pre.append(candidate)
+    pre.sort(key=lambda j:(-j["deterministic_score"], -role_fit_score(j), -posted_freshness_score(j), j.get("canonical","")))
+    ai_candidates = pre[:min(AI_REVIEW_TARGET, len(pre))]
+    judged = {}
+    for row in judge_batch(ai_candidates, 1):
+        try: idx = int(row.get("id"))
+        except Exception: continue
+        if 1 <= idx <= len(ai_candidates): judged[ai_candidates[idx-1].get("canonical")] = row
+    ranked = []
+    for job in pre:
+        row = judged.get(job.get("canonical"), {})
+        ai_available = bool(row)
+        ai_score = max(0, min(100, int(row.get("score", 0)))) if ai_available else None
+        candidate = dict(job)
         candidate.update({
-            "judge_publish":bool(row.get("publish",True)),
-            "judge_score":int(row.get("score",70 if not row else 0)),
-            "bba_mba_fit":int(row.get("bba_mba_fit",candidate.get("bba_mba_target_score",0))),
-            "early_career_fit":int(row.get("early_career_fit",experience_priority_score(candidate)*3)),
-            "role_fit":int(row.get("role_fit",candidate.get("audience_pre_score",0))),
-            "judge_reason":safe_text(row.get("reason","Deterministic source-first ranking.")),
+            "ai_score": ai_score if ai_available else None,
+            "judge_publish": bool(row.get("publish", True)) if ai_available else True,
+            "bba_mba_fit": int(row.get("bba_mba_fit", min(100, education_priority_score(job)*4))) if ai_available else None,
+            "early_career_fit": int(row.get("early_career_fit", min(100, experience_priority_score(job)*6))) if ai_available else None,
+            "role_fit": int(row.get("role_fit", min(100, role_fit_score(job)*5))) if ai_available else None,
+            "judge_reason": safe_text(row.get("reason", "Deterministic source-first ranking.")) if ai_available else "AI unavailable; deterministic score used.",
         })
-        if candidate.get("bba_mba_target_score",0)>=25 and deadline_status(candidate)!="expired" and candidate.get("judge_publish",True):
-            candidate["private_rank_score"]=private_rank_score(candidate); ranked.append(candidate)
-    ranked.sort(key=lambda j:(-j.get("private_rank_score",0),-education_priority_score(j),-experience_priority_score(j),-posted_freshness_score(j),-job_quality_score(j),j.get("canonical","")))
+        if not candidate["judge_publish"]:
+            continue
+        candidate["final_score"] = (
+            round(candidate["deterministic_score"]*0.85 + ai_score*0.15, 3)
+            if ai_available else candidate["deterministic_score"]
+        )
+        if candidate["final_score"] >= QUALITY_FLOOR and deadline_status(candidate) != "expired": ranked.append(candidate)
+    ranked.sort(key=lambda j:(-j.get("final_score",0), -j.get("deterministic_score",0), j.get("canonical","")))
     return ranked
-
 
 # ============================================================
 # STATE / DEDUP / SELECTION
@@ -2070,12 +2083,18 @@ def candidate_already_posted(job):
     canonical = canonical_url(job.get("source_url", ""))
     if canonical in POSTED_URLS:
         return True
+    source_id = safe_text(job.get("source_job_id"))
+    source = safe_text(job.get("source")).lower()
+    if source_id and source:
+        for published in STATE.get("events", {}).values():
+            if published.get("status") == "published" and safe_text(published.get("source")).lower() == source and safe_text(published.get("source_job_id")) == source_id:
+                return True
     event_id = job.get("event_id") or job_event_key(job)
     event = STATE.get("events", {}).get(event_id, {})
     if event.get("status") == "published":
         return True
-    # Cross-source persistent mirror check. A Dohaj/Bdjobs copy can have different URLs,
-    # so compare it against the small persistent published-event set as well.
+    # Cross-source persistent mirror check. A source/Bdjobs/Teletalk copy can have different
+    # URLs, so compare it against the small persistent published-event set as well.
     for published in STATE.get("events", {}).values():
         if published.get("status") != "published":
             continue
@@ -2107,78 +2126,61 @@ def build_unique_job_pool(jobs):
     return unique
 
 
-def select_private_jobs_by_category(ranked, limit):
-    """Select the highest-ranked private jobs without category quotas displacing audience fit."""
-    eligible=[
-        job for job in ranked
-        if job.get("judge_publish")
-        and job.get("judge_score",0)>=60
-        and deadline_status(job)!="expired"
-        and job.get("bba_mba_target_score",0)>=25
-        and not private_experience_too_high(job)
-        and not candidate_already_posted(job)
+def _career_family(job):
+    blob = f"{job.get('title','')} {job.get('raw_text','')}".lower()
+    families = [
+        ("Finance & Accounting", ("finance","account","audit","tax","treasury")),
+        ("Banking & Financial Services", ("bank","credit","relationship officer","branch","financial institution")),
+        ("Marketing & Sales", ("marketing","sales","brand","trade marketing")),
+        ("Business Development", ("business development","partnership","growth","client acquisition")),
+        ("Human Resources", ("human resource","hr executive","recruitment","talent acquisition")),
+        ("Supply Chain & Procurement", ("supply chain","procurement","purchase","sourcing","logistics")),
+        ("Commercial", ("commercial","import","export","trade operations")),
+        ("Management & Administration", ("management","admin","administration","executive assistant")),
+        ("Customer Experience", ("customer service","client service","customer experience","relationship management")),
+        ("E-commerce & Digital Business", ("e-commerce","ecommerce","marketplace","digital operations","online business")),
+        ("Operations", ("operations","process executive","business operations")),
+        ("Media / Advertisement / Events", ("media","advertisement","event management")),
+        ("Research & Consultancy", ("research","consultancy","consultant","analyst")),
+        ("NGO / Development", ("ngo","development organization","development program")),
+        ("Hospitality / Travel / Tourism", ("hospitality","travel","tourism","hotel")),
     ]
-    return eligible[:max(0, int(limit))]
+    for family, terms in families:
+        if any(term in blob for term in terms): return family
+    return "Business / General"
 
+def select_private_jobs_by_category(ranked, limit):
+    eligible = [j for j in ranked if j.get("final_score",0) >= QUALITY_FLOOR and j.get("judge_publish",True) and deadline_status(j) != "expired" and j.get("bba_mba_target_score",0) >= 25 and not private_experience_too_high(j) and not candidate_already_posted(j)]
+    selected, company_counts, family_counts = [], {}, {}
+    pool = [dict(j, career_category=_career_family(j)) for j in eligible]
+    while pool and len(selected) < max(0,int(limit)):
+        best_idx, best = 0, -1e9
+        for idx, job in enumerate(pool):
+            score = float(job.get("final_score",0))
+            company = _normalized_company(job.get("company","")); family = job["career_category"]
+            if company_counts.get(company,0) >= 2: score -= 8
+            if family_counts.get(family,0) >= 4: score -= 5
+            if score > best: best, best_idx = score, idx
+        chosen = pool.pop(best_idx); selected.append(chosen)
+        company = _normalized_company(chosen.get("company","")); family = chosen["career_category"]
+        company_counts[company] = company_counts.get(company,0)+1
+        family_counts[family] = family_counts.get(family,0)+1
+    return selected
 
 def select_government_jobs(government_jobs):
-    eligible=[]
-    seen=set()
+    eligible, seen = [], set()
     for job in government_jobs:
-        if candidate_already_posted(job):
-            continue
-        if deadline_status(job)=="expired":
-            continue
-        key=job.get("canonical") or job_event_key(job)
-        if key in seen:
-            continue
+        if candidate_already_posted(job) or deadline_status(job) == "expired": continue
+        key = job.get("canonical") or job_event_key(job)
+        if key in seen: continue
         seen.add(key)
-        candidate=dict(job)
-        candidate["government_rank_score"]=government_rank_score(candidate)
-        eligible.append(candidate)
-    eligible.sort(key=lambda j:(
-        -j.get("government_rank_score",0),
-        -posted_freshness_score(j),
-        -deadline_urgency_score(j),
-        j.get("canonical","")
-    ))
-    return eligible[:min(MAX_GOVERNMENT_POSTS_PER_RUN, 5)]
-
+        candidate = dict(job); candidate["government_rank_score"] = government_rank_score(candidate); eligible.append(candidate)
+    eligible.sort(key=lambda j:(-j["government_rank_score"], -posted_freshness_score(j), -deadline_urgency_score(j), j.get("canonical","")))
+    return eligible[:min(MAX_GOVERNMENT_POSTS_PER_RUN,5)]
 
 def select_final_jobs(private_ranked, government_jobs):
-    # Government posts always occupy the first positions. When at least five valid
-    # government vacancies are available, publish five. Otherwise publish the available
-    # 3-5 range and then fill the remaining slots with ranked private jobs.
-    gov_selected=select_government_jobs(government_jobs)
-    remaining=max(0, MAX_STORIES_PER_RUN-len(gov_selected))
-    private_selected=select_private_jobs_by_category(private_ranked, remaining)
-    selected=gov_selected+private_selected
-
-    # If there are at least MIN_STORIES_PER_RUN candidates overall but the first pass was
-    # short because the AI judge returned incomplete results, use remaining judged private
-    # candidates. Still never exceed the hard cap of 20.
-    if len(selected)<MIN_STORIES_PER_RUN:
-        used={j.get("canonical") for j in selected}
-        for job in private_ranked:
-            if len(selected)>=MIN_STORIES_PER_RUN or len(selected)>=MAX_STORIES_PER_RUN:
-                break
-            key=job.get("canonical")
-            if not key or key in used or candidate_already_posted(job):
-                continue
-            if not job.get("judge_publish") or job.get("judge_score",0)<60:
-                continue
-            if deadline_status(job)=="expired":
-                continue
-            if job.get("bba_mba_target_score",0)<25:
-                continue
-            if private_experience_too_high(job):
-                continue
-            selected.append(job); used.add(key)
-
-    # Absolute hard cap. This is intentionally the final step so no other fallback
-    # can accidentally reproduce the old 160-post behavior.
-    return selected[:MAX_STORIES_PER_RUN]
-
+    gov = select_government_jobs(government_jobs)
+    return (gov + select_private_jobs_by_category(private_ranked, MAX_STORIES_PER_RUN-len(gov)))[:MAX_STORIES_PER_RUN]
 
 def store_selected_event(job, published=False, message_id=None):
     event_id = job.get("event_id") or job_event_key(job)
@@ -2188,6 +2190,7 @@ def store_selected_event(job, published=False, message_id=None):
         "source_url": job.get("source_url", ""),
         "apply_url": job.get("apply_url", ""),
         "source": job.get("source", ""),
+        "source_job_id": job.get("source_job_id", ""),
         "title": job.get("title", ""),
         "company": job.get("company", ""),
         "location": job.get("location", ""),
@@ -2280,7 +2283,7 @@ def display_value(value):
 
 def job_hashtags(job):
     tags = []
-    category = safe_text(job.get("category") or job.get("dohaj_category"))
+    category = safe_text(job.get("category") or job.get("source_category_name"))
     blob = f"{job.get('title','')} {job.get('education','')} {job.get('category','')}".lower()
     if any(x in blob for x in ("account", "finance", "audit", "tax")):
         tags.append("#Finance")
@@ -2408,7 +2411,7 @@ def rich_message_blocks(job):
     # stays behind the link, so no raw URL is exposed in the post.
     blocks.append({"type":"paragraph","text":{"type":"bold","text":_rich_url("Career News","https://t.me/CareerNewsroom")}})
 
-    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else safe_text(job.get("source","Source"))
+    source=safe_text(job.get("source","Source"))
     source_url=safe_text(job.get("source_url"))
     footer=["Source: "]
     footer.append(_rich_url(source,source_url) if source_url else source)
@@ -2453,7 +2456,7 @@ def plain_job_text(job):
         lines.append(f"{_field_icon(label)} {label}: {value}")
     tags=" ".join(job_hashtags(job))
     if tags: lines.extend(["",tags])
-    source="Dohaj" if job.get("is_government") and is_domain_allowed(job.get("source_url",""), [DOHAJ_DOMAIN]) else job.get("source","Source")
+    source=job.get("source","Source")
     lines.append(f"Source: {source}")
     return "\n".join(lines)
 
@@ -2469,101 +2472,124 @@ def fit_rich_blocks(job):
 
 
 # ============================================================
+# SOURCE DIAGNOSTICS
+# ============================================================
+
+def _probe_get(url, params=None, timeout=10, json_expected=False):
+    started=time.monotonic(); probe=requests.Session(); probe.headers.update(HEADERS)
+    try:
+        response=probe.get(url,params=params,timeout=timeout,allow_redirects=True); payload=None
+        if json_expected:
+            try: payload=response.json()
+            except Exception: payload=None
+        return {"ok":response.ok,"status":response.status_code,"elapsed":round(time.monotonic()-started,2),"payload":payload,"bytes":len(response.content or b"")}
+    except Exception as exc:
+        return {"ok":False,"status":0,"elapsed":round(time.monotonic()-started,2),"error":str(exc)}
+
+def source_test():
+    print("CAREER NEWS V1 SOURCE TEST")
+    print(f"curl_cffi: {'available' if curl_cffi else 'MISSING'}")
+    print(f"Jina fallback: {'enabled' if JINA_ENABLED else 'disabled'}")
+    print(f"Fingerprints: {', '.join(CURL_IMPERSONATES)}")
+    tel=_probe_get(TELETALK_API_URL,params={"searchKeyword":""},timeout=TELETALK_API_TIMEOUT,json_expected=True)
+    if tel.get("ok"): print(f"Teletalk API: OK | jobs={len(_teletalk_records(tel.get('payload') or {}))} | time={tel['elapsed']}s")
+    else: print(f"Teletalk API: FAIL | status={tel.get('status')} | error={tel.get('error','')}")
+    cid=next(iter(BDBJOBS_CATEGORIES)); url=_absolute_category_url(cid); started=time.monotonic(); fetched=_fetch_source_document(url,timeout=DISCOVERY_TIMEOUT,referer=BDJOBS_LISTING_URL); elapsed=round(time.monotonic()-started,2)
+    if fetched:
+        count=len(_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"]))
+        print(f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | candidates={count} | time={elapsed}s")
+        if fetched.get("cloudflare"): print("  Cloudflare: detected")
+    else: print(f"Bdjobs category {cid}: FAIL | time={elapsed}s")
+    print("Production: Teletalk government + Bdjobs private")
+    print("Discovery: category-first; no global-first 100-job path")
+    print("Fallback: curl_cffi -> fingerprint rotation -> Jina")
+# ============================================================
 # MAIN
 # ============================================================
 
 def _research_items_parallel(items):
-    results=[]
+    results = []
     if not items: return results
-    with ThreadPoolExecutor(max_workers=max(1,FAST_DETAIL_WORKERS)) as executor:
-        futures={executor.submit(research_job,item):item for item in items}
+    with ThreadPoolExecutor(max_workers=max(1, DETAIL_WORKERS)) as pool:
+        futures = {pool.submit(research_job, item): item for item in items}
         for future in as_completed(futures):
-            item=futures[future]
-            try: researched=future.result()
-            except Exception as exc:
-                logger.warning("RESEARCH worker failed %s: %s",item.get("url"),exc); researched=None
+            item = futures[future]
+            try: researched = future.result()
+            except Exception as exc: logger.warning("RESEARCH failed %s: %s", item.get("url"), exc); researched = None
             if not researched: continue
-            researched["source_url"]=item["url"]; researched["canonical"]=item["canonical"]
-            researched["is_government"]=bool(item.get("is_government")) or "/gov-job/" in urlparse(item["url"]).path.lower()
-            researched["source"]=("Dohaj" if is_domain_allowed(item["url"],[DOHAJ_DOMAIN]) else source_name(item["url"]))
+            researched["source_url"] = item.get("source_url") or item.get("url")
+            researched["canonical"] = item.get("canonical") or canonical_url(item.get("url",""))
+            researched["source"] = item.get("source") or source_name(item.get("url",""))
+            researched["is_government"] = bool(item.get("is_government"))
             results.append(researched)
     return results
 
-
 def _prepare_shortlists(discovered):
-    unique=build_unique_job_pool(discovered)
-    gov=[x for x in unique if x.get("is_government")]
-    private=[x for x in unique if not x.get("is_government")]
-    gov.sort(key=lambda j:(-posted_freshness_score({"posted_date":j.get("listing_posted")}),j.get("canonical","")))
-    private.sort(key=lambda j:(-job_family_score(j.get("title",""),j.get("excerpt","")),-posted_freshness_score({"posted_date":j.get("listing_posted")}),j.get("canonical","")))
-    return gov[:FAST_GOVERNMENT_CANDIDATE_TARGET],private[:FAST_PRIVATE_CANDIDATE_TARGET]
+    unique = build_unique_job_pool(discovered)
+    gov = [x for x in unique if x.get("is_government")]
+    private = [x for x in unique if not x.get("is_government")]
+    private.sort(key=lambda j:(-bba_mba_candidate_score(j), -posted_freshness_score({"posted_date":j.get("listing_posted")}), j.get("canonical","")))
+    gov.sort(key=lambda j:(-posted_freshness_score({"posted_date":j.get("listing_posted")}), -deadline_urgency_score({"deadline":j.get("listing_deadline")}), j.get("canonical","")))
+    return gov[:GOVERNMENT_DISCOVERY_TARGET], private[:PRIVATE_DETAIL_TARGET]
 
-
-def run():
-    started=time.monotonic()
-    logger.info("CAREER NEWS BOT | fast incremental pipeline | max=%d | gov first=%d-%d",MAX_STORIES_PER_RUN,MIN_GOVERNMENT_POSTS_PER_RUN,MAX_GOVERNMENT_POSTS_PER_RUN)
+def run(*, dry_run=False, print_ranking=False):
+    started = time.monotonic()
+    logger.info("CAREER NEWS V1 | category-first | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
-    discovered=discover_all()
-    gov_items,private_items=_prepare_shortlists(discovered)
-    logger.info("SHORTLISTS | government=%d private=%d",len(gov_items),len(private_items))
-    researched=_research_items_parallel(gov_items+private_items)
-    verified=[]
+    discovered = discover_all()
+    gov_items, private_items = _prepare_shortlists(discovered)
+    logger.info("SHORTLISTS | government=%d private=%d", len(gov_items), len(private_items))
+    researched = _research_items_parallel(gov_items + private_items)
+    verified = []
     for job in researched:
-        ok,reason=deterministic_job_gate(job)
+        ok, reason = deterministic_job_gate(job)
         if not ok:
-            logger.info("DROP gate: %s | %s | %s",reason,job.get("source",""),job.get("title","")); continue
+            logger.info("DROP gate: %s | %s | %s", reason, job.get("source",""), job.get("title","")); continue
         save_job_to_queue(job)
         if not candidate_already_posted(job): verified.append(job)
     save_state(STATE)
-    unique=build_unique_job_pool(verified)
-    government_jobs=[j for j in unique if j.get("is_government")]
-    private_jobs=[j for j in unique if not j.get("is_government")]
-    ranked_private=rank_jobs(private_jobs)
-    selected=select_final_jobs(ranked_private,government_jobs)
-    gov_part=[j for j in selected if j.get("is_government")]
-    priv_part=[j for j in selected if not j.get("is_government")]
-    selected=(gov_part+priv_part)[:MAX_STORIES_PER_RUN]
-    selected=translate_government_jobs(selected)
-    # Final publication safety: never publish a private role that now exposes an
-    # experience requirement above the early-career cap, even if a later enrichment
-    # step changed the field after the first gate.
-    safe_selected=[]
-    for job in selected:
-        if not job.get("is_government") and private_experience_too_high(job):
-            logger.info("DROP final safety gate: experience_above_%d_years | %s", MAX_PRIVATE_EXPERIENCE_YEARS, job.get("title",""))
-            continue
-        safe_selected.append(job)
-    selected=safe_selected[:MAX_STORIES_PER_RUN]
-    # No Bengali script may reach Telegram. Government jobs get the AI/local translator;
-    # any remaining Bengali is locally normalized before rendering.
+    unique = build_unique_job_pool(verified)
+    government_jobs = [j for j in unique if j.get("is_government")]
+    private_jobs = [j for j in unique if not j.get("is_government")]
+    ranked_private = rank_jobs(private_jobs)
+    selected = select_final_jobs(ranked_private, government_jobs)
+    selected = translate_government_jobs(selected)
+    selected = [j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
     for job in selected:
         for key in ("title","company","location","salary","experience","education","vacancy","employment_type","workplace","age","application_method","selection_process","category"):
-            if _contains_bengali(job.get(key,"")):
-                job[key]=fallback_government_translate(job.get(key,""))
-        job["title"]=english_display_text(job.get("title",""))
-        job["company"]=english_display_text(job.get("company",""))
-    logger.info("FINAL SELECTED=%d | government=%d | private=%d | discovery=%d | elapsed_before_publish=%.1fs",len(selected),len([j for j in selected if j.get("is_government")]),len([j for j in selected if not j.get("is_government")]),len(discovered),time.monotonic()-started)
-    published_count=0
-    for index,job in enumerate(selected,start=1):
-        blocks=fit_rich_blocks(job)
-        if rich_blocks_visible_length(blocks)>MAX_RICH_CHARACTERS: continue
-        store_selected_event(job,published=False)
-        result=send_rich_text(blocks,job)
+            if _contains_bengali(job.get(key,"")): job[key] = fallback_government_translate(job.get(key,""))
+        job["title"] = english_display_text(job.get("title","")); job["company"] = english_display_text(job.get("company",""))
+    logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), sum(1 for j in selected if j.get("is_government")), sum(1 for j in selected if not j.get("is_government")), len(discovered), time.monotonic()-started)
+    if print_ranking:
+        print("=== CAREER NEWS V1 PRIVATE RANKING ===")
+        for i, job in enumerate(ranked_private[:25],1):
+            print(f"{i}. {job.get('final_score',0):.1f} | {job.get('title','')} | {job.get('company','')} | {job.get('career_category','')}")
+    if dry_run:
+        logger.info("DRY RUN | selected=%d | Telegram not contacted", len(selected))
+        STATE["last_run"] = now_iso(); STATE["pipeline_version"] = PIPELINE_VERSION; save_state(STATE)
+        return {"selected":selected,"published":0}
+    published = 0
+    for index, job in enumerate(selected,1):
+        blocks = fit_rich_blocks(job)
+        if rich_blocks_visible_length(blocks) > MAX_RICH_CHARACTERS: continue
+        store_selected_event(job, published=False)
+        result = send_rich_text(blocks, job)
         if not result.get("ok"):
-            logger.warning("Rich Message failed; text fallback: %s",result.get("description")); result=send_bot_api_text_fallback(job,plain_job_text(job))
+            result = send_bot_api_text_fallback(job, plain_job_text(job))
         if result.get("ok"):
-            published_count+=1
-            message=result.get("result",{}); message_id=message.get("message_id") if isinstance(message,dict) else None
-            POSTED_URLS.add(canonical_url(job["source_url"])); save_posted_url(canonical_url(job["source_url"]))
-            item=STATE["queue"].get(job["canonical"])
-            if item: item.update({"status":"posted","posted_at":now_iso(),"pipeline_version":PIPELINE_VERSION,"judge_score":job.get("judge_score",0)})
-            store_selected_event(job,published=True,message_id=message_id); STATE["recent_titles"].append(normalize_title(job["title"]))
-            logger.info("PUBLISHED %d/%d | %s | %s",published_count,len(selected),job.get("source"),job.get("title"))
-        else: logger.error("Telegram failed: %s",result.get("description"))
+            published += 1
+            message = result.get("result",{}); message_id = message.get("message_id") if isinstance(message,dict) else None
+            canonical = canonical_url(job.get("source_url", "")); POSTED_URLS.add(canonical); save_posted_url(canonical)
+            item = STATE["queue"].get(job.get("canonical"))
+            if item:
+                item.update({"status":"posted","posted_at":now_iso(),"pipeline_version":PIPELINE_VERSION,"deterministic_score":job.get("deterministic_score",0),"ai_score":job.get("ai_score",0),"final_score":job.get("final_score",job.get("government_rank_score",0))})
+            store_selected_event(job, published=True, message_id=message_id)
+            STATE["recent_titles"].append(normalize_title(job.get("title","")))
         save_state(STATE)
-        if POST_DELAY_SECONDS>0 and index<len(selected): time.sleep(POST_DELAY_SECONDS)
-    STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
-    logger.info("Finished Career News Bot. Published=%d | elapsed=%.1fs | hard_max=%d",published_count,time.monotonic()-started,MAX_STORIES_PER_RUN)
+        if POST_DELAY_SECONDS > 0 and index < len(selected): time.sleep(POST_DELAY_SECONDS)
+    STATE["last_run"] = now_iso(); STATE["pipeline_version"] = PIPELINE_VERSION; save_state(STATE)
+    logger.info("Finished Career News V1. Published=%d | elapsed=%.1fs", published, time.monotonic()-started)
+    return {"selected":selected,"published":published}
 
 
 # ============================================================
@@ -2571,261 +2597,53 @@ def run():
 # ============================================================
 
 def self_test():
-    # Private extraction fixture: every table field must map to its own source label.
-    fixture="""
-    <html><head>
-    <meta property="article:published_time" content="2026-09-18T08:00:00+06:00">
-    <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee",
-     "datePosted":"2026-09-18","validThrough":"2026-10-18",
-     "hiringOrganization":{"name":"Example Bank"},
-     "jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},
-     "employmentType":"FULL_TIME"}
-    </script></head><body>
-    <h1>Management Trainee</h1>
-    <p>Company Name: Example Bank</p>
-    <p>Vacancy: 10</p>
-    <p>Education: Bachelor of Business Administration (BBA) or MBA</p>
-    <p>Experience: Freshers are encouraged to apply.</p>
-    <p>Salary: Tk. 35000 - 45000</p>
-    <p>Employment Status: Full Time</p>
-    <p>Job Work Place: Work at Office</p>
-    <p>Age: 18 to 30 years</p>
-    <p>Application: Online</p>
-    <p>Selection Process: Written exam and viva exam</p>
-    <p>Application Deadline: 18 Oct 2026</p>
-    </body></html>
-    """
-    fake={"title":"Management Trainee","url":"https://dohaj.com/job-details/example-123","canonical":canonical_url("https://dohaj.com/job-details/example-123"),"source":"Dohaj","discovery":"self_test"}
-    text_source=_text_from_html(fixture)
-    fields=extract_job_fields(text_source,fixture,fake["url"],fake)
-    fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
-    assert fields["title"]=="Management Trainee"
-    assert fields["company"]=="Example Bank"
-    assert "BBA" in fields["education"] and "MBA" in fields["education"]
-    assert fields["experience"]=="Freshers"
-    assert fields["vacancy"]=="10"
-    assert fields["posted_date"]=="2026-09-18"
-    assert fields["deadline"]=="2026-10-18"
-    assert fields["selection_process"]=="Written + Viva"
-
-    rows=job_snapshot_rows(fields)
-    assert "Experience" in [x[0] for x in rows]
-    assert all("\n" not in v for _,v in rows)
-    assert {label for label,_ in rows} >= {"Deadline","Posted"}
-    assert "Application Start" not in {label for label,_ in rows} and "Application End" not in {label for label,_ in rows}
-    empty_fields=dict(fields)
-    for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_start","application_end","posted_date"):
-        empty_fields[key]=""
-    empty_rows=job_snapshot_rows(empty_fields)
-    assert all(v!="—" for _,v in empty_rows)
-    assert {label for label,_ in empty_rows} == {"Application","Deadline"}
-    assert format_date_display("2026-09-18")=="18-09-2026"
-    assert format_date_display("18 Oct 2026")=="18-10-2026"
-    period_fields=dict(fields)
-    period_fields["application_start"]="2026-09-15"
-    period_fields["application_end"]="2026-10-06"
-    period_map=dict(job_snapshot_rows(period_fields))
-    assert "Application Start" not in period_map and "Application End" not in period_map
-    assert "Deadline" in period_map and "Posted" in period_map
-    assert compact_age("at least 25 years")=="25 Years"
-    assert compact_age("18 to 30 years")=="18-30 Years"
-    assert smart_title_case("global asia bangladesh limited")=="Global Asia Bangladesh Limited"
-    blocks=rich_message_blocks(fields)
-    table=next(b for b in blocks if b.get("type")=="table")
-    assert len(table["cells"])==len(job_snapshot_rows(fields))+1  # header + available data rows
-    assert table["is_bordered"] is True
-    assert table["is_striped"] is True
-    assert table["is_compact"] is False
-    assert not any(b.get("type")=="photo" for b in blocks)
-
-    # Experience must not absorb technical responsibilities.
-    assert compact_experience("Preparing monthly financial statements and management report.") == ""
-    assert compact_experience("2 to 4 years") == "2 to 4 years"
-
-    # Strict vacancy parsing prevents salary/age numbers from becoming vacancy.
-    assert compact_vacancy("Tk. 30000 - 40000 (Monthly)") == ""
-    assert compact_vacancy("Vacancy: 2") == "2"
-    assert compact_vacancy("পদসংখ্যা: 09") == "09"
-
-    # Government Bengali summary fixture, including current Dohaj label/date style.
-    gov_text="""
-    ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয় নিয়োগ ‍বিজ্ঞপ্তি ২০২৬
-    আবেদন শুরুের সময়: ১৫ সেপ্টেম্বর ২০২৬ তারিখ সকাল ১০:০০ টা থেকে
-    আবেদনের শেষ সময়: ০৬ অক্টোবর ২০২৬ তারিখ বিকাল ০৪:০০ টা পর্যন্ত
-    Job Summary
-    চাকরির ধরন
-    সরকারি চাকরি
-    প্রতিষ্ঠানের নাম
-    ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়
-    চাকুরি স্থান
-    Mymensingh
-    বয়সসীমা
-    ১৮ থেকে ৩০ বছর
-    বেতন
-    ১১,০০০-২৬,৫৯০ টাকা
-    প্রকাশিত
-    বুধবার ১৬ই সেপ্টেম্বর ২০২৬
-    শেষ তারিখ
-    মঙ্গলবার ৬ই অক্টোবর ২০২৬
-    """
-    gov_item={"title":"Mymensingh","url":"https://dohaj.com/gov-job/mymensingh-division-commissioner-office-job-circular-2026","canonical":"dohaj.com/gov-job/mymensingh-division-commissioner-office-job-circular-2026","source":"Dohaj","is_government":True,"discovery":"self_test"}
-    gov_fields=extract_job_fields(gov_text,"<h1>Mymensingh Division Commissioner Office Job Circular</h1>",gov_item["url"],gov_item)
-    assert gov_fields["company"]=="ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়"
-    assert gov_fields["location"]=="Mymensingh"
-    assert gov_fields["posted_date"]=="2026-09-16"
-    assert gov_fields["deadline"]=="2026-10-06"
-    assert gov_fields["source"]=="Dohaj"
-    assert gov_fields["application_start"]=="2026-09-15"
-    assert gov_fields["application_end"]=="2026-10-06"
-    unicode_url="https://dohaj.com/gov-job/তথ্য-ও-যোগাযোগ-প্রযুক্তি-বিভাগ-নিয়োগ-বিজ্ঞপ্তি-2025"
-    safe_url=request_safe_url(unicode_url)
-    assert "%" in safe_url and "তথ্য" not in safe_url
-    assert canonical_url(unicode_url)==canonical_url(safe_url)
-    ok,reason=deterministic_job_gate(gov_fields)
-    assert ok and reason=="ok_government"
-
-    # Government receives no BBA/MBA filter and does not require a company field.
-    bad_education=dict(gov_fields); bad_education["education"]="SSC"
-    ok,_=deterministic_job_gate(bad_education)
-    assert ok
-    gov_no_company=dict(gov_fields); gov_no_company["company"]=""
-    ok,_=deterministic_job_gate(gov_no_company)
-    assert ok
-    no_company_blocks=rich_message_blocks(gov_no_company)
-    assert any("Government Organization" in str(b.get("text","")) for b in no_company_blocks if isinstance(b,dict))
-
-    # Strong duplicate filter, including cross-source mirrors.
-    a={"source_url":"https://dohaj.com/job-details/a","title":"Accounts Executive","company":"Example Ltd","location":"Dhaka","posted_date":"2026-09-18"}
-    b={"source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=99","title":"Accounts Executive","company":"Example Ltd.","location":"Dhaka","posted_date":"2026-09-18"}
-    assert likely_same_job(a,b)
-
-    # Private ranking: BBA/MBA + fresher outranks an otherwise similar experienced role.
-    fresh={**fields,"education":"BBA","experience":"Freshers","posted_date":"2026-09-18","deadline":"2026-10-10","judge_score":80,"role_fit":80,"bba_mba_target_score":80}
-    unspecified={**fields,"education":"BBA","experience":"","posted_date":"2026-09-18","deadline":"2026-10-10","judge_score":80,"role_fit":80,"bba_mba_target_score":80}
-    experienced={**fields,"education":"BBA","experience":"5 years","posted_date":"2026-09-18","deadline":"2026-10-10","judge_score":80,"role_fit":80,"bba_mba_target_score":80}
-    assert private_rank_score(fresh)>private_rank_score(unspecified)>private_rank_score(experienced)
-
-    # Hard max and government-first selection.
-    govs=[]
-    for i in range(7):
-        g={**gov_fields,"canonical":f"gov-{i}","source_url":f"https://dohaj.com/gov-job/{i}","event_id":f"gov-{i}","posted_date":"2026-09-18","deadline":"2026-10-10"}
-        govs.append(g)
-    priv=[]
-    for i in range(30):
-        p={**fresh,"canonical":f"priv-{i}","source_url":f"https://dohaj.com/job-details/priv-{i}","event_id":f"priv-{i}","judge_publish":True,"judge_score":80,"private_rank_score":80,"bba_mba_target_score":80}
-        priv.append(p)
-    selected=select_final_jobs(priv,govs)
-    assert len(selected)<=20
-    assert sum(1 for x in selected if x.get("is_government"))==5
-    assert all(x.get("is_government") for x in selected[:5])
-
-    # Photo feature is fully disabled.
-    rendered=rich_message_blocks(fresh)
-    assert not any(b.get("type")=="photo" for b in rendered)
-    assert any(b.get("type")=="pullquote" and "Your next opportunity starts here." in str(b.get("text","")) for b in rendered)
-    assert sum(1 for b in rendered if b.get("type")=="paragraph" and b.get("text")=="─────────────────────") == 2
-    channel_link = next(b for b in rendered if b.get("type")=="paragraph" and isinstance(b.get("text"), dict) and b["text"].get("type")=="bold" and isinstance(b["text"].get("text"), dict) and b["text"]["text"].get("type")=="url")
-    assert channel_link["text"]["text"] == {"type":"url","text":"Career News","url":"https://t.me/CareerNewsroom"}
-    # Rendering never includes application start/end rows.
-    assert not any(label in {"Application Start","Application End","Application Period"} for label,_ in job_snapshot_rows(fresh))
-
-    # Dohaj full-page Job Summary must supply the authoritative private fields.
-    dohaj_fixture="""
-    <html><body>
-    <h1>HR &amp; Admin Officer</h1>
-    <div>Job Description</div>
-    <div>Company Name: Global Asia Bangladesh Limited</div>
-    <div>Vacancy: --</div>
-    <div>Age: At least 18 years</div>
-    <div>Job Location: Dhaka (Uttara)</div>
-    <div>Salary: Negotiable</div>
-    <div>Experience:</div>
-    <div>At least 3 years</div>
-    <div>Published: 2026-09-16</div>
-    <div>Application Deadline: 2026-09-26</div>
-    <div>Education:</div>
-    <div>HSC</div>
-    <div>HSC/BBA/ Hon's/ Masters in business background</div>
-    <div>Employment Status: Full Time</div>
-    <div>Job Work Place: Work at office</div>
-    <div>Job Summary</div>
-    <div>Company Name</div><div>Global Asia Bangladesh Limited</div>
-    <div>Job Location</div><div>Dhaka (Uttara)</div>
-    <div>Vacancy</div><div>--</div>
-    <div>Job Type</div><div>Full Time</div>
-    <div>Salary</div><div>Negotiable</div>
-    <div>Published</div><div>16 Sep 2026</div>
-    <div>Deadline</div><div>26 Sep 2026</div>
-    </body></html>
-    """
-    dohaj_text=_text_from_html(dohaj_fixture)
-    dohaj_item={"title":"HR & Admin Officer","url":"https://dohaj.com/job-details/hr-admin-officer","is_government":False,"source":"Dohaj","listing_posted":"","listing_deadline":""}
-    dohaj_fields=extract_job_fields(dohaj_text,dohaj_fixture,dohaj_item["url"],dohaj_item)
-    assert dohaj_fields["company"]=="Global Asia Bangladesh Limited"
-    assert dohaj_fields["location"]=="Dhaka (Uttara)"
-    assert dohaj_fields["salary"]=="Negotiable"
-    assert dohaj_fields["experience"]=="At least 3 years"
-    assert "BBA" in dohaj_fields["education"]
-    assert dohaj_fields["employment_type"]=="Full Time"
-    assert dohaj_fields["workplace"]=="On-site"
-    assert dohaj_fields["age"]=="18 Years"
-    assert dohaj_fields["vacancy"]==""
-    assert dohaj_fields["deadline"]=="2026-09-26"
-
-    # Private early-career gate: reject 3-7 years and 7+ years before AI ranking.
-    over_range=dict(dohaj_fields)
-    over_range["experience"]="3 to 7 years"
-    assert experience_upper_bound(over_range["experience"])==7
-    ok,reason=deterministic_job_gate(over_range)
-    assert not ok and reason=="experience_above_3_years"
-
-    over_plus=dict(dohaj_fields)
-    over_plus["experience"]="7+ years"
-    ok,reason=deterministic_job_gate(over_plus)
-    assert not ok and reason=="experience_above_3_years"
-
-    allowed_three=dict(dohaj_fields)
-    allowed_three["experience"]="3 years"
-    ok,reason=deterministic_job_gate(allowed_three)
-    assert ok and reason=="ok_bba_mba_target"
-
-    # Bdjobs parser regression test: official listing candidates are no longer silently dropped.
-    bd_fixture="""
-    <html><body>
-      <a href="/jobdetails.asp?id=101"><span>Accounts Executive</span></a>
-      <div>Accounts Executive Example Bank Finance Dhaka</div>
-      <a href="/jobdetails.asp?id=102"><span>Software Engineer</span></a>
-      <div>Software Engineer Tech Ltd Engineering Dhaka</div>
-      <a href="/jobdetails.asp?id=103"><span>HR Executive</span></a>
-      <div>HR Executive Example Group Human Resource Dhaka</div>
-    </body></html>
-    """
-    bd_candidates=_bdjobs_listing_candidates(bd_fixture,"https://jobs.bdjobs.com/jobsearch-cache.asp")
-    assert any(x["url"].endswith("id=101") for x in bd_candidates)
-    assert any(x["url"].endswith("id=103") for x in bd_candidates)
-
-    translated={**gov_fields,"title":"কর অঞ্চল-১৬, ঢাকা নিয়োগ বিজ্ঞপ্তি ২০২৬","company":"ময়মনসিংহ বিভাগীয় কমিশনার কার্যালয়","location":"ঢাকা"}
-    # Without Cerebras this must still produce non-Bengali publishable text.
-    translated=translate_government_jobs([translated])[0]
-    assert not any(_contains_bengali(translated.get(k,"")) for k in ("title","company","location"))
-
-    assert PIPELINE_VERSION == "Career News Bot"
+    assert PIPELINE_VERSION == "Career News V1"
+    assert STATE_FORMAT_VERSION == 5
     assert MAX_STORIES_PER_RUN == 20
-    assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
-    assert MAX_PRIVATE_EXPERIENCE_YEARS == 3
-    assert MAX_GOVERNMENT_POSTS_PER_RUN == 5
-    assert FAST_DETAIL_WORKERS >= 1
-    assert FAST_AI_CANDIDATE_LIMIT <= 20
-    assert callable(send_rich_text)
-    logger.info("Career News Bot self-test passed.")
+    assert TARGET_STORIES_PER_RUN == 15
+    assert QUALITY_FLOOR == 65
+    assert MAX_POST_AGE_DAYS == 5
+    assert len(BDBJOBS_CATEGORIES) == 14
+    assert is_bdjobs_job_url("https://jobs.bdjobs.com/jobdetails.asp?id=1534666")
+    assert is_bdjobs_job_url("https://bdjobs.com/h/jobs/1534666")
+    assert not is_bdjobs_job_url("https://bdjobs.com/h/jobs")
+    route_fixture = '<html><body><a href="https://bdjobs.com/h/jobs/987654/management-trainee">Management Trainee</a></body></html>'
+    route_candidates = _bdjobs_listing_candidates(route_fixture, "https://bdjobs.com/h/jobs/?fcatId=1", 1, "Accounting / Finance")
+    assert route_candidates and route_candidates[0]["source_job_id"] == "987654"
+    assert is_teletalk_url("https://alljobs.teletalk.com.bd/")
+    assert is_cloudflare_response(403,{"cf-mitigated":"challenge"},"")
+    assert is_cloudflare_response(200,{},"<title>Just a moment...</title>")
+    assert not is_cloudflare_response(200,{},"<html>normal</html>")
+    assert (JINA_PREFIX+request_safe_url("https://example.com/job?id=1")).startswith("https://r.jina.ai/https://example.com")
+
+    fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"2026-09-18","validThrough":"2026-10-18","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: 18 Oct 2026</p></body></html>'''
+    fake={"title":"Management Trainee","url":"https://jobs.bdjobs.com/jobdetails.asp?id=123","canonical":canonical_url("https://jobs.bdjobs.com/jobdetails.asp?id=123"),"source":"Bdjobs","discovery":"self_test"}
+    text_source=_text_from_html(fixture); fields=extract_job_fields(text_source,fixture,fake["url"],fake); fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
+    fields["bba_mba_target_score"]=bba_mba_candidate_score(fields)
+    assert fields["title"] == "Management Trainee" and fields["company"] == "Example Bank"
+    assert "BBA" in fields["education"] and "MBA" in fields["education"]
+    assert fields["experience"] == "Freshers" and fields["vacancy"] == "10" and fields["deadline"] == "2026-10-18"
+    score,components=private_rank_score(fields); assert 0 <= score <= 100 and sum(components.values()) == score
+    too_high=dict(fields,experience="5 to 8 years"); ok,reason=deterministic_job_gate(too_high); assert not ok and reason=="experience_above_3_years"
+    allowed=dict(fields,experience="2 to 3 years"); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
+
+    listing='''<html><body><div><a href="/jobdetails.asp?id=101">Accounts Executive</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div><div><a href="/jobdetails.asp?id=102">Software Engineer</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div></body></html>'''
+    candidates=_bdjobs_listing_candidates(listing,"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",1,"Accounting / Finance"); assert {x["source_job_id"] for x in candidates} == {"101","102"}
+    tel=_teletalk_record_fields({"job_primary_id":"TL-1001","job_title":"Accounts Assistant","org_name":"Example Government Department","vacancy":"12","deadline_date":"2026-10-10","application_site_url":"https://example.teletalk.com.bd/"}); assert tel["source"]=="Teletalk" and tel["source_job_id"]=="TL-1001"
+    a={"source":"Bdjobs","source_job_id":"1","title":"Marketing Executive","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=1","posted_date":"2026-09-19"}; b={"source":"Bdjobs","source_job_id":"2","title":"Executive - Marketing","company":"Example Limited","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=2","posted_date":"2026-09-19"}; assert likely_same_job(a,b)
+    logger.info("Career News V1 self-test passed.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Career News V1")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--source-test", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--print-ranking", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         self_test()
+    elif args.source_test:
+        source_test()
     else:
-        run()
+        run(dry_run=args.dry_run, print_ranking=args.print_ranking)
