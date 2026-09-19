@@ -1,10 +1,10 @@
-name: CareerNewsroom V6
+name: Career News Bot
 
 on:
   schedule:
-    - cron: "0,30 8-23 * * *"
+    - cron: "0 8,11,14,17,20,23 * * *"
       timezone: "Asia/Dhaka"
-    - cron: "0,30 0-2 * * *"
+    - cron: "0 2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -12,33 +12,28 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v6
+  group: career-news-bot
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
-    # Pin the currently stable runner image; avoid the announced ubuntu-latest migration during this bot's production lifecycle.
-    runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
-      SCRAPLING_ENABLED: "1"
       PYTHONUNBUFFERED: "1"
-      FAST_PRIVATE_CANDIDATE_TARGET: "100"
+      FAST_PRIVATE_CANDIDATE_TARGET: "60"
       FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
-      FAST_DETAIL_WORKERS: "10"
-      FAST_AI_CANDIDATE_LIMIT: "32"
+      FAST_DETAIL_WORKERS: "8"
+      FAST_AI_CANDIDATE_LIMIT: "20"
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
-      PRIVATE_RESEARCH_TARGET: "40"
-      PRIVATE_QUALITY_FLOOR: "60"
-      MAX_BDJOBS_DISCOVERY_PAGES: "2"
-      SCRAPLING_DYNAMIC_ENABLED: "0"
+      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
 
     steps:
       - name: Checkout repository
@@ -58,20 +53,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Python and Scrapling runtime
+      - name: Verify Career News Bot source
         run: |
-          python -m py_compile main.py
-          python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
-          echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("main.py").read_text(encoding="utf-8-sig")
+          assert 'PIPELINE_VERSION = "Career News Bot"' in source
+          print("Career News Bot source verified.")
+          PY
 
-      - name: Run V6 self-test
+      - name: Verify Python source
+        run: python -m py_compile main.py
+
+      - name: Run Career News Bot self-test
         run: python main.py --self-test
 
-      - name: Run live source diagnostics (manual runs only)
-        if: github.event_name == 'workflow_dispatch'
-        run: python main.py --source-test
-
-      - name: Run CareerNewsroom V6
+      - name: Run Career News Bot
         run: python main.py
 
       - name: Save state
@@ -83,7 +80,41 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
-          else
-            git commit -m "Update CareerNewsroom V6 state"
-            git push
+            exit 0
           fi
+
+          # Preserve the bot-generated state, then synchronize the branch before
+          # creating the commit. This avoids rebasing a state commit after it has
+          # already been created, which can create avoidable conflicts.
+          cp news_state.json /tmp/news_state.json.bot
+          cp posted_urls.txt /tmp/posted_urls.txt.bot
+
+          for attempt in 1 2 3; do
+            echo "State push attempt $attempt/3"
+
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/news_state.json.bot news_state.json
+            cp /tmp/posted_urls.txt.bot posted_urls.txt
+            git add news_state.json posted_urls.txt
+
+            if git diff --cached --quiet; then
+              echo "No state changes to commit after synchronization."
+              exit 0
+            fi
+
+            git commit -m "Update Career News Bot state"
+
+            if git push origin HEAD:main; then
+              echo "State push succeeded on attempt $attempt."
+              exit 0
+            fi
+
+            git reset --hard HEAD~1
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 5))
+            fi
+          done
+
+          echo "ERROR: State push failed after 3 attempts."
+          exit 1
