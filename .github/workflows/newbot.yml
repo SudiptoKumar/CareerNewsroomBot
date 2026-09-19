@@ -1,10 +1,10 @@
-name: Career News Bot
+name: CareerNewsroom V2
 
 on:
   schedule:
-    - cron: "0 8,11,14,17,20,23 * * *"
+    - cron: "0,30 8-23 * * *"
       timezone: "Asia/Dhaka"
-    - cron: "0 2 * * *"
+    - cron: "0,30 0-2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -12,13 +12,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-news-bot
+  group: careernewsroom-v2
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 6
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -33,7 +33,8 @@ jobs:
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
       POST_DELAY_SECONDS: "1.0"
-      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
+      EVER_JOBS_API_URL: ${{ secrets.EVER_JOBS_API_URL }}
+      EVER_JOBS_API_KEY: ${{ secrets.EVER_JOBS_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -53,22 +54,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Career News Bot source
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          source = Path("main.py").read_text(encoding="utf-8-sig")
-          assert 'PIPELINE_VERSION = "Career News Bot"' in source
-          print("Career News Bot source verified.")
-          PY
-
       - name: Verify Python source
         run: python -m py_compile main.py
 
-      - name: Run Career News Bot self-test
+      - name: Run V2 self-test
         run: python main.py --self-test
 
-      - name: Run Career News Bot
+      - name: Run CareerNewsroom V2
         run: python main.py
 
       - name: Save state
@@ -80,41 +72,7 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
-            exit 0
+          else
+            git commit -m "Update CareerNewsroom V2 state"
+            git push
           fi
-
-          # Preserve the bot-generated state, then synchronize the branch before
-          # creating the commit. This avoids rebasing a state commit after it has
-          # already been created, which can create avoidable conflicts.
-          cp news_state.json /tmp/news_state.json.bot
-          cp posted_urls.txt /tmp/posted_urls.txt.bot
-
-          for attempt in 1 2 3; do
-            echo "State push attempt $attempt/3"
-
-            git fetch origin main
-            git reset --hard origin/main
-            cp /tmp/news_state.json.bot news_state.json
-            cp /tmp/posted_urls.txt.bot posted_urls.txt
-            git add news_state.json posted_urls.txt
-
-            if git diff --cached --quiet; then
-              echo "No state changes to commit after synchronization."
-              exit 0
-            fi
-
-            git commit -m "Update Career News Bot state"
-
-            if git push origin HEAD:main; then
-              echo "State push succeeded on attempt $attempt."
-              exit 0
-            fi
-
-            git reset --hard HEAD~1
-            if [ "$attempt" -lt 3 ]; then
-              sleep $((attempt * 5))
-            fi
-          done
-
-          echo "ERROR: State push failed after 3 attempts."
-          exit 1
