@@ -1,0 +1,106 @@
+name: Career News V1
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: career-news-v1
+  cancel-in-progress: false
+
+jobs:
+  run-career-bot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
+      TELEGRAM_CHANNEL: "@CareerNewsroom"
+      PYTHONUNBUFFERED: "1"
+      MAX_POST_AGE_DAYS: "5"
+      PRIVATE_DISCOVERY_TARGET: "160"
+      PRIVATE_DISCOVERY_MAX: "200"
+      PRIVATE_FAST_RANK_TARGET: "60"
+      PRIVATE_DETAIL_TARGET: "60"
+      INTERNSHIP_DETAIL_TARGET: "10"
+      INTERNSHIP_AI_TARGET: "8"
+      MIN_INTERNSHIP_POSTS_PER_RUN: "2"
+      PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
+      GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
+      AI_REVIEW_TARGET: "50"
+      AI_BATCH_SIZE: "8"
+      AI_RETRY_COUNT: "1"
+      MIN_PRIVATE_POSTS_PER_RUN: "10"
+      MIN_GOVERNMENT_POSTS_PER_RUN: "3"
+      PRIVATE_MIN_FILL_SCORE: "58"
+      PRIVATE_HARD_FILL_SCORE: "55"
+      PRIVATE_MIN_INFORMATION_QUALITY: "3"
+      PRIVATE_HARD_MIN_INFORMATION_QUALITY: "3"
+      DETAIL_WORKERS: "8"
+      DETAIL_TIMEOUT: "14"
+      LEGACY_DETAIL_TIMEOUT: "8"
+      SCRAPLING_BROWSER_ENABLED: "1"
+      SCRAPLING_BROWSER_TIMEOUT: "15000"
+      SCRAPLING_BROWSER_WAIT_MS: "1000"
+      SCRAPLING_BROWSER_DETAIL_LIMIT: "60"
+      DETAIL_MIN_TEXT_CHARS: "180"
+      POST_DELAY_SECONDS: "1.0"
+      CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
+      CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
+      JINA_ENABLED: "1"
+      JINA_TIMEOUT: "12"
+      JINA_RPM_LIMIT: "24"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          scrapling install --force
+          patchright install chromium --with-deps
+
+      - name: Compile check
+        run: python -m py_compile main.py
+
+
+      - name: Run V1 self-test
+        run: python main.py --self-test
+
+      - name: Run live source diagnostics (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        run: python main.py --source-test
+
+      - name: Run Career News V1
+        run: python main.py
+
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "Career News Bot"
+          git config user.email "actions@github.com"
+          git add news_state.json posted_urls.txt
+
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+          else
+            git commit -m "Update Career News V1 state"
+            git push
+          fi
