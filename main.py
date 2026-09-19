@@ -779,56 +779,22 @@ def _infer_listing_company(anchor, parent, title, card_text):
 
 
 def _extract_listing_baseline(card_text):
-    """Extract source-backed fields from current/legacy Bdjobs listing cards.
-
-    Current search results often flatten labels without punctuation, e.g.
-    ``Job LocationDhaka`` and ``Experience required 0 to 1 year(s)``.
-    """
-    text = _clean_one_line(card_text)
-    text = re.sub(r"\bImage:\s*", " ", text, flags=re.I)
-    text = re.sub(r"\s{2,}", " ", text).strip()
-
-    fields = {
-        "company": _first_match(text, [r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Job Location|Location|Work Location|Experience|required|Deadline|Education|Vacancy|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
-        "experience": _first_match(text, [r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
-        "deadline": _first_match(text, [r"(?:Deadline for apply the job|Deadline|শেষ তারিখ)\s*[:：-]?\s*(?:Deadline\s*[:：-]?\s*)?(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Age|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
-        "education": _first_match(text, [r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
-        "location": _first_match(text, [r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary|Posted|Published|Employment|Workplace)\b|$)"]),
-        "salary": _first_match(text, [r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Posted|Published|Employment|Workplace)\b|$)"]),
-        "vacancy": _first_match(text, [r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b"]),
-        "employment_type": _first_match(text, [r"(?:Employment Status|Employment Type|Job Type|চাকরির ধরন)\s*[:：-]?\s*(.+?)(?=\s+(?:Workplace|Job Work Place|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
-        "workplace": _first_match(text, [r"(?:Job Work Place|Workplace|Work Place|কর্মক্ষেত্র)\s*[:：-]?\s*(.+?)(?=\s+(?:Employment Status|Job Location|Location|Deadline|Posted|Published)\b|$)"]),
-        "age": _first_match(text, [r"(?:Age|Age Limit|Age Requirements|বয়স|বয়স|বয়সসীমা|বয়সসীমা)\s*[:：-]?\s*(.+?)(?=\s+(?:Salary|Vacancy|Deadline|Education|required|Experience required|Experience|Job Location|Location|Posted|Published)\b|$)"]),
-        "posted": _first_match(text, [r"(?:Published|Posted|Date Posted|Publication Date|প্রকাশিত|প্রকাশ তারিখ|প্রকাশের তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education|Experience|Vacancy|Job Location|Location|Salary|Employment|Workplace)\b|$)"]),
-        "application_method": _first_match(text, [r"(?:Application|Application Process|Application Procedure|How to Apply|আবেদন প্রক্রিয়া|আবেদন প্রক্রিয়া|আবেদনের নিয়ম|আবেদনের নিয়ম)\s*[:：-]?\s*(.+?)(?=\s+(?:Selection Process|Deadline|Posted|Published|Salary)\b|$)"]),
-    }
-
-    inline = {
-        "location": r"(?:Job Location|Location|Work Location)(?!\s*required)\s*(.+?)(?=\s+(?:Experience required|Experience|Deadline for apply the job|Deadline|Education required|Education|Salary|Vacancy|$))",
-        "experience": r"(?:Experience required|Experience|অভিজ্ঞতা)\s+(.+?)(?=\s+(?:Deadline for apply the job|Deadline|Education required|Education|Salary|Vacancy|Job Location|Location|$))",
-        "deadline": r"(?:Deadline for apply the job|Deadline|শেষ তারিখ)\s*(?:Deadline\s*[:：-]?\s*)?(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Job Location|Location|Salary|Vacancy|$))",
-        "education": r"(?:Education required|Education|শিক্ষাগত যোগ্যতা)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Salary|Vacancy|$))",
-        "salary": r"(?:Salary|Salary Range|Compensation)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Education|Vacancy|$))",
-        "vacancy": r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
-        "posted": r"(?:Published|Posted|Date Posted|Publication Date|প্রকাশিত|প্রকাশ তারিখ|প্রকাশের তারিখ)\s+(.+?)(?=\s+(?:Deadline|Experience required|Experience|Job Location|Location|Salary|Education|Vacancy|$))",
-    }
-    for key, pattern in inline.items():
-        if not fields.get(key):
-            fields[key] = _first_match(text, [pattern])
-
+    raw = clean_reader_markdown(card_text)
+    fields = _extract_source_label_fields(raw)
     return {
-        "company": _clean_one_line(fields["company"]),
-        "experience": compact_experience(fields["experience"]),
-        "education": compact_education(fields["education"]),
-        "deadline": normalize_date_text(fields["deadline"]),
-        "location": compact_location(fields["location"]),
-        "salary": compact_salary(fields["salary"]),
-        "vacancy": compact_vacancy(fields["vacancy"]),
-        "employment_type": compact_employment(fields["employment_type"]),
-        "workplace": compact_workplace(fields["workplace"]),
-        "age": compact_age(fields["age"]),
-        "posted_date": normalize_date_text(fields["posted"]),
-        "application_method": compact_application(fields["application_method"]),
+        "company": clean_source_field(fields.get("company", "")),
+        "experience": compact_experience(fields.get("experience", "")),
+        "education": compact_education(fields.get("education", "")),
+        "deadline": normalize_date_text(fields.get("deadline", "")),
+        "location": compact_location(fields.get("location", "")),
+        "salary": compact_salary(fields.get("salary", "")),
+        "vacancy": compact_vacancy(fields.get("vacancy", "")),
+        "employment_type": compact_employment(fields.get("employment_type", "")),
+        "workplace": compact_workplace(fields.get("workplace", "")),
+        "age": compact_age(fields.get("age", "")),
+        "posted_date": normalize_date_text(fields.get("posted_date", "")),
+        "application_method": compact_application(fields.get("application_method", "")),
+        "gender": clean_source_field(fields.get("gender", "")),
     }
 
 
@@ -909,6 +875,8 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             id_match = re.search(r"/h/jobs/(\d+)(?:/|$)", parsed_href.path, re.I)
 
         seen.add(canonical)
+        raw_source_fields = dict(baseline)
+        raw_source_fields.update({k: v for k, v in chosen_baseline.items() if v})
         found.append({
             "title": title,
             "company": baseline.get("company", ""),
@@ -925,7 +893,9 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             "listing_deadline": baseline.get("deadline") or normalize_date_text(
                 _first_match(card_text, [r"(?:Deadline(?: for apply the job)?|শেষ তারিখ)\s*[:：-]?\s*(?:Deadline\s*[:：-]?\s*)?([^|]+)"])
             ),
-            "listing_fields": baseline,
+            "listing_fields": raw_source_fields,
+            "raw_source_fields": raw_source_fields,
+            "source_content": trim_source_text(card_text, 5000),
             "discovered_at": now_iso(),
         })
     return found
@@ -1999,108 +1969,132 @@ def _meta_or_time_published(page_html):
 
 
 
-def _bdjobs_detail_summary_fields(text, expected_title=""):
-    """Parse high-value fields from the current/legacy Bdjobs detail summary.
 
-    The current page exposes a compact summary such as Application Deadline, Vacancy,
-    Age, Location, Salary, Experience, Published, followed by Requirements, Workplace,
-    and Employment Status. Parse by explicit labels so fields cannot borrow neighboring
-    values (especially Age <- Experience).
-    """
-    raw = safe_text(text)
-    if not raw:
+BDJOBS_SOURCE_FIELD_ALIASES = {
+    "deadline": ("Application Deadline", "Deadline", "Last Date", "Apply Before"),
+    "vacancy": ("Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions"),
+    "age": ("Age", "Age Limit", "Age Requirements"),
+    "location": ("Location", "Job Location", "Job Location(s)", "Work Location"),
+    "salary": ("Salary", "Salary Range", "Compensation"),
+    "experience": ("Experience", "Experience Requirements", "Experience Requirement"),
+    "posted_date": ("Published", "Posted", "Date Posted", "Publication Date"),
+    "education": ("Education", "Education required", "Educational Requirements", "Educational Qualification", "Education Requirements"),
+    "employment_type": ("Employment Status", "Employment Type", "Job Type"),
+    "workplace": ("Workplace", "Job Work Place", "Work Place"),
+    "gender": ("Gender",),
+    "application_method": ("Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply"),
+}
+BDJOBS_ALL_SOURCE_LABELS = tuple(label for aliases in BDJOBS_SOURCE_FIELD_ALIASES.values() for label in aliases)
+
+
+def _normalized_source_label(value):
+    value = clean_source_field(value)
+    return re.sub(r"\s+", " ", value).strip().rstrip(":-").casefold()
+
+
+def _source_label_match(line, aliases):
+    line = clean_source_field(line)
+    if not line:
+        return False, ""
+    known = "|".join(re.escape(x) for x in sorted(BDJOBS_ALL_SOURCE_LABELS, key=len, reverse=True))
+    for alias in sorted(aliases, key=len, reverse=True):
+        if re.fullmatch(re.escape(alias) + r"\s*[:：-]?", line, flags=re.I):
+            return True, ""
+        pattern = rf"^{re.escape(alias)}\s*(?:[:：-]\s*|\s+)(.*?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)"
+        m = re.match(pattern, line, flags=re.I)
+        if m:
+            return True, _clean_one_line(m.group(1))
+    return False, ""
+
+
+def _source_field_lines(text):
+    cleaned = clean_reader_markdown(text)
+    out=[]
+    for raw_line in cleaned.splitlines():
+        line=clean_source_field(raw_line)
+        # Bdjobs listing/detail markup can expose icon placeholders such as
+        # "Image:" between the label and its value. They are not source data.
+        line=re.sub(r"\bImage\s*[:：]?\s*", " ", line, flags=re.I)
+        line=_clean_one_line(line)
+        if line:
+            out.append(line)
+    return out
+
+
+def _extract_source_label_fields(text):
+    """Extract summary fields only from their explicit source labels."""
+    lines = _source_field_lines(text)
+    if not lines:
         return {}
-    lines = [_clean_one_line(x) for x in raw.splitlines() if _clean_one_line(x)]
-    label_aliases = {
-        "company": ("Company Name", "Company", "Organization Name", "Employer", "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম", "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম"),
-        "deadline": ("Application Deadline", "Deadline", "শেষ তারিখ"),
-        "vacancy": ("Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "খালি পদ", "পদসংখ্যা", "পদ সংখ্যা"),
-        "age": ("Age", "Age Limit", "Age Requirements", "বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা"),
-        "location": ("Location", "Job Location", "Job Location(s)", "Work Location", "চাকরি স্থান", "চাকুরি স্থান", "কর্মস্থল", "কর্মস্হল"),
-        "salary": ("Salary", "Salary Range", "Compensation", "বেতন"),
-        "experience": ("Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"),
-        "posted_date": ("Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"),
-        "employment_type": ("Employment Status", "Employment Type", "Job Type", "চাকরির ধরন"),
-        "workplace": ("Workplace", "Job Work Place", "Work Place", "কর্মক্ষেত্র"),
-        "application_method": ("Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"),
-    }
-    normalized_aliases = {
-        key: {re.sub(r"\s+", " ", safe_text(v).lower().rstrip(":- ")).strip() for v in aliases}
-        for key, aliases in label_aliases.items()
-    }
-    normalized_known = set().union(*normalized_aliases.values())
-    company_labels = normalized_aliases["company"]
     result = {}
-
+    normalized_known = {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}
     for i, line in enumerate(lines):
-        norm = _normalized_line_label(line)
-        for key, aliases in normalized_aliases.items():
-            value = ""
-            if norm in aliases:
-                # A label on its own line: the next non-label line is the value.
-                if i + 1 < len(lines):
-                    nxt = lines[i + 1]
-                    if _normalized_line_label(nxt) not in normalized_known:
-                        value = nxt
-            else:
-                for alias in sorted(aliases, key=len, reverse=True):
-                    m = re.match(rf"^{re.escape(alias)}\s*[:：-]\s*(.*?)$", line, flags=re.I)
-                    if m:
-                        value = _clean_one_line(m.group(1))
-                        break
-            if value and key not in {"company"}:
-                # Explicit label semantics win. A value like `--` is cleaned later.
-                result_value = _clean_one_line(value)
-                # Store only the first explicit occurrence for each field.
-                if result_value and key not in result:
-                    result[key] = result_value
-            elif value and key == "company" and key not in result:
-                result[key] = _clean_one_line(value)
+        for field, aliases in BDJOBS_SOURCE_FIELD_ALIASES.items():
+            if field in result:
+                continue
+            matched, value = _source_label_match(line, aliases)
+            if not matched:
+                continue
+            if not value and i + 1 < len(lines):
+                nxt = lines[i + 1]
+                if _normalized_source_label(nxt) not in normalized_known:
+                    value = nxt
+            value = clean_source_field(value)
+            value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
+            value = _clean_one_line(value)
+            if value:
+                result[field] = value
 
-    # Flattened fallback. Use source labels followed by a different known label as a boundary.
-    flat = re.sub(r"\s+", " ", raw)
-    for key, aliases in normalized_aliases.items():
-        if result.get(key):
+    # Flattened Jina output fallback. It still uses known-label boundaries, never a
+    # first-number/nearest-number heuristic.
+    flat = re.sub(r"\s+", " ", clean_reader_markdown(text)).strip()
+    known = "|".join(re.escape(x) for x in sorted(BDJOBS_ALL_SOURCE_LABELS, key=len, reverse=True))
+    for field, aliases in BDJOBS_SOURCE_FIELD_ALIASES.items():
+        if result.get(field):
             continue
-        label_pattern = "|".join(re.escape(a) for a in sorted(aliases, key=len, reverse=True))
-        stop_labels = normalized_known - aliases
-        stop = "|".join(re.escape(a) for a in sorted(stop_labels, key=len, reverse=True)) or r"(?!)"
-        pattern = rf"(?:{label_pattern})\s*[:：-]\s*(.+?)(?=\s+(?:{stop})\s*[:：-]|$)"
+        label = "|".join(re.escape(x) for x in sorted(aliases, key=len, reverse=True))
+        pattern = rf"(?<![\w])(?:{label})\s*(?:[:：-]\s*)?(.*?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)"
         m = re.search(pattern, flat, flags=re.I)
         if m:
-            result[key] = _clean_one_line(m.group(1))
-
-    # Current detail pages often expose company on the line immediately before the expected title.
-    # Some localized templates place a company label/value immediately after the title.
-    if not result.get("company") and lines:
-        expected = _clean_one_line(expected_title)
-        title_idx = -1
-        if expected:
-            for i, line in enumerate(lines[:30]):
-                if normalize_title(line) == normalize_title(expected):
-                    title_idx = i
-                    break
-        candidates=[]
-        if title_idx > 0:
-            prev=lines[title_idx-1]
-            if _normalized_line_label(prev) not in company_labels:
-                candidates.append(prev)
-        if title_idx >= 0 and title_idx + 1 < len(lines):
-            nxt=lines[title_idx+1]
-            if _normalized_line_label(nxt) in company_labels and title_idx + 2 < len(lines):
-                candidates.insert(0, lines[title_idx+2])
-            elif _normalized_line_label(nxt) not in normalized_known:
-                candidates.append(nxt)
-        if not candidates and len(lines)>=2:
-            candidates.append(lines[0])
-        for candidate in candidates:
-            candidate=_clean_one_line(candidate)
-            if (candidate and normalize_title(candidate) != normalize_title(expected or "__none__")
-                and not re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", candidate, flags=re.I)
-                and not any(x in candidate.lower() for x in ("job list", "create", "sign in", "unlock", "application deadline"))):
-                result["company"]=candidate
-                break
+            value = clean_source_field(m.group(1))
+            value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
+            value = _clean_one_line(value)
+            if value:
+                result[field] = value
     return result
+
+
+def _extract_bdjobs_company_from_document(text, expected_title):
+    lines = _source_field_lines(text)
+    expected = normalize_title(expected_title)
+    if not lines or not expected:
+        return ""
+    idx = next((i for i, line in enumerate(lines[:80]) if normalize_title(line) == expected), -1)
+    if idx < 0:
+        return ""
+    known = {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}
+    for p in range(idx - 1, max(-1, idx - 6), -1):
+        candidate = clean_source_field(lines[p])
+        if not candidate or _normalized_source_label(candidate) in known:
+            continue
+        if is_noise_title(candidate):
+            continue
+        if re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", candidate, flags=re.I):
+            continue
+        if "bdjobs.com" in candidate.lower() or "job list" in candidate.lower():
+            continue
+        return candidate
+    return ""
+
+
+def _bdjobs_detail_summary_fields(text, expected_title=""):
+    result = _extract_source_label_fields(text)
+    if not result.get("company"):
+        company = _extract_bdjobs_company_from_document(text, expected_title)
+        if company:
+            result["company"] = company
+    return result
+
 
 def extract_job_fields(text, page_html, source_url, discovery_item):
     text = safe_text(text)
@@ -2525,11 +2519,17 @@ def _fetch_bdjobs_detail(item):
         DETAIL_CACHE[key]={"ts":time.monotonic(),"result":browser}
         return browser
 
-    # One Jina attempt as a final text-only fallback.
+    # Jina should use the current server-rendered /hn/details page first. The old
+    # implementation sent Jina to the legacy route, which often returned less content.
     if JINA_ENABLED:
-        jina_target = variants[2] if len(variants) >= 3 else primary
-        fallback=_fetch_jina(jina_target, timeout=min(10, max(5, int(JINA_TIMEOUT))))
-        if fallback:
+        jina_targets=[]
+        for route_index in (1, 0, 2):
+            if route_index < len(variants) and variants[route_index] not in jina_targets:
+                jina_targets.append(variants[route_index])
+        for jina_target in jina_targets[:2]:
+            fallback=_fetch_jina(jina_target, timeout=min(12, max(5, int(JINA_TIMEOUT))))
+            if not fallback:
+                continue
             ok,reason=_looks_like_job_document(fallback.get("text", ""), url=jina_target, detail=True)
             if ok:
                 fallback=_detail_payload_from_fetch(fallback)
@@ -2539,7 +2539,7 @@ def _fetch_bdjobs_detail(item):
                 logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=jina:%s", item.get("source_job_id",""), urlparse(jina_target).path)
                 return fallback
             last_reason=reason
-            logger.info("BDJOBS DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id",""), reason)
+            logger.info("BDJOBS DETAIL JINA REJECT | id=%s | route=%s | reason=%s", item.get("source_job_id",""), urlparse(jina_target).path, reason)
 
     logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
@@ -2700,6 +2700,11 @@ def research_job(item):
     listing=item.get("listing_fields") or {}
     detail_fields = {} if retrieved.get("detail_quality") == "listing_fallback" else fields
     fields=merge_job_fields(detail_fields, listing, item)
+    source_fields = dict(item.get("raw_source_fields") or {})
+    extracted_fields = _extract_source_label_fields(retrieved.get("text", ""))
+    source_fields.update({k:v for k,v in extracted_fields.items() if v})
+    fields["raw_source_fields"] = source_fields
+    fields["source_content"] = safe_text(retrieved.get("text", ""))[:12000]
 
     apply_url=retrieved.get("apply_url", "") or item.get("apply_url", "")
     if not apply_url and fields.get("application_method"):
@@ -2908,8 +2913,18 @@ JUDGE_SCHEMA = {
                     "early_career_fit": {"type": "integer", "minimum": 0, "maximum": 100},
                     "role_fit": {"type": "integer", "minimum": 0, "maximum": 100},
                     "reason": {"type": "string"},
+                    "display_fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date"]
+                        },
+                        "minItems": 1,
+                        "maxItems": 11,
+                        "uniqueItems": True
+                    },
                 },
-                "required": ["id", "publish", "score", "bba_mba_fit", "early_career_fit", "role_fit", "reason"],
+                "required": ["id", "publish", "score", "bba_mba_fit", "early_career_fit", "role_fit", "reason", "display_fields"],
                 "additionalProperties": False,
             },
         }
@@ -2926,6 +2941,7 @@ Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career busi
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
 For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
+For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. Always include deadline and posted_date when available; for private jobs include location and experience when available.
 Return every input candidate.
 """
 
@@ -3026,6 +3042,7 @@ def _validate_judge_rows(rows, batch_len):
             role_fit = max(0, min(100, int(float(row.get("role_fit", 0)))))
         except Exception:
             continue
+        display_fields=[x for x in (row.get("display_fields") or []) if x in {"location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date"}]
         valid.append({
             "id": idx,
             "publish": bool(row.get("publish", True)),
@@ -3034,6 +3051,7 @@ def _validate_judge_rows(rows, batch_len):
             "early_career_fit": early_fit,
             "role_fit": role_fit,
             "reason": safe_text(row.get("reason", "")),
+            "display_fields": list(dict.fromkeys(display_fields)),
         })
     return valid
 
@@ -3049,7 +3067,8 @@ def _call_judge_once(batch, batch_no, retry=False):
             f"Salary: {trim_source_text(job.get('salary',''),80)}", f"Vacancy: {job.get('vacancy','')}",
             f"Posted: {job.get('posted_date','')}", f"Deadline: {job.get('deadline','')}",
             f"Location: {job.get('location','')}",
-            f"Description: {trim_source_text(job.get('raw_text',''),700)}",
+            f"Source fields: {json.dumps(job.get('raw_source_fields', {}), ensure_ascii=False, separators=(',', ':'))}",
+            f"Source content: {trim_source_text(job.get('source_content') or job.get('raw_text',''),3000)}",
         ]))
     prompt = (
         "Audit every candidate. Return ONLY one JSON object matching the schema. "
@@ -3147,6 +3166,14 @@ def rank_jobs(jobs):
         ai_available = bool(row)
         ai_score = max(0, min(100, int(row.get("score", 0)))) if ai_available else None
         candidate = dict(job)
+        available_display=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(candidate.get(key))]
+        ai_display=[key for key in (row.get("display_fields") or []) if key in available_display]
+        display_fields=list(dict.fromkeys(ai_display or available_display))
+        for core_key in ("deadline","posted_date","location"):
+            if core_key in available_display and core_key not in display_fields:
+                display_fields.append(core_key)
+        if not is_internship_job(candidate) and "experience" in available_display and "experience" not in display_fields:
+            display_fields.append("experience")
         candidate.update({
             "ai_score": ai_score if ai_available else None,
             "judge_publish": bool(row.get("publish", True)) if ai_available else True,
@@ -3154,6 +3181,7 @@ def rank_jobs(jobs):
             "early_career_fit": int(row.get("early_career_fit", min(100, experience_priority_score(job) * 6))) if ai_available else None,
             "role_fit": int(row.get("role_fit", min(100, role_fit_score(job) * 5))) if ai_available else None,
             "judge_reason": safe_text(row.get("reason", "Deterministic source-first ranking.")) if ai_available else "AI unavailable; deterministic score used.",
+            "display_fields": display_fields,
         })
         if not candidate["judge_publish"]:
             continue
@@ -3496,15 +3524,8 @@ def telegram_call(method, data=None, files=None):
 
 def _button_markup(job):
     url = safe_text(job.get("apply_url"))
-    if url and url.startswith(("http://", "https://")):
-        label = "APPLY NOW"
-        target = url
-    else:
-        label = "APPLY NOW"
-        target = safe_text(job.get("source_url"))
-    return {
-        "inline_keyboard": [[{"text": label, "url": target}]]
-    }
+    target = url if url.startswith(("http://", "https://")) else safe_text(job.get("source_url"))
+    return {"inline_keyboard": [[{"text": "APPLY NOW", "url": target}]]}
 
 
 def send_rich_text(blocks, job):
@@ -3536,50 +3557,31 @@ def display_value(value):
 
 
 def job_hashtags(job):
-    """Generate explicit source-aware, role-aware hashtags."""
-    if job.get("is_government"):
-        return ["#GovtJob"]
     tags=[]
+    if job.get("is_government"):
+        tags.append("#GovtJob")
     if is_internship_job(job):
         tags.append("#Internship")
-    family = safe_text(job.get("career_category") or _career_family(job))
-    family_tags = {
-        "Finance & Accounting": "#Finance",
-        "Banking & Financial Services": "#Banking",
-        "Marketing & Sales": "#Marketing",
-        "Business Development": "#BusinessDevelopment",
-        "Human Resources": "#HR",
-        "Supply Chain & Procurement": "#SupplyChain",
-        "Commercial": "#Commercial",
-        "Management & Administration": "#Management",
-        "Customer Experience": "#CustomerService",
-        "E-commerce & Digital Business": "#Ecommerce",
-        "Operations": "#Operations",
-        "Media / Advertisement / Events": "#Media",
-        "Research & Consultancy": "#Research",
-        "NGO / Development": "#NGO",
-        "Hospitality / Travel / Tourism": "#Hospitality",
+    family=safe_text(job.get("career_category") or _career_family(job))
+    family_tags={
+        "Finance & Accounting":"#Finance","Banking & Financial Services":"#Banking",
+        "Marketing & Sales":"#Marketing","Business Development":"#BusinessDevelopment",
+        "Human Resources":"#HR","Supply Chain & Procurement":"#SupplyChain",
+        "Commercial":"#Commercial","Management & Administration":"#Management",
+        "Customer Experience":"#CustomerService","E-commerce & Digital Business":"#Ecommerce",
+        "Operations":"#Operations","Media / Advertisement / Events":"#Media",
+        "Research & Consultancy":"#Research","NGO / Development":"#NGO",
+        "Hospitality / Travel / Tourism":"#Hospitality",
     }
-    tag=family_tags.get(family)
-    if tag:
-        tags.append(tag)
-    blob=f"{safe_text(job.get('title'))} {safe_text(job.get('raw_text'))}".lower()
-    extra = (
-        ("#Sales", ("sales", "territory sales", "key account")),
-        ("#Marketing", ("marketing", "brand", "trade marketing")),
-        ("#Finance", ("finance", "account", "audit", "tax")),
-        ("#Banking", ("bank", "credit", "branch")),
-        ("#HR", ("human resource", "recruitment", "talent acquisition", "hr ")),
-        ("#SupplyChain", ("supply chain", "procurement", "logistics", "sourcing")),
-    )
-    for tag_name, terms in extra:
-        if any(term in blob for term in terms):
-            tags.append(tag_name)
-    if any(x in blob for x in EARLY_CAREER_TERMS):
-        tags.append("#EarlyCareer")
-    if not tags:
-        tags.append("#Career")
-    return list(dict.fromkeys(tags))[:4]
+    if family_tags.get(family):
+        tags.append(family_tags[family])
+    blob=f"{safe_text(job.get('title'))} {safe_text(job.get('raw_text'))} {safe_text(job.get('category'))}".lower()
+    extras=(("#Sales",("sales","territory sales","key account")),("#Marketing",("marketing","brand","trade marketing")),("#Finance",("finance","account","audit","tax")),("#Banking",("bank","credit","branch")),("#HR",("human resource","recruitment","talent acquisition","hr ")),("#SupplyChain",("supply chain","procurement","logistics","sourcing")))
+    for tag,terms in extras:
+        if any(term in blob for term in terms): tags.append(tag)
+    if any(x in blob for x in EARLY_CAREER_TERMS): tags.append("#EarlyCareer")
+    if not tags: tags.append("#Career")
+    return list(dict.fromkeys(tags))[:5]
 
 
 def _field_icon(label):
@@ -3637,10 +3639,11 @@ def snapshot_integrity(job):
         minimum=GOVERNMENT_SNAPSHOT_MIN_FIELDS
     else:
         minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
-        for key in ("location", "experience", "deadline"):
+        required_core=("location", "deadline") if is_internship_job(job) else ("location", "experience", "deadline")
+        for key in required_core:
             if not safe_text(job.get(key)):
                 return False, f"private_missing_core_{key}"
-        if not any(safe_text(job.get(k)) for k in ("education", "salary", "vacancy", "employment_type", "workplace", "age", "application_method")):
+        if not any(safe_text(job.get(k)) for k in ("education", "salary", "vacancy", "employment_type", "workplace", "age", "application_method", "experience")):
             return False, "private_missing_secondary_field"
     count=snapshot_field_quality(job)
     if count < minimum:
@@ -3665,7 +3668,7 @@ def split_snapshot_eligible(jobs):
 
 def job_snapshot_rows(job):
     """Return only source-backed available fields; dates shown are Deadline and Posted only."""
-    mapping=[
+    mapping_all=[
         ("Location","location"),
         ("Employment","employment_type"),
         ("Workplace","workplace"),
@@ -3678,6 +3681,8 @@ def job_snapshot_rows(job):
         ("Deadline","deadline"),
         ("Posted","posted_date"),
     ]
+    wanted=set(job.get("display_fields") or [key for _,key in mapping_all if safe_text(job.get(key))])
+    mapping=[(label,key) for label,key in mapping_all if key in wanted]
     rows=[]
     for label,key in mapping:
         raw=english_display_text(job.get(key))
@@ -4173,6 +4178,44 @@ def self_test():
         assert retrieve_job_content(listing_item)["detail_quality"] == "listing_fallback"
     finally:
         globals()["_fetch_bdjobs_detail"] = original_detail
+
+    current_bdjobs = """
+    Averroes International School
+    Logistics Executive
+    Application Deadline :
+    17 Oct 2026
+    Vacancy: 01
+    Age: 26 to 28 years
+    Location: Dhaka
+    Salary: Negotiable
+    Experience: 2 to 3 years
+    Published: 17 Sep 2026
+    Requirements
+    Education
+    Bachelor of Business Administration (BBA)
+    Workplace
+    Work at office
+    Employment Status
+    Full Time
+    """
+    bd_fields=extract_job_fields(current_bdjobs,"","https://bdjobs.com/h/details/999001?ln=1",{"title":"Logistics Executive"})
+    assert bd_fields["company"]=="Averroes International School"
+    assert bd_fields["location"]=="Dhaka"
+    assert bd_fields["salary"]=="Negotiable"
+    assert bd_fields["vacancy"]=="01"
+    assert bd_fields["experience"]=="2 to 3 years"
+    assert bd_fields["age"]=="26-28 Years"
+    assert bd_fields["age"] != compact_age(bd_fields["experience"])
+    assert bd_fields["posted_date"]=="2026-09-17"
+    assert bd_fields["deadline"]=="2026-10-17"
+    internship=dict(bd_fields,title="Finance Internship",employment_type="Internship",experience="",is_government=False,source_url="https://bdjobs.com/h/details/999001?ln=1",company="Example Bank")
+    ok,reason=snapshot_integrity(internship)
+    assert ok, reason
+    assert "#Internship" in job_hashtags(internship)
+    gov=dict(internship,is_government=True)
+    assert "#GovtJob" in job_hashtags(gov)
+    internship["display_fields"]=["location","salary","vacancy","deadline","posted_date"]
+    assert set(dict(job_snapshot_rows(internship))) >= {"Location","Salary","Vacancy","Deadline","Posted"}
 
     logger.info("Career News V1 self-test passed.")
 

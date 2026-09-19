@@ -54,7 +54,7 @@ jobs:
       CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
       CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
       JINA_ENABLED: "1"
-      JINA_TIMEOUT: "10"
+      JINA_TIMEOUT: "12"
       JINA_RPM_LIMIT: "24"
 
     steps:
@@ -75,6 +75,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           scrapling install
+          python -m playwright install chromium --with-deps
 
       - name: Compile check
         run: python -m py_compile main.py

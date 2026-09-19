@@ -74,6 +74,16 @@ It returns readable output ( no JS, no cookies), so you can parse values easily 
 
 **Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation and Jina Reader fallback. These methods are not guaranteed to bypass every site's protection.
 
+### Source-first extraction → AI selection
+
+Career News V1 extracts the complete cleaned Bdjobs source document before AI review. It keeps structured source fields and the full cleaned source content. Cerebras is used only to classify relevance, identify internships, audit contradictions, and choose which available fields should appear in the compact snapshot. It never creates factual values.
+
+```text
+source facts → normalization → AI selection → render the original source facts
+```
+
+Age, Experience, Salary, Vacancy, Location, Published date and Deadline are independently bound to their own labels. A value from one field cannot populate another field.
+
 ### Job Snapshot data contract
 
 The Telegram Job Snapshot is generated from one normalized `JobRecord`. Detail research is enrichment only and must never erase trustworthy listing data. Field precedence is:
@@ -206,7 +216,7 @@ rotate iOS Safari fingerprints on challenge
         ↓
 Cloudflare challenge detection
         ↓
-Jina Reader fallback
+Jina Reader fallback (current /hn/details route first)
         ↓
 plain-text / HTML extraction
 ```

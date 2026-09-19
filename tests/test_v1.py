@@ -850,3 +850,84 @@ def test_job_snapshot_rows_keep_source_fields_and_omit_only_missing_values():
     assert rows["Salary"] == "Tk. 20000 - 25000/month"
     assert rows["Vacancy"] == "01"
     assert rows["Posted"] == "17-09-2026"
+
+
+
+def test_live_style_bdjobs_source_fields_are_separate():
+    text="""
+    Averroes International School
+    Logistics Executive
+    Application Deadline :
+    17 Oct 2026
+    Vacancy: 01
+    Age: 26 to 28 years
+    Location: Dhaka
+    Salary: Negotiable
+    Experience: 2 to 3 years
+    Published: 17 Sep 2026
+    Requirements
+    Education
+    Bachelor of Business Administration (BBA)
+    Workplace
+    Work at office
+    Employment Status
+    Full Time
+    """
+    job=main.extract_job_fields(text,"","https://bdjobs.com/h/details/999001?ln=1",{"title":"Logistics Executive"})
+    assert job["company"]=="Averroes International School"
+    assert job["location"]=="Dhaka"
+    assert job["vacancy"]=="01"
+    assert job["salary"]=="Negotiable"
+    assert job["age"]=="26-28 Years"
+    assert job["experience"]=="2 to 3 years"
+    assert job["posted_date"]=="2026-09-17"
+    assert job["deadline"]=="2026-10-17"
+
+
+def test_jina_uses_current_server_rendered_route_first(monkeypatch):
+    item=make_listing_item()
+    calls=[]
+    def fake_curl(url, **kwargs):
+        calls.append(("curl",url))
+        return {"ok":True,"status":200,"text":"Just a moment...","url":url,"backend":"curl_cffi:safari18_0_ios","cloudflare":True}
+    def fake_jina(url, **kwargs):
+        calls.append(("jina",url))
+        return {"ok":True,"status":200,"text":"Company\nExample Finance Ltd.\nManagement Trainee\nApplication Deadline :\n1 Oct 2026\nVacancy: 3\nAge: 24 to 30 years\nLocation: Dhaka\nSalary: Negotiable\nExperience: 1 to 2 years\nPublished: 19 Sep 2026\nEducation\nBBA","url":url,"backend":"jina_reader","cloudflare":False}
+    monkeypatch.setattr(main,"_fetch_with_curl",fake_curl)
+    monkeypatch.setattr(main,"_fetch_jina",fake_jina)
+    main.DETAIL_CACHE.clear()
+    result=main._fetch_bdjobs_detail(item)
+    assert result["backend"]=="jina_reader"
+    jina_urls=[url for kind,url in calls if kind=="jina"]
+    assert jina_urls and "/hn/details/777001" in jina_urls[0]
+
+
+def test_internship_snapshot_can_omit_experience():
+    job={
+        "title":"Finance Internship","company":"Example Bank","location":"Dhaka",
+        "experience":"","education":"BBA","salary":"Negotiable","vacancy":"2",
+        "deadline":"2026-10-01","posted_date":"2026-09-19","source_url":"https://bdjobs.com/h/details/1",
+        "is_government":False,
+    }
+    ok,reason=main.snapshot_integrity(job)
+    assert ok,reason
+    assert "#Internship" in main.job_hashtags(job)
+
+
+def test_apply_button_never_says_read_more():
+    markup=main._button_markup({"source_url":"https://bdjobs.com/h/details/1","apply_url":""})
+    assert markup["inline_keyboard"][0][0]["text"]=="APPLY NOW"
+
+
+def test_flattened_bdjobs_fields_do_not_cross_contaminate():
+    text = "Company Name: Example Bank Vacancy: 01 Age: 26 to 28 years Location: Dhaka Salary: Negotiable Experience: 2 to 3 years Published: 17 Sep 2026 Deadline: 17 Oct 2026"
+    fields = main.extract_job_fields(
+        text, "", "https://bdjobs.com/h/details/999010?ln=1", {"title": "HR Executive"}
+    )
+    assert fields["vacancy"] == "01"
+    assert fields["age"] == "26-28 Years"
+    assert fields["location"] == "Dhaka"
+    assert fields["salary"] == "Negotiable"
+    assert fields["experience"] == "2 to 3 years"
+    assert fields["posted_date"] == "2026-09-17"
+    assert fields["deadline"] == "2026-10-17"
