@@ -92,6 +92,9 @@ def test_detail_fetch_prefers_direct_then_jina(monkeypatch):
 
     monkeypatch.setattr(main, "_fetch_with_curl", fake_curl)
     monkeypatch.setattr(main, "_fetch_jina", fake_jina)
+    # This test isolates the Jina fallback path. Production uses the real
+    # Patchright/Scrapling browser before Jina, so disable that layer here.
+    monkeypatch.setattr(main, "_fetch_bdjobs_with_scrapling", lambda _item: None)
     main.DETAIL_CACHE.clear()
 
     result = main._fetch_bdjobs_detail(item)
@@ -946,6 +949,8 @@ def test_jina_uses_current_server_rendered_route_first(monkeypatch):
         return {"ok":True,"status":200,"text":"Company\nExample Finance Ltd.\nManagement Trainee\nApplication Deadline :\n1 Oct 2026\nVacancy: 3\nAge: 24 to 30 years\nLocation: Dhaka\nSalary: Negotiable\nExperience: 1 to 2 years\nPublished: 19 Sep 2026\nEducation\nBBA","url":url,"backend":"jina_reader","cloudflare":False}
     monkeypatch.setattr(main,"_fetch_with_curl",fake_curl)
     monkeypatch.setattr(main,"_fetch_jina",fake_jina)
+    # Isolate the Jina route-order test from the production browser fallback.
+    monkeypatch.setattr(main,"_fetch_bdjobs_with_scrapling",lambda _item: None)
     main.DETAIL_CACHE.clear()
     result=main._fetch_bdjobs_detail(item)
     assert result["backend"]=="jina_reader"
