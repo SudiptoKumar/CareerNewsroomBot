@@ -7,6 +7,8 @@ import argparse
 import logging
 import hashlib
 import shutil
+import threading
+from collections import deque
 
 try:
     import curl_cffi
@@ -52,21 +54,29 @@ BD_TZ = ZoneInfo("Asia/Dhaka")
 
 TARGET_STORIES_PER_RUN = int(os.environ.get("TARGET_STORIES_PER_RUN", "15"))
 MAX_STORIES_PER_RUN = int(os.environ.get("MAX_STORIES_PER_RUN", "20"))
+MIN_PRIVATE_POSTS_PER_RUN = int(os.environ.get("MIN_PRIVATE_POSTS_PER_RUN", "10"))
+MIN_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MIN_GOVERNMENT_POSTS_PER_RUN", "3"))
 QUALITY_FLOOR = float(os.environ.get("QUALITY_FLOOR", "65"))
+PRIVATE_MIN_FILL_SCORE = float(os.environ.get("PRIVATE_MIN_FILL_SCORE", "58"))
+PRIVATE_HARD_FILL_SCORE = float(os.environ.get("PRIVATE_HARD_FILL_SCORE", "55"))
+PRIVATE_MIN_INFORMATION_QUALITY = int(os.environ.get("PRIVATE_MIN_INFORMATION_QUALITY", "3"))
+PRIVATE_HARD_MIN_INFORMATION_QUALITY = int(os.environ.get("PRIVATE_HARD_MIN_INFORMATION_QUALITY", "3"))
 MAX_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MAX_GOVERNMENT_POSTS_PER_RUN", "5"))
 POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "1.0"))
 
 MAX_POST_AGE_DAYS = int(os.environ.get("MAX_POST_AGE_DAYS", "5"))
 PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "120"))
 PRIVATE_DISCOVERY_MAX = int(os.environ.get("PRIVATE_DISCOVERY_MAX", "200"))
-PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "40"))
-PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "40"))
-AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "35"))
+PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "60"))
+PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "60"))
+AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
+AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "8"))
+AI_RETRY_COUNT = int(os.environ.get("AI_RETRY_COUNT", "1"))
 GOVERNMENT_DISCOVERY_TARGET = int(os.environ.get("GOVERNMENT_DISCOVERY_TARGET", "20"))
 CATEGORY_PAGE_LIMIT = int(os.environ.get("CATEGORY_PAGE_LIMIT", "4"))
-CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "18"))
-CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "10"))
-DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
+CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "20"))
+CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "12"))
+DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "6"))
 DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
 DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "22"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
@@ -95,6 +105,10 @@ CURL_MAX_FINGERPRINT_ATTEMPTS = max(1, int(os.environ.get("CURL_MAX_FINGERPRINT_
 CURL_VERIFY_SSL = os.environ.get("CURL_VERIFY_SSL", "1").strip().lower() not in {"0", "false", "no", "off"}
 JINA_ENABLED = os.environ.get("JINA_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
 JINA_TIMEOUT = int(os.environ.get("JINA_TIMEOUT", "25"))
+JINA_RPM_LIMIT = max(1, int(os.environ.get("JINA_RPM_LIMIT", "18")))
+JINA_WINDOW_SECONDS = int(os.environ.get("JINA_WINDOW_SECONDS", "60"))
+JINA_REQUEST_TIMES = deque()
+JINA_RATE_LOCK = threading.Lock()
 
 BDBJOBS_CATEGORIES = {
     1:  {"name": "Accounting / Finance", "priority": 1},
@@ -270,6 +284,32 @@ def clean_generated_text(text):
     return text.replace("\u2026", "").strip()
 
 
+def clean_reader_markdown(text):
+    """Convert Jina Reader Markdown into parser-safe plain text."""
+    raw = html.unescape(safe_text(text))
+    if not raw:
+        return ""
+    raw = raw.replace("\r", "")
+    raw = re.sub(r"```(?:[A-Za-z0-9_+-]+)?", "", raw)
+    raw = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", raw)
+    raw = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", raw)
+    raw = re.sub(r"\[\s*\]\([^)]*\)", "", raw)
+    raw = re.sub(r"^\s*!?\[[^\]]*\]:\s*\S+\s*$", "", raw, flags=re.M)
+    raw = re.sub(r"^\s*>+\s?", "", raw, flags=re.M)
+    raw = re.sub(r"^\s{0,3}#{1,6}\s*", "", raw, flags=re.M)
+    raw = re.sub(r"^\s*[-*+]\s+", "", raw, flags=re.M)
+    raw = re.sub(r"^\s*---+\s*$", "", raw, flags=re.M)
+    raw = re.sub(r"<https?://[^>]+>", "", raw)
+    raw = re.sub(r"<[^>]+>", " ", raw)
+    raw = re.sub(r"\b[\w.-]+\.(?:gif|png|jpe?g|webp|svg)\b", "", raw, flags=re.I)
+    raw = re.sub(r"^\s*\|\s*", "", raw, flags=re.M)
+    raw = re.sub(r"\s*\|\s*", " | ", raw)
+    raw = re.sub(r"^\s*:?[-]{3,}:?\s*(?:\|\s*:?[-]{3,}:?\s*)+$", "", raw, flags=re.M)
+    raw = re.sub(r"[ \t]{2,}", " ", raw)
+    raw = re.sub(r"\n{3,}", "\n\n", raw)
+    return raw.strip()
+
+
 def is_noise_title(title, url=""):
     normalized_noise = re.sub(r"\s+", " ", safe_text(title)).strip().lower()
     if normalized_noise in {
@@ -392,20 +432,20 @@ def _same_application_target(a, b):
 
 
 def likely_same_job(a, b):
-    if canonical_url(a.get("source_url", "")) and canonical_url(a.get("source_url", "")) == canonical_url(b.get("source_url", "")):
-        return True
-    if _same_application_target(a, b):
-        return True
-
-    # Source-native IDs are authoritative for same-source vacancies. Two distinct
-    # Bdjobs/Teletalk IDs can legitimately share the same title/company/location,
-    # so never fuzzy-collapse them when both IDs are present and different.
+    # Source-native IDs are authoritative for same-source vacancies. This check must
+    # happen before URL equality because government boards can expose several jobs
+    # through one shared board/application URL.
     source_a = safe_text(a.get("source")).lower()
     source_b = safe_text(b.get("source")).lower()
     id_a = safe_text(a.get("source_job_id"))
     id_b = safe_text(b.get("source_job_id"))
     if source_a and source_a == source_b and id_a and id_b and id_a != id_b:
         return False
+
+    if canonical_url(a.get("source_url", "")) and canonical_url(a.get("source_url", "")) == canonical_url(b.get("source_url", "")):
+        return True
+    if _same_application_target(a, b):
+        return True
     ta = title_similarity(a.get("title", ""), b.get("title", ""))
     ca = SequenceMatcher(None, _normalized_company(a.get("company", "")), _normalized_company(b.get("company", ""))).ratio()
     la = title_similarity(a.get("location", ""), b.get("location", "")) if a.get("location") and b.get("location") else 0.0
@@ -585,7 +625,7 @@ def _bdjobs_card_container(anchor):
 
 
 def _infer_listing_company(anchor, parent, title, card_text):
-    """Recover company names when the card has no explicit Company label."""
+    """Recover company names from current and legacy Bdjobs card layouts."""
     title = _clean_one_line(title)
     if not title or parent is None:
         return ""
@@ -599,96 +639,86 @@ def _infer_listing_company(anchor, parent, title, card_text):
 
         norm_title = re.sub(r"\s+", " ", title).casefold()
         for idx, line in enumerate(raw_lines):
-            if re.sub(r"\s+", " ", line).casefold() == norm_title:
-                for nxt in raw_lines[idx + 1:idx + 7]:
-                    low = nxt.lower()
-                    if low.startswith((
-                        "job location", "location", "experience", "deadline",
-                        "education", "vacancy", "salary", "age", "employment",
-                        "job work place", "workplace"
-                    )):
-                        break
-                    if len(nxt) <= 180 and not low.startswith(("image:", "logo", "featured")):
-                        candidate = re.split(
-                            r"\s+(?:Job Location|Location|Experience required|Experience|Deadline|"
-                            r"Education required|Education|Vacancy|Salary|Age|Employment Status)\b",
-                            nxt, maxsplit=1, flags=re.I
-                        )[0]
-                        candidate = re.sub(
-                            r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
-                            r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
-                            "",
-                            candidate,
-                            flags=re.I,
-                        )
-                        candidate = _clean_one_line(candidate)
-                        if candidate:
-                            return candidate
-    except Exception:
-        pass
+            if re.sub(r"\s+", " ", line).casefold() != norm_title:
+                continue
 
-    compact = _clean_one_line(card_text)
-    if compact:
-        boundary = r"(?=\s+(?:Job Location|Location|Experience required|Experience|Deadline|Education required|Education|Vacancy|Salary|Age|Employment Status)\b)"
+            for nxt in raw_lines[idx + 1:idx + 8]:
+                low = nxt.lower().strip()
+                if low.startswith((
+                    "job location", "location", "experience", "deadline",
+                    "education", "vacancy", "salary", "age", "employment",
+                    "job work place", "workplace", "posted", "published",
+                )):
+                    break
+                if len(nxt) <= 180 and not re.search(r"\.(?:gif|png|jpe?g|webp|svg)\b", nxt, re.I):
+                    candidate = re.split(
+                        r"\s+(?:Job Location|Location|Experience required|Experience|Deadline|"
+                        r"Education required|Education|Vacancy|Salary|Age|Employment Status|Posted|Published)\b",
+                        nxt, maxsplit=1, flags=re.I,
+                    )[0]
+                    candidate = re.sub(
+                        r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
+                        r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
+                        "", candidate, flags=re.I,
+                    )
+                    candidate = _clean_one_line(candidate)
+                    if candidate and normalize_title(candidate) != normalize_title(title):
+                        return candidate
+
+        compact = _clean_one_line(card_text)
+        boundary = (
+            r"(?=\s+(?:Job Location|Location|Experience required|Experience|Deadline|"
+            r"Education required|Education|Vacancy|Salary|Age|Employment Status|Posted|Published)\b)"
+        )
         match = re.search(rf"^{re.escape(title)}\s+(.+?){boundary}", compact, flags=re.I)
         if match:
-            candidate = re.split(
-                r"\s+(?:Job Location|Location|Experience required|Experience|Deadline|Education required|"
-                r"Education|Vacancy|Salary|Age|Employment Status)\b",
-                match.group(1), maxsplit=1, flags=re.I,
-            )[0]
+            candidate = _clean_one_line(match.group(1))
             candidate = re.sub(
                 r"\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|"
                 r"Rangpur|Mymensingh|Anywhere(?: in Bangladesh)?)$",
                 "", candidate, flags=re.I,
             )
-            return _clean_one_line(candidate)
+            if candidate and normalize_title(candidate) != normalize_title(title):
+                return candidate
+    except Exception:
+        pass
     return ""
 
 
-def _listing_field(card_text, labels, patterns=()):
-    value = _summary_value(card_text, labels) if "_summary_value" in globals() else ""
-    if value:
-        return _clean_one_line(value)
-    return _first_match(card_text, list(patterns)) if patterns else ""
-
-
 def _extract_listing_baseline(card_text):
-    """Extract only source-backed fields that commonly exist on Bdjobs cards.
-
-    Listing data is a fallback, not a substitute for detail enrichment. It keeps a
-    candidate alive when the detail page is temporarily blocked or thin.
-    """
+    """Extract trustworthy fields from labelled or line-oriented Bdjobs cards."""
     text = _clean_one_line(card_text)
-    company = _first_match(text, [
-        r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|Rangpur|Mymensingh|Anywhere|Deadline|Experience|required|Education)\b|$)",
-    ])
-    experience = _first_match(text, [
-        r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary)\b|$)",
-    ])
-    deadline = _first_match(text, [
-        r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Salary)\b|$)",
-    ])
-    education = _first_match(text, [
-        r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary)\b|$)",
-    ])
-    location = _first_match(text, [
-        r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary)\b|$)",
-    ])
-    salary = _first_match(text, [
-        r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location)\b|$)",
-    ])
-    vacancy = _first_match(text, [
-        r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
-    ])
+    fields = {
+        "company": _first_match(text, [
+            r"(?:Company|Company Name|Organization|Employer)\s*[:：-]\s*(.+?)(?=\s+(?:Dhaka|Chattogram|Chittagong|Khulna|Rajshahi|Sylhet|Barishal|Rangpur|Mymensingh|Anywhere|Deadline|Experience|required|Education|Vacancy|Location|Posted|Published)\b|$)",
+        ]),
+        "experience": _first_match(text, [
+            r"(?:Experience required|Experience|অভিজ্ঞতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Vacancy|Age|Job Location|Location|Salary|Posted|Published)\b|$)",
+        ]),
+        "deadline": _first_match(text, [
+            r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*(.+?)(?=\s+(?:Education required|Education|Experience required|Experience|Vacancy|Age|Job Location|Location|Salary|Posted|Published)\b|$)",
+        ]),
+        "education": _first_match(text, [
+            r"(?:Education required|Education|Educational Requirements|শিক্ষাগত যোগ্যতা)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Experience required|Experience|Vacancy|Job Location|Location|Salary|Posted|Published)\b|$)",
+        ]),
+        "location": _first_match(text, [
+            r"(?:Job Location|Location|Work Location)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Salary|Posted|Published)\b|$)",
+        ]),
+        "salary": _first_match(text, [
+            r"(?:Salary|Salary Range|Compensation)\s*[:：-]?\s*(.+?)(?=\s+(?:Deadline|Education required|Education|Experience required|Experience|Vacancy|Job Location|Location|Posted|Published)\b|$)",
+        ]),
+        "vacancy": _first_match(text, [
+            r"(?:Vacancy|No\.\s*of\s*Vacancy|Number of Vacancy|Positions)\s*[:：-]?\s*(\d{1,5})\b",
+        ]),
+    }
     return {
-        "company": _clean_one_line(company),
-        "experience": compact_experience(experience),
-        "education": compact_education(education),
-        "deadline": normalize_date_text(deadline),
-        "location": compact_location(location),
-        "salary": compact_salary(salary),
-        "vacancy": compact_vacancy(vacancy),
+        "company": _clean_one_line(fields["company"]),
+        "experience": compact_experience(fields["experience"]),
+        "education": compact_education(fields["education"]),
+        "deadline": normalize_date_text(fields["deadline"]),
+        "location": compact_location(fields["location"]),
+        "salary": compact_salary(fields["salary"]),
+        "vacancy": compact_vacancy(fields["vacancy"]),
     }
 
 
@@ -720,15 +750,26 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
             id_match = re.search(r"/h/jobs/(\d+)(?:/|$)", parsed_href.path, re.I)
         seen.add(canonical)
         found.append({
-            "title": title, "url": href, "canonical": canonical, "source": "Bdjobs", "source_url": href,
+            "title": title,
+            "company": baseline.get("company", ""),
+            "url": href,
+            "canonical": canonical,
+            "source": "Bdjobs",
+            "source_url": href,
             "source_job_id": id_match.group(1) if id_match else "",
-            "discovery": "bdjobs_category_html", "category_id": category_id, "category_name": category_name,
-            "excerpt": trim_source_text(card_text, 2200), "listing_posted": posted,
-            "listing_deadline": baseline.get("deadline") or normalize_date_text(_first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])),
+            "discovery": "bdjobs_category_html",
+            "category_id": category_id,
+            "category_name": category_name,
+            "excerpt": trim_source_text(card_text, 2200),
+            "listing_posted": posted,
+            "listing_deadline": baseline.get("deadline") or normalize_date_text(
+                _first_match(card_text, [r"(?:Deadline|শেষ তারিখ)\s*[:：-]?\s*([^|]+)"])
+            ),
             "listing_fields": baseline,
             "discovered_at": now_iso(),
         })
     return found
+
 
 def is_cloudflare_response(status, headers, body):
     h = " ".join(f"{k}:{v}" for k, v in (headers or {}).items()).lower()
@@ -770,22 +811,46 @@ def _fetch_with_curl(url, *, timeout=None, referer=None, max_attempts=None):
             logger.debug("curl_cffi target failed | %s | %s | %s", target, url, exc)
     return None
 
+def _acquire_jina_slot():
+    if not JINA_ENABLED:
+        return False
+    while True:
+        now = time.monotonic()
+        with JINA_RATE_LOCK:
+            while JINA_REQUEST_TIMES and now - JINA_REQUEST_TIMES[0] >= JINA_WINDOW_SECONDS:
+                JINA_REQUEST_TIMES.popleft()
+            if len(JINA_REQUEST_TIMES) < JINA_RPM_LIMIT:
+                JINA_REQUEST_TIMES.append(now)
+                return True
+            wait = max(0.05, JINA_WINDOW_SECONDS - (now - JINA_REQUEST_TIMES[0]))
+        time.sleep(min(wait, 2.0))
+
+
 def _fetch_jina(url, *, timeout=None):
     if not JINA_ENABLED:
         return None
+    _acquire_jina_slot()
     try:
         response = requests.get(
             JINA_PREFIX + request_safe_url(url),
-            headers={"Accept": "text/plain, text/markdown", "User-Agent": "Career News V1/1.0"},
+            headers={
+                "Accept": "text/plain, text/markdown",
+                "User-Agent": "Career News V1/1.0",
+                "X-Base": "true",
+            },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
         )
         body = safe_text(response.text)
         if response.status_code >= 400 or not body:
             return None
-        return {"ok": True, "status": response.status_code, "text": body, "url": url, "backend": "jina_reader", "cloudflare": False}
+        return {
+            "ok": True, "status": response.status_code, "text": body, "url": url,
+            "backend": "jina_reader", "cloudflare": False,
+        }
     except Exception as exc:
         logger.warning("Jina fallback failed %s: %s", url, exc)
         return None
+
 
 def _fetch_source_document(url, *, timeout=None, referer=None):
     direct = _fetch_with_curl(url, timeout=timeout, referer=referer)
@@ -1150,6 +1215,29 @@ def _clean_one_line(value):
     value = re.sub(r"\s*\n\s*", " ", value)
     value = re.sub(r"\s{2,}", " ", value)
     return value.strip(" -:;,|")
+
+
+def clean_source_field(value):
+    """Remove reader/page chrome without altering legitimate source-backed text."""
+    value = clean_reader_markdown(value)
+    value = re.sub(r"\s*\|\|\s*(?:bdjobs(?:\.com)?|source\s*:\s*bdjobs(?:\.com)?)\s*$", "", value, flags=re.I)
+    value = re.sub(r"\bname-share-details\.gif\b", "", value, flags=re.I)
+    value = re.sub(r"\bmatching_lock_en(?:_res)?\.(?:webp|svg|png|gif)\b", "", value, flags=re.I)
+    value = re.sub(r"\s{2,}", " ", value)
+    return value.strip(" -:;,|#")
+
+
+def clean_job_title(value, fallback=""):
+    primary = clean_source_field(value)
+    backup = clean_source_field(fallback)
+    # Bdjobs page chrome occasionally gets attached to the H1/Markdown heading.
+    if backup and (
+        "bdjobs.com" in primary.lower()
+        or "name-share-details" in primary.lower()
+        or len(primary) > max(180, len(backup) + 55)
+    ):
+        return backup
+    return primary or backup
 
 
 def _first_match(value, patterns):
@@ -1804,18 +1892,19 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     if not deadline and discovery_item.get("listing_deadline"):
         deadline = discovery_item.get("listing_deadline")
 
-    title = _clean_one_line(title) or _clean_one_line(discovery_item.get("title", ""))
-    company = _clean_one_line(company) or _clean_one_line(discovery_item.get("company", ""))
-    location = compact_location(location)
-    salary = compact_salary(salary)
-    experience = compact_experience(experience, text)
-    education = compact_education(education, text)
-    vacancy = compact_vacancy(vacancy)
-    employment = compact_employment(employment)
-    workplace = compact_workplace(workplace)
-    age = compact_age(age)
-    application_method = compact_application(application_method)
-    selection_process = compact_selection(selection_process)
+    title = clean_job_title(title, discovery_item.get("title", ""))
+    listing_fields = discovery_item.get("listing_fields") or {}
+    company = clean_source_field(company) or clean_source_field(listing_fields.get("company")) or clean_source_field(discovery_item.get("company", ""))
+    location = compact_location(clean_source_field(location))
+    salary = compact_salary(clean_source_field(salary))
+    experience = compact_experience(clean_source_field(experience), text)
+    education = compact_education(clean_source_field(education), text)
+    vacancy = compact_vacancy(clean_source_field(vacancy))
+    employment = compact_employment(clean_source_field(employment))
+    workplace = compact_workplace(clean_source_field(workplace))
+    age = compact_age(clean_source_field(age))
+    application_method = compact_application(clean_source_field(application_method))
+    selection_process = compact_selection(clean_source_field(selection_process))
     # Government summaries often state the total number of people recruited in prose.
     if not vacancy and is_gov:
         vacancy = compact_vacancy(_first_match(text, [
@@ -1881,21 +1970,23 @@ def _extract_apply_url_from_text(text, page_url):
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def _detail_url_variants(item):
-    variants=[]
-    raw=safe_text(item.get("url"))
+    variants = []
+    raw = safe_text(item.get("url"))
     if raw:
         variants.append(request_safe_url(raw))
-    job_id=safe_text(item.get("source_job_id"))
+    job_id = safe_text(item.get("source_job_id"))
     if job_id:
         variants.extend([
             f"https://jobs.bdjobs.com/jobdetails/?id={quote(job_id)}&ln=1",
             f"https://jobs.bdjobs.com/jobdetails.asp?id={quote(job_id)}",
+            f"https://bdjobs.com/h/jobs/{quote(job_id)}",
         ])
-    out=[]; seen=set()
+    out, seen = [], set()
     for value in variants:
-        c=canonical_url(value)
+        c = canonical_url(value)
         if c and c not in seen:
-            seen.add(c); out.append(value)
+            seen.add(c)
+            out.append(value)
     return out
 
 
@@ -1946,16 +2037,22 @@ def _looks_like_job_document(body, *, url="", detail=True):
 
 
 def _detail_payload_from_fetch(fetched):
-    """Normalize direct/Jina acquisition into visible text plus optional HTML."""
+    """Normalize direct/Jina acquisition into parser-safe text plus optional HTML."""
     if not fetched:
         return None
     raw = safe_text(fetched.get("text", ""))
     backend = safe_text(fetched.get("backend", ""))
     page_html = raw if backend.startswith("curl_cffi:") and "<" in raw else ""
-    visible = _text_from_html(page_html) if page_html else raw
+    if page_html:
+        visible = _text_from_html(page_html)
+    elif backend == "jina_reader":
+        visible = clean_reader_markdown(raw)
+    else:
+        visible = raw
     result = dict(fetched)
     result["html"] = page_html
     result["text"] = visible
+    result["raw_text"] = raw
     return result
 
 
@@ -2312,50 +2409,213 @@ For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only 
 Return every input candidate.
 """
 
-def judge_batch(batch, batch_no):
-    if not get_cerebras() or not batch:
+def _extract_json_objects(raw):
+    """Recover complete JSON objects from fenced/partially malformed model output."""
+    text = safe_text(raw)
+    if not text:
         return []
+    cleaned = re.sub(r"^\s*```(?:json)?\s*", "", text, flags=re.I)
+    cleaned = re.sub(r"\s*```\s*$", "", cleaned)
+    try:
+        payload = json.loads(cleaned)
+        if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+            return payload["results"]
+        if isinstance(payload, list):
+            return payload
+    except Exception:
+        pass
+
+    # Salvage object-by-object from a broken results array.
+    start_idx = cleaned.find("[")
+    if start_idx < 0:
+        start_idx = cleaned.find("{")
+    if start_idx < 0:
+        return []
+
+    objects = []
+    depth = 0
+    in_string = False
+    escaped = False
+    obj_start = None
+    for idx in range(start_idx, len(cleaned)):
+        ch = cleaned[idx]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            if depth == 0:
+                obj_start = idx
+            depth += 1
+        elif ch == "}":
+            if depth:
+                depth -= 1
+                if depth == 0 and obj_start is not None:
+                    chunk = cleaned[obj_start:idx + 1]
+                    try:
+                        objects.append(json.loads(chunk))
+                    except Exception:
+                        pass
+                    obj_start = None
+    if objects:
+        return objects
+
+    # Last-resort field extraction. This handles one bad `reason` string without
+    # discarding otherwise useful numeric/boolean audit fields.
+    recovered = []
+    for match in re.finditer(r'"id"\s*:\s*(\d+)(?P<body>.*?)(?=(?:"id"\s*:)|\}\s*,?\s*\}|$)', cleaned, flags=re.S):
+        body = match.group("body")
+        def pick(pattern, default=None):
+            m = re.search(pattern, body, flags=re.I | re.S)
+            return m.group(1) if m else default
+        row = {
+            "id": int(match.group(1)),
+            "publish": str(pick(r'"publish"\s*:\s*(true|false)', "true")).lower() == "true",
+            "score": int(float(pick(r'"score"\s*:\s*(-?\d+(?:\.\d+)?)', "0"))),
+            "bba_mba_fit": int(float(pick(r'"bba_mba_fit"\s*:\s*(-?\d+(?:\.\d+)?)', "0"))),
+            "early_career_fit": int(float(pick(r'"early_career_fit"\s*:\s*(-?\d+(?:\.\d+)?)', "0"))),
+            "role_fit": int(float(pick(r'"role_fit"\s*:\s*(-?\d+(?:\.\d+)?)', "0"))),
+            "reason": safe_text(pick(r'"reason"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"', "")),
+        }
+        recovered.append(row)
+    return recovered
+
+
+def _validate_judge_rows(rows, batch_len):
+    valid = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            idx = int(row.get("id"))
+        except Exception:
+            continue
+        if not 1 <= idx <= batch_len:
+            continue
+        try:
+            score = max(0, min(100, int(float(row.get("score", 0)))))
+            bba_fit = max(0, min(100, int(float(row.get("bba_mba_fit", 0)))))
+            early_fit = max(0, min(100, int(float(row.get("early_career_fit", 0)))))
+            role_fit = max(0, min(100, int(float(row.get("role_fit", 0)))))
+        except Exception:
+            continue
+        valid.append({
+            "id": idx,
+            "publish": bool(row.get("publish", True)),
+            "score": score,
+            "bba_mba_fit": bba_fit,
+            "early_career_fit": early_fit,
+            "role_fit": role_fit,
+            "reason": safe_text(row.get("reason", "")),
+        })
+    return valid
+
+
+def _call_judge_once(batch, batch_no, retry=False):
     payload = []
     for idx, job in enumerate(batch, 1):
         payload.append("\n".join([
             f"ID: {idx}", f"Source: {job.get('source','')}", f"Title: {job.get('title','')}",
-            f"Company: {job.get('company','')}", f"Source category: {job.get('source_category_name','')}",
-            f"Career category: {job.get('career_category','')}", f"Education: {trim_source_text(job.get('education',''),220)}",
-            f"Experience: {trim_source_text(job.get('experience',''),140)}", f"Salary: {trim_source_text(job.get('salary',''),120)}",
-            f"Vacancy: {job.get('vacancy','')}", f"Posted: {job.get('posted_date','')}", f"Deadline: {job.get('deadline','')}",
-            f"Location: {job.get('location','')}", f"Workplace: {job.get('workplace','')}",
-            f"Responsibilities/description: {trim_source_text(job.get('raw_text',''),1000)}"
+            f"Company: {job.get('company','')}", f"Career category: {job.get('career_category','')}",
+            f"Education: {trim_source_text(job.get('education',''),180)}",
+            f"Experience: {trim_source_text(job.get('experience',''),100)}",
+            f"Salary: {trim_source_text(job.get('salary',''),80)}", f"Vacancy: {job.get('vacancy','')}",
+            f"Posted: {job.get('posted_date','')}", f"Deadline: {job.get('deadline','')}",
+            f"Location: {job.get('location','')}",
+            f"Description: {trim_source_text(job.get('raw_text',''),700)}",
         ]))
+    prompt = (
+        "Audit every candidate. Return ONLY one JSON object matching the schema. "
+        "Do not use markdown fences. Keep reason under 140 characters. "
+        "Use only supplied facts. "
+        + ("Retry: ensure the JSON is syntactically valid and contains every candidate ID." if retry else "")
+        + "\n\n" + "\n\n".join(payload)
+    )
     try:
         response = get_cerebras().chat.completions.create(
             model=CEREBRAS_MODEL,
-            messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":"\n\n".join(payload)}],
+            messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
             response_format={"type":"json_schema","json_schema":{"name":f"career_job_audit_{batch_no}","strict":True,"schema":JUDGE_SCHEMA}},
-            temperature=0.0, max_completion_tokens=3200,
+            temperature=0.0,
+            max_completion_tokens=max(2400, 700 * max(1, len(batch))),
         )
-        return json.loads(safe_text(response.choices[0].message.content)).get("results", [])
+        content = safe_text(response.choices[0].message.content)
+        rows = _validate_judge_rows(_extract_json_objects(content), len(batch))
+        if rows:
+            return rows
+        raise ValueError("no_valid_judge_rows")
     except Exception as exc:
-        logger.error("CEREBRAS audit batch %d failed: %s", batch_no, exc)
+        logger.warning("CEREBRAS audit batch %d failed%s: %s", batch_no, " on retry" if retry else "", exc)
         return []
 
+
+def judge_batch(batch, batch_no):
+    if not get_cerebras() or not batch:
+        return []
+    # Smaller batches materially reduce malformed/truncated structured-output risk.
+    chunks = [batch[i:i + max(1, AI_BATCH_SIZE)] for i in range(0, len(batch), max(1, AI_BATCH_SIZE))]
+    all_rows = []
+    offset = 0
+    for chunk_no, chunk in enumerate(chunks, 1):
+        rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=False)
+        if not rows and AI_RETRY_COUNT > 0:
+            rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=True)
+        # If a multi-candidate call still fails, split it once more rather than
+        # losing the entire private audit population.
+        if not rows and len(chunk) > 1:
+            midpoint = max(1, len(chunk) // 2)
+            for sub_no, sub in enumerate((chunk[:midpoint], chunk[midpoint:]), 1):
+                if not sub:
+                    continue
+                sub_rows = _call_judge_once(sub, batch_no * 1000 + chunk_no * 10 + sub_no, retry=True)
+                all_rows.extend(sub_rows)
+        else:
+            all_rows.extend(rows)
+        offset += len(chunk)
+    return all_rows
+
+
 def rank_jobs(jobs):
-    if not jobs: return []
+    if not jobs:
+        return []
     pre = []
     for job in jobs:
-        if private_experience_too_high(job): continue
+        if private_experience_too_high(job):
+            continue
         score, components = private_rank_score(job)
         candidate = dict(job)
         candidate["deterministic_score"] = score
         candidate["deterministic_components"] = components
         candidate["career_category"] = candidate.get("career_category") or _career_family(candidate)
         pre.append(candidate)
-    pre.sort(key=lambda j:(-j["deterministic_score"], -role_fit_score(j), -posted_freshness_score(j), j.get("canonical","")))
+
+    pre.sort(key=lambda j: (
+        -j["deterministic_score"],
+        -role_fit_score(j),
+        -posted_freshness_score(j),
+        j.get("canonical", ""),
+    ))
+
     ai_candidates = pre[:min(AI_REVIEW_TARGET, len(pre))]
     judged = {}
-    for row in judge_batch(ai_candidates, 1):
-        try: idx = int(row.get("id"))
-        except Exception: continue
-        if 1 <= idx <= len(ai_candidates): judged[ai_candidates[idx-1].get("canonical")] = row
+    if ai_candidates:
+        rows = judge_batch(ai_candidates, 1)
+        logger.info("PRIVATE AI AUDITED | %d / %d", len(rows), len(ai_candidates))
+        for row in rows:
+            try:
+                idx = int(row.get("id"))
+            except Exception:
+                continue
+            if 1 <= idx <= len(ai_candidates):
+                judged[ai_candidates[idx - 1].get("canonical")] = row
+
     ranked = []
     for job in pre:
         row = judged.get(job.get("canonical"), {})
@@ -2365,20 +2625,27 @@ def rank_jobs(jobs):
         candidate.update({
             "ai_score": ai_score if ai_available else None,
             "judge_publish": bool(row.get("publish", True)) if ai_available else True,
-            "bba_mba_fit": int(row.get("bba_mba_fit", min(100, education_priority_score(job)*4))) if ai_available else None,
-            "early_career_fit": int(row.get("early_career_fit", min(100, experience_priority_score(job)*6))) if ai_available else None,
-            "role_fit": int(row.get("role_fit", min(100, role_fit_score(job)*5))) if ai_available else None,
+            "bba_mba_fit": int(row.get("bba_mba_fit", min(100, education_priority_score(job) * 4))) if ai_available else None,
+            "early_career_fit": int(row.get("early_career_fit", min(100, experience_priority_score(job) * 6))) if ai_available else None,
+            "role_fit": int(row.get("role_fit", min(100, role_fit_score(job) * 5))) if ai_available else None,
             "judge_reason": safe_text(row.get("reason", "Deterministic source-first ranking.")) if ai_available else "AI unavailable; deterministic score used.",
         })
         if not candidate["judge_publish"]:
             continue
         candidate["final_score"] = (
-            round(candidate["deterministic_score"]*0.85 + ai_score*0.15, 3)
+            round(candidate["deterministic_score"] * 0.85 + ai_score * 0.15, 3)
             if ai_available else candidate["deterministic_score"]
         )
-        if candidate["final_score"] >= QUALITY_FLOOR and deadline_status(candidate) != "expired": ranked.append(candidate)
-    ranked.sort(key=lambda j:(-j.get("final_score",0), -j.get("deterministic_score",0), j.get("canonical","")))
+        if candidate["final_score"] >= PRIVATE_HARD_FILL_SCORE and deadline_status(candidate) != "expired":
+            ranked.append(candidate)
+
+    ranked.sort(key=lambda j: (
+        -j.get("final_score", 0),
+        -j.get("deterministic_score", 0),
+        j.get("canonical", ""),
+    ))
     return ranked
+
 
 # ============================================================
 # STATE / DEDUP / SELECTION
@@ -2465,38 +2732,164 @@ def _career_family(job):
         if any(term in blob for term in terms): return family
     return "Business / General"
 
-def select_private_jobs_by_category(ranked, limit):
-    eligible = [j for j in ranked if j.get("final_score",0) >= QUALITY_FLOOR and j.get("judge_publish",True) and deadline_status(j) != "expired" and j.get("bba_mba_target_score",0) >= 25 and not private_experience_too_high(j) and not candidate_already_posted(j)]
+def _private_selection_pool(ranked):
+    base = [
+        j for j in ranked
+        if j.get("final_score", 0) >= QUALITY_FLOOR
+        and j.get("judge_publish", True)
+        and deadline_status(j) != "expired"
+        and j.get("bba_mba_target_score", 0) >= 25
+        and not private_experience_too_high(j)
+        and j.get("company")
+        and information_quality_score(j) >= PRIVATE_MIN_INFORMATION_QUALITY
+        and not candidate_already_posted(j)
+    ]
+    return base
+
+
+def _private_minimum_fill_pool(ranked, minimum_score=PRIVATE_MIN_FILL_SCORE, minimum_info=PRIVATE_MIN_INFORMATION_QUALITY):
+    return [
+        j for j in ranked
+        if j.get("final_score", 0) >= minimum_score
+        and j.get("judge_publish", True)
+        and deadline_status(j) != "expired"
+        and j.get("bba_mba_target_score", 0) >= 40
+        and not private_experience_too_high(j)
+        and j.get("company")
+        and information_quality_score(j) >= minimum_info
+        and not candidate_already_posted(j)
+    ]
+
+
+def _private_hard_fill_pool(ranked):
+    return [
+        j for j in ranked
+        if j.get("final_score", 0) >= PRIVATE_HARD_FILL_SCORE
+        and j.get("judge_publish", True)
+        and deadline_status(j) != "expired"
+        and j.get("bba_mba_target_score", 0) >= 45
+        and not private_experience_too_high(j)
+        and j.get("company")
+        and information_quality_score(j) >= PRIVATE_HARD_MIN_INFORMATION_QUALITY
+        and not candidate_already_posted(j)
+    ]
+
+
+def _select_diverse_private(pool, limit):
     selected, company_counts, family_counts = [], {}, {}
-    pool = [dict(j, career_category=_career_family(j)) for j in eligible]
-    while pool and len(selected) < max(0,int(limit)):
+    remaining = [dict(j, career_category=_career_family(j)) for j in pool]
+    while remaining and len(selected) < max(0, int(limit)):
         best_idx, best = 0, -1e9
-        for idx, job in enumerate(pool):
-            score = float(job.get("final_score",0))
-            company = _normalized_company(job.get("company","")); family = job["career_category"]
-            if company_counts.get(company,0) >= 2: score -= 8
-            if family_counts.get(family,0) >= 4: score -= 5
-            if score > best: best, best_idx = score, idx
-        chosen = pool.pop(best_idx); selected.append(chosen)
-        company = _normalized_company(chosen.get("company","")); family = chosen["career_category"]
-        company_counts[company] = company_counts.get(company,0)+1
-        family_counts[family] = family_counts.get(family,0)+1
+        for idx, job in enumerate(remaining):
+            score = float(job.get("final_score", 0))
+            company = _normalized_company(job.get("company", ""))
+            family = job["career_category"]
+            if company_counts.get(company, 0) >= 2:
+                score -= 8
+            if family_counts.get(family, 0) >= 4:
+                score -= 5
+            if score > best:
+                best, best_idx = score, idx
+        chosen = remaining.pop(best_idx)
+        selected.append(chosen)
+        company = _normalized_company(chosen.get("company", ""))
+        family = chosen["career_category"]
+        company_counts[company] = company_counts.get(company, 0) + 1
+        family_counts[family] = family_counts.get(family, 0) + 1
     return selected
+
+
+def select_private_jobs_by_category(ranked, limit, minimum_required=MIN_PRIVATE_POSTS_PER_RUN):
+    """Select private jobs with a quality-first path and a controlled minimum-quota expansion.
+
+    The expansion is only used to reach the requested minimum when enough fresh,
+    non-specialist, source-backed jobs exist. It never accepts obviously weak
+    or senior/specialist roles merely to pad the feed.
+    """
+    limit = max(0, int(limit))
+    if not limit:
+        return []
+
+    strict = _select_diverse_private(_private_selection_pool(ranked), limit)
+    if len(strict) >= min(minimum_required, limit):
+        return strict
+
+    selected_keys = {j.get("canonical") for j in strict}
+    relaxed_pool = [
+        j for j in _private_minimum_fill_pool(ranked)
+        if j.get("canonical") not in selected_keys
+    ]
+    relaxed = _select_diverse_private(strict + relaxed_pool, min(limit, max(minimum_required, len(strict))))
+    if len(relaxed) >= min(minimum_required, limit):
+        return relaxed
+
+    selected_keys = {j.get("canonical") for j in relaxed}
+    hard_pool = [
+        j for j in _private_hard_fill_pool(ranked)
+        if j.get("canonical") not in selected_keys
+    ]
+    return _select_diverse_private(relaxed + hard_pool, limit)
+
 
 def select_government_jobs(government_jobs):
     eligible, seen = [], set()
     for job in government_jobs:
-        if candidate_already_posted(job) or deadline_status(job) == "expired": continue
+        if candidate_already_posted(job) or deadline_status(job) == "expired":
+            continue
         key = job.get("canonical") or job_event_key(job)
-        if key in seen: continue
+        if key in seen:
+            continue
         seen.add(key)
-        candidate = dict(job); candidate["government_rank_score"] = government_rank_score(candidate); eligible.append(candidate)
-    eligible.sort(key=lambda j:(-j["government_rank_score"], -posted_freshness_score(j), -deadline_urgency_score(j), j.get("canonical","")))
-    return eligible[:min(MAX_GOVERNMENT_POSTS_PER_RUN,5)]
+        candidate = dict(job)
+        candidate["government_rank_score"] = government_rank_score(candidate)
+        eligible.append(candidate)
+    eligible.sort(key=lambda j: (
+        -j["government_rank_score"],
+        -posted_freshness_score(j),
+        -deadline_urgency_score(j),
+        j.get("canonical", ""),
+    ))
+    return eligible[:min(MAX_GOVERNMENT_POSTS_PER_RUN, len(eligible))]
+
 
 def select_final_jobs(private_ranked, government_jobs):
-    gov = select_government_jobs(government_jobs)
-    return (gov + select_private_jobs_by_category(private_ranked, MAX_STORIES_PER_RUN-len(gov)))[:MAX_STORIES_PER_RUN]
+    """Guarantee the requested source mix when enough qualifying candidates exist."""
+    gov_pool = select_government_jobs(government_jobs)
+    gov_required = min(MIN_GOVERNMENT_POSTS_PER_RUN, len(gov_pool), MAX_STORIES_PER_RUN)
+    gov = gov_pool[:gov_required]
+
+    # Preserve at least MIN_PRIVATE_POSTS_PER_RUN slots whenever possible.
+    private_limit = min(
+        MAX_STORIES_PER_RUN - len(gov),
+        max(MIN_PRIVATE_POSTS_PER_RUN, MAX_STORIES_PER_RUN - len(gov)),
+    )
+    private = select_private_jobs_by_category(
+        private_ranked,
+        private_limit,
+        minimum_required=min(MIN_PRIVATE_POSTS_PER_RUN, private_limit),
+    )
+
+    # Once both minimums are met, fill remaining slots with the strongest available
+    # private/government mix without exceeding the 20-post ceiling.
+    selected = gov + private
+    remaining_slots = MAX_STORIES_PER_RUN - len(selected)
+    if remaining_slots > 0:
+        used_private = {j.get("canonical") for j in private}
+        extra_private_pool = [
+            j for j in private_ranked
+            if j.get("canonical") not in used_private
+        ]
+        extra_private = _select_diverse_private(extra_private_pool, remaining_slots)
+        selected.extend(extra_private[:remaining_slots])
+
+    # Optionally add additional government jobs only after the private minimum is met.
+    gov_used = {j.get("canonical") for j in gov}
+    extra_gov = [j for j in gov_pool if j.get("canonical") not in gov_used]
+    room = MAX_STORIES_PER_RUN - len(selected)
+    if room > 0:
+        selected.extend(extra_gov[:min(room, MAX_GOVERNMENT_POSTS_PER_RUN - len(gov))])
+
+    return selected[:MAX_STORIES_PER_RUN]
 
 def store_selected_event(job, published=False, message_id=None):
     event_id = job.get("event_id") or job_event_key(job)
@@ -2960,6 +3353,21 @@ def run(*, dry_run=False, print_ranking=False):
     private_final=sum(1 for j in selected if not j.get("is_government"))
     gov_final=sum(1 for j in selected if j.get("is_government"))
     logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), gov_final, private_final, len(discovered), time.monotonic()-started)
+    logger.info(
+        "PUBLICATION QUOTA | private=%d/%d minimum | government=%d/%d minimum | total=%d/%d maximum",
+        private_final, MIN_PRIVATE_POSTS_PER_RUN, gov_final, MIN_GOVERNMENT_POSTS_PER_RUN,
+        len(selected), MAX_STORIES_PER_RUN,
+    )
+    if private_final < MIN_PRIVATE_POSTS_PER_RUN:
+        logger.error(
+            "PRIVATE QUOTA SHORTFALL | selected=%d required=%d | qualifying private pool=%d",
+            private_final, MIN_PRIVATE_POSTS_PER_RUN, len(ranked_private),
+        )
+    if gov_final < MIN_GOVERNMENT_POSTS_PER_RUN:
+        logger.error(
+            "GOVERNMENT QUOTA SHORTFALL | selected=%d required=%d | eligible government pool=%d",
+            gov_final, MIN_GOVERNMENT_POSTS_PER_RUN, len(select_government_jobs(government_jobs)),
+        )
     logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(ranked_private), private_final)
     logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
 
@@ -3012,6 +3420,9 @@ def self_test():
     assert STATE_FORMAT_VERSION == 5
     assert MAX_STORIES_PER_RUN == 20
     assert TARGET_STORIES_PER_RUN == 15
+    assert MIN_PRIVATE_POSTS_PER_RUN == 10
+    assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
+    assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
     assert QUALITY_FLOOR == 65
     assert MAX_POST_AGE_DAYS == 5
     assert len(BDBJOBS_CATEGORIES) == 14
@@ -3026,6 +3437,10 @@ def self_test():
     assert is_cloudflare_response(200,{},"<title>Just a moment...</title>")
     assert not is_cloudflare_response(200,{},"<html>normal</html>")
     assert (JINA_PREFIX+request_safe_url("https://example.com/job?id=1")).startswith("https://r.jina.ai/https://example.com")
+    jina_fixture = "## Customer Support Executive E-Commerce\\n🏢 name-share-details.gif\\n[![Image 18](https://bdjobs.com/h/images/matching_lock_en.webp)](https://bdjobs.com/h/)\\nJob Summary\\nCompany Name\\nChino Carts\\nExperience\\nAt Least 1 Year\\nVacancy\\n5"
+    cleaned_jina = clean_reader_markdown(jina_fixture)
+    assert "name-share-details.gif" not in cleaned_jina and "matching_lock_en.webp" not in cleaned_jina and "[](" not in cleaned_jina
+
     shell_fixture = """<html><head><style>.foo{--tw-gradient-to-position:}</style></head>
     <body><app-root></app-root><script>console.log("app shell")</script></body></html>"""
     ok, reason = _looks_like_job_document(shell_fixture, detail=True)

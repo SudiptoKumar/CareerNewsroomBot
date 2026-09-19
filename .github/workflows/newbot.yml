@@ -15,7 +15,7 @@ concurrency:
 jobs:
   run-career-bot:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 15
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -24,17 +24,26 @@ jobs:
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       PYTHONUNBUFFERED: "1"
       MAX_POST_AGE_DAYS: "5"
-      PRIVATE_DISCOVERY_TARGET: "120"
+      PRIVATE_DISCOVERY_TARGET: "160"
       PRIVATE_DISCOVERY_MAX: "200"
-      PRIVATE_FAST_RANK_TARGET: "40"
-      PRIVATE_DETAIL_TARGET: "40"
-      AI_REVIEW_TARGET: "35"
-      DETAIL_WORKERS: "8"
+      PRIVATE_FAST_RANK_TARGET: "60"
+      PRIVATE_DETAIL_TARGET: "60"
+      AI_REVIEW_TARGET: "50"
+      AI_BATCH_SIZE: "8"
+      AI_RETRY_COUNT: "1"
+      MIN_PRIVATE_POSTS_PER_RUN: "10"
+      MIN_GOVERNMENT_POSTS_PER_RUN: "3"
+      PRIVATE_MIN_FILL_SCORE: "58"
+      PRIVATE_HARD_FILL_SCORE: "55"
+      PRIVATE_MIN_INFORMATION_QUALITY: "3"
+      PRIVATE_HARD_MIN_INFORMATION_QUALITY: "3"
+      DETAIL_WORKERS: "6"
       DETAIL_MIN_TEXT_CHARS: "220"
       POST_DELAY_SECONDS: "1.0"
       CURL_IMPERSONATES: "safari18_0_ios,safari180_ios,safari184_ios,safari_ios"
       CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
       JINA_ENABLED: "1"
+      JINA_RPM_LIMIT: "18"
 
     steps:
       - name: Checkout repository

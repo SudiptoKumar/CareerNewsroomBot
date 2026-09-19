@@ -17,7 +17,7 @@ Private    → Bdjobs category discovery
 
 No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
 
-## #dev_tips
+#dev_tips
 
 ### Bypass Cloudflare with simple method
 
@@ -47,6 +47,39 @@ It returns readable output ( no JS, no cookies), so you can parse values easily 
 
 **Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation and Jina Reader fallback. These methods are not guaranteed to bypass every site's protection.
 
+### Runtime quality and publication guardrails
+
+Each run is allowed up to 15 minutes so the pipeline can spend more time on research and semantic auditing instead of stopping early.
+
+```text
+PRIVATE_DETAIL_TARGET = 60
+AI_REVIEW_TARGET = 50
+AI_BATCH_SIZE = 8
+
+MIN_PRIVATE_POSTS_PER_RUN = 10
+MIN_GOVERNMENT_POSTS_PER_RUN = 3
+MAX_STORIES_PER_RUN = 20
+```
+
+Selection order is:
+
+```text
+strict quality pool
+        ↓
+controlled private minimum-fill pool
+        ↓
+hard private minimum-fill pool
+        ↓
+final diversity selection
+```
+
+The minimum-fill paths still require a fresh, non-expired business role, no clearly unrelated specialist career, a company name, and source-backed information. The bot never invents filler jobs merely to reach 10 private or 3 government posts.
+
+### Jina Reader safety
+
+Jina Reader returns LLM-friendly Markdown. Career News V1 converts that Markdown to plain parser-safe text before field extraction, removing image/link syntax, headings, asset filenames and page-chrome artifacts. This prevents strings such as `name-share-details.gif` or `[![Image ...](...)](...)` from appearing in Telegram posts.
+
+
 ## Private discovery: category first
 
 The Bdjobs private lane uses the configured BBA/MBA-relevant category universe:
@@ -73,7 +106,7 @@ Discovery is performed per category. Category priority changes discovery effort,
 The comparison-pool targets are:
 
 ```text
-PRIVATE_DISCOVERY_TARGET = 120
+PRIVATE_DISCOVERY_TARGET = 160
 PRIVATE_DISCOVERY_MAX    = 200
 ```
 
@@ -250,11 +283,22 @@ final_score = deterministic_score × 0.85 + ai_score × 0.15
 
 ```text
 TARGET_STORIES_PER_RUN = 15
+MIN_PRIVATE_POSTS_PER_RUN = 10
+MIN_GOVERNMENT_POSTS_PER_RUN = 3
 MAX_STORIES_PER_RUN    = 20
 QUALITY_FLOOR          = 65
 ```
 
-The count is dynamic. The bot never pads the feed with weak vacancies merely to reach a target.
+The count is dynamic, with these source-mix guardrails:
+
+```text
+minimum private jobs    = 10
+minimum government jobs = 3
+maximum total jobs      = 20
+target total            = 15
+```
+
+The minimums are enforced whenever enough current, qualifying source records exist. The bot never invents or pads with obviously weak vacancies just to satisfy a quota.
 
 Private selection uses soft diversity penalties:
 
@@ -342,15 +386,24 @@ Important discovery/ranking settings:
 
 ```text
 MAX_POST_AGE_DAYS=5
-PRIVATE_DISCOVERY_TARGET=120
+PRIVATE_DISCOVERY_TARGET=160
 PRIVATE_DISCOVERY_MAX=200
-PRIVATE_FAST_RANK_TARGET=40
-PRIVATE_DETAIL_TARGET=40
-AI_REVIEW_TARGET=35
-DETAIL_WORKERS=8
+PRIVATE_FAST_RANK_TARGET=60
+PRIVATE_DETAIL_TARGET=60
+AI_REVIEW_TARGET=50
+AI_BATCH_SIZE=8
+AI_RETRY_COUNT=1
+MIN_PRIVATE_POSTS_PER_RUN=10
+MIN_GOVERNMENT_POSTS_PER_RUN=3
+PRIVATE_MIN_FILL_SCORE=58
+PRIVATE_HARD_FILL_SCORE=55
+PRIVATE_MIN_INFORMATION_QUALITY=3
+PRIVATE_HARD_MIN_INFORMATION_QUALITY=3
+DETAIL_WORKERS=6
 QUALITY_FLOOR=65
 MAX_STORIES_PER_RUN=20
 TARGET_STORIES_PER_RUN=15
+JINA_RPM_LIMIT=18
 ```
 
 ## Local commands
@@ -364,7 +417,7 @@ python main.py --print-ranking
 
 `--self-test` is offline and must pass before a release.
 
-`--source-test` performs live source diagnostics and checks the Teletalk API plus one Bdjobs category through the V1 acquisition chain.
+`--source-test` performs live source diagnostics and checks the Teletalk API, one Bdjobs category, and one sampled Bdjobs detail page through the V1 acquisition chain.
 
 `--dry-run` performs the pipeline without contacting Telegram.
 

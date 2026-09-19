@@ -196,3 +196,192 @@ def test_distinct_source_ids_are_not_fuzzy_deduped():
     }
     b = dict(a, source_job_id="1002", source_url="https://jobs.bdjobs.com/jobdetails/?id=1002&ln=1")
     assert not main.likely_same_job(a, b)
+
+
+def test_jina_markdown_is_cleaned_before_parsing():
+    markdown = """
+## Customer Support Executive E-Commerce
+🏢 name-share-details.gif
+[![Image 18](https://bdjobs.com/h/images/matching_lock_en.webp)](https://bdjobs.com/h/)
+[![Image 19](https://bdjobs.com/h/images/matching_lock_en_res.svg)](https://bdjobs.com/h/)
+Job Summary
+Company Name
+Chino Carts
+Job Location
+Dhaka (Dakshinkhan)
+Experience
+At Least 1 Year
+Education
+BBA
+Salary
+Negotiable
+Vacancy
+5
+Age
+23 Years
+Application
+Online
+Deadline
+25-09-2026
+Posted
+19-09-2026
+"""
+    cleaned = main.clean_reader_markdown(markdown)
+    assert "name-share-details.gif" not in cleaned
+    assert "![Image" not in cleaned
+    assert "matching_lock_en.webp" not in cleaned
+    assert "[](" not in cleaned
+    item = {
+        "title": "Customer Support Executive E-Commerce",
+        "url": "https://jobs.bdjobs.com/jobdetails/?id=888001&ln=1",
+        "source": "Bdjobs",
+        "source_job_id": "888001",
+        "listing_fields": {},
+    }
+    parsed = main.extract_job_fields(cleaned, "", item["url"], item)
+    assert parsed["title"] == "Customer Support Executive E-Commerce"
+    assert parsed["company"] == "Chino Carts"
+    assert parsed["location"] == "Dhaka (Dakshinkhan)"
+    assert parsed["experience"] == "At Least 1 Year"
+    assert parsed["vacancy"] == "5"
+
+
+def test_private_minimum_and_government_minimum_selection():
+    private = []
+    for i in range(14):
+        private.append({
+            "canonical": f"bdjobs-{i}",
+            "source": "Bdjobs",
+            "source_job_id": str(880000+i),
+            "source_url": f"https://jobs.bdjobs.com/jobdetails/?id={880000+i}&ln=1",
+            "title": f"Business Executive {i}",
+            "company": f"Company {i}",
+            "location": "Dhaka",
+            "education": "BBA / MBA",
+            "experience": "0 to 2 years",
+            "salary": "Tk. 30,000",
+            "vacancy": "2",
+            "deadline": "2026-10-10",
+            "posted_date": "2026-09-19",
+            "raw_text": "Business Executive BBA MBA sales marketing business development operations",
+            "bba_mba_target_score": 80,
+            "final_score": 72 - i * 0.3,
+            "deterministic_score": 72 - i * 0.3,
+            "judge_publish": True,
+        })
+    govt = []
+    for i in range(5):
+        govt.append({
+            "canonical": f"tel-{i}",
+            "source": "Teletalk",
+            "source_job_id": f"TL-{i}",
+            "source_url": "https://alljobs.teletalk.com.bd/",
+            "title": f"Government Officer {i}",
+            "company": "Government Organization",
+            "deadline": "2026-10-10",
+            "posted_date": "2026-09-19",
+            "vacancy": "5",
+            "education": "Bachelor degree",
+            "location": "Dhaka",
+            "raw_text": "Government vacancy",
+            "is_government": True,
+        })
+    old = main.candidate_already_posted
+    main.candidate_already_posted = lambda _job: False
+    try:
+        selected = main.select_final_jobs(private, govt)
+    finally:
+        main.candidate_already_posted = old
+    assert sum(1 for j in selected if j.get("is_government")) >= 3
+    assert sum(1 for j in selected if not j.get("is_government")) >= 10
+    assert len(selected) <= 20
+
+
+def test_judge_batch_salvages_malformed_structured_output(monkeypatch):
+    class Msg:
+        content = '{"results":[{"id":1,"publish":true,"score":88,"bba_mba_fit":90,"early_career_fit":86,"role_fit":89,"reason":"Strong business-role fit."},{"id":2,"publish":true,"score":82,"bba_mba_fit":85,"early_career_fit":80,"role_fit":83,"reason":"Good fit."}'
+    class Choice:
+        message = Msg()
+    class Resp:
+        choices = [Choice()]
+    class FakeCompletions:
+        def create(self, **_kwargs):
+            return Resp()
+    class FakeClient:
+        chat = type("Chat", (), {"completions": FakeCompletions()})()
+    monkeypatch.setattr(main, "get_cerebras", lambda: FakeClient())
+    batch = [
+        {"source":"Bdjobs","title":"Accounts Executive","company":"A","career_category":"Finance & Accounting","education":"BBA","experience":"0 to 2 years","raw_text":"finance account"},
+        {"source":"Bdjobs","title":"Marketing Executive","company":"B","career_category":"Marketing & Sales","education":"BBA","experience":"0 to 2 years","raw_text":"marketing sales"},
+    ]
+    rows = main.judge_batch(batch, 1)
+    assert len(rows) == 2
+    assert rows[0]["score"] == 88
+    assert rows[1]["role_fit"] == 83
+
+
+def test_distinct_source_ids_with_shared_board_url_are_not_collapsed():
+    a = {
+        "source": "Teletalk", "source_job_id": "TL-1001",
+        "title": "Officer", "company": "Department A", "location": "Dhaka",
+        "source_url": "https://alljobs.teletalk.com.bd/",
+        "posted_date": "2026-09-19",
+    }
+    b = dict(a, source_job_id="TL-1002", title="Officer", company="Department B")
+    assert not main.likely_same_job(a, b)
+
+
+def test_private_minimum_fill_expands_below_strict_floor():
+    jobs = []
+    for i in range(12):
+        jobs.append({
+            "canonical": f"fill-{i}",
+            "source": "Bdjobs",
+            "source_job_id": str(990000+i),
+            "source_url": f"https://jobs.bdjobs.com/jobdetails/?id={990000+i}&ln=1",
+            "title": f"Business Executive {i}",
+            "company": f"Fill Company {i}",
+            "location": "Dhaka",
+            "education": "BBA / MBA",
+            "experience": "0 to 2 years",
+            "salary": "Negotiable",
+            "vacancy": "2",
+            "deadline": "2026-10-10",
+            "posted_date": "2026-09-19",
+            "raw_text": "business development marketing sales BBA MBA",
+            "bba_mba_target_score": 70,
+            "final_score": 60 - i * 0.2,
+            "deterministic_score": 60 - i * 0.2,
+            "judge_publish": True,
+            "is_government": False,
+        })
+    old = main.candidate_already_posted
+    main.candidate_already_posted = lambda _job: False
+    try:
+        selected = main.select_private_jobs_by_category(jobs, 10, minimum_required=10)
+    finally:
+        main.candidate_already_posted = old
+    assert len(selected) == 10
+
+
+def test_source_page_chrome_is_removed_from_title_and_company():
+    item = {
+        "title": "Executive/ Sr. Executive (Sales & Marketing)",
+        "company": "Northsouth Group",
+        "source": "Bdjobs",
+        "url": "https://jobs.bdjobs.com/jobdetails/?id=700001&ln=1",
+    }
+    text = """
+Executive/ Sr. Executive (Sales & Marketing) : Northsouth Group || Bdjobs.com
+🏢 name-share-details.gif ## Executive/ Sr. Executive (Sales & Marketing)
+Job Summary
+Company Name
+Northsouth Group
+Deadline
+2026-10-19
+Posted
+2026-09-19
+"""
+    parsed = main.extract_job_fields(text, "", item["url"], item)
+    assert parsed["title"] == "Executive/ Sr. Executive (Sales & Marketing)"
+    assert parsed["company"] == "Northsouth Group"
