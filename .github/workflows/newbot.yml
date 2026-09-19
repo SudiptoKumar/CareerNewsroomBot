@@ -1,4 +1,4 @@
-name: CareerNewsroom V3
+name: CareerNewsroom V4
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v3
+  group: careernewsroom-v4
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       SCRAPLING_ENABLED: "1"
-      SCRAPLING_DYNAMIC_ENABLED: "1"
+      SCRAPLING_DYNAMIC_ENABLED: "0"
       SCRAPLING_DYNAMIC_TIMEOUT_MS: "15000"
       SCRAPLING_DYNAMIC_WAIT_MS: "1500"
       SCRAPLING_DYNAMIC_MAX_CANDIDATES: "40"
@@ -66,14 +66,14 @@ jobs:
           python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
           echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V3 self-test
+      - name: Run V4 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run CareerNewsroom V3
+      - name: Run CareerNewsroom V4
         run: python main.py
 
       - name: Save state
@@ -86,6 +86,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom V3 state"
+            git commit -m "Update CareerNewsroom V4 state"
             git push
           fi
