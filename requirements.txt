@@ -1,0 +1,9 @@
+curl_cffi==0.16.3
+requests
+urllib3
+beautifulsoup4
+trafilatura
+cerebras_cloud_sdk
+pytest
+pytest-cov
+scrapling[fetchers]
