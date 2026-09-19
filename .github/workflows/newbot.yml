@@ -1,10 +1,8 @@
-name: CareerNewsroom V1
+name: Career News Bot
 
 on:
   schedule:
-    - cron: "0,30 8-23 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "0,30 0-2 * * *"
+    - cron: "0 */3 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -12,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v1
+  group: career-news-bot
   cancel-in-progress: false
 
 jobs:
@@ -38,7 +36,7 @@ jobs:
       PRIVATE_RESEARCH_TARGET: "40"
       PRIVATE_QUALITY_FLOOR: "64"
       BDJOBS_CATEGORY_CANDIDATES_PER_CATEGORY: "10"
-      BDJOBS_CATEGORY_WORKERS: "8"
+      BDJOBS_CATEGORY_WORKERS: "1"
       MAX_PRIVATE_POST_AGE_DAYS: "5"
       SCRAPLING_DYNAMIC_ENABLED: "0"
 
@@ -66,14 +64,14 @@ jobs:
           python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
           echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V1 self-test
+      - name: Run self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run CareerNewsroom V1
+      - name: Run Career News Bot
         run: python main.py
 
       - name: Save state
@@ -86,6 +84,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom V1 state"
+            git commit -m "Update Career News Bot state"
             git push
           fi
