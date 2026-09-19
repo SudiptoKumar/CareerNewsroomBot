@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -187,6 +188,56 @@ def test_direct_html_is_normalized_before_field_extraction():
     )
     assert parsed["title"] == "Management Trainee"
     assert parsed["company"] == "Example Bank"
+
+
+def test_ai_schema_is_compatible_with_cerebras_json_schema_subset():
+    schema_text = json.dumps(main.JUDGE_SCHEMA)
+    assert "uniqueItems" not in schema_text
+
+
+def test_bdjobs_label_parser_does_not_confuse_application_deadline_with_application_method():
+    text = "Application Deadline: 19 Oct 2026\nApplication: Online"
+    fields = main._extract_source_label_fields(text)
+    assert fields["deadline"] == "19 Oct 2026"
+    assert fields["application_method"] == "Online"
+
+
+def test_current_bdjobs_snapshot_keeps_independent_fields():
+    text = """
+    Business Development Executive
+    Renowned Company
+    Job Location
+    Anywhere in Bangladesh
+    Education
+    Bachelor's/Master's
+    Experience
+    1 to 3 years
+    Age
+    25 to 30 years
+    Salary
+    Tk. 25000 - 35000 (Monthly)
+    Vacancy
+    5
+    Employment Status
+    Full Time
+    Job Work Place
+    Work at Office
+    Application
+    Online
+    Deadline
+    19 Oct 2026
+    Published
+    17 Sep 2026
+    """
+    fields = main.extract_job_fields(text, "", "https://bdjobs.com/h/details/1533487?ln=1", {"title": "Business Development Executive"})
+    assert fields["location"] == "Anywhere in Bangladesh"
+    assert fields["education"] == "Bachelor's/Master's"
+    assert fields["experience"] == "1 to 3 years"
+    assert fields["age"] == "25-30 Years"
+    assert fields["salary"] == "Tk. 25000 - 35000/month"
+    assert fields["vacancy"] == "5"
+    assert fields["posted_date"] == "2026-09-17"
+    assert fields["deadline"] == "2026-10-19"
 
 
 def test_distinct_source_ids_are_not_fuzzy_deduped():

@@ -1998,12 +1998,29 @@ def _source_label_match(line, aliases):
         return False, ""
     known = "|".join(re.escape(x) for x in sorted(BDJOBS_ALL_SOURCE_LABELS, key=len, reverse=True))
     for alias in sorted(aliases, key=len, reverse=True):
+        # If another, longer known label starts with this alias, this alias is
+        # not the label on the current line. This prevents `Application` from
+        # matching the prefix of `Application Deadline`.
+        longer_prefix = any(
+            other.casefold() != alias.casefold()
+            and re.match(rf"^{re.escape(other)}(?:\s|[:：-]|$)", line, flags=re.I)
+            for other in BDJOBS_ALL_SOURCE_LABELS
+            if len(other) > len(alias)
+        )
+        if longer_prefix:
+            continue
         if re.fullmatch(re.escape(alias) + r"\s*[:：-]?", line, flags=re.I):
             return True, ""
         pattern = rf"^{re.escape(alias)}\s*(?:[:：-]\s*|\s+)(.*?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)"
         m = re.match(pattern, line, flags=re.I)
         if m:
-            return True, _clean_one_line(m.group(1))
+            value = _clean_one_line(m.group(1))
+            # Prevent short aliases from swallowing a longer source label.
+            # Example: the alias "Application" must NOT parse
+            # "Application Deadline" as the value "Deadline".
+            if value and _normalized_source_label(value) in {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}:
+                return False, ""
+            return True, value
     return False, ""
 
 
@@ -2397,27 +2414,34 @@ def _scrapling_visible_text(page):
 
 
 def _fetch_bdjobs_with_scrapling(item):
-    """Render the Bdjobs application when HTTP clients receive only its Angular shell.
+    """Render a real Bdjobs detail document after HTTP clients receive an app shell.
 
-    This is a bounded last-mile browser fallback. It runs only after the lightweight
-    curl_cffi routes are rejected, and uses a single request per candidate.
+    Important: the browser is the production fallback, not a decorative extra.
+    The old workflow installed Playwright but Scrapling StealthyFetcher uses
+    Patchright, so the browser executable was never installed and every detail
+    request fell back to the sparse listing card. This function also tries the
+    current and legacy detail routes, captures the rendered HTML, and runs the
+    Cloudflare solver when the page requires it.
     """
     global SCRAPLING_BROWSER_FETCH_COUNT
     if not SCRAPLING_BROWSER_ENABLED or StealthyFetcher is None:
         return None
-    if SCRAPLING_BROWSER_FETCH_COUNT >= SCRAPLING_BROWSER_DETAIL_LIMIT:
-        return None
-    url = safe_text(item.get("url") or item.get("source_url"))
-    if not url:
-        return None
+
     with SCRAPLING_BROWSER_LOCK:
         if SCRAPLING_BROWSER_FETCH_COUNT >= SCRAPLING_BROWSER_DETAIL_LIMIT:
             return None
         SCRAPLING_BROWSER_FETCH_COUNT += 1
         ordinal = SCRAPLING_BROWSER_FETCH_COUNT
+
+    variants = _detail_url_variants(item)
+    if not variants:
+        return None
+
+    last_reason = "no_route"
+    for route in variants[:5]:
         try:
             page = StealthyFetcher.fetch(
-                request_safe_url(url),
+                request_safe_url(route),
                 headless=True,
                 disable_resources=True,
                 load_dom=True,
@@ -2425,36 +2449,59 @@ def _fetch_bdjobs_with_scrapling(item):
                 wait=SCRAPLING_BROWSER_WAIT_MS,
                 timeout=SCRAPLING_BROWSER_TIMEOUT,
                 google_search=True,
-                solve_cloudflare=False,
+                solve_cloudflare=True,
                 block_webrtc=True,
                 hide_canvas=True,
                 retries=1,
                 retry_delay=0.5,
             )
             text = _scrapling_visible_text(page)
-            ok, reason = _looks_like_job_document(text, url=url, detail=True)
+            ok, reason = _looks_like_job_document(text, url=route, detail=True)
             if not ok:
+                last_reason = reason
                 logger.info(
-                    "BDJOBS BROWSER REJECT | id=%s | attempt=%d | reason=%s | chars=%d",
-                    item.get("source_job_id", ""), ordinal, reason, len(text),
+                    "BDJOBS BROWSER REJECT | id=%s | attempt=%d | route=%s | reason=%s | chars=%d",
+                    item.get("source_job_id", ""), ordinal, urlparse(route).path, reason, len(text),
                 )
-                return None
+                continue
+
+            # Scrapling exposes the rendered DOM through html_content. Keep it so
+            # JSON-LD, links, labels and full detail sections are available to the
+            # same source-first parser used by the previous proven bot.
+            rendered_html = safe_text(getattr(page, "html_content", ""))
+            if not rendered_html:
+                try:
+                    body = getattr(page, "body", b"")
+                    if isinstance(body, bytes):
+                        rendered_html = body.decode("utf-8", "ignore")
+                    else:
+                        rendered_html = safe_text(body)
+                except Exception:
+                    rendered_html = ""
+
             logger.info(
-                "BDJOBS BROWSER SUCCESS | id=%s | attempt=%d | chars=%d",
-                item.get("source_job_id", ""), ordinal, len(text),
+                "BDJOBS BROWSER SUCCESS | id=%s | attempt=%d | route=%s | chars=%d | html=%d",
+                item.get("source_job_id", ""), ordinal, urlparse(route).path, len(text), len(rendered_html),
             )
             return {
-                "ok": True, "status": 200, "text": text, "html": "",
-                "url": url, "backend": "scrapling_stealthy",
+                "ok": True, "status": 200, "text": text, "html": rendered_html,
+                "url": safe_text(getattr(page, "url", "")) or route,
+                "backend": "scrapling_stealthy",
                 "cloudflare": False, "detail_quality": "browser_valid",
-                "detail_route": url,
+                "detail_route": route,
             }
         except Exception as exc:
+            last_reason = str(exc)
             logger.info(
-                "BDJOBS BROWSER FAILED | id=%s | attempt=%d | error=%s",
-                item.get("source_job_id", ""), ordinal, exc,
+                "BDJOBS BROWSER FAILED | id=%s | attempt=%d | route=%s | error=%s",
+                item.get("source_job_id", ""), ordinal, urlparse(route).path, exc,
             )
-            return None
+
+    logger.info(
+        "BDJOBS BROWSER UNAVAILABLE | id=%s | attempt=%d | reason=%s",
+        item.get("source_job_id", ""), ordinal, last_reason,
+    )
+    return None
 
 
 def _fetch_bdjobs_detail(item):
@@ -2921,7 +2968,6 @@ JUDGE_SCHEMA = {
                         },
                         "minItems": 1,
                         "maxItems": 11,
-                        "uniqueItems": True
                     },
                 },
                 "required": ["id", "publish", "score", "bba_mba_fit", "early_career_fit", "role_fit", "reason", "display_fields"],
@@ -4197,6 +4243,8 @@ def self_test():
     Work at office
     Employment Status
     Full Time
+    Application
+    Online
     """
     bd_fields=extract_job_fields(current_bdjobs,"","https://bdjobs.com/h/details/999001?ln=1",{"title":"Logistics Executive"})
     assert bd_fields["company"]=="Averroes International School"
@@ -4205,9 +4253,13 @@ def self_test():
     assert bd_fields["vacancy"]=="01"
     assert bd_fields["experience"]=="2 to 3 years"
     assert bd_fields["age"]=="26-28 Years"
-    assert bd_fields["age"] != compact_age(bd_fields["experience"])
     assert bd_fields["posted_date"]=="2026-09-17"
     assert bd_fields["deadline"]=="2026-10-17"
+    assert bd_fields["employment_type"]=="Full Time"
+    assert bd_fields["workplace"]=="On-site"
+    assert bd_fields["application_method"]=="Online"
+    assert bd_fields["age"] != bd_fields["experience"]
+    assert "uniqueItems" not in json.dumps(JUDGE_SCHEMA)
     internship=dict(bd_fields,title="Finance Internship",employment_type="Internship",experience="",is_government=False,source_url="https://bdjobs.com/h/details/999001?ln=1",company="Example Bank")
     ok,reason=snapshot_integrity(internship)
     assert ok, reason

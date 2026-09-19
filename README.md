@@ -42,7 +42,7 @@ Education required
 
 The parser preserves those ALT labels and uses a DOM text window from each job link to the next job link. This prevents a title-only ancestor from causing the listing record to lose company, location, experience, deadline, and education.
 
-A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication.
+A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication. In production, the detail lane first uses `curl_cffi`, then renders the real Bdjobs page with Scrapling/StealthyFetcher when the site returns the Angular shell, and only then falls back to Jina/listing data.
 
 #dev_tips
 
@@ -72,7 +72,7 @@ https://r.jina.ai/https://example.com/
 
 It returns readable output ( no JS, no cookies), so you can parse values easily )
 
-**Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation and Jina Reader fallback. These methods are not guaranteed to bypass every site's protection.
+**Career News V1 default:** `curl_cffi` with `safari18_0_ios` is enabled by default, followed by fingerprint rotation, a Patchright-powered Scrapling browser render, and Jina Reader fallback. The browser dependency is installed with `patchright install chromium --with-deps` in GitHub Actions. These methods are not guaranteed to bypass every site's protection.
 
 ### Source-first extraction → AI selection
 
