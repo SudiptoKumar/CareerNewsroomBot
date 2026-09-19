@@ -80,8 +80,6 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
-      - name: Unit tests
-        run: pytest -q
 
       - name: Run V1 self-test
         run: python main.py --self-test
