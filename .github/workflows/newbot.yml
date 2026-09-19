@@ -1,8 +1,10 @@
-name: Career News Bot V0
+name: CareerNewsroom V6
 
 on:
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "0,30 8-23 * * *"
+      timezone: "Asia/Dhaka"
+    - cron: "0,30 0-2 * * *"
       timezone: "Asia/Dhaka"
   workflow_dispatch:
 
@@ -10,14 +12,14 @@ permissions:
   contents: write
 
 concurrency:
-  group: career-news-bot-v0
+  group: careernewsroom-v6
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
     # Pin the currently stable runner image; avoid the announced ubuntu-latest migration during this bot's production lifecycle.
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 6
 
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -26,9 +28,9 @@ jobs:
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       SCRAPLING_ENABLED: "1"
       PYTHONUNBUFFERED: "1"
-      FAST_PRIVATE_CANDIDATE_TARGET: "120"
+      FAST_PRIVATE_CANDIDATE_TARGET: "100"
       FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
-      FAST_DETAIL_WORKERS: "6"
+      FAST_DETAIL_WORKERS: "10"
       FAST_AI_CANDIDATE_LIMIT: "32"
       FAST_DISCOVERY_TIMEOUT: "15"
       FAST_DETAIL_TIMEOUT: "18"
@@ -36,12 +38,7 @@ jobs:
       PRIVATE_RESEARCH_TARGET: "40"
       PRIVATE_QUALITY_FLOOR: "60"
       MAX_BDJOBS_DISCOVERY_PAGES: "2"
-      BDJOBS_BROWSER_CATEGORY_LIMIT: "14"
-      BDJOBS_BROWSER_PER_CATEGORY: "12"
-      BDJOBS_BROWSER_TIMEOUT_MS: "20000"
-      BDJOBS_BROWSER_WAIT_MS: "2500"
-      SCRAPLING_BROWSER_EXECUTABLE: "/usr/bin/google-chrome"
-      SCRAPLING_DYNAMIC_ENABLED: "1"
+      SCRAPLING_DYNAMIC_ENABLED: "0"
 
     steps:
       - name: Checkout repository
@@ -61,20 +58,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Python, Scrapling and Chrome runtime
+      - name: Verify Python and Scrapling runtime
         run: |
           python -m py_compile main.py
           python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
           echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V0 self-test
+      - name: Run V6 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         run: python main.py --source-test
 
-      - name: Run Career News Bot V0
+      - name: Run CareerNewsroom V6
         run: python main.py
 
       - name: Save state
@@ -87,6 +84,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update Career News Bot V0 state"
+            git commit -m "Update CareerNewsroom V6 state"
             git push
           fi
