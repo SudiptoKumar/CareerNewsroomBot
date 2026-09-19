@@ -1,4 +1,4 @@
-name: CareerNewsroom V2
+name: CareerNewsroom V3
 
 on:
   schedule:
@@ -12,12 +12,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: careernewsroom-v2
+  group: careernewsroom-v3
   cancel-in-progress: false
 
 jobs:
   run-career-bot:
-    runs-on: ubuntu-latest
+    # Pin the currently stable runner image; avoid the announced ubuntu-latest migration during this bot's production lifecycle.
+    runs-on: ubuntu-24.04
     timeout-minutes: 6
 
     env:
@@ -25,6 +26,11 @@ jobs:
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
+      SCRAPLING_ENABLED: "1"
+      SCRAPLING_DYNAMIC_ENABLED: "1"
+      SCRAPLING_DYNAMIC_TIMEOUT_MS: "15000"
+      SCRAPLING_DYNAMIC_WAIT_MS: "1500"
+      SCRAPLING_DYNAMIC_MAX_CANDIDATES: "40"
       PYTHONUNBUFFERED: "1"
       FAST_PRIVATE_CANDIDATE_TARGET: "60"
       FAST_GOVERNMENT_CANDIDATE_TARGET: "10"
@@ -54,13 +60,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify Python source
-        run: python -m py_compile main.py
+      - name: Verify Python and Scrapling runtime
+        run: |
+          python -m py_compile main.py
+          python -c "import scrapling; from scrapling.fetchers import Fetcher, DynamicFetcher; print('Scrapling OK:', getattr(scrapling, '__version__', 'installed'))"
+          echo "Browser executable: $(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 
-      - name: Run V2 self-test
+      - name: Run V3 self-test
         run: python main.py --self-test
 
-      - name: Run CareerNewsroom V2
+      - name: Run live source diagnostics (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        run: python main.py --source-test
+
+      - name: Run CareerNewsroom V3
         run: python main.py
 
       - name: Save state
@@ -73,6 +86,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No state changes to commit."
           else
-            git commit -m "Update CareerNewsroom V2 state"
+            git commit -m "Update CareerNewsroom V3 state"
             git push
           fi
