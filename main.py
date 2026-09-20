@@ -3424,7 +3424,7 @@ Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career busi
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
 For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
-For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. Always include deadline and posted_date when available; for private jobs include location and experience when available.
+For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. ALWAYS include salary when a source-backed salary is supplied. Also always include deadline and posted_date when available; for private jobs include location and experience when available.
 Return every input candidate.
 """
 
@@ -3651,7 +3651,12 @@ def rank_jobs(jobs):
         candidate = dict(job)
         available_display=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(candidate.get(key))]
         ai_display=[key for key in (row.get("display_fields") or []) if key in available_display]
+        # AI may suggest a compact subset, but it must never hide a source-backed
+        # high-impact field. Salary is mandatory whenever the source extractor found it.
         display_fields=list(dict.fromkeys(ai_display or available_display))
+        for required_key in ("salary","deadline","posted_date","location"):
+            if required_key in available_display and required_key not in display_fields:
+                display_fields.append(required_key)
         for core_key in ("deadline","posted_date","location"):
             if core_key in available_display and core_key not in display_fields:
                 display_fields.append(core_key)
@@ -4980,6 +4985,19 @@ def self_test():
     assert "#GovtJob" in job_hashtags(gov)
     internship["display_fields"]=["location","salary","vacancy","deadline","posted_date"]
     assert set(dict(job_snapshot_rows(internship))) >= {"Location","Salary","Vacancy","Deadline","Posted"}
+
+    # AI display preferences must never hide a source-backed salary.
+    salary_job=dict(internship)
+    salary_job["display_fields"]=["location","deadline","posted_date"]
+    salary_job["salary"]="Tk. 25,000 - 35,000 (Monthly)"
+    salary_available=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(salary_job.get(key))]
+    salary_display=list(dict.fromkeys([key for key in salary_job["display_fields"] if key in salary_available]))
+    for required_key in ("salary","deadline","posted_date","location"):
+        if required_key in salary_available and required_key not in salary_display:
+            salary_display.append(required_key)
+    salary_job["display_fields"]=salary_display
+    assert "Salary" in dict(job_snapshot_rows(salary_job))
+    assert dict(job_snapshot_rows(salary_job))["Salary"]=="Tk. 25,000 - 35,000 (Monthly)"
 
     # Current Angular Bdjobs regression fixture: the real job title is an h2
     # following the company button. The only h1 is footer chrome.

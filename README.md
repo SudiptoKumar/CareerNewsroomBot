@@ -1,5 +1,10 @@
 # CareerNewsroom
 
+## Latest snapshot display fix
+
+Source-backed salary is now mandatory in the Telegram JOB SNAPSHOT whenever the Bdjobs/Teletalk extractor has a salary value. AI presentation preferences can no longer silently omit salary. Deadline, posted date, and location remain protected display fields as well.
+
+
 Production BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
 
 Pipeline release: Career News V1.
