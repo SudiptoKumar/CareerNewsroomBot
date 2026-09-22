@@ -123,3 +123,6 @@ jobs.bdjobs.com/jobdetails?id=1535982&fcatId=17&ln=1
 jobs.bdjobs.com/jobdetails?id=1535100&fcatId=16&ln=1
 jobs.bdjobs.com/jobdetails?id=1535859&fcatId=7&ln=1
 jobs.bdjobs.com/jobdetails?id=1535918&fcatId=2&ln=1
+jobs.bdjobs.com/jobdetails?id=1535922&fcatId=2&ln=1
+jobs.bdjobs.com/jobdetails?id=1535926&fcatId=2&ln=1
+jobs.bdjobs.com/jobdetails?id=1535933&fcatId=2&ln=1
