@@ -22,8 +22,6 @@ jobs:
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
-      TELEGRAM_PROMO_URL: "https://t.me/CareerNewsroom"
-      DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
       PYTHONUNBUFFERED: "1"
       MAX_POST_AGE_DAYS: "5"
       PRIVATE_DISCOVERY_TARGET: "160"
@@ -35,9 +33,14 @@ jobs:
       MIN_INTERNSHIP_POSTS_PER_RUN: "2"
       PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
       GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
-      AI_REVIEW_TARGET: "50"
-      AI_BATCH_SIZE: "8"
+      AI_REVIEW_TARGET: "24"
+      AI_BATCH_SIZE: "12"
       AI_RETRY_COUNT: "1"
+      CEREBRAS_TIMEOUT_SECONDS: "35"
+      CEREBRAS_REQUEST_RETRIES: "1"
+      CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS: "4"
+      CEREBRAS_REASONING_EFFORT: "low"
+      PRIVATE_REQUIRE_EXPERIENCE: "0"
       MIN_PRIVATE_POSTS_PER_RUN: "10"
       MIN_GOVERNMENT_POSTS_PER_RUN: "3"
       PRIVATE_MIN_FILL_SCORE: "58"
@@ -46,7 +49,6 @@ jobs:
       PRIVATE_HARD_MIN_INFORMATION_QUALITY: "3"
       DETAIL_WORKERS: "8"
       DETAIL_TIMEOUT: "14"
-      LEGACY_DETAIL_TIMEOUT: "8"
       SCRAPLING_BROWSER_ENABLED: "1"
       SCRAPLING_BROWSER_TIMEOUT: "60000"
       SCRAPLING_BROWSER_WAIT_MS: "750"
@@ -60,6 +62,9 @@ jobs:
       JINA_ENABLED: "1"
       JINA_TIMEOUT: "12"
       JINA_RPM_LIMIT: "24"
+      TELEGRAM_PROMO_URL: "https://t.me/CareerNewsroom"
+      DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
+      STATE_PUSH_RETRIES: "4"
 
     steps:
       - name: Checkout repository
@@ -97,14 +102,40 @@ jobs:
 
       - name: Save state
         if: always()
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "Career News Bot"
           git config user.email "actions@github.com"
           git add news_state.json posted_urls.txt
 
           if git diff --cached --quiet; then
             echo "No state changes to commit."
-          else
-            git commit -m "Update CareerNewsroom state"
-            git push
+            exit 0
           fi
+
+          git commit -m "Update CareerNewsroom state"
+          branch="${GITHUB_REF_NAME:-main}"
+          retries="${STATE_PUSH_RETRIES:-4}"
+
+          for attempt in $(seq 1 "$retries"); do
+            echo "State push attempt ${attempt}/${retries}"
+            if git push origin "HEAD:${branch}"; then
+              echo "State push succeeded."
+              exit 0
+            fi
+
+            if [ "$attempt" -eq "$retries" ]; then
+              echo "State push failed after ${retries} attempts." >&2
+              exit 1
+            fi
+
+            echo "Push rejected/transiently failed; refreshing origin/${branch} before retry."
+            git fetch origin "$branch"
+            if ! git rebase "origin/${branch}"; then
+              echo "State rebase conflict: remote state changed concurrently. Aborting to avoid overwriting repository state." >&2
+              git rebase --abort || true
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
