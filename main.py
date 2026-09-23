@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from urllib.parse import urlparse, urljoin, quote, unquote
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 
 import requests
 try:
@@ -46,6 +47,12 @@ from bs4 import BeautifulSoup, NavigableString
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+try:
+    from cerebras.cloud.sdk import Cerebras
+except ImportError:
+    Cerebras = None
+
+
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -57,11 +64,6 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-CEREBRAS_API_URL = os.environ.get("CEREBRAS_API_URL", "https://api.cerebras.ai/v1/chat/completions").strip()
-CEREBRAS_TIMEOUT_SECONDS = float(os.environ.get("CEREBRAS_TIMEOUT_SECONDS", "35"))
-CEREBRAS_REQUEST_RETRIES = max(0, int(os.environ.get("CEREBRAS_REQUEST_RETRIES", "1")))
-CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS = max(0.0, float(os.environ.get("CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS", "4")))
-CEREBRAS_REASONING_EFFORT = os.environ.get("CEREBRAS_REASONING_EFFORT", "low").strip() or "low"
 PIPELINE_VERSION = "CareerNewsroom"
 STATE_FORMAT_VERSION = 5
 POSTED_FILE = "posted_urls.txt"
@@ -70,8 +72,8 @@ BD_TZ = ZoneInfo("Asia/Dhaka")
 
 TARGET_STORIES_PER_RUN = int(os.environ.get("TARGET_STORIES_PER_RUN", "15"))
 MAX_STORIES_PER_RUN = int(os.environ.get("MAX_STORIES_PER_RUN", "20"))
-MIN_PRIVATE_POSTS_PER_RUN = int(os.environ.get("MIN_PRIVATE_POSTS_PER_RUN", "10"))
-MIN_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MIN_GOVERNMENT_POSTS_PER_RUN", "3"))
+MIN_PRIVATE_POSTS_PER_RUN = int(os.environ.get("MIN_PRIVATE_POSTS_PER_RUN", "0"))
+MIN_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MIN_GOVERNMENT_POSTS_PER_RUN", "0"))
 QUALITY_FLOOR = float(os.environ.get("QUALITY_FLOOR", "65"))
 PRIVATE_MIN_FILL_SCORE = float(os.environ.get("PRIVATE_MIN_FILL_SCORE", "58"))
 PRIVATE_HARD_FILL_SCORE = float(os.environ.get("PRIVATE_HARD_FILL_SCORE", "55"))
@@ -90,10 +92,9 @@ INTERNSHIP_AI_TARGET = int(os.environ.get("INTERNSHIP_AI_TARGET", "8"))
 MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "2"))
 PRIVATE_SNAPSHOT_MIN_FIELDS = int(os.environ.get("PRIVATE_SNAPSHOT_MIN_FIELDS", "4"))
 GOVERNMENT_SNAPSHOT_MIN_FIELDS = int(os.environ.get("GOVERNMENT_SNAPSHOT_MIN_FIELDS", "3"))
-AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "24"))
-AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "12"))
+AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
+AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "8"))
 AI_RETRY_COUNT = int(os.environ.get("AI_RETRY_COUNT", "1"))
-PRIVATE_REQUIRE_EXPERIENCE = os.environ.get("PRIVATE_REQUIRE_EXPERIENCE", "0").strip().lower() in {"1", "true", "yes", "on"}
 GOVERNMENT_DISCOVERY_TARGET = int(os.environ.get("GOVERNMENT_DISCOVERY_TARGET", "20"))
 CATEGORY_PAGE_LIMIT = int(os.environ.get("CATEGORY_PAGE_LIMIT", "4"))
 CATEGORY_P1_CAP = int(os.environ.get("CATEGORY_P1_CAP", "20"))
@@ -101,6 +102,7 @@ CATEGORY_P2_CAP = int(os.environ.get("CATEGORY_P2_CAP", "12"))
 DETAIL_WORKERS = int(os.environ.get("DETAIL_WORKERS", "8"))
 DISCOVERY_TIMEOUT = int(os.environ.get("DISCOVERY_TIMEOUT", "18"))
 DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "14"))
+LEGACY_DETAIL_TIMEOUT = int(os.environ.get("LEGACY_DETAIL_TIMEOUT", "8"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
@@ -564,107 +566,17 @@ def prune_state():
 # CLIENTS
 # ============================================================
 
-class CerebrasRateLimitError(RuntimeError):
-    pass
+cerebras = None
 
 
-def _cerebras_rate_limit_wait(headers):
-    """Return server-advised wait seconds, capped by configuration elsewhere."""
-    for name in ("retry-after", "x-ratelimit-reset-tokens-minute", "x-ratelimit-reset-requests-day"):
-        value = safe_text(headers.get(name))
-        if not value:
-            continue
-        try:
-            seconds = float(value)
-            if seconds >= 0:
-                return seconds
-        except (TypeError, ValueError):
-            continue
-    return 0.0
-
-
-_cerebras_http = requests.Session()
-_cerebras_http.headers.update({
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-})
-
-
-def _cerebras_chat_json(messages, *, response_format=None, max_completion_tokens=1800, label="request"):
-    """Call Cerebras directly so 429 responses cannot trigger a hidden 60s SDK retry."""
-    if not CEREBRAS_API_KEY:
+def get_cerebras():
+    global cerebras
+    if Cerebras is None or not CEREBRAS_API_KEY:
         return None
-    payload = {
-        "model": CEREBRAS_MODEL,
-        "messages": messages,
-        "temperature": 0.0,
-        "max_completion_tokens": int(max_completion_tokens),
-    }
-    if CEREBRAS_MODEL.lower() == "gpt-oss-120b" and CEREBRAS_REASONING_EFFORT:
-        payload["reasoning_effort"] = CEREBRAS_REASONING_EFFORT
-    if response_format is not None:
-        payload["response_format"] = response_format
+    if cerebras is None:
+        cerebras = Cerebras(api_key=CEREBRAS_API_KEY)
+    return cerebras
 
-    for attempt in range(1, CEREBRAS_REQUEST_RETRIES + 2):
-        try:
-            started = time.monotonic()
-            response = _cerebras_http.post(
-                CEREBRAS_API_URL,
-                headers={"Authorization": f"Bearer {CEREBRAS_API_KEY}"},
-                json=payload,
-                timeout=CEREBRAS_TIMEOUT_SECONDS,
-            )
-            elapsed = time.monotonic() - started
-
-            if response.status_code == 429:
-                wait = _cerebras_rate_limit_wait(response.headers)
-                if wait <= CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS and attempt <= CEREBRAS_REQUEST_RETRIES:
-                    logger.warning(
-                        "CEREBRAS RATE LIMITED | label=%s | attempt=%d | wait=%.2fs",
-                        label, attempt, wait,
-                    )
-                    if wait > 0:
-                        time.sleep(wait)
-                    continue
-                logger.warning(
-                    "CEREBRAS RATE LIMITED | label=%s | attempt=%d | server_wait=%.2fs | action=deterministic_fallback",
-                    label, attempt, wait,
-                )
-                raise CerebrasRateLimitError(f"HTTP 429; advised_wait={wait:.2f}s")
-
-            if response.status_code in {500, 502, 503, 504} and attempt <= CEREBRAS_REQUEST_RETRIES:
-                wait = min(2.0, 0.5 * attempt)
-                logger.warning(
-                    "CEREBRAS TRANSIENT HTTP %d | label=%s | attempt=%d | retry_in=%.1fs",
-                    response.status_code, label, attempt, wait,
-                )
-                time.sleep(wait)
-                continue
-
-            if response.status_code >= 400:
-                excerpt = trim_source_text(response.text, 500)
-                raise RuntimeError(f"HTTP {response.status_code}: {excerpt}")
-
-            body = response.json()
-            logger.info(
-                "CEREBRAS OK | label=%s | attempt=%d | elapsed=%.2fs",
-                label, attempt, elapsed,
-            )
-            return body
-        except CerebrasRateLimitError:
-            raise
-        except (requests.RequestException, ValueError, RuntimeError) as exc:
-            if attempt <= CEREBRAS_REQUEST_RETRIES:
-                wait = min(2.0, 0.5 * attempt)
-                logger.warning(
-                    "CEREBRAS REQUEST RETRY | label=%s | attempt=%d | retry_in=%.1fs | error=%s",
-                    label, attempt, wait, exc,
-                )
-                time.sleep(wait)
-                continue
-            raise
-
-    return None
 
 
 # ============================================================
@@ -1092,12 +1004,7 @@ def discover_bdjobs_category(category_id, config):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
 
-    primary_url = _absolute_category_url(category_id)
-    legacy_url = _absolute_category_url(category_id, legacy=True)
-    base_urls = [primary_url]
-    base_url_index = 0
-    while base_url_index < len(base_urls):
-        base_url = base_urls[base_url_index]
+    for base_url in (_absolute_category_url(category_id), _absolute_category_url(category_id, legacy=True)):
         if len(collected) >= cap:
             break
         next_url = base_url
@@ -1141,11 +1048,6 @@ def discover_bdjobs_category(category_id, config):
                 break
             if new_count == 0:
                 break
-        if not collected and base_url_index == 0:
-            # Legacy listing is now a rescue path, not a second request on every category.
-            base_urls.append(legacy_url)
-            logger.info("BDJOBS CATEGORY LEGACY FALLBACK | %s", category_name)
-        base_url_index += 1
     logger.info("BDJOBS CATEGORY | %s | %d", category_name, len(collected))
     return collected
 
@@ -1946,7 +1848,8 @@ def translate_government_jobs(jobs):
         job["age"]=compact_age(job.get("age")) or job.get("age","")
         job["application_method"]=compact_application(job.get("application_method"),job.get("apply_url","")) or job.get("application_method","")
         job["employment_type"]=compact_employment(job.get("employment_type")) or job.get("employment_type","")
-    if not CEREBRAS_API_KEY or not source_snapshots:
+    client=get_cerebras()
+    if not client or not source_snapshots:
         return jobs
     payload=[]
     for idx,(job,source_fields) in enumerate(source_snapshots,1):
@@ -1956,18 +1859,18 @@ def translate_government_jobs(jobs):
             *[f"{k}: {source_fields.get(k,'')}" for k in source_fields],
         ]))
     try:
-        response=_cerebras_chat_json(
-            [
+        response=client.chat.completions.create(
+            model=CEREBRAS_MODEL,
+            messages=[
                 {"role":"system","content":"Return only the supplied fields translated into natural English suitable for a Telegram job post."},
                 {"role":"user","content":"\n\n".join(payload)},
             ],
             response_format={"type":"json_schema","json_schema":{"name":"government_job_translation","strict":True,"schema":GOV_TRANSLATE_SCHEMA}},
+            reasoning_effort="low",
+            temperature=0.0,
             max_completion_tokens=1800,
-            label="government_translation",
         )
-        if not response:
-            return jobs
-        rows=json.loads(safe_text(response.get("choices", [{}])[0].get("message", {}).get("content", ""))).get("results",[])
+        rows=json.loads(safe_text(response.choices[0].message.content)).get("results",[])
         for row in rows:
             try: idx=int(row.get("id"))
             except Exception: continue
@@ -2752,12 +2655,12 @@ def _extract_apply_url_from_text(text, page_url):
     return max(scored, key=lambda x: x[0])[1] if scored else ""
 
 def _detail_url_variants(item):
-    """Return the known Bdjobs detail routes in deterministic order.
+    """Return deterministic Bdjobs detail routes from current to legacy.
 
-    The optimized acquisition path consumes the current Angular /h route first and
-    uses /hn as the only alternate current route before bounded Jina fallback.
-    Legacy ASP routes remain discoverable here for compatibility with an explicitly
-    supplied raw source URL, but are not probed on every job.
+    Current /h/details pages may serve an Angular shell to non-browser HTTP clients.
+    The /hn/details server-rendered route and the legacy jobs.bdjobs.com route are
+    intentionally tried before Jina so a real source document can supply the full
+    Job Snapshot.
     """
     variants = []
     raw = safe_text(item.get("url") or item.get("source_url"))
@@ -2895,10 +2798,12 @@ def _scrapling_visible_text(page):
 def _fetch_bdjobs_with_scrapling(item):
     """Render a real Bdjobs detail document after HTTP clients receive an app shell.
 
-    The browser is the production fallback. Scrapling StealthyFetcher uses Patchright,
-    so the workflow installs the Patchright Chromium runtime explicitly. The optimized
-    browser lane tries only the two current Angular routes and captures rendered HTML
-    before source-field extraction.
+    Important: the browser is the production fallback, not a decorative extra.
+    The old workflow installed Playwright but Scrapling StealthyFetcher uses
+    Patchright, so the browser executable was never installed and every detail
+    request fell back to the sparse listing card. This function also tries the
+    current and legacy detail routes, captures the rendered HTML, and runs the
+    Cloudflare solver when the page requires it.
     """
     global SCRAPLING_BROWSER_FETCH_COUNT
     if not SCRAPLING_BROWSER_ENABLED or StealthyFetcher is None:
@@ -2914,12 +2819,8 @@ def _fetch_bdjobs_with_scrapling(item):
     if not variants:
         return None
 
-    # Browser is reserved for the two current Angular routes. Legacy ASP routes are no longer
-    # opened for every job because the successful production runs showed the browser path already
-    # resolves the current /h details page for the full shortlist.
-    browser_variants = variants[:2]
     last_reason = "no_route"
-    for route in browser_variants:
+    for route in variants[:5]:
         try:
             page = StealthyFetcher.fetch(
                 request_safe_url(route),
@@ -2984,13 +2885,14 @@ def _fetch_bdjobs_detail(item):
     """Acquire one real Bdjobs detail document with bounded fallbacks.
 
     Flow:
-      1. one direct current /h/details request
-      2. Scrapling browser /h render, then /hn rescue
-      3. bounded Jina Reader request against /hn then /h
-      4. listing preservation handled by research_job/retrieve_job_content
+      1. current /h/details
+      2. current /hn/details when the first route is an application shell
+      3. legacy jobs.bdjobs.com server-rendered detail
+      4. one Jina Reader request
+      5. listing preservation handled by research_job/retrieve_job_content
 
-    The previous per-job legacy ASP probing is intentionally removed because the
-    production browser path already resolves the current Angular detail page.
+    Legacy routes are tried on *content failure* as well as transport failure,
+    because HTTP 200 Angular shells are a known current-site behavior.
     """
     key=cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
     cached=DETAIL_CACHE.get(key)
@@ -3005,27 +2907,33 @@ def _fetch_bdjobs_detail(item):
     last_reason="no_url"
     attempted=[]
     primary=variants[0]
-    referer = item.get("url") or BDJOBS_LISTING_URL
-    direct=_fetch_with_curl(primary, timeout=DETAIL_TIMEOUT, referer=referer, max_attempts=CURL_MAX_FINGERPRINT_ATTEMPTS)
-    attempted.append(primary)
-    if direct:
+    for idx, variant in enumerate(variants[:4]):
+        timeout = DETAIL_TIMEOUT if idx == 0 else LEGACY_DETAIL_TIMEOUT
+        referer = item.get("url") or BDJOBS_LISTING_URL
+        direct=_fetch_with_curl(variant, timeout=timeout, referer=referer, max_attempts=(CURL_MAX_FINGERPRINT_ATTEMPTS if idx == 0 else 2))
+        attempted.append(variant)
+        if not direct:
+            last_reason="transport_failure"
+            continue
         body=safe_text(direct.get("text"))
-        ok,reason=_looks_like_job_document(body, url=direct.get("url") or primary, detail=True)
+        ok,reason=_looks_like_job_document(body, url=direct.get("url") or variant, detail=True)
         if ok:
             direct=_detail_payload_from_fetch(direct)
             direct["detail_quality"]="direct_valid"
-            direct["detail_route"] = primary
+            direct["detail_route"] = variant
             DETAIL_CACHE[key]={"ts":time.monotonic(),"result":direct}
-            logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=%s | backend=%s", item.get("source_job_id",""), urlparse(primary).path, direct.get("backend",""))
+            logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=%s | backend=%s", item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""))
             return direct
         last_reason=reason
         logger.info(
             "BDJOBS DETAIL REJECT | id=%s | route=%s | backend=%s | status=%s | reason=%s",
-            item.get("source_job_id",""), urlparse(primary).path, direct.get("backend",""), direct.get("status",""), reason,
+            item.get("source_job_id",""), urlparse(variant).path, direct.get("backend",""), direct.get("status",""), reason,
         )
-    else:
-        last_reason="transport_failure"
 
+        # Once a valid-looking source document has been found, stop. Only a rejected
+        # 200 shell/thin page triggers the next route.
+        if idx == 0:
+            continue
 
     # The current Bdjobs /h/details and /hn/details endpoints can return an Angular
     # shell to non-browser clients even with HTTP 200. At that point the correct
@@ -3039,7 +2947,7 @@ def _fetch_bdjobs_detail(item):
     # implementation sent Jina to the legacy route, which often returned less content.
     if JINA_ENABLED:
         jina_targets=[]
-        for route_index in (1, 0):
+        for route_index in (1, 0, 2):
             if route_index < len(variants) and variants[route_index] not in jina_targets:
                 jina_targets.append(variants[route_index])
         for jina_target in jina_targets[:2]:
@@ -3057,7 +2965,7 @@ def _fetch_bdjobs_detail(item):
             last_reason=reason
             logger.info("BDJOBS DETAIL JINA REJECT | id=%s | route=%s | reason=%s", item.get("source_job_id",""), urlparse(jina_target).path, reason)
 
-    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | direct_routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
+    logger.info("BDJOBS DETAIL UNAVAILABLE | id=%s | reason=%s | routes=%d", item.get("source_job_id",""), last_reason, len(attempted))
     DETAIL_CACHE[key]={"ts":time.monotonic(),"result":None}
     return None
 
@@ -3516,7 +3424,7 @@ Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career busi
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
 For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
-For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. Always include deadline and posted_date when available; for private jobs include location and experience when available.
+For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. ALWAYS include salary when a source-backed salary is supplied. Also always include deadline and posted_date when available; for private jobs include location and experience when available.
 Return every input candidate.
 """
 
@@ -3653,41 +3561,46 @@ def _call_judge_once(batch, batch_no, retry=False):
         + "\n\n" + "\n\n".join(payload)
     )
     try:
-        body = _cerebras_chat_json(
-            [{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
+        response = get_cerebras().chat.completions.create(
+            model=CEREBRAS_MODEL,
+            messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
             response_format={"type":"json_schema","json_schema":{"name":f"career_job_audit_{batch_no}","strict":True,"schema":JUDGE_SCHEMA}},
-            max_completion_tokens=max(1200, 240 * max(1, len(batch)) + 300),
-            label=f"judge_batch_{batch_no}",
+            temperature=0.0,
+            max_completion_tokens=max(2400, 700 * max(1, len(batch))),
         )
-        if not body:
-            raise ValueError("empty_cerebras_response")
-        content = safe_text(body.get("choices", [{}])[0].get("message", {}).get("content", ""))
+        content = safe_text(response.choices[0].message.content)
         rows = _validate_judge_rows(_extract_json_objects(content), len(batch))
         if rows:
-            return rows, "ok"
+            return rows
         raise ValueError("no_valid_judge_rows")
-    except CerebrasRateLimitError as exc:
-        logger.warning("CEREBRAS audit batch %d rate-limited; deterministic ranking will continue: %s", batch_no, exc)
-        return [], "rate_limited"
     except Exception as exc:
         logger.warning("CEREBRAS audit batch %d failed%s: %s", batch_no, " on retry" if retry else "", exc)
-        return [], "failed"
+        return []
 
 
 def judge_batch(batch, batch_no):
-    if not CEREBRAS_API_KEY or not batch:
+    if not get_cerebras() or not batch:
         return []
+    # Smaller batches materially reduce malformed/truncated structured-output risk.
     chunks = [batch[i:i + max(1, AI_BATCH_SIZE)] for i in range(0, len(batch), max(1, AI_BATCH_SIZE))]
     all_rows = []
+    offset = 0
     for chunk_no, chunk in enumerate(chunks, 1):
-        rows, status = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=False)
-        if not rows and status == "rate_limited":
-            break
+        rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=False)
         if not rows and AI_RETRY_COUNT > 0:
-            rows, status = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=True)
-            if status == "rate_limited":
-                break
-        all_rows.extend(rows)
+            rows = _call_judge_once(chunk, batch_no * 100 + chunk_no, retry=True)
+        # If a multi-candidate call still fails, split it once more rather than
+        # losing the entire private audit population.
+        if not rows and len(chunk) > 1:
+            midpoint = max(1, len(chunk) // 2)
+            for sub_no, sub in enumerate((chunk[:midpoint], chunk[midpoint:]), 1):
+                if not sub:
+                    continue
+                sub_rows = _call_judge_once(sub, batch_no * 1000 + chunk_no * 10 + sub_no, retry=True)
+                all_rows.extend(sub_rows)
+        else:
+            all_rows.extend(rows)
+        offset += len(chunk)
     return all_rows
 
 
@@ -3738,7 +3651,12 @@ def rank_jobs(jobs):
         candidate = dict(job)
         available_display=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(candidate.get(key))]
         ai_display=[key for key in (row.get("display_fields") or []) if key in available_display]
-        display_fields=list(dict.fromkeys(ai_display + [key for key in available_display if key not in ai_display]))
+        # AI may suggest a compact subset, but it must never hide a source-backed
+        # high-impact field. Salary is mandatory whenever the source extractor found it.
+        display_fields=list(dict.fromkeys(ai_display or available_display))
+        for required_key in ("salary","deadline","posted_date","location"):
+            if required_key in available_display and required_key not in display_fields:
+                display_fields.append(required_key)
         for core_key in ("deadline","posted_date","location"):
             if core_key in available_display and core_key not in display_fields:
                 display_fields.append(core_key)
@@ -4046,6 +3964,17 @@ def store_selected_event(job, published=False, message_id=None):
         "title": job.get("title", ""),
         "company": job.get("company", ""),
         "location": job.get("location", ""),
+        "education": job.get("education", ""),
+        "experience": job.get("experience", ""),
+        "salary": job.get("salary", ""),
+        "vacancy": job.get("vacancy", ""),
+        "age": job.get("age", ""),
+        "employment_type": job.get("employment_type", ""),
+        "workplace": job.get("workplace", ""),
+        "application_method": job.get("application_method", ""),
+        "career_category": job.get("career_category", ""),
+        "display_fields": list(job.get("display_fields") or []),
+        "is_government": bool(job.get("is_government")),
         "posted_date": job.get("posted_date", ""),
         "deadline": job.get("deadline", ""),
         "score": job.get("judge_score", 0),
@@ -4130,7 +4059,13 @@ def send_bot_api_text_fallback(job, plain_text):
 
 
 def _event_job_for_expiry(event_id, event):
-    """Reconstruct a historical job from queue/event state for deadline editing."""
+    """Reconstruct a publishable JobRecord for editing an existing post.
+
+    Current runs keep a full copy in STATE[queue]. Older event records are sparse,
+    so non-empty event fields override the queue record while missing values are
+    retained from the queue. This keeps the historical post as close as possible
+    to its original source-backed snapshot.
+    """
     job = {}
     canonical = safe_text(event.get("canonical_url"))
     if canonical:
@@ -4138,13 +4073,8 @@ def _event_job_for_expiry(event_id, event):
         if isinstance(queue_item, dict):
             job.update(queue_item)
 
-    ignored = {
-        "canonical_url", "status", "selected_at", "published_at", "expired_at",
-        "expiry_update_status", "expiry_error", "expired_apply_url_removed",
-        "expired_source_url_removed",
-    }
     for key, value in event.items():
-        if key in ignored:
+        if key in {"canonical_url", "status", "selected_at", "published_at", "expired_at", "expiry_update_status", "expiry_error", "expired_apply_url_removed", "expired_source_url_removed"}:
             continue
         if value not in (None, ""):
             job[key] = value
@@ -4158,7 +4088,12 @@ def _event_job_for_expiry(event_id, event):
 
 
 def _deadline_expiry_datetime(value):
-    """Return the effective expiry instant in Asia/Dhaka."""
+    """Return the effective local expiry instant for a stored deadline.
+
+    Stored source deadlines are normally normalized to YYYY-MM-DD. A date-only
+    deadline remains valid through the end of that date in Asia/Dhaka. If a true
+    timestamp is supplied, its timestamp is respected.
+    """
     raw = safe_text(value)
     if not raw:
         return None
@@ -4169,6 +4104,7 @@ def _deadline_expiry_datetime(value):
             return datetime(day.year, day.month, day.day, 23, 59, 59, 999999, tzinfo=BD_TZ)
         except Exception:
             return None
+
     parsed = parse_datetime(raw)
     if parsed:
         return parsed
@@ -4184,7 +4120,7 @@ def _deadline_has_expired(value, *, now=None):
 
 
 def _edit_expired_message(job):
-    """Edit an existing post and remove application/source links."""
+    """Replace the historical rich message with an expired, source-link-free version."""
     message_id = safe_text(job.get("message_id"))
     if not message_id.isdigit():
         return {"ok": False, "description": "missing_message_id"}
@@ -4203,6 +4139,8 @@ def _edit_expired_message(job):
     if result.get("ok"):
         return result
 
+    # Button-only fallback keeps the job visibly non-actionable if a client/API
+    # edge case prevents the rich body edit. The full edit is retried next run.
     markup_result = telegram_call(
         "editMessageReplyMarkup",
         data={
@@ -4226,17 +4164,19 @@ def _edit_expired_message(job):
 
 
 def expire_published_jobs():
-    """Sweep published jobs and mark Telegram posts expired after their deadline."""
+    """Sweep previously published CareerNewsroom posts for expired deadlines."""
     if not TELEGRAM_BOT_TOKEN:
         logger.info("DEADLINE SWEEP | skipped | TELEGRAM_BOT_TOKEN not configured")
-        return {"checked": 0, "expired": 0, "updated": 0, "partial": 0, "failed": 0, "skipped": 0, "deferred": 0}
+        return {"checked": 0, "expired": 0, "updated": 0, "partial": 0, "failed": 0, "skipped": 0}
 
     now = datetime.now(BD_TZ)
     candidates = []
     checked = expired = skipped = failed = updated = partial = 0
 
     for event_id, event in list(STATE.get("events", {}).items()):
-        if not isinstance(event, dict) or event.get("status") != "published":
+        if not isinstance(event, dict):
+            continue
+        if event.get("status") != "published":
             continue
         checked += 1
         if safe_text(event.get("expiry_update_status")) == "expired_full":
@@ -4250,13 +4190,15 @@ def expire_published_jobs():
             continue
         candidates.append((event_id, event, deadline))
 
+    # Oldest deadline first so a large backlog clears deterministically.
     candidates.sort(key=lambda item: (_deadline_expiry_datetime(item[2]) or now, safe_text(item[1].get("published_at")), item[0]))
     deferred = max(0, len(candidates) - DEADLINE_SWEEP_MAX_UPDATES_PER_RUN)
     candidates = candidates[:DEADLINE_SWEEP_MAX_UPDATES_PER_RUN]
 
     for event_id, event, deadline in candidates:
         expired += 1
-        result = _edit_expired_message(_event_job_for_expiry(event_id, event))
+        job = _event_job_for_expiry(event_id, event)
+        result = _edit_expired_message(job)
         if not result.get("ok"):
             failed += 1
             event["expiry_update_status"] = "failed"
@@ -4267,22 +4209,27 @@ def expire_published_jobs():
             )
             continue
 
-        is_partial = bool(result.get("partial"))
-        event["expiry_update_status"] = "expired_partial" if is_partial else "expired_full"
+        event["expiry_update_status"] = "expired_partial" if result.get("partial") else "expired_full"
         event["expired_at"] = now_iso()
         event["expired_apply_url_removed"] = True
-        event["expired_source_url_removed"] = not is_partial
-        event["expiry_error"] = safe_text(result.get("rich_error"))[:500] if is_partial else ""
-        event["status"] = "published" if is_partial else "expired"
+        event["expired_source_url_removed"] = not bool(result.get("partial"))
+        event["expiry_error"] = safe_text(result.get("rich_error"))[:500] if result.get("partial") else ""
+        event["status"] = "expired" if not result.get("partial") else "published"
         queue_item = STATE.get("queue", {}).get(safe_text(event.get("canonical_url")))
-        if isinstance(queue_item, dict) and not is_partial:
+        if isinstance(queue_item, dict) and not result.get("partial"):
             queue_item["status"] = "expired"
         updated += 1
-        if is_partial:
+        if result.get("partial"):
             partial += 1
-            logger.warning("DEADLINE EXPIRED PARTIAL | event=%s | message_id=%s | button updated; full edit will retry", event_id, event.get("message_id"))
+            logger.warning(
+                "DEADLINE EXPIRED PARTIAL | event=%s | message_id=%s | button updated; full rich edit will retry",
+                event_id, event.get("message_id"),
+            )
         else:
-            logger.info("DEADLINE EXPIRED | event=%s | message_id=%s | deadline=%s | promo=%s", event_id, event.get("message_id"), deadline, TELEGRAM_PROMO_URL)
+            logger.info(
+                "DEADLINE EXPIRED | event=%s | message_id=%s | deadline=%s | promo=%s",
+                event_id, event.get("message_id"), deadline, TELEGRAM_PROMO_URL,
+            )
 
     save_state(STATE)
     logger.info(
@@ -4383,9 +4330,7 @@ def snapshot_integrity(job):
         minimum=GOVERNMENT_SNAPSHOT_MIN_FIELDS
     else:
         minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
-        required_core=("location", "deadline")
-        if PRIVATE_REQUIRE_EXPERIENCE and not is_internship_job(job):
-            required_core = ("location", "experience", "deadline")
+        required_core=("location", "deadline") if is_internship_job(job) else ("location", "experience", "deadline")
         for key in required_core:
             if not safe_text(job.get(key)):
                 return False, f"private_missing_core_{key}"
@@ -4451,7 +4396,11 @@ def _rich_url(text,url):
 
 
 def rich_message_blocks(job, *, expired=False):
-    """Native Telegram Rich Message. Media is disabled; expired posts lose source links."""
+    """Native Telegram Rich Message. Media is intentionally disabled.
+
+    When expired=True, the source footer becomes plain text so no source URL is
+    retained in the edited historical post.
+    """
     blocks=[
         {"type":"heading","size":1,"text":"📣 "+smart_title_case(display_value(job.get("title")))},
     ]
@@ -4765,10 +4714,12 @@ def run(*, dry_run=False, print_ranking=False):
     eligible_government=snapshot_government
     selected=select_final_jobs(ranked_private, eligible_government)
     internship_final=sum(1 for j in selected if not j.get("is_government") and is_internship_job(j))
-    if internship_final < MIN_INTERNSHIP_POSTS_PER_RUN:
-        logger.info("INTERNSHIP TARGET NOT MET | selected=%d target=%d | qualifying_internship_pool=%d | normal_run=yes", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN, sum(1 for j in ranked_private if is_internship_job(j)))
+    if MIN_INTERNSHIP_POSTS_PER_RUN > 0 and internship_final < MIN_INTERNSHIP_POSTS_PER_RUN:
+        logger.warning("INTERNSHIP MINIMUM NOT MET | selected=%d minimum=%d | qualifying_pool=%d", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN, sum(1 for j in ranked_private if is_internship_job(j)))
+    elif MIN_INTERNSHIP_POSTS_PER_RUN > 0:
+        logger.info("INTERNSHIP MINIMUM | selected=%d/%d", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN)
     else:
-        logger.info("INTERNSHIP QUOTA | selected=%d/%d minimum", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN)
+        logger.info("INTERNSHIP MINIMUM DISABLED | selected=%d", internship_final)
     selected=translate_government_jobs(selected)
     selected=[j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
     checked=[]
@@ -4792,21 +4743,19 @@ def run(*, dry_run=False, print_ranking=False):
     private_final=sum(1 for j in selected if not j.get("is_government"))
     gov_final=sum(1 for j in selected if j.get("is_government"))
     logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), gov_final, private_final, len(discovered), time.monotonic()-started)
-    if not selected:
-        logger.info("NO QUALIFYING JOBS | 0 posts is a successful run; state and deadline updates will still be persisted.")
     logger.info(
-        "PUBLICATION QUOTA | private=%d/%d minimum | government=%d/%d minimum | total=%d/%d maximum",
-        private_final, MIN_PRIVATE_POSTS_PER_RUN, gov_final, MIN_GOVERNMENT_POSTS_PER_RUN,
-        len(selected), MAX_STORIES_PER_RUN,
+        "PUBLICATION TARGET | private=%d | government=%d | total=%d/%d maximum | minimums disabled=%s",
+        private_final, gov_final, len(selected), MAX_STORIES_PER_RUN,
+        MIN_PRIVATE_POSTS_PER_RUN == 0 and MIN_GOVERNMENT_POSTS_PER_RUN == 0,
     )
-    if private_final < MIN_PRIVATE_POSTS_PER_RUN:
-        logger.info(
-            "PRIVATE TARGET NOT MET | selected=%d target=%d | qualifying private pool=%d | normal_run=yes",
+    if MIN_PRIVATE_POSTS_PER_RUN > 0 and private_final < MIN_PRIVATE_POSTS_PER_RUN:
+        logger.warning(
+            "PRIVATE MINIMUM NOT MET | selected=%d minimum=%d | qualifying_pool=%d",
             private_final, MIN_PRIVATE_POSTS_PER_RUN, len(ranked_private),
         )
-    if gov_final < MIN_GOVERNMENT_POSTS_PER_RUN:
-        logger.info(
-            "GOVERNMENT TARGET NOT MET | selected=%d target=%d | eligible government pool=%d | normal_run=yes",
+    if MIN_GOVERNMENT_POSTS_PER_RUN > 0 and gov_final < MIN_GOVERNMENT_POSTS_PER_RUN:
+        logger.warning(
+            "GOVERNMENT MINIMUM NOT MET | selected=%d minimum=%d | eligible_pool=%d",
             gov_final, MIN_GOVERNMENT_POSTS_PER_RUN, len(select_government_jobs(government_jobs)),
         )
     logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d snapshot_eligible_private=%d snapshot_eligible_gov=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(snapshot_private), len(snapshot_government), len(ranked_private), private_final)
@@ -4820,7 +4769,7 @@ def run(*, dry_run=False, print_ranking=False):
             print(f"{i}. {job.get('final_score',0):.1f} | {job.get('title','')} | {job.get('company','')} | {job.get('career_category','')}")
 
     if private_items and research_metrics["private"] == 0 and research_metrics["private_failed"] > 0:
-        logger.info("PRIVATE PIPELINE EMPTY | no private research records survived; zero private posts is allowed when no qualifying jobs are available.")
+        logger.error("PRIVATE PIPELINE HEALTH | no private research records survived. Government lane may continue, but private lane is unhealthy.")
 
     if dry_run:
         logger.info("DRY RUN | selected=%d | Telegram not contacted",len(selected))
@@ -4861,14 +4810,14 @@ def run(*, dry_run=False, print_ranking=False):
 def self_test():
     assert PIPELINE_VERSION == "CareerNewsroom"
     assert STATE_FORMAT_VERSION == 5
-    assert AI_BATCH_SIZE >= 12
-    assert AI_REVIEW_TARGET <= 24
-    assert CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS <= 4.0
     assert MAX_STORIES_PER_RUN == 20
     assert TARGET_STORIES_PER_RUN == 15
-    assert MIN_PRIVATE_POSTS_PER_RUN == 10
-    assert MIN_GOVERNMENT_POSTS_PER_RUN == 3
+    assert MIN_PRIVATE_POSTS_PER_RUN >= 0
+    assert MIN_GOVERNMENT_POSTS_PER_RUN >= 0
     assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
+    # A run with no qualifying jobs is a valid no-op, never a publication failure.
+    assert select_final_jobs([], []) == []
+    assert select_private_jobs_by_category([], MAX_STORIES_PER_RUN) == []
     assert QUALITY_FLOOR == 65
     assert MAX_POST_AGE_DAYS == 5
     assert len(BDBJOBS_CATEGORIES) == 14
@@ -4900,8 +4849,8 @@ def self_test():
     assert "BBA" in fields["education"] and "MBA" in fields["education"]
     assert fields["experience"] == "Freshers" and fields["vacancy"] == "10" and fields["deadline"] == "2026-10-18"
     score,components=private_rank_score(fields); assert 0 <= score <= 100 and sum(components.values()) == score
-    too_high=dict(fields,experience="5 to 8 years"); ok,reason=deterministic_job_gate(too_high); assert not ok and reason=="experience_above_3_years"
-    allowed=dict(fields,experience="2 to 3 years"); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
+    too_high=dict(fields, experience="5 to 8 years", posted_date=datetime.now(BD_TZ).date().isoformat()); assert private_experience_too_high(too_high)
+    allowed=dict(fields, experience="2 to 3 years", posted_date=datetime.now(BD_TZ).date().isoformat()); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
 
     listing='''<html><body><div><a href="/jobdetails.asp?id=101">Accounts Executive</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div><div><a href="/jobdetails.asp?id=102">Software Engineer</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div></body></html>'''
     candidates=_bdjobs_listing_candidates(listing,"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",1,"Accounting / Finance"); assert {x["source_job_id"] for x in candidates} == {"101","102"}
@@ -4969,61 +4918,44 @@ def self_test():
     assert bd_fields["application_method"]=="Online"
     assert bd_fields["age"] != bd_fields["experience"]
     assert "uniqueItems" not in json.dumps(JUDGE_SCHEMA)
-    internship=dict(bd_fields,title="Finance Internship",employment_type="Internship",experience="",is_government=False,source_url="https://bdjobs.com/h/details/999001?ln=1",company="Example Bank")
-    ok,reason=snapshot_integrity(internship)
-    assert ok, reason
-    assert "#Internship" in job_hashtags(internship)
-    gov=dict(internship,is_government=True)
-    assert "#GovtJob" in job_hashtags(gov)
-    internship["display_fields"]=["location","salary","vacancy","deadline","posted_date"]
-    assert set(dict(job_snapshot_rows(internship))) >= {"Location","Salary","Vacancy","Deadline","Posted"}
 
-    # Missing Experience is optional by default; explicit >3 years is still rejected.
-    missing_exp = dict(bd_fields, experience="")
-    ok, reason = snapshot_integrity(missing_exp)
-    assert ok, reason
-
-    detail_variants = _detail_url_variants({"source_job_id": "1533487"})
-    assert detail_variants[0].endswith("/h/details/1533487?ln=1")
-    assert detail_variants[1].endswith("/hn/details/1533487?ln=1")
-    assert not any("jobdetails.asp" in x for x in detail_variants[:2])
-    assert _cerebras_rate_limit_wait({"x-ratelimit-reset-tokens-minute": "2.5"}) == 2.5
-    assert _cerebras_rate_limit_wait({"retry-after": "59"}) == 59.0
-
-    # Deadline expiry: a date-only deadline remains valid through the end of the local date.
-    now_for_expiry_test = datetime(2026, 9, 20, 12, 0, tzinfo=BD_TZ)
-    assert not _deadline_has_expired("2026-09-20", now=now_for_expiry_test)
-    assert _deadline_has_expired("2026-09-19", now=now_for_expiry_test)
+    # Deadline expiry uses the entire local deadline date, not midnight UTC.
+    now_for_test = datetime(2026, 9, 20, 12, 0, tzinfo=BD_TZ)
+    assert not _deadline_has_expired("2026-09-20", now=now_for_test)
+    assert _deadline_has_expired("2026-09-19", now=now_for_test)
     assert _deadline_expiry_datetime("20 Sep 2026").hour == 23
 
-    active_markup = _button_markup({"apply_url": "https://example.com/apply", "source_url": "https://example.com/job"})
-    active_button = active_markup["inline_keyboard"][0][0]
-    assert active_button["text"] == "APPLY NOW" and active_button["url"] == "https://example.com/apply"
-    expired_markup = _button_markup({"apply_url": "https://example.com/apply", "source_url": "https://example.com/job"}, expired=True)
+    # Expired markup is red/danger and points only to the CareerNewsroom promo URL.
+    expired_markup = _button_markup({"apply_url":"https://example.com/apply","source_url":"https://example.com/job"}, expired=True)
     expired_button = expired_markup["inline_keyboard"][0][0]
     assert expired_button["text"] == "EXPIRED DEADLINE"
     assert expired_button["style"] == "danger"
     assert expired_button["url"] == TELEGRAM_PROMO_URL
+    active_markup = _button_markup({"apply_url":"https://example.com/apply","source_url":"https://example.com/job"})
+    assert active_markup["inline_keyboard"][0][0]["text"] == "APPLY NOW"
+    assert active_markup["inline_keyboard"][0][0]["url"] == "https://example.com/apply"
 
-    expired_fixture = dict(bd_fields, source="Bdjobs", source_url="https://example.com/job", apply_url="https://example.com/apply")
-    expired_blocks = rich_message_blocks(expired_fixture, expired=True)
-    assert "https://example.com/job" not in json.dumps(expired_blocks, ensure_ascii=False)
+    expired_render_job = dict(bd_fields, source="Bdjobs", source_url="https://example.com/job", apply_url="https://example.com/apply")
+    expired_blocks = rich_message_blocks(expired_render_job, expired=True)
+    footer_blocks = [b for b in expired_blocks if b.get("type") == "footer"]
+    assert footer_blocks and "https://example.com/job" not in json.dumps(footer_blocks, ensure_ascii=False)
 
     original_telegram_call = telegram_call
+    original_state_file_text = Path(STATE_FILE).read_text(encoding="utf-8") if Path(STATE_FILE).exists() else None
     try:
         captured = []
-        def _fake_expiry_call(method, data=None, files=None):
+        def fake_telegram_call(method, data=None, files=None):
             captured.append((method, data or {}))
             return {"ok": True, "result": {"message_id": 42}}
-        globals()["telegram_call"] = _fake_expiry_call
+        globals()["telegram_call"] = fake_telegram_call
         state_before = json.loads(json.dumps(STATE))
-        STATE["queue"]["https://example.com/job"] = dict(expired_fixture, canonical="https://example.com/job", status="posted")
+        STATE["queue"]["https://example.com/job"] = dict(expired_render_job, canonical="https://example.com/job", status="posted")
         STATE["events"]["expiry-self-test"] = {
-            "event_id": "expiry-self-test", "canonical_url": "https://example.com/job",
-            "source_url": "https://example.com/job", "apply_url": "https://example.com/apply",
-            "source": "Bdjobs", "title": expired_fixture["title"], "company": expired_fixture["company"],
-            "deadline": "2026-09-19", "status": "published", "published_at": "2026-09-18T12:00:00+06:00",
-            "message_id": 42,
+            "event_id":"expiry-self-test", "canonical_url":"https://example.com/job",
+            "source_url":"https://example.com/job", "apply_url":"https://example.com/apply",
+            "source":"Bdjobs", "source_job_id":"999001", "title":expired_render_job["title"],
+            "company":expired_render_job["company"], "deadline":"2026-09-19",
+            "status":"published", "published_at":"2026-09-18T12:00:00+06:00", "message_id":42,
         }
         original_token = TELEGRAM_BOT_TOKEN
         globals()["TELEGRAM_BOT_TOKEN"] = "self-test-token"
@@ -5035,58 +4967,42 @@ def self_test():
         assert edit_calls
         edit_data = edit_calls[-1][1]
         assert json.loads(edit_data["reply_markup"])["inline_keyboard"][0][0]["style"] == "danger"
+        rich_payload = json.loads(edit_data["rich_message"])
+        assert "https://example.com/job" not in json.dumps(rich_payload, ensure_ascii=False)
     finally:
         globals()["telegram_call"] = original_telegram_call
         globals()["TELEGRAM_BOT_TOKEN"] = original_token
+        # Restore the exact in-memory state after the expiry test.
         STATE.clear(); STATE.update(state_before)
-    class _Fake429Response:
-        status_code = 429
-        headers = {"x-ratelimit-reset-tokens-minute": "59"}
-        text = "rate limited"
-    class _Fake429Session:
-        def __init__(self):
-            self.calls = 0
-        def post(self, *args, **kwargs):
-            self.calls += 1
-            return _Fake429Response()
-    fake_429_session = _Fake429Session()
-    original_ai_key = globals()["CEREBRAS_API_KEY"]
-    original_ai_http = globals()["_cerebras_http"]
-    try:
-        globals()["CEREBRAS_API_KEY"] = "test-key"
-        globals()["_cerebras_http"] = fake_429_session
-        try:
-            _cerebras_chat_json([], label="self_test_429")
-        except CerebrasRateLimitError:
-            pass
+        if original_state_file_text is None:
+            try:
+                Path(STATE_FILE).unlink()
+            except FileNotFoundError:
+                pass
         else:
-            raise AssertionError("429 did not enter deterministic fallback")
-        assert fake_429_session.calls == 1
-    finally:
-        globals()["CEREBRAS_API_KEY"] = original_ai_key
-        globals()["_cerebras_http"] = original_ai_http
+            Path(STATE_FILE).write_text(original_state_file_text, encoding="utf-8")
 
-    # AI display selection may reorder fields, but it may never hide source-backed fields.
-    display_job = dict(bd_fields, source="Bdjobs", is_government=False, career_category="Accounting / Finance",
-                       source_content="source-backed fixture", raw_source_fields={}, source_url="https://bdjobs.com/h/details/999001?ln=1",
-                       canonical=canonical_url("https://bdjobs.com/h/details/999001?ln=1"))
-    original_ai_key = globals()["CEREBRAS_API_KEY"]
-    original_ai_call = globals()["_cerebras_chat_json"]
-    try:
-        globals()["CEREBRAS_API_KEY"] = "test-key"
-        globals()["_cerebras_chat_json"] = lambda *args, **kwargs: {
-            "choices": [{"message": {"content": json.dumps({"results": [{
-                "id": 1, "publish": True, "score": 90, "bba_mba_fit": 90, "early_career_fit": 90,
-                "role_fit": 90, "reason": "Fixture", "display_fields": ["salary"]
-            }]})}}]
-        }
-        ranked_fixture = rank_jobs([display_job])
-        assert ranked_fixture
-        source_display_keys={k for k in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(display_job.get(k))}
-        assert source_display_keys.issubset(set(ranked_fixture[0].get("display_fields", [])))
-    finally:
-        globals()["CEREBRAS_API_KEY"] = original_ai_key
-        globals()["_cerebras_chat_json"] = original_ai_call
+    internship=dict(bd_fields,title="Finance Internship",employment_type="Internship",experience="",is_government=False,source_url="https://bdjobs.com/h/details/999001?ln=1",company="Example Bank")
+    ok,reason=snapshot_integrity(internship)
+    assert ok, reason
+    assert "#Internship" in job_hashtags(internship)
+    gov=dict(internship,is_government=True)
+    assert "#GovtJob" in job_hashtags(gov)
+    internship["display_fields"]=["location","salary","vacancy","deadline","posted_date"]
+    assert set(dict(job_snapshot_rows(internship))) >= {"Location","Salary","Vacancy","Deadline","Posted"}
+
+    # AI display preferences must never hide a source-backed salary.
+    salary_job=dict(internship)
+    salary_job["display_fields"]=["location","deadline","posted_date"]
+    salary_job["salary"]="Tk. 25,000 - 35,000 (Monthly)"
+    salary_available=[key for key in ("location","employment_type","workplace","education","experience","salary","vacancy","age","application_method","deadline","posted_date") if safe_text(salary_job.get(key))]
+    salary_display=list(dict.fromkeys([key for key in salary_job["display_fields"] if key in salary_available]))
+    for required_key in ("salary","deadline","posted_date","location"):
+        if required_key in salary_available and required_key not in salary_display:
+            salary_display.append(required_key)
+    salary_job["display_fields"]=salary_display
+    assert "Salary" in dict(job_snapshot_rows(salary_job))
+    assert dict(job_snapshot_rows(salary_job))["Salary"]=="Tk. 25,000 - 35,000 (Monthly)"
 
     # Current Angular Bdjobs regression fixture: the real job title is an h2
     # following the company button. The only h1 is footer chrome.

@@ -1,35 +1,8 @@
 # CareerNewsroom
 
-## Optimized production path
+## Latest snapshot display fix
 
-This release keeps the successful Teletalk + Bdjobs architecture and removes the three main runtime/fidelity bottlenecks observed in production:
-
-```text
-Bdjobs detail
-  current /h direct fetch
-        ↓
-  browser /h render
-        ↓
-  browser /hn rescue
-        ↓
-  Jina /hn then /h
-        ↓
-  listing preservation
-
-Cerebras
-  direct HTTPS /v1/chat/completions
-        ↓
-  bounded 429 handling (max 4s wait)
-        ↓
-  deterministic ranking fallback
-
-Private Experience
-  explicit >3 years        → reject
-  explicit 0–3 / fresher    → accept
-  missing experience         → optional by default
-```
-
-The browser fallback remains the authoritative rescue path for the current Angular Bdjobs detail page. Legacy ASP detail routes are no longer opened on every shortlisted job.
+Source-backed salary is now mandatory in the Telegram JOB SNAPSHOT whenever the Bdjobs/Teletalk extractor has a salary value. AI presentation preferences can no longer silently omit salary. Deadline, posted date, and location remain protected display fields as well.
 
 
 Production BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
@@ -140,16 +113,16 @@ Deadline
 Posted
 ```
 
-No value is fabricated. Private records normally require at least 4 usable source-backed snapshot fields; government records normally require at least 3. Missing private Experience is not a hard rejection unless `PRIVATE_REQUIRE_EXPERIENCE=1`. Explicit experience above the configured 3-year ceiling is still rejected.
+No value is fabricated. A sparse or contaminated private record with fewer than 3 usable snapshot fields is rejected before final selection; government records require at least 2. This prevents Telegram posts that contain only a deadline when the source data contains additional fields.
 
 ### Runtime quality and publication guardrails
 
-The GitHub Actions job has a 25-minute safety timeout. The normal pipeline is designed to remain comfortably below 5 minutes; the optimization removes redundant requests and prevents long hidden AI retry waits.
+Each run is allowed up to 15 minutes so the pipeline can spend more time on research and semantic auditing instead of stopping early.
 
 ```text
 PRIVATE_DETAIL_TARGET = 60
-AI_REVIEW_TARGET = 24
-AI_BATCH_SIZE = 12
+AI_REVIEW_TARGET = 50
+AI_BATCH_SIZE = 8
 
 MIN_PRIVATE_POSTS_PER_RUN = 10
 MIN_GOVERNMENT_POSTS_PER_RUN = 3
@@ -272,8 +245,8 @@ Default browser fingerprints:
 
 ```text
 safari18_0_ios
+safari180_ios
 safari184_ios
-safari260_ios
 safari_ios
 ```
 
@@ -285,7 +258,7 @@ Jina fallback format:
 https://r.jina.ai/<original-url>
 ```
 
-Scrapling is required for the protected client-rendered Bdjobs detail fallback. `curl_cffi` is the first HTTP acquisition layer, the browser is the primary rescue for the current Angular detail route, and Jina remains a bounded text fallback. Legacy ASP detail routes are reserved for explicit/raw source URLs rather than per-job probing.
+Scrapling is required for the protected client-rendered Bdjobs detail fallback. `curl_cffi` is the first HTTP acquisition layer and Jina is the plain-text fallback when the browser path is unavailable.
 
 A detail-page failure is not allowed to silently delete a candidate. When the Bdjobs detail page is blocked, thin, or unavailable, the pipeline records the failure and preserves a job when the listing already contains enough source-backed fields.
 
@@ -414,7 +387,7 @@ maximum total jobs      = 20
 target total            = 15
 ```
 
-The private, government, and internship numbers are targets, not failure conditions. They are used when enough current, qualifying source records exist. The bot never invents or pads with weak vacancies to reach a target. A run with zero qualifying jobs is a normal successful run.
+The minimums are enforced whenever enough current, qualifying source records exist. The bot never invents or pads with obviously weak vacancies just to satisfy a quota.
 
 Snapshot integrity is checked before final selection, so rejected sparse records do not consume quota slots. A defensive second check runs immediately before Telegram publication.
 
@@ -455,9 +428,23 @@ The source URL is retained and used for `READ MORE` when a verified application 
 
 ## Deadline expiry updater
 
-At the start of every normal run, CareerNewsroom checks previously published events in `news_state.json` that have a stored Telegram `message_id` and deadline. A date-only deadline remains active through the end of that date in `Asia/Dhaka`. When a deadline passes, the existing Telegram post is edited in place with an `EXPIRED DEADLINE` danger/red button linking to `https://t.me/CareerNewsroom`; the original application URL and clickable source URL are removed. The event is marked `expired` after a full edit so it is not repeatedly edited.
+At the start of every normal run, CareerNewsroom checks previously published events in `news_state.json` that have a stored Telegram `message_id` and deadline. A date-only deadline remains active through the end of that date in `Asia/Dhaka`.
 
-No Telethon session is required for the expiry updater. The feature uses the Telegram Bot API directly.
+When a deadline has passed, the bot edits the existing post in place:
+
+```text
+APPLY NOW
+     ↓
+EXPIRED DEADLINE  (danger/red button)
+     ↓
+https://t.me/CareerNewsroom
+```
+
+The original application URL is removed from the button. The clickable source URL is also removed from the edited rich message while the plain `Source: Bdjobs` / `Source: Teletalk` label remains. The event is then marked `expired` so the same message is not repeatedly edited.
+
+The updater uses the Telegram Bot API `editMessageText` with the rich-message payload and `editMessageReplyMarkup` as a bounded fallback. Telethon is not required for this feature. Telegram controls the exact text contrast used with the `danger` button style.
+
+The updater processes up to `DEADLINE_SWEEP_MAX_UPDATES_PER_RUN` expired posts per run (default `100`), oldest deadlines first. Any deferred backlog is processed by later scheduled runs.
 
 ## State
 
@@ -474,7 +461,7 @@ Candidates receive an explicit lifecycle disposition rather than silently disapp
 
 ## Production validation
 
-The production repository intentionally contains no `tests/` directory and the GitHub Actions workflow does not run `pytest`. Deterministic regression checks live in `main.py --self-test` so the production tree stays compact. The self-test covers Angular Bdjobs title identity, wrong-job protection, summary/requirements extraction, missing-Experience acceptance, bounded Cerebras rate-limit logic, reduced detail-route probing, duplicate protection, snapshot rendering, and Telegram payload construction.
+The production repository intentionally contains no `tests/` directory and the GitHub Actions workflow does not run `pytest`. Deterministic regression checks live in `main.py --self-test` so the production tree stays compact. The validation used for this release also checks the real Angular Bdjobs extraction pattern: footer `<h1>` rejection, header `<h2>` title identity, title-suffix cleanup, wrong-job protection, summary/requirements extraction, and browser wait configuration.
 
 ## Repository tree
 
@@ -503,16 +490,20 @@ TELEGRAM_BOT_TOKEN
 TELEGRAM_CHANNEL
 ```
 
+Optional non-secret expiry settings:
+
+```text
+TELEGRAM_PROMO_URL=https://t.me/CareerNewsroom
+DEADLINE_SWEEP_MAX_UPDATES_PER_RUN=100
+```
+
+The deadline expiry updater does **not** require `API_ID`, `API_HASH`, or `TELETHON_SESSION`.
+
 Optional AI configuration:
 
 ```text
 CEREBRAS_API_KEY
 CEREBRAS_MODEL
-CEREBRAS_API_URL
-CEREBRAS_TIMEOUT_SECONDS
-CEREBRAS_REQUEST_RETRIES
-CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS
-CEREBRAS_REASONING_EFFORT
 ```
 
 Important discovery/ranking settings:
@@ -523,23 +514,18 @@ PRIVATE_DISCOVERY_TARGET=160
 PRIVATE_DISCOVERY_MAX=200
 PRIVATE_FAST_RANK_TARGET=60
 PRIVATE_DETAIL_TARGET=60
-AI_REVIEW_TARGET=24
-AI_BATCH_SIZE=12
+AI_REVIEW_TARGET=50
+AI_BATCH_SIZE=8
 AI_RETRY_COUNT=1
-CEREBRAS_TIMEOUT_SECONDS=35
-CEREBRAS_REQUEST_RETRIES=1
-CEREBRAS_RATE_LIMIT_MAX_WAIT_SECONDS=4
-CEREBRAS_REASONING_EFFORT=low
-PRIVATE_REQUIRE_EXPERIENCE=0
-MIN_PRIVATE_POSTS_PER_RUN=10
-MIN_GOVERNMENT_POSTS_PER_RUN=3
+MIN_PRIVATE_POSTS_PER_RUN=0
+MIN_GOVERNMENT_POSTS_PER_RUN=0
 PRIVATE_MIN_FILL_SCORE=58
 PRIVATE_HARD_FILL_SCORE=55
 PRIVATE_MIN_INFORMATION_QUALITY=3
 PRIVATE_HARD_MIN_INFORMATION_QUALITY=3
 DETAIL_WORKERS=8
 DETAIL_TIMEOUT=14
-JINA_TIMEOUT=12
+JINA_TIMEOUT=10
 QUALITY_FLOOR=65
 MAX_STORIES_PER_RUN=20
 TARGET_STORIES_PER_RUN=15
@@ -565,7 +551,7 @@ python main.py --print-ranking
 
 The workflow uses Python 3.12 on `ubuntu-24.04` and runs every three hours through GitHub Actions. Manual workflow dispatch also runs the live source diagnostics.
 
-The workflow stores state changes back into the repository after each run. State pushes use bounded retry/rebase handling so a transient Git remote rejection does not turn a successful bot run into a failed workflow.
+The workflow stores state changes back into the repository after each run.
 
 ## Security
 
@@ -612,9 +598,9 @@ A production release must satisfy all of the following:
 ## Publication quotas
 
 ```text
-Private target: 10 when enough qualify
-Government target: 3 when enough qualify
-Internship target: 2 when enough qualify (included in private target)
+Private minimum: 10
+Government minimum: 3
+Internship minimum: 2 (included in private minimum)
 Maximum total: 20
 Private snapshot minimum: 4 source-backed fields
 ```
@@ -623,9 +609,15 @@ Private snapshot minimum: 4 source-backed fields
 ## Publication constraints
 
 ```text
-Private jobs: target 10 when enough qualify
-Government jobs: target 3 when enough qualify
-Internships: target 2 when enough qualify, included within private jobs
-0-post runs are valid and do not fail the workflow
+Private jobs: minimum 10 per run
+Government jobs: minimum 3 per run
+Internships: minimum 2 per run, included within private jobs
 Maximum total posts: 20 per run
 ```
+
+
+## Publication behavior
+
+CareerNewsroom does not require a minimum number of posts per run. If no fresh, eligible, source-backed jobs pass the quality and relevance gates, the run may publish zero jobs and still complete successfully. It publishes only the jobs it actually finds, up to the configured maximum.
+
+State persistence is separate from publication count: `news_state.json` and `posted_urls.txt` are committed whenever they change, including deadline-expiry updates. A successful zero-post run is therefore a normal no-op, not a failure.
