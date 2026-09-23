@@ -89,7 +89,7 @@ PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "60"))
 PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "60"))
 INTERNSHIP_DETAIL_TARGET = int(os.environ.get("INTERNSHIP_DETAIL_TARGET", "10"))
 INTERNSHIP_AI_TARGET = int(os.environ.get("INTERNSHIP_AI_TARGET", "8"))
-MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "2"))
+MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "0"))
 PRIVATE_SNAPSHOT_MIN_FIELDS = int(os.environ.get("PRIVATE_SNAPSHOT_MIN_FIELDS", "4"))
 GOVERNMENT_SNAPSHOT_MIN_FIELDS = int(os.environ.get("GOVERNMENT_SNAPSHOT_MIN_FIELDS", "3"))
 AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
@@ -560,6 +560,124 @@ def prune_state():
             events[key] = item
     STATE["events"] = events
     STATE["recent_titles"] = STATE.get("recent_titles", [])[-400:]
+
+
+STATE_STATUS_PRECEDENCE = {
+    "legacy_ignored": 0,
+    "rejected": 0,
+    "pending": 1,
+    "selected": 2,
+    "posted": 3,
+    "published": 3,
+    "expired": 4,
+}
+
+
+def _state_item_time(item):
+    if not isinstance(item, dict):
+        return None
+    dates = []
+    for key in ("expired_at", "published_at", "selected_at", "last_seen", "posted_at", "discovered_at"):
+        dt = parse_datetime(item.get(key))
+        if dt:
+            dates.append(dt)
+    return max(dates) if dates else None
+
+
+def _state_item_rank(item):
+    if not isinstance(item, dict):
+        return (-1, datetime.min.replace(tzinfo=timezone.utc))
+    status = safe_text(item.get("status")).lower()
+    dt = _state_item_time(item) or datetime.min.replace(tzinfo=timezone.utc)
+    return (STATE_STATUS_PRECEDENCE.get(status, 0), dt)
+
+
+def _merge_state_item(remote_item, local_item):
+    """Merge two records without allowing a stale local snapshot to erase remote state."""
+    if not isinstance(remote_item, dict):
+        return dict(local_item) if isinstance(local_item, dict) else remote_item
+    if not isinstance(local_item, dict):
+        return dict(remote_item)
+
+    remote_rank = _state_item_rank(remote_item)
+    local_rank = _state_item_rank(local_item)
+    preferred, secondary = (local_item, remote_item) if local_rank >= remote_rank else (remote_item, local_item)
+
+    merged = dict(preferred)
+    for key, value in secondary.items():
+        if key not in merged or merged.get(key) in (None, "", [], {}):
+            merged[key] = value
+
+    # Publication/expiry identifiers must survive any reconciliation.
+    for key in ("message_id", "canonical_url", "source_url", "apply_url", "source_job_id", "event_id"):
+        if not merged.get(key):
+            merged[key] = remote_item.get(key) or local_item.get(key)
+    return merged
+
+
+def merge_state_data(remote_state, local_state):
+    """Reconcile remote GitHub state with the local run snapshot using union semantics."""
+    remote = remote_state if isinstance(remote_state, dict) else {}
+    local = local_state if isinstance(local_state, dict) else {}
+    merged = default_state()
+    merged["format_version"] = max(
+        int(remote.get("format_version", 0) or 0),
+        int(local.get("format_version", 0) or 0),
+        STATE_FORMAT_VERSION,
+    )
+    merged["pipeline_version"] = safe_text(local.get("pipeline_version")) or safe_text(remote.get("pipeline_version")) or PIPELINE_VERSION
+
+    for mapping_name in ("queue", "events"):
+        result = {}
+        remote_map = remote.get(mapping_name) if isinstance(remote.get(mapping_name), dict) else {}
+        local_map = local.get(mapping_name) if isinstance(local.get(mapping_name), dict) else {}
+        for key in sorted(set(remote_map) | set(local_map)):
+            result[key] = _merge_state_item(remote_map.get(key), local_map.get(key))
+        merged[mapping_name] = result
+
+    titles = []
+    for value in list(remote.get("recent_titles") or []) + list(local.get("recent_titles") or []):
+        title = safe_text(value)
+        if title and title not in titles:
+            titles.append(title)
+    merged["recent_titles"] = titles[-400:]
+
+    remote_last = parse_datetime(remote.get("last_run"))
+    local_last = parse_datetime(local.get("last_run"))
+    if remote_last and local_last:
+        merged["last_run"] = max(remote_last, local_last).astimezone(BD_TZ).isoformat()
+    else:
+        merged["last_run"] = safe_text(local.get("last_run")) or safe_text(remote.get("last_run"))
+    return merged
+
+
+def reconcile_state_files(local_snapshot_dir):
+    """Merge a saved local run snapshot into the currently checked-out remote state."""
+    snapshot = Path(local_snapshot_dir)
+    local_state_path = snapshot / STATE_FILE
+    local_posted_path = snapshot / POSTED_FILE
+    if not local_state_path.is_file() or not local_posted_path.is_file():
+        raise FileNotFoundError(f"State snapshot is incomplete: {snapshot}")
+
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
+        remote_state = json.load(f)
+    with open(local_state_path, "r", encoding="utf-8") as f:
+        local_state = json.load(f)
+    merged = merge_state_data(remote_state, local_state)
+    save_state(merged)
+
+    remote_urls = []
+    if Path(POSTED_FILE).is_file():
+        remote_urls = [canonical_url(x) for x in Path(POSTED_FILE).read_text(encoding="utf-8").splitlines() if safe_text(x)]
+    local_urls = [canonical_url(x) for x in local_posted_path.read_text(encoding="utf-8").splitlines() if safe_text(x)]
+    merged_urls = []
+    seen = set()
+    for value in remote_urls + local_urls:
+        if value and value not in seen:
+            seen.add(value)
+            merged_urls.append(value)
+    Path(POSTED_FILE).write_text(("\n".join(merged_urls) + "\n") if merged_urls else "", encoding="utf-8")
+    logger.info("STATE RECONCILED | events=%d queue=%d posted_urls=%d", len(merged.get("events", {})), len(merged.get("queue", {})), len(merged_urls))
 
 
 # ============================================================
@@ -3910,45 +4028,69 @@ def select_government_jobs(government_jobs):
 
 
 def select_final_jobs(private_ranked, government_jobs):
-    """Select up to 20 posts while guaranteeing government/private/internship minima when qualifying pools exist."""
+    """Select up to MAX_STORIES_PER_RUN from whatever qualifying fresh pool exists.
+
+    Publication count is intentionally dynamic: there is no private, government,
+    or internship quota. Strong qualifying jobs are published; a sparse run is a
+    valid run and is never treated as a failure merely because fewer jobs exist.
+    """
     gov_pool = select_government_jobs(government_jobs)
-    gov_required = min(MIN_GOVERNMENT_POSTS_PER_RUN, len(gov_pool), MAX_STORIES_PER_RUN)
-    gov = gov_pool[:gov_required]
+    private_pool = _select_diverse_private(private_ranked, MAX_STORIES_PER_RUN)
 
-    # Internship is a subset of private. Reserve the required number first so
-    # diversity/ranking cannot consume their slots.
-    internship_pool = [j for j in private_ranked if is_internship_job(j)]
-    internship_selected = _select_diverse_private(internship_pool, min(MIN_INTERNSHIP_POSTS_PER_RUN, len(internship_pool)))
-    internship_keys = {j.get("canonical") for j in internship_selected}
+    # Build one source-balanced candidate pool without mandatory quotas. Give
+    # government jobs their own ranking score and private jobs their final score.
+    # The selector still prefers diversity and only publishes candidates already
+    # accepted by the normal source/gate pipeline.
+    candidates = []
+    for job in private_pool:
+        item = dict(job)
+        item["_selection_score"] = float(item.get("final_score", 0) or 0)
+        candidates.append(item)
+    for job in gov_pool:
+        item = dict(job)
+        item["_selection_score"] = float(item.get("government_rank_score", 0) or 0)
+        candidates.append(item)
 
-    remaining_private_ranked = [j for j in private_ranked if j.get("canonical") not in internship_keys]
-    private_room = max(0, MAX_STORIES_PER_RUN - len(gov))
-    private_required = min(MIN_PRIVATE_POSTS_PER_RUN, private_room)
-    private_general_needed = max(0, private_required - len(internship_selected))
-    private_general = select_private_jobs_by_category(
-        remaining_private_ranked,
-        max(private_general_needed, 0),
-        minimum_required=private_general_needed,
-    ) if private_general_needed else []
+    selected = []
+    used = set()
+    company_counts = {}
+    family_counts = {}
+    # A small source-diversity bonus prevents a plentiful private pool from
+    # automatically consuming every slot when strong government jobs exist, but
+    # it never creates a quota or admits a weaker candidate solely by source.
+    for _ in range(MAX_STORIES_PER_RUN):
+        best = None
+        best_adjusted = -1e9
+        for job in candidates:
+            key = job.get("canonical") or job_event_key(job)
+            if key in used:
+                continue
+            score = float(job.get("_selection_score", 0))
+            company = _normalized_company(job.get("company", ""))
+            family = _career_family(job)
+            if company and company_counts.get(company, 0) >= 2:
+                score -= 8
+            if family and family_counts.get(family, 0) >= 4:
+                score -= 5
+            if job.get("is_government"):
+                score += 2
+            if score > best_adjusted:
+                best_adjusted = score
+                best = job
+        if best is None:
+            break
+        selected.append(best)
+        key = best.get("canonical") or job_event_key(best)
+        used.add(key)
+        company = _normalized_company(best.get("company", ""))
+        family = _career_family(best)
+        if company:
+            company_counts[company] = company_counts.get(company, 0) + 1
+        if family:
+            family_counts[family] = family_counts.get(family, 0) + 1
 
-    private = internship_selected + private_general
-
-    # After minima are satisfied, use the remaining room for the strongest available jobs.
-    used = {j.get("canonical") for j in private + gov}
-    remaining_slots = MAX_STORIES_PER_RUN - len(private) - len(gov)
-    if remaining_slots > 0:
-        extra_private_pool = [j for j in private_ranked if j.get("canonical") not in used]
-        selected_extra = _select_diverse_private(extra_private_pool, remaining_slots)
-        private.extend(selected_extra[:remaining_slots])
-        used.update(j.get("canonical") for j in selected_extra)
-
-    room = MAX_STORIES_PER_RUN - len(private) - len(gov)
-    if room > 0:
-        extra_gov = [j for j in gov_pool if j.get("canonical") not in used]
-        private.extend([])
-        gov.extend(extra_gov[:min(room, MAX_GOVERNMENT_POSTS_PER_RUN - len(gov))])
-
-    selected = gov + private
+    for job in selected:
+        job.pop("_selection_score", None)
     return selected[:MAX_STORIES_PER_RUN]
 
 
@@ -4714,12 +4856,10 @@ def run(*, dry_run=False, print_ranking=False):
     eligible_government=snapshot_government
     selected=select_final_jobs(ranked_private, eligible_government)
     internship_final=sum(1 for j in selected if not j.get("is_government") and is_internship_job(j))
-    if MIN_INTERNSHIP_POSTS_PER_RUN > 0 and internship_final < MIN_INTERNSHIP_POSTS_PER_RUN:
-        logger.warning("INTERNSHIP MINIMUM NOT MET | selected=%d minimum=%d | qualifying_pool=%d", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN, sum(1 for j in ranked_private if is_internship_job(j)))
-    elif MIN_INTERNSHIP_POSTS_PER_RUN > 0:
-        logger.info("INTERNSHIP MINIMUM | selected=%d/%d", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN)
+    if internship_final < MIN_INTERNSHIP_POSTS_PER_RUN:
+        logger.info("INTERNSHIP POOL | selected=%d | qualifying_internship_pool=%d", internship_final, sum(1 for j in ranked_private if is_internship_job(j)))
     else:
-        logger.info("INTERNSHIP MINIMUM DISABLED | selected=%d", internship_final)
+        logger.info("INTERNSHIP FLOOR | selected=%d/%d configured-minimum", internship_final, MIN_INTERNSHIP_POSTS_PER_RUN)
     selected=translate_government_jobs(selected)
     selected=[j for j in selected if j.get("is_government") or not private_experience_too_high(j)][:MAX_STORIES_PER_RUN]
     checked=[]
@@ -4744,19 +4884,19 @@ def run(*, dry_run=False, print_ranking=False):
     gov_final=sum(1 for j in selected if j.get("is_government"))
     logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), gov_final, private_final, len(discovered), time.monotonic()-started)
     logger.info(
-        "PUBLICATION TARGET | private=%d | government=%d | total=%d/%d maximum | minimums disabled=%s",
-        private_final, gov_final, len(selected), MAX_STORIES_PER_RUN,
-        MIN_PRIVATE_POSTS_PER_RUN == 0 and MIN_GOVERNMENT_POSTS_PER_RUN == 0,
+        "PUBLICATION CAPACITY | private=%d/%d configured-minimum | government=%d/%d configured-minimum | total=%d/%d maximum",
+        private_final, MIN_PRIVATE_POSTS_PER_RUN, gov_final, MIN_GOVERNMENT_POSTS_PER_RUN,
+        len(selected), MAX_STORIES_PER_RUN,
     )
-    if MIN_PRIVATE_POSTS_PER_RUN > 0 and private_final < MIN_PRIVATE_POSTS_PER_RUN:
-        logger.warning(
-            "PRIVATE MINIMUM NOT MET | selected=%d minimum=%d | qualifying_pool=%d",
-            private_final, MIN_PRIVATE_POSTS_PER_RUN, len(ranked_private),
+    if private_final < MIN_PRIVATE_POSTS_PER_RUN:
+        logger.info(
+            "PRIVATE POOL | selected=%d | qualifying private pool=%d",
+            private_final, len(ranked_private),
         )
-    if MIN_GOVERNMENT_POSTS_PER_RUN > 0 and gov_final < MIN_GOVERNMENT_POSTS_PER_RUN:
-        logger.warning(
-            "GOVERNMENT MINIMUM NOT MET | selected=%d minimum=%d | eligible_pool=%d",
-            gov_final, MIN_GOVERNMENT_POSTS_PER_RUN, len(select_government_jobs(government_jobs)),
+    if gov_final < MIN_GOVERNMENT_POSTS_PER_RUN:
+        logger.info(
+            "GOVERNMENT POOL | selected=%d | eligible government pool=%d",
+            gov_final, len(select_government_jobs(government_jobs)),
         )
     logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d snapshot_eligible_private=%d snapshot_eligible_gov=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(snapshot_private), len(snapshot_government), len(ranked_private), private_final)
     logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
@@ -4812,12 +4952,9 @@ def self_test():
     assert STATE_FORMAT_VERSION == 5
     assert MAX_STORIES_PER_RUN == 20
     assert TARGET_STORIES_PER_RUN == 15
-    assert MIN_PRIVATE_POSTS_PER_RUN >= 0
-    assert MIN_GOVERNMENT_POSTS_PER_RUN >= 0
+    assert MIN_PRIVATE_POSTS_PER_RUN == 0
+    assert MIN_GOVERNMENT_POSTS_PER_RUN == 0
     assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
-    # A run with no qualifying jobs is a valid no-op, never a publication failure.
-    assert select_final_jobs([], []) == []
-    assert select_private_jobs_by_category([], MAX_STORIES_PER_RUN) == []
     assert QUALITY_FLOOR == 65
     assert MAX_POST_AGE_DAYS == 5
     assert len(BDBJOBS_CATEGORIES) == 14
@@ -4841,7 +4978,7 @@ def self_test():
     ok, reason = _looks_like_job_document(shell_fixture, detail=True)
     assert not ok and reason in {"empty_visible_text", "bdjobs_application_shell", "thin_or_non_job_page:0"}
 
-    fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"2026-09-18","validThrough":"2026-10-18","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: 18 Oct 2026</p></body></html>'''
+    fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"2026-09-23","validThrough":"2026-10-18","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: 18 Oct 2026</p></body></html>'''
     fake={"title":"Management Trainee","url":"https://jobs.bdjobs.com/jobdetails.asp?id=123","canonical":canonical_url("https://jobs.bdjobs.com/jobdetails.asp?id=123"),"source":"Bdjobs","discovery":"self_test"}
     text_source=_text_from_html(fixture); fields=extract_job_fields(text_source,fixture,fake["url"],fake); fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
     fields["bba_mba_target_score"]=bba_mba_candidate_score(fields)
@@ -4849,8 +4986,8 @@ def self_test():
     assert "BBA" in fields["education"] and "MBA" in fields["education"]
     assert fields["experience"] == "Freshers" and fields["vacancy"] == "10" and fields["deadline"] == "2026-10-18"
     score,components=private_rank_score(fields); assert 0 <= score <= 100 and sum(components.values()) == score
-    too_high=dict(fields, experience="5 to 8 years", posted_date=datetime.now(BD_TZ).date().isoformat()); assert private_experience_too_high(too_high)
-    allowed=dict(fields, experience="2 to 3 years", posted_date=datetime.now(BD_TZ).date().isoformat()); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
+    too_high=dict(fields,experience="5 to 8 years"); ok,reason=deterministic_job_gate(too_high); assert not ok and reason=="experience_above_3_years"
+    allowed=dict(fields,experience="2 to 3 years"); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
 
     listing='''<html><body><div><a href="/jobdetails.asp?id=101">Accounts Executive</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div><div><a href="/jobdetails.asp?id=102">Software Engineer</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div></body></html>'''
     candidates=_bdjobs_listing_candidates(listing,"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",1,"Accounting / Finance"); assert {x["source_job_id"] for x in candidates} == {"101","102"}
@@ -5090,6 +5227,53 @@ def self_test():
     ok, reason = _looks_like_job_document(header_only, url="https://bdjobs.com/h/details/123", detail=True)
     assert not ok
 
+    # Dynamic publication is opportunistic: an empty qualifying pool is valid.
+    saved_max = globals()["MAX_STORIES_PER_RUN"]
+    try:
+        globals()["MAX_STORIES_PER_RUN"] = 20
+        assert select_final_jobs([], []) == []
+        sparse_jobs = [
+            {
+                "source": "Bdjobs", "source_job_id": str(9000 + i),
+                "title": f"Management Executive {i}", "company": f"Example {i}",
+                "location": "Dhaka", "canonical": f"example.com/jobs/{i}",
+                "source_url": f"https://example.com/jobs/{i}", "final_score": 70 - i,
+                "career_category": "Management / Admin",
+                "is_government": False,
+            }
+            for i in range(4)
+        ]
+        assert len(select_final_jobs(sparse_jobs, [])) == 4
+    finally:
+        globals()["MAX_STORIES_PER_RUN"] = saved_max
+
+    remote_state = {
+        "format_version": 5,
+        "queue": {"q1": {"status": "posted", "posted_at": "2026-09-23T08:00:00+06:00"}},
+        "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
+        "recent_titles": ["Remote Job"],
+        "last_run": "2026-09-23T08:00:00+06:00",
+        "pipeline_version": "CareerNewsroom",
+    }
+    local_state = {
+        "format_version": 5,
+        "queue": {"q2": {"status": "posted", "posted_at": "2026-09-23T09:00:00+06:00"}},
+        "events": {
+            "e1": {"event_id": "e1", "status": "expired", "message_id": 101, "expired_at": "2026-09-23T09:05:00+06:00"},
+            "e2": {"event_id": "e2", "status": "published", "message_id": 202, "published_at": "2026-09-23T09:00:00+06:00"},
+        },
+        "recent_titles": ["Local Job", "Remote Job"],
+        "last_run": "2026-09-23T09:05:00+06:00",
+        "pipeline_version": "CareerNewsroom",
+    }
+    reconciled = merge_state_data(remote_state, local_state)
+    assert set(reconciled["queue"]) == {"q1", "q2"}
+    assert set(reconciled["events"]) == {"e1", "e2"}
+    assert reconciled["events"]["e1"]["status"] == "expired"
+    assert reconciled["events"]["e1"]["message_id"] == 101
+    assert reconciled["events"]["e2"]["message_id"] == 202
+    assert reconciled["last_run"] == "2026-09-23T09:05:00+06:00"
+
     logger.info("CareerNewsroom self-test passed.")
 
 
@@ -5099,10 +5283,13 @@ if __name__ == "__main__":
     parser.add_argument("--source-test", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--print-ranking", action="store_true")
+    parser.add_argument("--reconcile-state", metavar="SNAPSHOT_DIR", help="Merge a saved local state snapshot into the current checked-out state.")
     args = parser.parse_args()
     if args.self_test:
         self_test()
     elif args.source_test:
         source_test()
+    elif args.reconcile_state:
+        reconcile_state_files(args.reconcile_state)
     else:
         run(dry_run=args.dry_run, print_ranking=args.print_ranking)

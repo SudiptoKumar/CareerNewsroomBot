@@ -26,15 +26,16 @@ No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or 
 
 
 
-## Current Production Quota
+## Publication model
+
+Publication is opportunistic, not quota-driven. The bot publishes every selected job that passes the normal quality, freshness, source-fidelity, snapshot, and duplicate gates, up to the total cap. If 4 eligible jobs exist, 4 are published. If 1 exists, 1 is published. If none qualify, 0 are published. None of these sparse outcomes is a failure.
 
 ```text
-Private jobs per run:    minimum 10
-Government jobs per run: minimum 3
-Total jobs per run:      maximum 20
+Minimum private jobs:    0
+Minimum government jobs: 0
+Minimum internships:     0
+Maximum total posts:    20
 ```
-
-The quota is enforced after source parsing, normalization, relevance gates, snapshot integrity checks, ranking, and duplicate checks. The bot does not fabricate or pad posts to reach the minimums.
 
 ## Bdjobs Listing Parser Reliability
 
@@ -371,23 +372,14 @@ final_score = deterministic_score × 0.85 + ai_score × 0.15
 ## Publication rules
 
 ```text
-TARGET_STORIES_PER_RUN = 15
-MIN_PRIVATE_POSTS_PER_RUN = 10
-MIN_GOVERNMENT_POSTS_PER_RUN = 3
 MAX_STORIES_PER_RUN    = 20
+MIN_PRIVATE_POSTS_PER_RUN = 0
+MIN_GOVERNMENT_POSTS_PER_RUN = 0
+MIN_INTERNSHIP_POSTS_PER_RUN = 0
 QUALITY_FLOOR          = 65
 ```
 
-The count is dynamic, with these source-mix guardrails:
-
-```text
-minimum private jobs    = 10
-minimum government jobs = 3
-maximum total jobs      = 20
-target total            = 15
-```
-
-The minimums are enforced whenever enough current, qualifying source records exist. The bot never invents or pads with obviously weak vacancies just to satisfy a quota.
+Selection is dynamic. There is no requirement to fill a minimum count, private/government mix, or internship count. Quality and source-backed eligibility determine how many vacancies are published on each run.
 
 Snapshot integrity is checked before final selection, so rejected sparse records do not consume quota slots. A defensive second check runs immediately before Telegram publication.
 
@@ -519,18 +511,20 @@ AI_BATCH_SIZE=8
 AI_RETRY_COUNT=1
 MIN_PRIVATE_POSTS_PER_RUN=0
 MIN_GOVERNMENT_POSTS_PER_RUN=0
+MIN_INTERNSHIP_POSTS_PER_RUN=0
 PRIVATE_MIN_FILL_SCORE=58
 PRIVATE_HARD_FILL_SCORE=55
 PRIVATE_MIN_INFORMATION_QUALITY=3
 PRIVATE_HARD_MIN_INFORMATION_QUALITY=3
 DETAIL_WORKERS=8
 DETAIL_TIMEOUT=14
-JINA_TIMEOUT=10
+JINA_TIMEOUT=12
 QUALITY_FLOOR=65
 MAX_STORIES_PER_RUN=20
-TARGET_STORIES_PER_RUN=15
 JINA_RPM_LIMIT=24
 ```
+
+`TARGET_STORIES_PER_RUN` is retained only as a legacy logging setting. It does not create a publication requirement.
 
 ## Local commands
 
@@ -539,6 +533,7 @@ python main.py --self-test
 python main.py --source-test
 python main.py --dry-run
 python main.py --print-ranking
+python main.py --reconcile-state <snapshot-dir>
 ```
 
 `--self-test` is offline and must pass before a release.
@@ -595,29 +590,19 @@ A production release must satisfy all of the following:
 ```
 
 
-## Publication quotas
+## Publication constraints
 
 ```text
-Private minimum: 10
-Government minimum: 3
-Internship minimum: 2 (included in private minimum)
-Maximum total: 20
+Private jobs: no minimum
+Government jobs: no minimum
+Internships: no minimum
+Maximum total posts: 20 per run
 Private snapshot minimum: 4 source-backed fields
 ```
 
 
-## Publication constraints
+## Dynamic publication and state persistence
 
-```text
-Private jobs: minimum 10 per run
-Government jobs: minimum 3 per run
-Internships: minimum 2 per run, included within private jobs
-Maximum total posts: 20 per run
-```
+CareerNewsroom does not require a minimum number of posts per run. If only 4 qualifying jobs are found, it publishes 4. If none qualify, it publishes 0. A sparse run is a successful run.
 
-
-## Publication behavior
-
-CareerNewsroom does not require a minimum number of posts per run. If no fresh, eligible, source-backed jobs pass the quality and relevance gates, the run may publish zero jobs and still complete successfully. It publishes only the jobs it actually finds, up to the configured maximum.
-
-State persistence is separate from publication count: `news_state.json` and `posted_urls.txt` are committed whenever they change, including deadline-expiry updates. A successful zero-post run is therefore a normal no-op, not a failure.
+After publishing, the Telegram `message_id`, deadline, canonical URL, and related state are persisted in `news_state.json`; `posted_urls.txt` preserves deduplication history. The workflow uses fast-forward-only Git pushes, retries transient failures, and, when `origin/main` advances independently, reconciles the local state snapshot with remote state before retrying. It never force-pushes or silently discards state. A genuinely unrecoverable persistence failure keeps the workflow failed.
