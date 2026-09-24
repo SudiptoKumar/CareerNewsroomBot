@@ -1,8 +1,10 @@
 # CareerNewsroom
 
-## Latest snapshot display fix
+## Latest production hardening
 
-Source-backed salary is now mandatory in the Telegram JOB SNAPSHOT whenever the Bdjobs/Teletalk extractor has a salary value. AI presentation preferences can no longer silently omit salary. Deadline, posted date, and location remain protected display fields as well.
+The current release hardens source-first extraction and BDJobs Live discovery. Source-backed Salary, Experience, Deadline, Posted date, and Location values are validated against field-specific labels before they can enter the normalized record. Benefit-section headings such as `Salary & Other Benefits` and headers such as `Additional Requirements` can no longer become false field values.
+
+BDJobs Live now uses the requested 14-category lane plus a bounded static index fallback, and its browser fallback waits for an actual `/bdjobs-details/` link instead of waiting for network idle. Private detail research keeps one shared budget but reserves a bounded source share for BDJobs Live; unused capacity returns to the other private sources.
 
 
 Production BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
@@ -92,7 +94,7 @@ The browser lane waits for the Bdjobs summary container and can also wait for ne
 
 ### Resilient BDJobs Live acquisition
 
-BDJobs Live currently serves its functional category shell at routes such as `/bdjobs/accounting-finance`, while job cards are populated client-side. CareerNewsroom therefore applies the same source-retrieval philosophy used for Bdjobs, with site-specific validation: 
+BDJobs Live uses the requested `/bdjobs-circular/<category>-jobs` functional category routes as the primary discovery endpoints. Some category pages return a client-rendered shell, so CareerNewsroom applies the same source-retrieval philosophy used for Bdjobs, with site-specific validation:
 
 ```text
 curl_cffi + fingerprint rotation
@@ -106,7 +108,7 @@ Jina Reader fallback
 listing-backed preservation when enrichment is unavailable
 ```
 
-Browser resources remain enabled for BDJobs Live category pages because the listing data is hydrated by client-side page code. The 14 BBA/MBA-relevant categories share the existing private freshness, relevance, source-fidelity, quality, experience, deadline, AI-review, diversity, and duplicate gates.
+Browser resources remain enabled for BDJobs Live category pages because the listing data is hydrated by client-side page code. The browser lane uses `a[href*="/bdjobs-details/"]` as the listing readiness signal, disables Cloudflare solving for this source, and uses a bounded timeout. If category HTML/Jina returns Markdown links, those `/bdjobs-details/` links are still preserved. A bounded `index-data` fallback supplements category discovery when the dynamic category shell exposes too few links. The 14 BBA/MBA-relevant categories share the existing private freshness, relevance, source-fidelity, quality, experience, deadline, AI-review, diversity, and duplicate gates.
 
 Current dependency pin: `scrapling[fetchers]==0.4.15`.
 
@@ -150,35 +152,27 @@ Deadline
 Posted
 ```
 
-No value is fabricated. A sparse or contaminated private record with fewer than 3 usable snapshot fields is rejected before final selection; government records require at least 2. This prevents Telegram posts that contain only a deadline when the source data contains additional fields.
+No value is fabricated. A sparse or contaminated private record with fewer than 3 usable snapshot fields is rejected before final selection; government records require at least 2. This prevents Telegram posts that contain only a deadline when the source data contains additional fields. Source-backed salary is protected at both extraction and rendering stages, so an AI display preference cannot hide a salary that the source actually supplies.
 
 ### Runtime quality and publication guardrails
 
-Each run is allowed up to 15 minutes so the pipeline can spend more time on research and semantic auditing instead of stopping early.
+The workflow allows up to 25 minutes, but source fallbacks are individually bounded so one unavailable site does not consume the whole run. `PRIVATE_DETAIL_TARGET` is a research budget, not a publication quota.
 
 ```text
 PRIVATE_DETAIL_TARGET = 60
+BDJOBSLIVE_PRIVATE_DETAIL_SHARE = 0.25
+BDJOBSLIVE_PRIVATE_DETAIL_MIN = 8
+BDJOBSLIVE_PRIVATE_DETAIL_MAX = 18
 AI_REVIEW_TARGET = 50
 AI_BATCH_SIZE = 8
 
-MIN_PRIVATE_POSTS_PER_RUN = 10
-MIN_GOVERNMENT_POSTS_PER_RUN = 3
+MIN_PRIVATE_POSTS_PER_RUN = 0
+MIN_GOVERNMENT_POSTS_PER_RUN = 0
+MIN_INTERNSHIP_POSTS_PER_RUN = 0
 MAX_STORIES_PER_RUN = 20
 ```
 
-Selection order is:
-
-```text
-strict quality pool
-        ↓
-controlled private minimum-fill pool
-        ↓
-hard private minimum-fill pool
-        ↓
-final diversity selection
-```
-
-The minimum-fill paths still require a fresh, non-expired business role, no clearly unrelated specialist career, a company name, and source-backed information. The bot never invents filler jobs merely to reach 10 private or 3 government posts.
+Selection is score- and gate-driven. `PRIVATE_MIN_FILL_SCORE` and `PRIVATE_HARD_FILL_SCORE` are score thresholds only; they never require a certain number of published jobs. The bot never invents filler jobs to reach a private, government, or internship count.
 
 ### Jina Reader safety
 
@@ -615,6 +609,9 @@ A production release must satisfy all of the following:
 ✓ specialist-role exclusion
 ✓ experience parsing and early-career ranking
 ✓ salary / vacancy / deadline scoring
+✓ field-specific salary / experience collision protection
+✓ BDJobs Live static-index discovery fallback
+✓ adaptive private-source detail allocation
 ✓ duplicate detection
 ✓ selective detail enrichment
 ✓ Cerebras structured audit
@@ -657,8 +654,9 @@ Bdjobs and BDJobs Live both use the same private deterministic gate. BDJobs Live
 
 ### BDJobs Live source adapter
 
-BDJobs Live uses its `/bdjobs-circular/<category>-jobs` routes for category discovery.
-Category pages are client-rendered, so browser rendering is reserved for listing discovery when direct HTML does not contain job-detail links.
-Job-detail pages use stable semantic DOM anchors (`h1`, `/company-detail/` links, labelled summary fields, and `#section-*` blocks), so direct HTML/Jina extraction is preferred and browser rendering is only an exceptional fallback.
+BDJobs Live uses its `/bdjobs-circular/<category>-jobs` routes for category discovery. Category pages are client-rendered, so browser rendering is reserved for listing discovery when direct HTML/Jina content does not expose job-detail links. A bounded `/index-data` fallback supplements weak category runs.
+
+Job-detail pages use stable semantic DOM anchors (`h1`, `/company-detail/` links, labelled summary fields, and `#section-*` blocks), so direct HTML/Jina extraction is preferred and browser rendering is only an exceptional fallback. The field parser explicitly rejects benefit headings and other section labels from becoming Salary/Experience values.
+
 Source diagnostics treat a temporary BDJobs Live category outage as non-fatal while still reporting the condition.
 

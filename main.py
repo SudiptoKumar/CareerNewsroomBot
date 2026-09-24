@@ -128,6 +128,17 @@ BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "1
 BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "1800"))
 BDJOBSLIVE_BROWSER_DETAIL_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_DETAIL_LIMIT", "60"))
 BDJOBSLIVE_BROWSER_LISTING_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_LISTING_LIMIT", "28"))
+BDJOBSLIVE_INDEX_FALLBACK_URL = os.environ.get(
+    "BDJOBSLIVE_INDEX_FALLBACK_URL", "https://www.bdjobslive.com/index-data"
+).strip()
+BDJOBSLIVE_INDEX_FALLBACK_CAP = max(1, int(os.environ.get("BDJOBSLIVE_INDEX_FALLBACK_CAP", "60")))
+try:
+    BDJOBSLIVE_PRIVATE_DETAIL_SHARE = float(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_SHARE", "0.25"))
+except (TypeError, ValueError):
+    BDJOBSLIVE_PRIVATE_DETAIL_SHARE = 0.25
+BDJOBSLIVE_PRIVATE_DETAIL_SHARE = max(0.10, min(0.50, BDJOBSLIVE_PRIVATE_DETAIL_SHARE))
+BDJOBSLIVE_PRIVATE_DETAIL_MIN = max(0, int(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_MIN", "8")))
+BDJOBSLIVE_PRIVATE_DETAIL_MAX = max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, int(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_MAX", "18")))
 BDJOBSLIVE_BROWSER_FETCH_COUNT = 0
 BDJOBSLIVE_BROWSER_LOCK = threading.Lock()
 TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
@@ -1286,6 +1297,34 @@ BDJOBSLIVE_CATEGORIES = (
     ("Supply Chain / Procurement", "supply-chain-procurement-jobs", "supply-chain-procurement"),
 )
 
+BDJOBSLIVE_ALLOWED_CATEGORY_TERMS = tuple(
+    re.sub(r"[^a-z0-9]+", " ", name.casefold()).strip()
+    for name, _, _ in BDJOBSLIVE_CATEGORIES
+)
+
+def _bdjobslive_category_allowed(category):
+    value = re.sub(r"[^a-z0-9]+", " ", safe_text(category).casefold()).strip()
+    if not value:
+        return True
+    compact = value.replace(" ", "")
+    if any(value == allowed or allowed in value or value in allowed or allowed.replace(" ", "") in compact for allowed in BDJOBSLIVE_ALLOWED_CATEGORY_TERMS):
+        return True
+    # Known site wording variants are kept explicit so unrelated categories such
+    # as Software Development are not accepted merely because they contain the
+    # generic word "development".
+    aliases = (
+        ("bank financial institution", "bank non bank financial institution", "non bank financial institution"),
+        ("e commerce digital marketing", "e commerce f commerce", "ecommerce digital marketing"),
+        ("hr organizational development", "hr organization development", "human resources organizational development"),
+        ("production operation", "production operations"),
+        ("supply chain procurement", "supply chain"),
+        ("media advertising event management", "media ad event management"),
+        ("customer service call centre", "customer service call center"),
+        ("company secretary regulatory affairs", "company secretary regulatory"),
+        ("ngo development", "ngo development organization"),
+    )
+    return any(any(alias in value or value == alias for alias in group) for group in aliases)
+
 
 def _bdjobslive_category_urls(slug, current_slug):
     # The site's own functional-category navigation currently points to
@@ -1404,8 +1443,6 @@ def _bdjobslive_listing_candidates(page_html, page_url, category_name):
             if m:
                 deadline = normalize_date_text(m.group(1))
         company = clean_source_field(baseline.get("company", "")) or _bdjobslive_card_company(anchor, title)
-        # When cards omit Posted, leave freshness unknown and let the common detail
-        # gate determine exact age after enrichment rather than inventing a date.
         found.append({
             "title": title,
             "url": href,
@@ -1436,6 +1473,37 @@ def _bdjobslive_listing_candidates(page_html, page_url, category_name):
             "discovered_at": now_iso(),
         })
         seen.add(canonical)
+
+    # Jina Reader can return Markdown links instead of raw <a> elements. Preserve
+    # those job-detail URLs as a discovery fallback; detail enrichment will provide
+    # the authoritative company/field data later.
+    if not found:
+        markdown = safe_text(page_html or "")
+        for match in re.finditer(r"\[([^\]]{2,180})\]\((https?://[^)]+/bdjobs-details/[^)]+)\)", markdown, flags=re.I):
+            title = _clean_one_line(match.group(1))
+            href = urljoin(page_url, safe_text(match.group(2)))
+            if not title or not _is_bdjobslive_detail_url(href) or is_noise_title(title, href):
+                continue
+            canonical = canonical_url(href)
+            if not canonical or canonical in seen:
+                continue
+            seen.add(canonical)
+            found.append({
+                "title": title,
+                "url": href,
+                "canonical": canonical,
+                "source": "BDJobs Live",
+                "source_url": href,
+                "source_job_id": (re.search(r"-(\d+)(?:/)?$", urlparse(href).path) or ["", ""])[1],
+                "category_name": category_name,
+                "discovery": "bdjobslive_category",
+                "listing_fields": {},
+                "raw_source_fields": {},
+                "listing_posted": "",
+                "listing_deadline": "",
+                "excerpt": title,
+                "discovered_at": now_iso(),
+            })
     return found
 
 
@@ -1462,8 +1530,9 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
     # One bounded browser attempt per source page. The category page is
     # client-rendered, but the job-detail page's core data is static HTML, so
     # detail browsing is an exceptional fallback rather than the normal path.
+    wait_selector = 'a[href*="/bdjobs-details/"]' if mode == "listing" else "h1"
     attempts = (
-        {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": None},
+        {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": wait_selector},
     )
     last_reason = "no_render"
     for attempt, opts in enumerate(attempts, start=1):
@@ -1474,13 +1543,13 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 load_dom=True,
                 network_idle=False,
                 wait=opts["wait"],
-                timeout=BDJOBSLIVE_BROWSER_TIMEOUT,
-                google_search=True,
-                solve_cloudflare=True,
+                timeout=max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000)),
+                google_search=False,
+                solve_cloudflare=False,
                 block_webrtc=True,
                 hide_canvas=True,
-                retries=1,
-                retry_delay=0.5,
+                retries=0,
+                retry_delay=0,
             )
             if opts["wait_selector"]:
                 kwargs.update(wait_selector=opts["wait_selector"], wait_selector_state="attached")
@@ -1662,6 +1731,19 @@ def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
     return collected
 
 
+def _bdjobslive_add_discovery_items(target, seen, items, *, discovery_name=None, cap=None):
+    for item in items or []:
+        canonical=item.get("canonical") or canonical_url(item.get("source_url", ""))
+        if not canonical or canonical in seen or canonical in POSTED_URLS:
+            continue
+        if discovery_name:
+            item["discovery"] = discovery_name
+        seen.add(canonical)
+        target.append(item)
+        if cap and len(target) >= cap:
+            break
+
+
 def discover_bdjobslive():
     if not BDJOBSLIVE_ENABLED:
         return []
@@ -1675,12 +1757,44 @@ def discover_bdjobslive():
             except Exception as exc:
                 logger.warning("BDJobs Live category worker failed: %s", exc)
                 items=[]
-            for item in items:
-                canonical=item.get("canonical") or canonical_url(item.get("source_url", ""))
-                if not canonical or canonical in seen or canonical in POSTED_URLS:
-                    continue
-                seen.add(canonical)
-                all_items.append(item)
+            _bdjobslive_add_discovery_items(all_items, seen, items, discovery_name="bdjobslive_category")
+
+    # The category pages are client-rendered and can legitimately expose a shell
+    # to HTTP/Jina. BDJobs Live also maintains a static index page containing
+    # current /bdjobs-details links. Use it only as a bounded supplement, never
+    # as a replacement for the 14 requested category feeds.
+    if len(all_items) < BDJOBSLIVE_DISCOVERY_MAX and BDJOBSLIVE_INDEX_FALLBACK_URL:
+        fallback = _fetch_source_document(
+            BDJOBSLIVE_INDEX_FALLBACK_URL,
+            timeout=min(BDJOBSLIVE_TIMEOUT, 15),
+            referer="https://bdjobslive.com/",
+        )
+        fallback_items = _bdjobslive_listing_candidates(
+            (fallback or {}).get("text", ""),
+            (fallback or {}).get("url") or BDJOBSLIVE_INDEX_FALLBACK_URL,
+            "",
+        ) if fallback else []
+        if not fallback_items and fallback is not None:
+            browser = _fetch_bdjobslive_browser_document(BDJOBSLIVE_INDEX_FALLBACK_URL, mode="listing")
+            if browser:
+                fallback_items = _bdjobslive_listing_candidates(
+                    browser.get("html", "") or browser.get("text", ""),
+                    browser.get("url") or BDJOBSLIVE_INDEX_FALLBACK_URL,
+                    "",
+                )
+        _bdjobslive_add_discovery_items(
+            all_items, seen, fallback_items[:BDJOBSLIVE_INDEX_FALLBACK_CAP],
+            discovery_name="bdjobslive_index_fallback",
+            cap=BDJOBSLIVE_DISCOVERY_MAX,
+        )
+        if fallback_items:
+            logger.info(
+                "BDJOBSLIVE INDEX FALLBACK | candidates=%d added=%d url=%s",
+                len(fallback_items),
+                min(len(fallback_items), BDJOBSLIVE_INDEX_FALLBACK_CAP),
+                BDJOBSLIVE_INDEX_FALLBACK_URL,
+            )
+
     # Deterministic ordering for the next funnel stage: fresh listings first, then category/title.
     all_items.sort(key=lambda j: (
         -posted_freshness_score({"posted_date": j.get("listing_posted", "")}),
@@ -2798,6 +2912,7 @@ def _bdjobs_dom_extract(page_html, url="", listing_title=""):
             if candidate_heading:
                 company = _bdjobs_dom_text(candidate_heading)
 
+    body_label_fields = _extract_source_label_fields(main.get_text("\n", strip=True))
     summary_map = {
         "vacancy": summary.get("vacancy"),
         "age": summary.get("age"),
@@ -2806,11 +2921,15 @@ def _bdjobs_dom_extract(page_html, url="", listing_title=""):
         "experience": summary.get("experience"),
         "posted_date": summary.get("published") or summary.get("posted"),
     }
+    for key in ("salary", "experience", "posted_date", "location", "vacancy", "age"):
+        if not _valid_source_field_value(key, summary_map.get(key, "")) and _valid_source_field_value(key, body_label_fields.get(key, "")):
+            summary_map[key] = body_label_fields.get(key)
+
     education_items = requirements.get("education", [])
     req_experience = requirements.get("experience", [])
     additional_items = requirements.get("additional requirements", [])
 
-    if not summary_map["experience"] and req_experience:
+    if not compact_experience(summary_map.get("experience", "")) and req_experience:
         summary_map["experience"] = "; ".join(req_experience)
 
     out = {
@@ -2942,7 +3061,7 @@ BDJOBS_SOURCE_FIELD_ALIASES = {
     "vacancy": ("Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions"),
     "age": ("Age", "Age Limit", "Age Requirements"),
     "location": ("Location", "Job Location", "Job Location(s)", "Work Location"),
-    "salary": ("Salary", "Salary Range", "Compensation"),
+    "salary": ("Monthly Salary", "Monthly salary", "Salary", "Salary Range", "Compensation"),
     "experience": ("Experience", "Experience Requirements", "Experience Requirement"),
     "posted_date": ("Published", "Posted", "Date Posted", "Publication Date"),
     "education": ("Education", "Education required", "Educational Requirements", "Educational Qualification", "Education Requirements"),
@@ -2959,12 +3078,52 @@ def _normalized_source_label(value):
     return re.sub(r"\s+", " ", value).strip().rstrip(":-").casefold()
 
 
-def _source_label_match(line, aliases):
+def _valid_source_field_value(field, value):
+    value = _clean_one_line(value)
+    if not value:
+        return False
+    norm = _normalized_source_label(value)
+    if norm in {"none", "null", "n/a", "na", "not specified", "not available", "--", "-"}:
+        return False
+    if field == "salary":
+        # These are headings/chrome, not salary values. In particular, both
+        # Bdjobs and BDJobs Live may render `Salary & Benefits` near a later
+        # actual salary line.
+        if re.fullmatch(r"(?:&|and)\s*(?:other\s+)?benefits?", value, flags=re.I):
+            return False
+        if re.match(r"^(?:(?:&|and)\s*)?(?:(?:other)\s+)?benefits?\b", value, flags=re.I):
+            return False
+        if re.search(r"(?:^|\s)(?:salary\s*&\s*benefits|compensation\s*&\s*other\s+benefits)(?:$|\s)", value, flags=re.I):
+            return False
+        if "benefit" in norm and not re.search(r"(?:\d|bdt|tk\.?|৳|negotiable|competitive|not disclosed)", norm, flags=re.I):
+            return False
+    elif field == "experience":
+        if norm in {
+            "additional requirements", "requirements", "education", "educational requirements",
+            "responsibilities", "responsibilities context", "skills", "duties", "qualifications",
+        }:
+            return False
+    elif field in {"deadline", "posted_date"}:
+        if not normalize_date_text(value):
+            return False
+    elif field == "location":
+        if norm in {"location", "job location", "work location"}:
+            return False
+    elif field == "application_method":
+        if norm in {"application", "application process", "application procedure"}:
+            return False
+    return True
+
+
+def _source_label_match(line, aliases, field=None):
     line = clean_source_field(line)
     if not line:
         return False, ""
     known = "|".join(re.escape(x) for x in sorted(BDJOBS_ALL_SOURCE_LABELS, key=len, reverse=True))
     for alias in sorted(aliases, key=len, reverse=True):
+        # A benefit heading such as `Salary & Benefits` is not the Salary field.
+        if field == "salary" and re.match(rf"^{re.escape(alias)}\s*&\s*(?:other\s+)?benefits?\s*[:：-]?\s*$", line, flags=re.I):
+            continue
         # If another, longer known label starts with this alias, this alias is
         # not the label on the current line. This prevents `Application` from
         # matching the prefix of `Application Deadline`.
@@ -2982,10 +3141,9 @@ def _source_label_match(line, aliases):
         m = re.match(pattern, line, flags=re.I)
         if m:
             value = _clean_one_line(m.group(1))
-            # Prevent short aliases from swallowing a longer source label.
-            # Example: the alias "Application" must NOT parse
-            # "Application Deadline" as the value "Deadline".
             if value and _normalized_source_label(value) in {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}:
+                return False, ""
+            if field and value and not _valid_source_field_value(field, value):
                 return False, ""
             return True, value
     return False, ""
@@ -3016,7 +3174,7 @@ def _extract_source_label_fields(text):
         for field, aliases in BDJOBS_SOURCE_FIELD_ALIASES.items():
             if field in result:
                 continue
-            matched, value = _source_label_match(line, aliases)
+            matched, value = _source_label_match(line, aliases, field=field)
             if not matched:
                 continue
             if not value and i + 1 < len(lines):
@@ -3026,7 +3184,7 @@ def _extract_source_label_fields(text):
             value = clean_source_field(value)
             value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
             value = _clean_one_line(value)
-            if value:
+            if value and _valid_source_field_value(field, value):
                 result[field] = value
 
     # Flattened Jina output fallback. It still uses known-label boundaries, never a
@@ -3043,8 +3201,24 @@ def _extract_source_label_fields(text):
             value = clean_source_field(m.group(1))
             value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
             value = _clean_one_line(value)
-            if value:
+            if value and _valid_source_field_value(field, value):
                 result[field] = value
+
+    # Some Bdjobs templates place the actual monthly salary in the
+    # `Compensation & Other Benefits` section rather than the summary row.
+    # Recover it explicitly without accepting the section heading itself.
+    if not result.get("salary"):
+        salary_patterns = (
+            r"(?:Monthly\s+salary)\s*[:：-]\s*([^|;\n]+)",
+            r"(?:Monthly\s+Salary)\s*[:：-]\s*([^|;\n]+)",
+        )
+        for pattern in salary_patterns:
+            match = re.search(pattern, clean_reader_markdown(text), flags=re.I)
+            if match:
+                candidate = _clean_one_line(match.group(1))
+                if _valid_source_field_value("salary", candidate):
+                    result["salary"] = candidate
+                    break
     return result
 
 
@@ -3197,6 +3371,31 @@ def _bdjobs_detail_summary_fields(text, expected_title=""):
     return result
 
 
+def _first_valid_source_value(field, *values):
+    for value in values:
+        value = _clean_one_line(value)
+        if value and _valid_source_field_value(field, value):
+            return value
+    return ""
+
+
+def _extract_salary_fallback(text):
+    if not text:
+        return ""
+    cleaned = clean_reader_markdown(text)
+    patterns = (
+        r"(?:Monthly\s+salary|Monthly\s+Salary)\s*[:：-]\s*([^|;\n]+)",
+        r"(?:Salary|Salary\s+Range|Minimum\s+Salary|Compensation)\s*[:：-]\s*(?!&\s*(?:other\s+)?benefits)\s*([^|;\n]+)",
+    )
+    for pattern in patterns:
+        m = re.search(pattern, cleaned, flags=re.I)
+        if m:
+            candidate = _clean_one_line(m.group(1))
+            if _valid_source_field_value("salary", candidate):
+                return candidate
+    return ""
+
+
 def extract_job_fields(text, page_html, source_url, discovery_item):
     text = safe_text(text)
     jsonld = _jobposting_jsonld(page_html) if page_html else {}
@@ -3231,23 +3430,48 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     ]))
 
     location = safe_text(source_dom.get("location")) or source_summary.get("location") or _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
-    salary = safe_text(source_dom.get("salary")) or source_summary.get("salary") or _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
+    salary = _first_valid_source_value(
+        "salary",
+        source_dom.get("salary"),
+        source_summary.get("salary"),
+        _summary_value(text, ["বেতন", "Monthly Salary", "Salary", "Salary Range", "Minimum Salary", "Compensation"]),
+        _label_value(text, ["Monthly Salary", "Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"]),
+        _extract_salary_fallback(text),
+    )
     # Age is intentionally extracted only from explicit age-labelled summary content.
     # Never use a generic fallback that can reinterpret the Experience value as Age.
     age = safe_text(source_dom.get("age")) or source_summary.get("age") or _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"])
     employment = safe_text(source_dom.get("employment_type")) or source_summary.get("employment_type") or _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
-    published = safe_text(source_dom.get("posted_date")) or source_summary.get("posted_date") or _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
-    deadline = safe_text(source_dom.get("deadline")) or source_summary.get("deadline") or _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
+    published = _first_valid_source_value(
+        "posted_date",
+        source_dom.get("posted_date"),
+        source_summary.get("posted_date"),
+        _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]),
+        _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"]),
+    )
+    deadline = _first_valid_source_value(
+        "deadline",
+        source_dom.get("deadline"),
+        source_summary.get("deadline"),
+        _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]),
+        _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"]),
+    )
 
     # Detail-section fields. Use the same source text as a fallback because some
     # source templates expose the value outside the Job Summary card.
-    experience = safe_text(source_dom.get("experience")) or source_summary.get("experience") or _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
+    experience = _first_valid_source_value(
+        "experience",
+        source_dom.get("experience"),
+        source_summary.get("experience"),
+        _summary_value(text, ["Experience", "অভিজ্ঞতা"]),
+        _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"]),
+    )
     education = safe_text(source_dom.get("education")) or source_summary.get("education") or _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
     vacancy = safe_text(source_dom.get("vacancy")) or source_summary.get("vacancy") or _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
     workplace = safe_text(source_dom.get("workplace")) or source_summary.get("workplace") or _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
-    category = safe_text(source_dom.get("category")) or _label_value(text, ["Category", "Job Category"])
+    category = safe_text(source_dom.get("category")) or _label_value(text, ["Category", "Job Category"]) or safe_text(discovery_item.get("category_name"))
     application_method = source_summary.get("application_method") or _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
     application_period = _label_value(text, ["Application Period", "Application Date", "Interview Date", "Walk-in Date"])
@@ -3840,6 +4064,8 @@ def _valid_merged_field(key, value, *, title="", company=""):
     value=_clean_one_line(value)
     if not value:
         return False
+    if key in {"salary", "experience", "deadline", "posted_date", "location", "application_method"} and not _valid_source_field_value(key, value):
+        return False
     low=value.lower()
     if low in {"none","null","n/a","na","not specified","not available","--","-"}:
         return False
@@ -4109,6 +4335,16 @@ def deterministic_job_gate(job):
         return True, "ok_government"
     if not job.get("company"): return False, "missing_company"
     if not is_domain_allowed(job.get("source_url", ""), PRIVATE_JOB_DOMAINS): return False, "source_not_allowed"
+    if job.get("source") == "BDJobs Live":
+        live_category = (
+            safe_text(job.get("category"))
+            or safe_text(job.get("category_name"))
+            or safe_text(job.get("source_category_name"))
+        )
+        if live_category and not _bdjobslive_category_allowed(live_category):
+            return False, "bdjobslive_category_not_allowed"
+        if job.get("discovery") == "bdjobslive_index_fallback" and not live_category:
+            return False, "bdjobslive_category_missing"
     if deadline_status(job) == "expired": return False, "expired"
     age = posted_age_days(job)
     if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
@@ -5490,9 +5726,54 @@ def _prepare_shortlists(discovered):
     reserved_internships=internships[:min(INTERNSHIP_DETAIL_TARGET, len(internships))]
     reserved_keys={x.get("canonical") for x in reserved_internships}
     ordinary=[x for x in private if x.get("canonical") not in reserved_keys]
-    private_short=(reserved_internships + ordinary)[:PRIVATE_DETAIL_TARGET]
+
+    # Keep one shared private research budget, but guarantee the new BDJobs Live
+    # source a meaningful slice of that budget. Unused source capacity returns to
+    # the other private source; this is not a publication quota.
+    live=[x for x in ordinary if x.get("source") == "BDJobs Live"]
+    bdjobs=[x for x in ordinary if x.get("source") == "Bdjobs"]
+    other_private=[x for x in ordinary if x.get("source") not in {"Bdjobs", "BDJobs Live"}]
+    remaining=max(0, PRIVATE_DETAIL_TARGET - len(reserved_internships))
+
+    live_target=0
+    if live and remaining > 0:
+        proportional=int((remaining * BDJOBSLIVE_PRIVATE_DETAIL_SHARE) + 0.9999)
+        live_target=max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, proportional)
+        live_target=min(live_target, BDJOBSLIVE_PRIVATE_DETAIL_MAX, len(live), remaining)
+
+    bd_target=min(len(bdjobs), max(0, remaining - live_target))
+    if bd_target < max(0, remaining - live_target) and len(live) > live_target:
+        live_target=min(len(live), remaining - bd_target)
+
+    used=live_target + bd_target
+    other_target=min(len(other_private), max(0, remaining - used))
+    used += other_target
+
+    # Fill any unused capacity from the strongest remaining candidates, preserving
+    # the source allocation preference without wasting the private research budget.
+    selected=[]
+    selected.extend(reserved_internships)
+    selected.extend(live[:live_target])
+    selected.extend(bdjobs[:bd_target])
+    selected.extend(other_private[:other_target])
+
+    if len(selected) < PRIVATE_DETAIL_TARGET:
+        selected_keys={x.get("canonical") for x in selected}
+        remainder=[x for x in ordinary if x.get("canonical") not in selected_keys]
+        remainder.sort(key=lambda j:(
+            -bba_mba_candidate_score(j),
+            -posted_freshness_score({"posted_date":j.get("listing_posted")}),
+            j.get("canonical", ""),
+        ))
+        selected.extend(remainder[:PRIVATE_DETAIL_TARGET-len(selected)])
+
+    logger.info(
+        "PRIVATE DETAIL ALLOCATION | Bdjobs=%d | BDJobsLive=%d | other=%d | internships=%d | budget=%d",
+        len(bdjobs[:bd_target]), len(live[:live_target]), len(other_private[:other_target]),
+        len(reserved_internships), PRIVATE_DETAIL_TARGET,
+    )
     logger.info("INTERNSHIP DISCOVERED | candidates=%d reserved_for_detail=%d minimum=%d", len(internships), len(reserved_internships), MIN_INTERNSHIP_POSTS_PER_RUN)
-    return gov[:GOVERNMENT_DISCOVERY_TARGET], private_short
+    return gov[:GOVERNMENT_DISCOVERY_TARGET], selected[:PRIVATE_DETAIL_TARGET]
 
 
 def run(*, dry_run=False, print_ranking=False):
@@ -5585,6 +5866,11 @@ def run(*, dry_run=False, print_ranking=False):
     private_final=sum(1 for j in selected if not j.get("is_government"))
     gov_final=sum(1 for j in selected if j.get("is_government"))
     logger.info("FINAL SELECTED=%d | gov=%d private=%d | discovered=%d | pre_publish=%.1fs", len(selected), gov_final, private_final, len(discovered), time.monotonic()-started)
+    final_source_mix = {}
+    for selected_job in selected:
+        src = safe_text(selected_job.get("source")) or "Unknown"
+        final_source_mix[src] = final_source_mix.get(src, 0) + 1
+    logger.info("FINAL SOURCE MIX | %s", " | ".join(f"{k}={v}" for k,v in sorted(final_source_mix.items())) or "none")
     logger.info(
         "PUBLICATION CAPACITY | private=%d/%d configured-minimum | government=%d/%d configured-minimum | total=%d/%d maximum",
         private_final, MIN_PRIVATE_POSTS_PER_RUN, gov_final, MIN_GOVERNMENT_POSTS_PER_RUN,
@@ -5602,6 +5888,11 @@ def run(*, dry_run=False, print_ranking=False):
         )
     logger.info("FUNNEL | discovered=%d researched=%d gate_passed=%d snapshot_eligible_private=%d snapshot_eligible_gov=%d private_ranked=%d final_private=%d", len(discovered), len(researched), len(verified), len(snapshot_private), len(snapshot_government), len(ranked_private), private_final)
     logger.info("FUNNEL DETAIL | private_attempted=%d private_success=%d private_fallback=%d private_failed=%d", len(private_items), research_metrics["private"], research_metrics["detail_fallback"], research_metrics["private_failed"])
+    research_source_mix = {}
+    for researched_job in researched:
+        src = safe_text(researched_job.get("source")) or "Unknown"
+        research_source_mix[src] = research_source_mix.get(src, 0) + 1
+    logger.info("RESEARCH SOURCE MIX | %s", " | ".join(f"{k}={v}" for k,v in sorted(research_source_mix.items())) or "none")
     snapshot_counts=[snapshot_field_quality(j) for j in selected]
     logger.info("SNAPSHOT QUALITY | selected=%d | >=5_fields=%d | avg_fields=%.1f", len(snapshot_counts), sum(1 for n in snapshot_counts if n>=5), (sum(snapshot_counts)/len(snapshot_counts) if snapshot_counts else 0.0))
 
@@ -5724,6 +6015,60 @@ def self_test():
     assert fallback_job["detail_quality"] == "listing_fallback"
     assert deterministic_job_gate(fallback_job)[0]
 
+    # Source-label collision regressions: section headings such as `Salary &
+    # Other Benefits` and `Additional Requirements` must never become field values.
+    salary_collision = """
+    Job Summary
+    Salary & Other Benefits
+    Monthly salary: BDT 18,000 - 22,000
+    Experience
+    Additional Requirements
+    Experience: At Least 3 Year
+    Application Deadline
+    02 Oct 2026
+    """
+    collision_fields = _extract_source_label_fields(salary_collision)
+    assert collision_fields["salary"] == "BDT 18,000 - 22,000"
+    assert collision_fields["experience"] == "At Least 3 Year"
+    assert collision_fields["deadline"] == "02 Oct 2026"
+    assert not _valid_source_field_value("salary", "& Benefits: Negotiable")
+    assert not _valid_source_field_value("salary", "Salary & Other Benefits")
+
+    # Bdjobs Angular regression: the summary may expose a benefits heading while
+    # the authoritative monthly salary is present in the body/requirements area.
+    bd_salary_fixture = """
+    <html><body><app-details-main>
+      <button><h2>Example Finance Ltd.</h2></button>
+      <h2>Assistant Manager - Sales And Marketing</h2>
+      <app-summary><div id="allSection">
+        <span>Location:</span><span>Dhanmondi</span>
+        <span>Salary:</span><span>&amp; Other Benefits</span>
+        <span>Experience:</span><span>At Least 3 Year</span>
+        <span>Published:</span><span>24 Sep 2026</span>
+      </div></app-summary>
+      <div><p>Compensation &amp; Other Benefits</p><ul><li>Monthly salary: Tk. 18,000 - 22,000 (Monthly)</li></ul></div>
+      <div><p>Employment Status :</p><p>Full Time</p></div>
+      <div><p>Workplace :</p><p>Work at office</p></div>
+      <p>Application Deadline :</p><p>02 Oct 2026</p>
+      <div id="requirements">
+        <div><p>Education</p><ul><li>BBA</li></ul></div>
+        <div><p>Experience</p><ul><li>At Least 3 Year</li></ul></div>
+      </div>
+    </app-details-main></body></html>
+    """
+    bd_salary_dom = _bdjobs_dom_extract(
+        bd_salary_fixture,
+        url="https://bdjobs.com/h/details/1533488?ln=1",
+        listing_title="Assistant Manager - Sales And Marketing",
+    )
+    assert bd_salary_dom["salary"] == "Tk. 18,000 - 22,000 (Monthly)"
+    bd_salary_fields = extract_job_fields(
+        _text_from_html(bd_salary_fixture), bd_salary_fixture,
+        "https://bdjobs.com/h/details/1533488?ln=1",
+        {"title":"Assistant Manager - Sales And Marketing","source":"Bdjobs"},
+    )
+    assert bd_salary_fields["salary"] == "Tk. 18,000 - 22,000/month"
+
     # Cross-source mirror regression: the same company/title on Bdjobs and BDJobs Live
     # must collapse even when URLs and native source IDs differ.
     mirror_a = {
@@ -5776,8 +6121,10 @@ def self_test():
             return []
 
     class _FakeBDJobsLiveFetcher:
+        last_kwargs = {}
         @staticmethod
         def fetch(url, **kwargs):
+            _FakeBDJobsLiveFetcher.last_kwargs = dict(kwargs)
             return _FakeBDJobsLivePage(live_detail_text_fixture, url)
 
     live_detail_text_fixture = """
@@ -5803,6 +6150,10 @@ def self_test():
     finally:
         globals()["StealthyFetcher"] = original_live_fetcher
     assert browser_probe and browser_probe["backend"] == "scrapling_stealthy_bdjobslive"
+    assert _FakeBDJobsLiveFetcher.last_kwargs.get("wait_selector") == "h1"
+    assert _FakeBDJobsLiveFetcher.last_kwargs.get("solve_cloudflare") is False
+    assert _FakeBDJobsLiveFetcher.last_kwargs.get("network_idle") is False
+    assert int(_FakeBDJobsLiveFetcher.last_kwargs.get("timeout", 999999)) <= 15000
 
     live_detail_text = """
     Job List
@@ -5878,6 +6229,84 @@ def self_test():
     assert live_fields["posted_date"] == "2026-09-24"
     live_fields["raw_text"] = live_detail_text
     assert bba_mba_candidate_score(live_fields) > 0
+
+    live_collision_html = live_detail_html.replace(
+        '<span>Salary:</span><strong>Negotiable</strong>',
+        '<span>Salary &amp; Benefits</span><strong>&amp; Benefits</strong><div><span>Monthly salary:</span><strong>From 95325 BDT</strong></div>'
+    )
+    live_collision = extract_job_fields(
+        _text_from_html(live_collision_html), live_collision_html,
+        "https://www.bdjobslive.com/bdjobs-details/senior-me-mis-officer-13472",
+        {"source":"BDJobs Live","title":"Senior M&E and MIS Officer", "category_name":"NGO / Development"},
+    )
+    assert live_collision["salary"] == "From 95325 BDT"
+
+    # BDJobs Live category pages can be a client-rendered shell. The static index
+    # fallback must supplement discovery without replacing the 14 category feeds.
+    saved_live_enabled = BDJOBSLIVE_ENABLED
+    saved_live_category_fn = globals()["discover_bdjobslive_category"]
+    saved_live_fetch_fn = globals()["_fetch_source_document"]
+    saved_live_browser_fn = globals()["_fetch_bdjobslive_browser_document"]
+    saved_live_discovery_max = BDJOBSLIVE_DISCOVERY_MAX
+    saved_live_index_cap = BDJOBSLIVE_INDEX_FALLBACK_CAP
+    saved_posted_urls = set(POSTED_URLS)
+    try:
+        globals()["BDJOBSLIVE_ENABLED"] = True
+        globals()["BDJOBSLIVE_DISCOVERY_MAX"] = 3
+        globals()["BDJOBSLIVE_INDEX_FALLBACK_CAP"] = 3
+        globals()["discover_bdjobslive_category"] = lambda *args, **kwargs: []
+        globals()["_fetch_source_document"] = lambda url, **kwargs: {
+            "text": '<html><body><a href="https://www.bdjobslive.com/bdjobs-details/index-fallback-987654">Finance Executive</a><span>Example Finance Ltd.</span><span>Published: 24 Sep 2026</span><span>Application Deadline: 30 Sep 2026</span></body></html>',
+            "url": url,
+            "backend": "self-test-index",
+        }
+        globals()["_fetch_bdjobslive_browser_document"] = lambda *args, **kwargs: None
+        POSTED_URLS.clear()
+        index_items = discover_bdjobslive()
+        assert len(index_items) == 1
+        assert index_items[0]["discovery"] == "bdjobslive_index_fallback"
+        assert index_items[0]["source_job_id"] == "987654"
+    finally:
+        globals()["BDJOBSLIVE_ENABLED"] = saved_live_enabled
+        globals()["discover_bdjobslive_category"] = saved_live_category_fn
+        globals()["_fetch_source_document"] = saved_live_fetch_fn
+        globals()["_fetch_bdjobslive_browser_document"] = saved_live_browser_fn
+        globals()["BDJOBSLIVE_DISCOVERY_MAX"] = saved_live_discovery_max
+        globals()["BDJOBSLIVE_INDEX_FALLBACK_CAP"] = saved_live_index_cap
+        POSTED_URLS.clear()
+        POSTED_URLS.update(saved_posted_urls)
+
+    # Private detail research uses one shared budget but reserves a meaningful
+    # slice for BDJobs Live; unused capacity is returned to Bdjobs.
+    saved_detail_target = PRIVATE_DETAIL_TARGET
+    try:
+        globals()["PRIVATE_DETAIL_TARGET"] = 20
+        allocation_fixture = []
+        for i in range(20):
+            allocation_fixture.append({
+                "source":"Bdjobs", "source_job_id":f"B{i}", "title":f"Finance Executive {i}",
+                "company":f"Bdjobs Example {i}", "location":"Dhaka",
+                "canonical":f"https://jobs.bdjobs.com/jobdetails.asp?id={700000+i}",
+                "source_url":f"https://jobs.bdjobs.com/jobdetails.asp?id={700000+i}",
+                "listing_posted":self_test_posted_iso, "is_government":False,
+                "education":"BBA", "experience":"1 to 2 years", "deadline":self_test_deadline.isoformat(),
+                "raw_text":"Finance Executive BBA management sales",
+            })
+        for i in range(10):
+            allocation_fixture.append({
+                "source":"BDJobs Live", "source_job_id":f"L{i}", "title":f"Marketing Executive Live {i}",
+                "company":f"BDJobs Live Example {i}", "location":"Dhaka",
+                "canonical":f"https://bdjobslive.com/bdjobs-details/marketing-executive-live-{800000+i}",
+                "source_url":f"https://bdjobslive.com/bdjobs-details/marketing-executive-live-{800000+i}",
+                "listing_posted":self_test_posted_iso, "is_government":False,
+                "category_name":"Marketing / Sales", "education":"BBA", "experience":"1 to 2 years",
+                "deadline":self_test_deadline.isoformat(), "raw_text":"Marketing Executive BBA sales",
+            })
+        _, allocation_private = _prepare_shortlists(allocation_fixture)
+        live_count = sum(1 for x in allocation_private if x.get("source") == "BDJobs Live")
+        assert live_count >= min(BDJOBSLIVE_PRIVATE_DETAIL_MIN, len([x for x in allocation_fixture if x.get("source")=="BDJobs Live"]))
+    finally:
+        globals()["PRIVATE_DETAIL_TARGET"] = saved_detail_target
 
     same_source_repost_a = dict(mirror_a)
     same_source_repost_b = dict(mirror_a, source_job_id="BD-101", source_url="https://jobs.bdjobs.com/jobdetails.asp?id=101")
