@@ -1,30 +1,23 @@
-# CareerNewsroom
+# CareerNewsroom V2.0
 
-## Latest production hardening
+Production Telegram job-news bot for BBA/MBA-relevant opportunities in Bangladesh.
 
-The current release hardens source-first extraction and BDJobs Live discovery. Source-backed Salary, Experience, Deadline, Posted date, and Location values are validated against field-specific labels before they can enter the normalized record. Benefit-section headings such as `Salary & Other Benefits` and headers such as `Additional Requirements` can no longer become false field values.
+## V2.0 goal
 
-BDJobs Live now uses the requested 14-category lane plus a bounded static index fallback, and its browser fallback waits for an actual `/bdjobs-details/` link instead of waiting for network idle. Private detail research keeps one shared budget but reserves a bounded source share for BDJobs Live; unused capacity returns to the other private sources.
+V2.0 keeps the existing Bdjobs + Teletalk architecture, adds BDJobs Live and dedicated internship lanes, and strengthens source-specific extraction, duplicate protection, research allocation, scheduling, and state persistence.
 
+The core rule remains:
 
-Production BBA/MBA-focused Bangladesh job intelligence bot for Telegram.
-
-Pipeline release: Career News V1.
-
-## Purpose
-
-CareerNewsroom searches a controlled set of Bangladesh job-board categories, builds a broad comparison pool, removes duplicates and invalid records, ranks the strongest private jobs, verifies only the strongest detail pages, optionally audits them with Cerebras, applies company/category diversity, and publishes a dynamic set of high-quality opportunities.
-
-The system is designed to avoid the previous failure mode where a large global job pool is collected first and category relevance is determined afterward.
+> Job availability is not a failure condition. Quality gates decide how many jobs are published.
 
 ## Production sources
 
-```text
-Government → Teletalk AllJobs API
-Private    → Bdjobs category discovery + BDJobs Live category discovery
-```
+### Regular private
 
-BDJobs Live currently exposes the requested business-focused functional categories. CareerNewsroom adds these 14 categories as a separate discovery lane, then sends the resulting jobs through the same private-job gates used by Bdjobs.
+- Bdjobs: category-first discovery across the existing 14 BBA/MBA-relevant categories.
+- BDJobs Live: the requested 14 BBA/MBA-relevant functional categories.
+
+BDJobs Live categories:
 
 1. Accounting / Finance
 2. Bank / Financial Institution
@@ -41,622 +34,376 @@ BDJobs Live currently exposes the requested business-focused functional categori
 13. Research / Consultancy
 14. Supply Chain / Procurement
 
-The category lane is bounded and does not create a second publication quota. Freshness, BBA/MBA relevance, source fidelity, information quality, experience, deadline, AI review, diversity, and duplicate gates remain shared with the existing private pipeline.
+### Government
 
-No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
+- Teletalk / AllJobs API
 
+### Internships
 
-## Publication model
+- Bdjobs: `https://bdjobs.com/h/jobs?lang=en&JobType=intern`
+- BDJobs Live: `https://www.bdjobslive.com/bdjobs-circular/internship-opportunity`
 
-Publication is opportunistic, not quota-driven. The bot publishes every selected job that passes the normal quality, freshness, source-fidelity, snapshot, and duplicate gates, up to the total cap. If 4 eligible jobs exist, 4 are published. If 1 exists, 1 is published. If none qualify, 0 are published. None of these sparse outcomes is a failure.
+Internships are a separate lane. Missing normal work experience is allowed, but location, deadline, source identity, BBA/MBA relevance, and snapshot quality still have to pass.
 
-```text
-Minimum private jobs:    0
-Minimum government jobs: 0
-Minimum internships:     0
-Maximum total posts:    20
-```
+## Per-run publication model
 
-## Bdjobs Listing Parser Reliability
-
-Current Bdjobs search cards expose metadata through image ALT labels such as:
+The selector uses source-balanced targets, not failure-causing quotas:
 
 ```text
-Job Location
-Experience required
-Deadline for apply the job
-Education required
+Regular private target     10
+Government target           5
+Internship target           4
+  ├─ Bdjobs preferred       2
+  └─ BDJobs Live preferred  2
+Flexible extra              up to 6
+Hard maximum                25
+Target total                19
 ```
 
-The parser preserves those ALT labels and uses a DOM text window from each job link to the next job link. This prevents a title-only ancestor from causing the listing record to lose company, location, experience, deadline, and education.
+These are quality-first targets. They are not guarantees.
 
-A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication. In production, the Bdjobs and BDJobs Live detail lanes use the same bounded acquisition strategy: direct `curl_cffi` first, real Scrapling/StealthyFetcher browser render when the site returns a client-rendered shell, then Jina/listing data. BDJobs Live category pages also use the browser lane when direct HTML contains no `/bdjobs-details/` links.
-
-## Resilient Bdjobs acquisition
-
-Bdjobs detail pages are currently client-rendered. CareerNewsroom uses a bounded acquisition chain:
+Examples:
 
 ```text
-curl_cffi browser impersonation
-        ↓
-current Bdjobs /h/details route
-        ↓
-Patchright-powered Scrapling render
-        ↓
-DOM-aware validation and extraction
-        ↓
-Jina Reader fallback
-        ↓
-listing preservation when enrichment is unavailable
+10 private + 5 govt + 4 internship + 6 extra = 25
+6 private + 5 govt + 3 internship             = 14
+0 qualifying jobs                             = 0
 ```
 
-The browser lane waits for the Bdjobs summary container and can also wait for network quiescence. No part of the parser relies on Tailwind utility classes or the first `<h1>`.
+The workflow remains successful when fewer jobs are available, provided discovery, processing, publishing, and state persistence themselves complete successfully.
 
-### Resilient BDJobs Live acquisition
+No filler jobs are created to hit 10/5/4/25.
 
-BDJobs Live uses the requested `/bdjobs-circular/<category>-jobs` functional category routes as the primary discovery endpoints. Some category pages return a client-rendered shell, so CareerNewsroom applies the same source-retrieval philosophy used for Bdjobs, with site-specific validation:
+## Schedule
+
+GitHub Actions runs twice per day in `Asia/Dhaka`:
 
 ```text
-curl_cffi + fingerprint rotation
-        ↓
-real Scrapling/StealthyFetcher browser render
-        ↓
-extract /bdjobs-details/... job links
-        ↓
-Jina Reader fallback
-        ↓
-listing-backed preservation when enrichment is unavailable
+10:05 Asia/Dhaka
+17:05 Asia/Dhaka
 ```
 
-Browser resources remain enabled for BDJobs Live category pages because the listing data is hydrated by client-side page code. The browser lane uses `a[href*="/bdjobs-details/"]` as the listing readiness signal, disables Cloudflare solving for this source, and uses a bounded timeout. If category HTML/Jina returns Markdown links, those `/bdjobs-details/` links are still preserved. A bounded `index-data` fallback supplements category discovery when the dynamic category shell exposes too few links. The 14 BBA/MBA-relevant categories share the existing private freshness, relevance, source-fidelity, quality, experience, deadline, AI-review, diversity, and duplicate gates.
+The five-minute offset avoids relying on the exact top-of-hour boundary. Each run is state-aware and must not republish already-posted vacancies.
 
-Current dependency pin: `scrapling[fetchers]==0.4.15`.
-
-### Source-first extraction → AI selection
-
-CareerNewsroom extracts the complete cleaned Bdjobs source document before AI review. It keeps structured source fields and the full cleaned source content. Cerebras is used only to classify relevance, identify internships, audit contradictions, and choose which available fields should appear in the compact snapshot. It never creates factual values.
+## V2 discovery architecture
 
 ```text
-source facts → normalization → AI selection → render the original source facts
+Bdjobs ------------------┐
+BDJobs Live --------------┤
+Bdjobs Internships --------┤
+BDJobs Live Internships ---┤→ normalize → dedupe → freshness/BBA filter
+Teletalk ------------------┘                         ↓
+                                               adaptive detail research
+                                                        ↓
+                                                source-authoritative fields
+                                                        ↓
+                                                  snapshot integrity
+                                                        ↓
+                                                   deterministic rank
+                                                        ↓
+                                                   Cerebras audit
+                                                        ↓
+                                                source-balanced selection
+                                                        ↓
+                                                       Telegram
+                                                        ↓
+                                                GitHub state persistence
 ```
 
-Age, Experience, Salary, Vacancy, Location, Published date and Deadline are independently bound to their own labels. A value from one field cannot populate another field.
+The discovery adapters are source-specific. The downstream business rules remain shared.
 
-### Job Snapshot data contract
+## Bdjobs reliability
 
-The Telegram Job Snapshot is generated from one normalized `JobRecord`. Detail research is enrichment only and must never erase trustworthy listing data. Field precedence is:
+Bdjobs keeps the established production retrieval chain:
 
 ```text
-verified detail value
+curl_cffi / fingerprint rotation
         ↓
-listing value
+Bdjobs detail/listing retrieval
         ↓
-existing normalized value
+Patchright/Scrapling browser fallback for rendered pages
         ↓
-omit field when still missing
+DOM-aware validation
+        ↓
+Jina fallback
+        ↓
+listing-backed fallback when detail enrichment fails
 ```
 
-The display order is:
+Existing identity protections remain in place. A rendered title that conflicts with the listing title is rejected instead of replacing the trusted listing identity.
+
+## BDJobs Live reliability
+
+BDJobs Live uses the actual category routes supplied for the project:
+
+```text
+https://www.bdjobslive.com/bdjobs-circular/<category>-jobs
+```
+
+The `/bdjobs/<category>` route is only a compatibility fallback.
+
+Category discovery:
+
+```text
+curl_cffi / Jina
+        ↓
+if no /bdjobs-details/ links:
+        ↓
+one bounded Scrapling/StealthyFetcher browser render
+        ↓
+extract /bdjobs-details/... links
+        ↓
+homepage supplement when category feeds are weak
+```
+
+The browser listing path uses a bounded timeout and one browser attempt per source page. A temporary BDJobs Live outage does not stop Bdjobs or Teletalk from running.
+
+### BDJobs Live detail extraction contract
+
+The detail parser follows the supplied stable semantic map:
+
+```text
+h1                                  → job title
+a[href*="/company-detail/"]        → company
+labelled summary values             → salary, experience, location, deadline,
+                                       published, vacancy, age, job type,
+                                       job shift, gender
+#section-education                 → education
+#section-experience                → experience
+#section-skills                    → skills
+#section-responsibilities          → responsibilities
+#section-company                   → company information/address/website
+canonical + OG metadata             → identity/media metadata
+```
+
+The parser deliberately avoids Tailwind/presentation classes.
+
+## Source fidelity and field protection
+
+Source extraction is authoritative. AI may rank, audit, and choose display fields, but it cannot invent source facts or remove protected facts.
+
+Protected source fields include:
 
 ```text
 Location
-Employment
-Workplace
-Education
 Experience
 Salary
+Deadline
+Posted
+Education
+Employment
+Workplace
 Vacancy
 Age
 Application
-Deadline
-Posted
 ```
 
-No value is fabricated. A sparse or contaminated private record with fewer than 3 usable snapshot fields is rejected before final selection; government records require at least 2. This prevents Telegram posts that contain only a deadline when the source data contains additional fields. Source-backed salary is protected at both extraction and rendering stages, so an AI display preference cannot hide a salary that the source actually supplies.
-
-### Runtime quality and publication guardrails
-
-The workflow allows up to 25 minutes, but source fallbacks are individually bounded so one unavailable site does not consume the whole run. `PRIVATE_DETAIL_TARGET` is a research budget, not a publication quota.
+Important collision protections include:
 
 ```text
-PRIVATE_DETAIL_TARGET = 60
-BDJOBSLIVE_PRIVATE_DETAIL_SHARE = 0.25
-BDJOBSLIVE_PRIVATE_DETAIL_MIN = 8
-BDJOBSLIVE_PRIVATE_DETAIL_MAX = 18
-AI_REVIEW_TARGET = 50
-AI_BATCH_SIZE = 8
-
-MIN_PRIVATE_POSTS_PER_RUN = 0
-MIN_GOVERNMENT_POSTS_PER_RUN = 0
-MIN_INTERNSHIP_POSTS_PER_RUN = 0
-MAX_STORIES_PER_RUN = 20
+Salary & Benefits          ≠ salary value
+Compensation & Other Benefits ≠ salary value
+Additional Requirements    ≠ experience value
+Application Deadline       ≠ Application
 ```
 
-Selection is score- and gate-driven. `PRIVATE_MIN_FILL_SCORE` and `PRIVATE_HARD_FILL_SCORE` are score thresholds only; they never require a certain number of published jobs. The bot never invents filler jobs to reach a private, government, or internship count.
+A real salary such as `Tk. 18,000 - 22,000` must survive extraction and appear in Telegram when source-backed.
 
-### Jina Reader safety
+## Duplicate protection
 
-Jina Reader returns LLM-friendly Markdown. CareerNewsroom converts that Markdown to plain parser-safe text before field extraction, removing image/link syntax, headings, asset filenames and page-chrome artifacts. This prevents strings such as `name-share-details.gif` or `[![Image ...](...)](...)` from appearing in Telegram posts.
-
-
-## Bdjobs rendered-detail parser
-
-Bdjobs detail pages currently use an Angular application shell. The production browser lane waits for `app-summary #allSection`, captures the rendered HTML, and parses stable Angular tags and IDs.
-
-The parser uses these anchors:
+Duplicate detection is layered:
 
 ```text
-app-details-main              → job-detail container
-button > h2 + next h2          → company + title
-app-summary #allSection        → Vacancy / Age / Location / Salary / Experience / Published
-#requirements                  → Education / Experience / Additional Requirements
-#skills                        → skill chips
-label p + value p              → Workplace / Employment Status / Job Location
-Application Deadline           → deadline
-app-company-info-card          → company address / size
-```
-
-The listing title is the trusted identity. Rendered-page title candidates are accepted only when they match that listing identity. A missing rendered title falls back to the listing title; an explicit mismatch never overwrites listing data.
-
-The detail validity gate is structural. A page is not considered a usable Bdjobs detail document merely because it contains thousands of characters from footer or navigation content.
-
-## Private discovery: category first
-
-The original Bdjobs private lane remains unchanged and uses the configured BBA/MBA-relevant category universe. BDJobs Live contributes an additional 14-category functional lane with bounded per-category discovery and the same downstream funnel.
-
-Both private sources feed one shared pool before detail research and selection, so the new source expands discovery without introducing a separate scoring or quota system.
-
-
-```text
-1   Accounting / Finance
-2   Bank / Non-Bank Financial Institution
-3   Commercial / Supply Chain
-9   Marketing / Sales
-17  HR / Organization Development
-7   General Management / Admin
-16  Customer Service / Call Centre
-10  Media / Advertisement / Event Management
-13  Research / Consultancy
-12  NGO / Development
-20  Hospitality / Travel / Tourism
-6   Garments / Textile
-8   IT / Telecom
-4   Education / Training
-```
-
-Discovery is performed per category. Category priority changes discovery effort, not final ranking.
-
-The comparison-pool targets are:
-
-```text
-PRIVATE_DISCOVERY_TARGET = 160
-PRIVATE_DISCOVERY_MAX    = 200
-```
-
-These numbers are not publication quotas and are not implemented as a global "find 100 jobs first" request.
-
-## Recency
-
-Private jobs use the actual published date and a hard five-day freshness window:
-
-```text
-MAX_POST_AGE_DAYS = 5
-```
-
-Discovery expands progressively:
-
-```text
-Today
-  ↓
-Last 2 days
-  ↓
-Last 3 days
-  ↓
-Last 4 days
-  ↓
-Last 5 days
-```
-
-Featured ordering or card position is never treated as the posted date.
-
-## Cloudflare-resistant Bdjobs fetching
-
-Bdjobs listing and detail pages use this fetch chain:
-
-```text
-curl_cffi browser impersonation
+exact canonical URL
         ↓
-rotate iOS Safari fingerprints on challenge
+same-source native job ID
         ↓
-Cloudflare challenge detection
+cross-source company + normalized title
         ↓
-Jina Reader fallback (current /hn/details route first)
+location + recent posting compatibility
         ↓
-plain-text / HTML extraction
+application URL as supporting evidence only
 ```
 
-Default browser fingerprints:
+A shared Teletalk application URL alone does not merge two different government roles from the same circular.
 
-```text
-safari18_0_ios
-safari180_ios
-safari184_ios
-safari_ios
-```
+A mirrored vacancy such as the same company and same role on Bdjobs and BDJobs Live is treated as one vacancy.
 
-A Cloudflare response is detected from status, headers, and challenge-page markers. A normal HTTP 200 is not considered sufficient unless job content can actually be extracted.
+Persistent duplicate state uses both `news_state.json` and `posted_urls.txt`.
 
-Jina fallback format:
+## Detail research allocation
 
-```text
-https://r.jina.ai/<original-url>
-```
+`PRIVATE_DETAIL_TARGET` remains a research budget, not a publication quota.
 
-Scrapling is required for the protected client-rendered Bdjobs detail fallback. `curl_cffi` is the first HTTP acquisition layer and Jina is the plain-text fallback when the browser path is unavailable.
+V2 reserves a bounded internship research slice and gives BDJobs Live a real regular-private research share. Unused source capacity is returned to the remaining private pool.
 
-A detail-page failure is not allowed to silently delete a candidate. When the Bdjobs detail page is blocked, thin, or unavailable, the pipeline records the failure and preserves a job when the listing already contains enough source-backed fields.
+The goal is to prevent the large Bdjobs discovery volume from starving BDJobs Live and dedicated internship sources without imposing an artificial source publication split for ordinary private jobs.
 
-The production log exposes separate private detail counts:
+## Selection
 
-```text
-PRIVATE DETAIL SUCCESS
-PRIVATE DETAIL FALLBACK
-PRIVATE DETAIL FAILED
-```
+The final selector operates in this order:
 
-This makes a zero-private run diagnosable instead of appearing as a normal successful publication run.
+1. regular private target
+2. internship target with Bdjobs/BDJobs Live source preference
+3. government target
+4. remaining flexible capacity up to the hard maximum
 
-## Permanent detail-page protection
+Quality, freshness, BBA/MBA relevance, source fidelity, information quality, experience, deadline, duplicate status, and diversity remain enforced.
 
-The Bdjobs detail route can return an application shell with HTTP `200` while the actual job content is not present. CareerNewsroom now validates the rendered Bdjobs DOM structurally before merging detail fields, so CSS/JavaScript size can never make a non-job shell look like a valid detail page.
+## Government handling
 
-```text
-curl_cffi + iOS Safari fingerprint
-        ↓
-visible-content validation
-        ↓
-fingerprint rotation
-        ↓
-Jina Reader
-        ↓
-same-card listing preservation
-```
+Government jobs remain a separate Teletalk lane and are capped at five base selections per run. They cannot consume the private target.
 
-Listing preservation also extracts the company from the same job card when the card has no explicit `Company` label. A detail failure therefore does not erase a usable private candidate.
+## Deadline expiry
 
-## Private intelligence pipeline
-
-```text
-Category discovery
-      ↓
-Normalize
-      ↓
-Deduplicate
-      ↓
-Business-career classification
-      ↓
-Hard validity gate
-      ↓
-100-point deterministic score
-      ↓
-Top 60 detail candidates
-      ↓
-Detail enrichment
-      ↓
-Top 50 semantic audit
-      ↓
-85% deterministic + 15% AI
-      ↓
-Company/category diversity
-      ↓
-Quality floor
-      ↓
-Dynamic 12–20 private/government assembly
-      ↓
-Telegram
-```
-
-## Private ranking model
-
-| Factor | Weight |
-|---|---:|
-| BBA/MBA eligibility | 25 |
-| Business career / role fit | 20 |
-| Career-stage fit | 15 |
-| Freshness | 15 |
-| Deadline usefulness | 10 |
-| Salary attractiveness | 5 |
-| Vacancy opportunity | 5 |
-| Information quality | 5 |
-| **Total** | **100** |
-
-Government jobs use a separate source-specific score and never enter the private BBA/MBA gate.
-
-## AI policy
-
-Cerebras is a semantic audit layer, not the source of truth.
-
-It can evaluate:
-
-```text
-education match
-role fit
-career-stage fit
-qualification contradictions
-specialist-degree requirements
-seniority
-semantic relevance
-```
-
-Missing AI configuration, invalid AI JSON, rate limits, or timeouts fall back to deterministic ranking.
-
-When AI is unavailable:
-
-```text
-final_score = deterministic_score
-```
-
-When AI is available:
-
-```text
-final_score = deterministic_score × 0.85 + ai_score × 0.15
-```
-
-## Publication rules
-
-```text
-MAX_STORIES_PER_RUN    = 20
-MIN_PRIVATE_POSTS_PER_RUN = 0
-MIN_GOVERNMENT_POSTS_PER_RUN = 0
-MIN_INTERNSHIP_POSTS_PER_RUN = 0
-QUALITY_FLOOR          = 65
-```
-
-Selection is dynamic. There is no requirement to fill a minimum count, private/government mix, or internship count. Quality and source-backed eligibility determine how many vacancies are published on each run.
-
-Snapshot integrity is checked before final selection, so rejected sparse records do not consume quota slots. A defensive second check runs immediately before Telegram publication.
-
-Private selection uses soft diversity penalties:
-
-```text
-~2 jobs per company
-~3–4 jobs per career family
-```
-
-These are not hard quotas.
-
-## Telegram output
-
-Each selected vacancy becomes one text-only Telegram Rich Message with:
-
-```text
-JOB TITLE
-Company
-
-JOB SNAPSHOT
-Location
-Employment
-Workplace
-Education
-Experience
-Salary
-Vacancy
-Age
-Deadline
-Posted
-
-Career News signature
-Source
-```
-
-The source URL is retained and used for `READ MORE` when a verified application URL is not available. `APPLY NOW` is used only when an application URL is identified.
-
-## Deadline expiry updater
-
-At the start of every normal run, CareerNewsroom checks previously published events in `news_state.json` that have a stored Telegram `message_id` and deadline. A date-only deadline remains active through the end of that date in `Asia/Dhaka`.
-
-When a deadline has passed, the bot edits the existing post in place:
+At the start of every normal run, previously published posts with expired deadlines are edited through the Telegram Bot API.
 
 ```text
 APPLY NOW
-     ↓
-EXPIRED DEADLINE  (danger/red button)
-     ↓
-https://t.me/CareerNewsroom
+   ↓
+EXPIRED DEADLINE
 ```
 
-The original application URL is removed from the button. The clickable source URL is also removed from the edited rich message while the plain `Source: Bdjobs` / `Source: Teletalk` label remains. The event is then marked `expired` so the same message is not repeatedly edited.
+The expired button uses the configured CareerNewsroom promo URL. The original application/source link is removed from the expired rich message while the plain source name remains.
 
-The updater uses the Telegram Bot API `editMessageText` with the rich-message payload and `editMessageReplyMarkup` as a bounded fallback. Telethon is not required for this feature. Telegram controls the exact text contrast used with the `danger` button style.
+Date-only deadlines remain valid through the end of the Bangladesh local date.
 
-The updater processes up to `DEADLINE_SWEEP_MAX_UPDATES_PER_RUN` expired posts per run (default `100`), oldest deadlines first. Any deferred backlog is processed by later scheduled runs.
+No Telethon session is required.
 
-## State
+## State persistence
 
-The repository keeps the same simple GitHub-friendly state files:
+State remains in:
 
 ```text
 news_state.json
 posted_urls.txt
 ```
 
-State tracks source identity, job identity, dates, ranking values, lifecycle status, publication time, and pipeline version.
+The GitHub Actions workflow:
 
-Candidates receive an explicit lifecycle disposition rather than silently disappearing between stages.
+```text
+commit
+  ↓
+push
+  ↓
+if remote advanced:
+    fetch
+    reconcile local state snapshot with remote state
+    retry
+  ↓
+only declare success after persistence is confirmed
+```
+
+No force push is used. Newer remote state is not discarded.
+
+## Source failure semantics
+
+A valid empty source result is different from a source exception.
+
+```text
+source returns 0 jobs       → healthy, continue
+source temporarily errors   → log source as unhealthy, continue other sources
+all discovery sources error  → genuine pipeline failure
+```
+
+Therefore `Published=0` is not an error, but a completely unavailable discovery system is.
+
+BDJobs Live diagnostic failure alone is never allowed to prevent Bdjobs + Teletalk production execution.
+
+## AI policy
+
+Cerebras is an optional semantic audit layer.
+
+It may evaluate relevance, seniority, qualification fit, contradictions, internship status, and display-field preference.
+
+When AI is unavailable, deterministic scoring continues the pipeline.
+
+AI is never the source of factual job fields.
+
+## Configuration
+
+Core production values:
+
+```text
+MAX_POST_AGE_DAYS=5
+TARGET_STORIES_PER_RUN=19
+MAX_STORIES_PER_RUN=25
+PRIVATE_TARGET_PER_RUN=10
+GOVERNMENT_TARGET_PER_RUN=5
+INTERNSHIP_TARGET_PER_RUN=4
+INTERNSHIP_BDJOBS_TARGET=2
+INTERNSHIP_BDJOBSLIVE_TARGET=2
+EXTRA_TARGET_PER_RUN=6
+PRIVATE_DETAIL_TARGET=60
+INTERNSHIP_DETAIL_TARGET=12
+DETAIL_WORKERS=8
+```
+
+Publication minimums intentionally remain zero:
+
+```text
+MIN_PRIVATE_POSTS_PER_RUN=0
+MIN_GOVERNMENT_POSTS_PER_RUN=0
+MIN_INTERNSHIP_POSTS_PER_RUN=0
+```
 
 ## Production validation
 
-The production repository intentionally contains no `tests/` directory and the GitHub Actions workflow does not run `pytest`. Deterministic regression checks live in `main.py --self-test` so the production tree stays compact. The validation used for this release also checks the real Angular Bdjobs extraction pattern: footer `<h1>` rejection, header `<h2>` title identity, title-suffix cleanup, wrong-job protection, summary/requirements extraction, and browser wait configuration.
-
-## Repository tree
+Before release:
 
 ```text
-CareerNewsroom/
-│
+python -m py_compile main.py
+python main.py --self-test
+```
+
+The built-in self-test covers:
+
+```text
+Bdjobs extraction
+Bdjobs salary collision regression
+BDJobs Live DOM extraction
+BDJobs Live salary collision regression
+BDJobs Live browser configuration
+internship lane detection
+internship snapshot rules
+cross-source duplicate protection
+same-circular/different-role protection
+source-balanced selection
+zero-job success behavior
+deadline expiry
+Telegram message-id flow
+Git state reconciliation
+```
+
+The production ZIP contains no tests directory, logs, cache, or debug artifacts.
+
+## Required GitHub secrets
+
+```text
+TELEGRAM_BOT_TOKEN
+CEREBRAS_API_KEY
+```
+
+Optional:
+
+```text
+CEREBRAS_MODEL
+```
+
+Do not commit secrets to the repository.
+
+## Production tree
+
+```text
+Career News V1/
+├── main.py
 ├── README.md
 ├── requirements.txt
-├── main.py
 ├── news_state.json
 ├── posted_urls.txt
-│
 └── .github/
     └── workflows/
         └── newbot.yml
 ```
 
-The tree intentionally preserves the previous repository's GitHub-oriented flat structure.
-
-## Environment variables
-
-Required for publishing:
-
-```text
-TELEGRAM_BOT_TOKEN
-TELEGRAM_CHANNEL
-```
-
-Optional non-secret expiry settings:
-
-```text
-TELEGRAM_PROMO_URL=https://t.me/CareerNewsroom
-DEADLINE_SWEEP_MAX_UPDATES_PER_RUN=100
-```
-
-The deadline expiry updater does **not** require `API_ID`, `API_HASH`, or `TELETHON_SESSION`.
-
-Optional AI configuration:
-
-```text
-CEREBRAS_API_KEY
-CEREBRAS_MODEL
-```
-
-Important discovery/ranking settings:
-
-```text
-MAX_POST_AGE_DAYS=5
-PRIVATE_DISCOVERY_TARGET=160
-PRIVATE_DISCOVERY_MAX=200
-PRIVATE_FAST_RANK_TARGET=60
-PRIVATE_DETAIL_TARGET=60
-AI_REVIEW_TARGET=50
-AI_BATCH_SIZE=8
-AI_RETRY_COUNT=1
-MIN_PRIVATE_POSTS_PER_RUN=0
-MIN_GOVERNMENT_POSTS_PER_RUN=0
-MIN_INTERNSHIP_POSTS_PER_RUN=0
-PRIVATE_MIN_FILL_SCORE=58
-PRIVATE_HARD_FILL_SCORE=55
-PRIVATE_MIN_INFORMATION_QUALITY=3
-PRIVATE_HARD_MIN_INFORMATION_QUALITY=3
-DETAIL_WORKERS=8
-DETAIL_TIMEOUT=14
-JINA_TIMEOUT=12
-QUALITY_FLOOR=65
-MAX_STORIES_PER_RUN=20
-JINA_RPM_LIMIT=24
-```
-
-`TARGET_STORIES_PER_RUN` is retained only as a legacy logging setting. It does not create a publication requirement.
-
-## Local commands
-
-```bash
-python main.py --self-test
-python main.py --source-test
-python main.py --dry-run
-python main.py --print-ranking
-python main.py --reconcile-state <snapshot-dir>
-```
-
-`--self-test` is offline and must pass before a release.
-
-`--source-test` performs live source diagnostics for Teletalk, one Bdjobs category/detail sample, and one BDJobs Live category. The BDJobs Live probe uses the same browser fallback when ordinary HTTP retrieval returns the client-rendered shell.
-
-`--dry-run` performs the pipeline without contacting Telegram.
-
-## GitHub Actions
-
-The workflow uses Python 3.12 on `ubuntu-24.04` and runs every three hours through GitHub Actions. Manual workflow dispatch also runs the live source diagnostics.
-
-The workflow stores state changes back into the repository after each run.
-
-## Security
-
-Never commit:
-
-```text
-TELEGRAM_BOT_TOKEN
-CEREBRAS_API_KEY
-```
-
-Use GitHub Actions Secrets.
-
-## Release acceptance
-
-A production release must satisfy all of the following:
-
-```text
-✓ category-first Bdjobs discovery
-✓ no global-first 100-job discovery path
-✓ Cloudflare detection
-✓ curl_cffi browser impersonation
-✓ iOS Safari fingerprint rotation
-✓ Jina fallback
-✓ Teletalk government lane
-✓ five-day private freshness gate
-✓ BBA/MBA/business classification
-✓ specialist-role exclusion
-✓ experience parsing and early-career ranking
-✓ salary / vacancy / deadline scoring
-✓ field-specific salary / experience collision protection
-✓ BDJobs Live static-index discovery fallback
-✓ adaptive private-source detail allocation
-✓ duplicate detection
-✓ selective detail enrichment
-✓ Cerebras structured audit
-✓ safe deterministic fallback
-✓ 85/15 final scoring
-✓ company/category diversity
-✓ quality floor
-✓ dynamic publication count
-✓ source identity consistency
-✓ Telegram rendering validation
-✓ self-test and compile check
-```
-
-
-## Publication constraints
-
-```text
-Private jobs: no minimum
-Government jobs: no minimum
-Internships: no minimum
-Maximum total posts: 20 per run
-Private snapshot minimum: 4 source-backed fields
-```
-
-
-## Cross-source duplicate protection
-
-CareerNewsroom now treats Bdjobs and BDJobs Live as potentially overlapping vacancy sources. Duplicate decisions are layered: exact canonical source URL, same-source native job IDs, then a conservative cross-source identity match using normalized job title + company, recent posting proximity, and location compatibility. A shared application endpoint is only a supporting signal and does not by itself merge different roles from the same government circular or ATS form.
-
-A company repost with different native IDs on the same source is not fuzzy-collapsed when both source IDs are explicitly different. Cross-source mirrors such as the same company and same role appearing on Bdjobs and BDJobs Live are collapsed before detail research and again protected by persistent published-state checks. Distinct Teletalk roles from the same circular remain separate when their source-native IDs or titles differ.
-
-## Dynamic publication and state persistence
-
-CareerNewsroom does not require a minimum number of posts per run. If only 4 qualifying jobs are found, it publishes 4. If none qualify, it publishes 0. A sparse run is a successful run.
-
-After publishing, the Telegram `message_id`, deadline, canonical URL, and related state are persisted in `news_state.json`; `posted_urls.txt` preserves deduplication history. The workflow uses fast-forward-only Git pushes, retries transient failures, and, when `origin/main` advances independently, reconciles the local state snapshot with remote state before retrying. It never force-pushes or silently discards state. A genuinely unrecoverable persistence failure keeps the workflow failed.
-
-### Private-source acceptance
-Bdjobs and BDJobs Live both use the same private deterministic gate. BDJobs Live is not a separate quality lane and is never rejected merely because its domain differs from Bdjobs. Its 14 category feeds enter the same freshness, BBA/MBA relevance, experience, information-quality, AI-review, diversity, and duplicate funnel.
-
-### BDJobs Live source adapter
-
-BDJobs Live uses its `/bdjobs-circular/<category>-jobs` routes for category discovery. Category pages are client-rendered, so browser rendering is reserved for listing discovery when direct HTML/Jina content does not expose job-detail links. A bounded `/index-data` fallback supplements weak category runs.
-
-Job-detail pages use stable semantic DOM anchors (`h1`, `/company-detail/` links, labelled summary fields, and `#section-*` blocks), so direct HTML/Jina extraction is preferred and browser rendering is only an exceptional fallback. The field parser explicitly rejects benefit headings and other section labels from becoming Salary/Experience values.
-
-Source diagnostics treat a temporary BDJobs Live category outage as non-fatal while still reporting the condition.
-
+The existing `Career News V1/` repository folder name is retained for deployment compatibility. The application pipeline itself reports `CareerNewsroom V2.0`.

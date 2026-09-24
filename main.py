@@ -9,6 +9,7 @@ import hashlib
 import shutil
 import threading
 import atexit
+import math
 from collections import deque
 
 try:
@@ -64,14 +65,14 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "CareerNewsroom"
-STATE_FORMAT_VERSION = 5
+PIPELINE_VERSION = "CareerNewsroom V2.0"
+STATE_FORMAT_VERSION = 6
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
 
-TARGET_STORIES_PER_RUN = int(os.environ.get("TARGET_STORIES_PER_RUN", "15"))
-MAX_STORIES_PER_RUN = int(os.environ.get("MAX_STORIES_PER_RUN", "20"))
+TARGET_STORIES_PER_RUN = int(os.environ.get("TARGET_STORIES_PER_RUN", "19"))
+MAX_STORIES_PER_RUN = int(os.environ.get("MAX_STORIES_PER_RUN", "25"))
 MIN_PRIVATE_POSTS_PER_RUN = int(os.environ.get("MIN_PRIVATE_POSTS_PER_RUN", "0"))
 MIN_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MIN_GOVERNMENT_POSTS_PER_RUN", "0"))
 QUALITY_FLOOR = float(os.environ.get("QUALITY_FLOOR", "65"))
@@ -80,17 +81,24 @@ PRIVATE_HARD_FILL_SCORE = float(os.environ.get("PRIVATE_HARD_FILL_SCORE", "55"))
 PRIVATE_MIN_INFORMATION_QUALITY = int(os.environ.get("PRIVATE_MIN_INFORMATION_QUALITY", "3"))
 PRIVATE_HARD_MIN_INFORMATION_QUALITY = int(os.environ.get("PRIVATE_HARD_MIN_INFORMATION_QUALITY", "3"))
 MAX_GOVERNMENT_POSTS_PER_RUN = int(os.environ.get("MAX_GOVERNMENT_POSTS_PER_RUN", "5"))
+PRIVATE_TARGET_PER_RUN = int(os.environ.get("PRIVATE_TARGET_PER_RUN", "10"))
+GOVERNMENT_TARGET_PER_RUN = int(os.environ.get("GOVERNMENT_TARGET_PER_RUN", "5"))
+INTERNSHIP_TARGET_PER_RUN = int(os.environ.get("INTERNSHIP_TARGET_PER_RUN", "4"))
+INTERNSHIP_BDJOBS_TARGET = int(os.environ.get("INTERNSHIP_BDJOBS_TARGET", "2"))
+INTERNSHIP_BDJOBSLIVE_TARGET = int(os.environ.get("INTERNSHIP_BDJOBSLIVE_TARGET", "2"))
+EXTRA_TARGET_PER_RUN = int(os.environ.get("EXTRA_TARGET_PER_RUN", "6"))
 POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "1.0"))
 
 MAX_POST_AGE_DAYS = int(os.environ.get("MAX_POST_AGE_DAYS", "5"))
-PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "120"))
+PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "180"))
 PRIVATE_DISCOVERY_MAX = int(os.environ.get("PRIVATE_DISCOVERY_MAX", "200"))
-PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "60"))
+PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "80"))
 PRIVATE_DETAIL_TARGET = int(os.environ.get("PRIVATE_DETAIL_TARGET", "60"))
-INTERNSHIP_DETAIL_TARGET = int(os.environ.get("INTERNSHIP_DETAIL_TARGET", "10"))
+INTERNSHIP_DETAIL_TARGET = int(os.environ.get("INTERNSHIP_DETAIL_TARGET", "12"))
 INTERNSHIP_AI_TARGET = int(os.environ.get("INTERNSHIP_AI_TARGET", "8"))
 MIN_INTERNSHIP_POSTS_PER_RUN = int(os.environ.get("MIN_INTERNSHIP_POSTS_PER_RUN", "0"))
 PRIVATE_SNAPSHOT_MIN_FIELDS = int(os.environ.get("PRIVATE_SNAPSHOT_MIN_FIELDS", "4"))
+INTERNSHIP_SNAPSHOT_MIN_FIELDS = int(os.environ.get("INTERNSHIP_SNAPSHOT_MIN_FIELDS", "3"))
 GOVERNMENT_SNAPSHOT_MIN_FIELDS = int(os.environ.get("GOVERNMENT_SNAPSHOT_MIN_FIELDS", "3"))
 AI_REVIEW_TARGET = int(os.environ.get("AI_REVIEW_TARGET", "50"))
 AI_BATCH_SIZE = int(os.environ.get("AI_BATCH_SIZE", "8"))
@@ -112,10 +120,13 @@ MAX_JOB_CONTENT_CHARS = 18000
 DETAIL_MIN_TEXT_CHARS = int(os.environ.get("DETAIL_MIN_TEXT_CHARS", "220"))
 DETAIL_CACHE = {}
 DETAIL_CACHE_TTL_SECONDS = int(os.environ.get("DETAIL_CACHE_TTL_SECONDS", "900"))
+LAST_DISCOVERY_HEALTH = {}
 
 BDJOBS_LISTING_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_LEGACY_LISTING_URL = "https://jobs.bdjobs.com/jobsearch.asp"
 BDJOBS_DETAIL_BASE = "https://jobs.bdjobs.com/jobdetails.asp?id="
+BDJOBS_INTERNSHIP_URL = os.environ.get("BDJOBS_INTERNSHIP_URL", "https://bdjobs.com/h/jobs?lang=en&JobType=intern")
+BDJOBSLIVE_INTERNSHIP_URL = os.environ.get("BDJOBSLIVE_INTERNSHIP_URL", "https://www.bdjobslive.com/bdjobs-circular/internship-opportunity")
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 BDJOBSLIVE_DOMAIN = "bdjobslive.com"
 PRIVATE_JOB_DOMAINS = [*BDJOBS_DOMAINS, BDJOBSLIVE_DOMAIN]
@@ -125,11 +136,11 @@ BDJOBSLIVE_CATEGORY_CAP = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_CAP", "
 BDJOBSLIVE_DISCOVERY_MAX = max(1, int(os.environ.get("BDJOBSLIVE_DISCOVERY_MAX", "120")))
 BDJOBSLIVE_TIMEOUT = int(os.environ.get("BDJOBSLIVE_TIMEOUT", "18"))
 BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "15000"))
-BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "1800"))
+BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "2200"))
 BDJOBSLIVE_BROWSER_DETAIL_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_DETAIL_LIMIT", "60"))
 BDJOBSLIVE_BROWSER_LISTING_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_LISTING_LIMIT", "28"))
 BDJOBSLIVE_INDEX_FALLBACK_URL = os.environ.get(
-    "BDJOBSLIVE_INDEX_FALLBACK_URL", "https://www.bdjobslive.com/index-data"
+    "BDJOBSLIVE_INDEX_FALLBACK_URL", "https://www.bdjobslive.com/"
 ).strip()
 BDJOBSLIVE_INDEX_FALLBACK_CAP = max(1, int(os.environ.get("BDJOBSLIVE_INDEX_FALLBACK_CAP", "60")))
 try:
@@ -215,7 +226,7 @@ SOURCE_NAMES = {
 }
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger("career-news-v1")
+logger = logging.getLogger("career-news-v2")
 
 session = requests.Session()
 session.headers.update(HEADERS)
@@ -611,7 +622,7 @@ def save_posted_url(canonical):
 
 STATE = load_state()
 POSTED_URLS = load_posted_urls()
-# V1 state uses a fresh queue schema while preserving only current-run compatible data.
+# V2 state uses the same queue/event model with explicit format migration.
 # Keep posted history, but do not reuse legacy pending queue records.
 if int(STATE.get("format_version", 0) or 0) < STATE_FORMAT_VERSION:
     for _key, _item in STATE.get("queue", {}).items():
@@ -1163,7 +1174,7 @@ def _fetch_jina(url, *, timeout=None):
             JINA_PREFIX + request_safe_url(url),
             headers={
                 "Accept": "text/plain, text/markdown",
-                "User-Agent": "Career News V1/1.0",
+                "User-Agent": "Career News V2.0/2.0",
                 "X-Base": "true",
             },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
@@ -1279,6 +1290,40 @@ def discover_bdjobs():
         len(all_items), PRIVATE_DISCOVERY_TARGET, PRIVATE_DISCOVERY_MAX, len(BDBJOBS_CATEGORIES), enriched,
     )
     return all_items[:PRIVATE_DISCOVERY_MAX]
+
+
+def discover_bdjobs_internships():
+    """Discover internships from Bdjobs' dedicated internship feed."""
+    cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
+    collected, seen = [], set()
+    base_urls = [BDJOBS_INTERNSHIP_URL]
+    if "?" in BDJOBS_INTERNSHIP_URL and "JobType=intern" in BDJOBS_INTERNSHIP_URL:
+        base_urls.append("https://bdjobs.com/h/jobs?JobType=intern&lang=en")
+    for base_url in base_urls:
+        if len(collected) >= max(INTERNSHIP_DETAIL_TARGET * 3, 24):
+            break
+        fetched = _fetch_source_document(base_url, timeout=DISCOVERY_TIMEOUT, referer=BDJOBS_LISTING_URL)
+        if not fetched:
+            continue
+        page_url = fetched.get("url") or base_url
+        candidates = _bdjobs_listing_candidates(
+            fetched.get("text", ""), page_url, "internship", "Internship"
+        )
+        for item in candidates:
+            canonical = item.get("canonical") or canonical_url(item.get("url", ""))
+            if not canonical or canonical in seen or canonical in POSTED_URLS:
+                continue
+            item["discovery"] = "bdjobs_internship"
+            item["lane"] = "internship"
+            item["category_name"] = "Internship"
+            item["is_internship_source"] = True
+            pdt = parse_datetime(item.get("listing_posted"))
+            if pdt and pdt < cutoff:
+                continue
+            seen.add(canonical)
+            collected.append(item)
+    logger.info("BDJOBS INTERNSHIP DISCOVERY | candidates=%d url=%s", len(collected), BDJOBS_INTERNSHIP_URL)
+    return collected[:max(INTERNSHIP_DETAIL_TARGET * 3, 24)]
 
 BDJOBSLIVE_CATEGORIES = (
     ("Accounting / Finance", "accounting-finance-jobs", "accounting-finance"),
@@ -1548,10 +1593,13 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 solve_cloudflare=False,
                 block_webrtc=True,
                 hide_canvas=True,
-                retries=0,
+                retries=1,
                 retry_delay=0,
             )
-            if opts["wait_selector"]:
+            # The listing shell can take a moment to hydrate and may not expose
+            # a detail link quickly enough for selector-based waiting. Let the
+            # renderer return after a bounded DOM wait and inspect the HTML.
+            if mode == "detail" and opts["wait_selector"]:
                 kwargs.update(wait_selector=opts["wait_selector"], wait_selector_state="attached")
             page = StealthyFetcher.fetch(target, **kwargs)
             text = _scrapling_visible_text(page)
@@ -1784,12 +1832,12 @@ def discover_bdjobslive():
                 )
         _bdjobslive_add_discovery_items(
             all_items, seen, fallback_items[:BDJOBSLIVE_INDEX_FALLBACK_CAP],
-            discovery_name="bdjobslive_index_fallback",
+            discovery_name="bdjobslive_homepage_fallback",
             cap=BDJOBSLIVE_DISCOVERY_MAX,
         )
         if fallback_items:
             logger.info(
-                "BDJOBSLIVE INDEX FALLBACK | candidates=%d added=%d url=%s",
+                "BDJOBSLIVE HOMEPAGE FALLBACK | candidates=%d added=%d url=%s",
                 len(fallback_items),
                 min(len(fallback_items), BDJOBSLIVE_INDEX_FALLBACK_CAP),
                 BDJOBSLIVE_INDEX_FALLBACK_URL,
@@ -1804,6 +1852,61 @@ def discover_bdjobslive():
     all_items=all_items[:BDJOBSLIVE_DISCOVERY_MAX]
     logger.info("BDJOBSLIVE DISCOVERY | raw=%d categories=%d max=%d", len(all_items), len(categories), BDJOBSLIVE_DISCOVERY_MAX)
     return all_items
+
+
+def discover_bdjobslive_internships():
+    """Discover internships from the dedicated BDJobs Live internship feed."""
+    if not BDJOBSLIVE_ENABLED:
+        return []
+    cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
+    collected, seen = [], set()
+    url = BDJOBSLIVE_INTERNSHIP_URL
+    fetched = _fetch_source_document(url, timeout=min(BDJOBSLIVE_TIMEOUT, 15), referer="https://bdjobslive.com/")
+    candidates = _bdjobslive_listing_candidates(
+        (fetched or {}).get("text", ""), (fetched or {}).get("url") or url, "Internship"
+    ) if fetched else []
+    if not candidates:
+        browser = _fetch_bdjobslive_browser_document(url, mode="listing")
+        if browser:
+            candidates = _bdjobslive_listing_candidates(
+                browser.get("html", "") or browser.get("text", ""),
+                browser.get("url") or url,
+                "Internship",
+            )
+    # Dedicated internship pages can be shell-only. Use the homepage as a bounded
+    # final discovery supplement and retain only clearly internship-labelled cards.
+    if not candidates:
+        homepage_url = "https://www.bdjobslive.com/"
+        home = _fetch_source_document(homepage_url, timeout=min(BDJOBSLIVE_TIMEOUT, 12), referer=homepage_url)
+        home_candidates = _bdjobslive_listing_candidates(
+            (home or {}).get("text", ""), (home or {}).get("url") or homepage_url, "Internship"
+        ) if home else []
+        if not home_candidates and home is not None:
+            browser = _fetch_bdjobslive_browser_document(homepage_url, mode="listing")
+            if browser:
+                home_candidates = _bdjobslive_listing_candidates(
+                    browser.get("html", "") or browser.get("text", ""),
+                    browser.get("url") or homepage_url, "Internship"
+                )
+        candidates = [
+            item for item in home_candidates
+            if re.search(r"\bintern(?:ship|s)?\b", f"{safe_text(item.get('title'))} {safe_text(item.get('category_name'))} {safe_text(item.get('excerpt'))}", flags=re.I)
+        ]
+    for item in candidates:
+        canonical = item.get("canonical") or canonical_url(item.get("url", ""))
+        if not canonical or canonical in seen or canonical in POSTED_URLS:
+            continue
+        item["discovery"] = "bdjobslive_internship"
+        item["lane"] = "internship"
+        item["category_name"] = "Internship"
+        item["is_internship_source"] = True
+        pdt = parse_datetime(item.get("listing_posted"))
+        if pdt and pdt < cutoff:
+            continue
+        seen.add(canonical)
+        collected.append(item)
+    logger.info("BDJOBSLIVE INTERNSHIP DISCOVERY | candidates=%d", len(collected))
+    return collected[:max(INTERNSHIP_DETAIL_TARGET * 3, 24)]
 
 
 def _teletalk_record_fields(record):
@@ -1863,27 +1966,61 @@ def _discover_teletalk_api():
     return discovered
 
 def discover_all():
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    """Run every discovery lane independently. Empty results are valid; only exceptions are unhealthy."""
+    global LAST_DISCOVERY_HEALTH
+    with ThreadPoolExecutor(max_workers=5) as pool:
         ft = pool.submit(_discover_teletalk_api)
         fb = pool.submit(discover_bdjobs)
         fl = pool.submit(discover_bdjobslive)
-        try: government = ft.result()
-        except Exception as exc: logger.warning("Teletalk worker failed: %s", exc); government = []
-        try: bdjobs = fb.result()
-        except Exception as exc: logger.warning("Bdjobs worker failed: %s", exc); bdjobs = []
-        try: bdjobslive = fl.result()
-        except Exception as exc: logger.warning("BDJobs Live worker failed: %s", exc); bdjobslive = []
+        fib = pool.submit(discover_bdjobs_internships)
+        fil = pool.submit(discover_bdjobslive_internships)
+
+        results = {}
+        futures = {
+            "Teletalk": ft,
+            "Bdjobs": fb,
+            "BDJobs Live": fl,
+            "Bdjobs Internships": fib,
+            "BDJobs Live Internships": fil,
+        }
+        health = {}
+        for source, future in futures.items():
+            try:
+                value = future.result()
+                results[source] = value or []
+                health[source] = {"status": "ok", "count": len(results[source])}
+            except Exception as exc:
+                logger.warning("%s worker failed: %s", source, exc)
+                results[source] = []
+                health[source] = {"status": "error", "count": 0, "error": safe_text(exc)[:240]}
+
+    LAST_DISCOVERY_HEALTH = health
+    error_sources = [name for name, info in health.items() if info.get("status") == "error"]
+    healthy_sources = [name for name, info in health.items() if info.get("status") == "ok"]
+    logger.info(
+        "DISCOVERY HEALTH | healthy=%d/%d | errors=%s",
+        len(healthy_sources), len(health), ", ".join(error_sources) if error_sources else "none",
+    )
+    # A genuine all-source outage is different from a valid zero-job result.
+    # Fail loudly only when every discovery lane raised an exception.
+    if health and not healthy_sources:
+        raise RuntimeError("All discovery sources failed; no source produced a valid discovery result")
+
+    government = results.get("Teletalk", [])
+    bdjobs = results.get("Bdjobs", [])
+    bdjobslive = results.get("BDJobs Live", [])
+    internships_bdjobs = results.get("Bdjobs Internships", [])
+    internships_live = results.get("BDJobs Live Internships", [])
 
     merged, seen = [], set()
-    # Keep the established source priority deterministic. Cross-source duplicate
-    # detection later can still collapse a BDJobs Live mirror against a Bdjobs job.
-    for item in government + bdjobs + bdjobslive:
+    for item in government + bdjobs + bdjobslive + internships_bdjobs + internships_live:
         canonical = item.get("canonical") or canonical_url(item.get("source_url", ""))
-        if canonical and canonical not in seen:
+        if canonical and canonical not in seen and canonical not in POSTED_URLS:
             seen.add(canonical); merged.append(item)
+    internship_count = sum(1 for x in merged if x.get("lane") == "internship" or x.get("is_internship_source"))
     logger.info(
-        "DISCOVERED | Teletalk=%d | Bdjobs=%d | BDJobsLive=%d | merged=%d",
-        len(government), len(bdjobs), len(bdjobslive), len(merged),
+        "DISCOVERED | Teletalk=%d | Bdjobs=%d | BDJobsLive=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | internships=%d | merged=%d",
+        len(government), len(bdjobs), len(bdjobslive), len(internships_bdjobs), len(internships_live), internship_count, len(merged),
     )
     return merged
 
@@ -3095,6 +3232,8 @@ def _valid_source_field_value(field, value):
             return False
         if re.search(r"(?:^|\s)(?:salary\s*&\s*benefits|compensation\s*&\s*other\s+benefits)(?:$|\s)", value, flags=re.I):
             return False
+        if re.fullmatch(r"(?:salary|salary\s*&\s*benefits|compensation\s*&\s*other\s+benefits|other\s+benefits)", value, flags=re.I):
+            return False
         if "benefit" in norm and not re.search(r"(?:\d|bdt|tk\.?|৳|negotiable|competitive|not disclosed)", norm, flags=re.I):
             return False
     elif field == "experience":
@@ -3111,6 +3250,8 @@ def _valid_source_field_value(field, value):
             return False
     elif field == "application_method":
         if norm in {"application", "application process", "application procedure"}:
+            return False
+        if re.match(r"^(?:deadline|application\s+deadline)\b", norm, flags=re.I):
             return False
     return True
 
@@ -3207,18 +3348,34 @@ def _extract_source_label_fields(text):
     # Some Bdjobs templates place the actual monthly salary in the
     # `Compensation & Other Benefits` section rather than the summary row.
     # Recover it explicitly without accepting the section heading itself.
+    # Dedicated exact-label recovery. This is intentionally later than the
+    # normal label parser so a section heading such as `Salary & Benefits` can
+    # never lock the field to a bogus value.
     if not result.get("salary"):
         salary_patterns = (
-            r"(?:Monthly\s+salary)\s*[:：-]\s*([^|;\n]+)",
-            r"(?:Monthly\s+Salary)\s*[:：-]\s*([^|;\n]+)",
+            r"(?:^|\n)\s*(?:Monthly\s+salary|Monthly\s+Salary|Salary)\s*[:：-]\s*(?!&\s*(?:other\s+)?benefits?\b)([^\n|;]+)",
+            r"(?:Monthly\s+salary|Monthly\s+Salary)\s*[:：-]\s*([^|;\n]+)",
         )
         for pattern in salary_patterns:
-            match = re.search(pattern, clean_reader_markdown(text), flags=re.I)
-            if match:
+            for match in re.finditer(pattern, clean_reader_markdown(text), flags=re.I):
                 candidate = _clean_one_line(match.group(1))
                 if _valid_source_field_value("salary", candidate):
                     result["salary"] = candidate
                     break
+            if result.get("salary"):
+                break
+    if not result.get("experience"):
+        experience_patterns = (
+            r"(?:^|\n)\s*(?:Experience|Experience\s+Requirement|Experience\s+Requirements)\s*[:：-]\s*([^\n|;]+)",
+        )
+        for pattern in experience_patterns:
+            for match in re.finditer(pattern, clean_reader_markdown(text), flags=re.I):
+                candidate = _clean_one_line(match.group(1))
+                if _valid_source_field_value("experience", candidate):
+                    result["experience"] = candidate
+                    break
+            if result.get("experience"):
+                break
     return result
 
 
@@ -3244,6 +3401,74 @@ def _extract_bdjobs_company_from_document(text, expected_title):
         return candidate
     return ""
 
+
+def _bdjobslive_label_value(soup, labels):
+    """Read a labelled BDJobs Live value without crossing into unrelated page content.
+
+    The detail page normally uses a label element followed immediately by a value
+    element (for example ``<span>Salary:</span><strong>Negotiable</strong>``).
+    Broad parent traversal is deliberately avoided because the page body can contain
+    many unrelated summary blocks such as Application Deadline.
+    """
+    wanted = {re.sub(r"\s+", " ", safe_text(x).rstrip(":-")).strip().casefold() for x in labels}
+    elements = soup.find_all(["span", "p", "label", "dt", "h3", "h4", "h5", "strong", "div"])
+    for el in elements:
+        raw = _clean_one_line(el.get_text(" ", strip=True))
+        norm = re.sub(r"\s+", " ", raw.rstrip(":-")).strip().casefold()
+        if norm not in wanted:
+            continue
+
+        parent = getattr(el, "parent", None)
+        # 1. Most reliable: immediate siblings after the exact label.
+        for sibling in getattr(el, "next_siblings", []):
+            candidate = _clean_one_line(sibling.get_text(" ", strip=True) if hasattr(sibling, "get_text") else str(sibling))
+            if not candidate:
+                continue
+            candidate_norm = re.sub(r"\s+", " ", candidate.rstrip(":-")).strip().casefold()
+            if candidate_norm in wanted:
+                continue
+            if len(candidate) <= 300 and not is_noise_title(candidate):
+                return candidate
+            # Do not walk through a long unrelated node.
+            break
+
+        # 2. Same summary cell: next direct child of a non-page-level parent.
+        if parent is not None and getattr(parent, "name", "") not in {"body", "html", "main"} and hasattr(parent, "find_all"):
+            children = parent.find_all(["strong", "span", "p", "label", "dt", "dd", "div"], recursive=False)
+            try:
+                idx = children.index(el)
+            except ValueError:
+                idx = -1
+            if idx >= 0:
+                for child in children[idx + 1: idx + 3]:
+                    candidate = _clean_one_line(child.get_text(" ", strip=True))
+                    candidate_norm = re.sub(r"\s+", " ", candidate.rstrip(":-")).strip().casefold()
+                    if not candidate or candidate_norm in wanted:
+                        continue
+                    if len(candidate) <= 300 and not is_noise_title(candidate):
+                        return candidate
+
+        # 3. Definition-list semantics.
+        if parent is not None and getattr(parent, "name", "") in {"dl", "div", "section", "article"}:
+            if el.name in {"dt", "label", "span", "p", "h3", "h4", "h5"}:
+                nxt = el.find_next_sibling(["dd", "strong", "span", "p", "div"])
+                if nxt is not None:
+                    candidate = _clean_one_line(nxt.get_text(" ", strip=True))
+                    candidate_norm = re.sub(r"\s+", " ", candidate.rstrip(":-")).strip().casefold()
+                    if candidate and candidate_norm not in wanted and len(candidate) <= 300 and not is_noise_title(candidate):
+                        return candidate
+
+        # 4. Narrow labelled block fallback. Only accept a parent whose text starts
+        # with the requested label, preventing unrelated body content from leaking in.
+        if parent is not None and getattr(parent, "name", "") not in {"body", "html"} and hasattr(parent, "get_text"):
+            block = _clean_one_line(parent.get_text(" ", strip=True))
+            for label in labels:
+                m = re.match(rf"^{re.escape(label)}\s*[:：-]\s*(.+)$", block, flags=re.I)
+                if m:
+                    value = _clean_one_line(m.group(1))
+                    if value and value.casefold() != norm and len(value) <= 300 and not is_noise_title(value):
+                        return value
+    return ""
 
 def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
     """Extract BDJobs Live detail fields from stable semantic DOM anchors.
@@ -3292,12 +3517,24 @@ def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
                 break
 
     summary = _extract_source_label_fields(_text_from_html(page_html))
-    for key in (
-        "location", "salary", "experience", "age", "vacancy",
-        "employment_type", "workplace", "application_method",
-        "deadline", "posted_date", "company",
-    ):
-        if summary.get(key):
+    semantic_labels = {
+        "location": ("Location", "Job Location"),
+        "salary": ("Salary",),
+        "experience": ("Experience",),
+        "age": ("Age",),
+        "vacancy": ("Vacancy",),
+        "employment_type": ("Job Type", "Employment Status", "Employment Type"),
+        "workplace": ("Workplace", "Work Place", "Job Work Place"),
+        "application_method": ("Application",),
+        "deadline": ("Application Deadline", "Deadline"),
+        "posted_date": ("Published", "Posted"),
+        "company": ("Company", "Company Name"),
+    }
+    for key, labels in semantic_labels.items():
+        dom_value = _bdjobslive_label_value(soup, labels)
+        if dom_value and _valid_source_field_value(key, dom_value):
+            out[key] = dom_value
+        elif summary.get(key):
             out[key] = summary[key]
 
     for field, selector in ((
@@ -3324,6 +3561,16 @@ def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
                 value = _clean_one_line(node.get_text(" ", strip=True))
                 if value:
                     out[field] = value
+
+    gender = _bdjobslive_label_value(soup, ("Gender",))
+    if gender:
+        out["gender"] = gender
+    job_shift = _bdjobslive_label_value(soup, ("Job Shift",))
+    if job_shift:
+        out["job_shift"] = job_shift
+    job_location = _bdjobslive_label_value(soup, ("Job Location", "Location"))
+    if job_location:
+        out["job_location"] = job_location
 
     company_section = soup.select_one("#section-company")
     if company_section:
@@ -3568,6 +3815,9 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "age": age,
         "category": _clean_one_line(category),
         "application_method": application_method,
+        "gender": safe_text(source_dom.get("gender") or source_summary.get("gender") or ""),
+        "job_shift": safe_text(source_dom.get("job_shift") or source_summary.get("job_shift") or ""),
+        "job_location": compact_location(safe_text(source_dom.get("job_location") or source_dom.get("location") or source_summary.get("job_location") or "")),
         "selection_process": selection_process,
         "application_period": application_period,
         "application_start": application_start,
@@ -4193,6 +4443,8 @@ def research_job(item):
         "source_job_id": item.get("source_job_id", ""),
         "source_category_id": item.get("category_id", ""),
         "source_category_name": item.get("category_name", ""),
+        "lane": item.get("lane", "internship" if item.get("is_internship_source") else ""),
+        "is_internship_source": bool(item.get("is_internship_source")),
         "is_government": bool(item.get("is_government")),
     })
     if not fields.get("posted_date") and item.get("listing_posted"):
@@ -4341,10 +4593,16 @@ def deterministic_job_gate(job):
             or safe_text(job.get("category_name"))
             or safe_text(job.get("source_category_name"))
         )
-        if live_category and not _bdjobslive_category_allowed(live_category):
-            return False, "bdjobslive_category_not_allowed"
-        if job.get("discovery") == "bdjobslive_index_fallback" and not live_category:
-            return False, "bdjobslive_category_missing"
+        is_live_internship = bool(job.get("lane") == "internship" or job.get("is_internship_source"))
+        if not is_live_internship:
+            if live_category and not _bdjobslive_category_allowed(live_category):
+                return False, "bdjobslive_category_not_allowed"
+            if job.get("discovery") == "bdjobslive_index_fallback" and not live_category:
+                return False, "bdjobslive_category_missing"
+            if job.get("discovery") == "bdjobslive_homepage_fallback" and not live_category:
+                # Homepage candidates are validated by detail-page category/BBA relevance
+                # later; the homepage itself intentionally has mixed categories.
+                pass
     if deadline_status(job) == "expired": return False, "expired"
     age = posted_age_days(job)
     if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
@@ -4411,7 +4669,7 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the semantic audit layer for Career News V1.
+You are the semantic audit layer for Career Newsroom V2.0.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
@@ -4720,9 +4978,30 @@ def candidate_already_posted(job):
     return False
 
 
+def _merge_duplicate_metadata(kept, incoming):
+    """Preserve the richer identity/lane metadata when two discovery feeds mirror one vacancy."""
+    if is_internship_job(incoming):
+        kept["lane"] = "internship"
+        kept["is_internship_source"] = True
+    if safe_text(incoming.get("category_name")) and not safe_text(kept.get("category_name")):
+        kept["category_name"] = incoming.get("category_name")
+    for key in ("listing_posted", "listing_deadline", "company", "location", "education", "experience", "salary", "vacancy", "canonical", "source_url"):
+        if not safe_text(kept.get(key)) and safe_text(incoming.get(key)):
+            kept[key] = incoming.get(key)
+    existing_discoveries = kept.setdefault("discovery_sources", [])
+    if not isinstance(existing_discoveries, list):
+        existing_discoveries = [existing_discoveries] if existing_discoveries else []
+        kept["discovery_sources"] = existing_discoveries
+    for marker in (safe_text(kept.get("discovery")), safe_text(incoming.get("discovery"))):
+        if marker and marker not in existing_discoveries:
+            existing_discoveries.append(marker)
+    return kept
+
+
 def build_unique_job_pool(jobs):
     unique = []
     event_keys = set()
+    event_index = {}
     identity_buckets = {}
     for job in jobs:
         if candidate_already_posted(job):
@@ -4732,7 +5011,8 @@ def build_unique_job_pool(jobs):
             )
             continue
         event_key = job_event_key(job)
-        if event_key in event_keys:
+        if event_key in event_index:
+            _merge_duplicate_metadata(event_index[event_key], job)
             continue
         # First-pass bucket by normalized company/title family. This catches category copies
         # cheaply before the stronger fuzzy mirror comparison.
@@ -4753,17 +5033,21 @@ def build_unique_job_pool(jobs):
                 if previous_key not in seen_previous:
                     seen_previous.add(previous_key)
                     maybe_same.append(previous)
-        if any(likely_same_job(job, previous) for previous in maybe_same):
+        matched = next((previous for previous in maybe_same if likely_same_job(job, previous)), None)
+        if matched is not None:
+            _merge_duplicate_metadata(matched, job)
             continue
         unique.append(job)
         event_keys.add(event_key)
+        event_index[event_key] = job
         for bucket in bucket_keys:
             identity_buckets.setdefault(bucket, []).append(job)
     return unique
 
-
 def is_internship_job(job):
-    """Detect true internship opportunities without treating generic trainee roles as internships."""
+    """Detect internships using both explicit source lanes and job text."""
+    if job.get("lane") == "internship" or job.get("is_internship_source"):
+        return True
     title = safe_text(job.get("title")).lower()
     employment = safe_text(job.get("employment_type")).lower()
     raw = safe_text(job.get("raw_text")).lower()
@@ -4920,70 +5204,81 @@ def select_government_jobs(government_jobs):
     return eligible[:min(MAX_GOVERNMENT_POSTS_PER_RUN, len(eligible))]
 
 
+def _eligible_private_ranked(ranked):
+    return _private_hard_fill_pool(ranked)
+
+
+def _select_internship_quota(ranked, limit):
+    interns=[j for j in ranked if is_internship_job(j)]
+    interns=_sort_source_quality(interns)
+    if not interns or limit <= 0:
+        return []
+    bd=[j for j in interns if j.get("source") == "Bdjobs"]
+    live=[j for j in interns if j.get("source") == "BDJobs Live"]
+    selected=[]
+    selected_keys=set()
+    for pool, target in ((bd, INTERNSHIP_BDJOBS_TARGET), (live, INTERNSHIP_BDJOBSLIVE_TARGET)):
+        for job in pool[:target]:
+            if len(selected) >= limit:
+                break
+            key=job.get("canonical") or job_event_key(job)
+            if key not in selected_keys:
+                selected.append(job); selected_keys.add(key)
+    if len(selected) < limit:
+        for job in interns:
+            key=job.get("canonical") or job_event_key(job)
+            if key not in selected_keys:
+                selected.append(job); selected_keys.add(key)
+            if len(selected) >= limit:
+                break
+    return selected[:limit]
+
+
 def select_final_jobs(private_ranked, government_jobs):
-    """Select up to MAX_STORIES_PER_RUN from whatever qualifying fresh pool exists.
+    """V2 source-balanced selector: 10 private + 4 internship + 5 govt + up to 6 extras."""
+    regular=[j for j in private_ranked if not is_internship_job(j)]
+    interns=[j for j in private_ranked if is_internship_job(j)]
+    regular_target=PRIVATE_TARGET_PER_RUN
+    internship_target=INTERNSHIP_TARGET_PER_RUN
+    government_target=GOVERNMENT_TARGET_PER_RUN
 
-    Publication count is intentionally dynamic: there is no private, government,
-    or internship quota. Strong qualifying jobs are published; a sparse run is a
-    valid run and is never treated as a failure merely because fewer jobs exist.
-    """
-    gov_pool = select_government_jobs(government_jobs)
-    private_pool = _select_diverse_private(private_ranked, MAX_STORIES_PER_RUN)
+    regular_selected=select_private_jobs_by_category(regular, regular_target, minimum_required=regular_target)
+    internship_selected=_select_internship_quota(interns, internship_target)
+    government_pool=select_government_jobs(government_jobs)[:government_target]
 
-    # Build one source-balanced candidate pool without mandatory quotas. Give
-    # government jobs their own ranking score and private jobs their final score.
-    # The selector still prefers diversity and only publishes candidates already
-    # accepted by the normal source/gate pipeline.
-    candidates = []
-    for job in private_pool:
-        item = dict(job)
-        item["_selection_score"] = float(item.get("final_score", 0) or 0)
-        candidates.append(item)
-    for job in gov_pool:
-        item = dict(job)
-        item["_selection_score"] = float(item.get("government_rank_score", 0) or 0)
-        candidates.append(item)
+    selected=[]
+    for pool in (regular_selected, internship_selected, government_pool):
+        for job in pool:
+            key=job.get("canonical") or job_event_key(job)
+            if key not in {x.get("canonical") or job_event_key(x) for x in selected}:
+                selected.append(job)
 
-    selected = []
-    used = set()
-    company_counts = {}
-    family_counts = {}
-    # A small source-diversity bonus prevents a plentiful private pool from
-    # automatically consuming every slot when strong government jobs exist, but
-    # it never creates a quota or admits a weaker candidate solely by source.
-    for _ in range(MAX_STORIES_PER_RUN):
-        best = None
-        best_adjusted = -1e9
-        for job in candidates:
-            key = job.get("canonical") or job_event_key(job)
+    # Flexible fill: use the strongest remaining eligible jobs, preferring regular
+    # private first, then internships, then government, without relaxing quality.
+    used={x.get("canonical") or job_event_key(x) for x in selected}
+    extras=[]
+    for pool in (_select_diverse_private(_eligible_private_ranked(regular), MAX_STORIES_PER_RUN),
+                 _sort_source_quality(interns),
+                 government_pool):
+        for job in pool:
+            key=job.get("canonical") or job_event_key(job)
             if key in used:
                 continue
-            score = float(job.get("_selection_score", 0))
-            company = _normalized_company(job.get("company", ""))
-            family = _career_family(job)
-            if company and company_counts.get(company, 0) >= 2:
-                score -= 8
-            if family and family_counts.get(family, 0) >= 4:
-                score -= 5
-            if job.get("is_government"):
-                score += 2
-            if score > best_adjusted:
-                best_adjusted = score
-                best = job
-        if best is None:
-            break
-        selected.append(best)
-        key = best.get("canonical") or job_event_key(best)
-        used.add(key)
-        company = _normalized_company(best.get("company", ""))
-        family = _career_family(best)
-        if company:
-            company_counts[company] = company_counts.get(company, 0) + 1
-        if family:
-            family_counts[family] = family_counts.get(family, 0) + 1
+            extras.append(job)
+            used.add(key)
+    extras=_sort_source_quality(extras)
+    selected.extend(extras[:max(0, min(EXTRA_TARGET_PER_RUN, MAX_STORIES_PER_RUN-len(selected)))])
 
-    for job in selected:
-        job.pop("_selection_score", None)
+    # Keep source-family diversity stable while preserving the explicit base targets.
+    if len(selected) > MAX_STORIES_PER_RUN:
+        selected=selected[:MAX_STORIES_PER_RUN]
+    logger.info(
+        "V2 ALLOCATION | private=%d/%d | internships=%d/%d | government=%d/%d | extras=%d | total=%d/%d",
+        len(regular_selected), regular_target, len(internship_selected), internship_target,
+        len(government_pool), government_target,
+        min(max(0, len(selected)-len(regular_selected)-len(internship_selected)-len(government_pool)), EXTRA_TARGET_PER_RUN),
+        len(selected), MAX_STORIES_PER_RUN,
+    )
     return selected[:MAX_STORIES_PER_RUN]
 
 
@@ -5363,9 +5658,17 @@ def snapshot_integrity(job):
         return False, "age_matches_experience_suspect"
     if job.get("is_government"):
         minimum=GOVERNMENT_SNAPSHOT_MIN_FIELDS
+    elif is_internship_job(job):
+        minimum=INTERNSHIP_SNAPSHOT_MIN_FIELDS
+        required_core=("location", "deadline")
+        for key in required_core:
+            if not safe_text(job.get(key)):
+                return False, f"private_missing_core_{key}"
+        if not any(safe_text(job.get(k)) for k in ("education", "salary", "vacancy", "employment_type", "workplace", "age", "application_method", "experience")):
+            return False, "private_missing_secondary_field"
     else:
         minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
-        required_core=("location", "deadline") if is_internship_job(job) else ("location", "experience", "deadline")
+        required_core=("location", "experience", "deadline")
         for key in required_core:
             if not safe_text(job.get(key)):
                 return False, f"private_missing_core_{key}"
@@ -5700,85 +6003,97 @@ def _research_items_parallel(items):
             results.append(researched)
     return results,metrics
 
+def _sort_source_quality(items):
+    return sorted(
+        items,
+        key=lambda j: (
+            -float(j.get("final_score", j.get("deterministic_score", 0)) or 0),
+            -posted_freshness_score({"posted_date": j.get("listing_posted") or j.get("posted_date")}),
+            j.get("canonical", ""),
+        ),
+    )
+
+
+def _balanced_internship_research_pool(internships, budget):
+    """Reserve internship research slots with a Bdjobs/BDJobs Live preference."""
+    budget = max(0, int(budget))
+    if budget <= 0:
+        return []
+    bd = _sort_source_quality([x for x in internships if x.get("source") == "Bdjobs"])
+    live = _sort_source_quality([x for x in internships if x.get("source") == "BDJobs Live"])
+    other = _sort_source_quality([x for x in internships if x.get("source") not in {"Bdjobs", "BDJobs Live"}])
+    selected = []
+    selected.extend(bd[:min(INTERNSHIP_BDJOBS_TARGET * 3, len(bd), budget)])
+    selected.extend(live[:min(INTERNSHIP_BDJOBSLIVE_TARGET * 3, len(live), max(0, budget-len(selected)))])
+    if len(selected) < budget:
+        used={x.get("canonical") for x in selected}
+        remainder=[x for x in internships if x.get("canonical") not in used]
+        selected.extend(_sort_source_quality(remainder)[:budget-len(selected)])
+    return selected[:budget]
+
+
+def _balanced_regular_private_pool(regular, budget):
+    """Give BDJobs Live a real detail-research share, then return unused capacity."""
+    budget = max(0, int(budget))
+    if budget <= 0:
+        return []
+    live = _sort_source_quality([x for x in regular if x.get("source") == "BDJobs Live"])
+    bd = _sort_source_quality([x for x in regular if x.get("source") == "Bdjobs"])
+    other = _sort_source_quality([x for x in regular if x.get("source") not in {"Bdjobs", "BDJobs Live"}])
+    live_target = min(len(live), max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, int(math.ceil(budget * BDJOBSLIVE_PRIVATE_DETAIL_SHARE)))) if live else 0
+    live_target = min(live_target, BDJOBSLIVE_PRIVATE_DETAIL_MAX, budget)
+    bd_target = min(len(bd), max(0, budget-live_target))
+    if bd_target < max(0, budget-live_target) and live:
+        live_target = min(len(live), budget-bd_target)
+    selected = live[:live_target] + bd[:bd_target]
+    used={x.get("canonical") for x in selected}
+    remainder=[x for x in regular if x.get("canonical") not in used]
+    selected.extend(_sort_source_quality(remainder)[:budget-len(selected)])
+    return selected[:budget]
+
+
 def _prepare_shortlists(discovered):
-    unique=build_unique_job_pool(discovered)
-    gov=[x for x in unique if x.get("is_government")]
-    private=[x for x in unique if not x.get("is_government")]
-    private.sort(key=lambda j:(
-        -bba_mba_candidate_score(j),
-        -posted_freshness_score({"posted_date":j.get("listing_posted")}),
-        j.get("canonical","")
-    ))
+    unique = build_unique_job_pool(discovered)
+    gov = [x for x in unique if x.get("is_government")]
+    private = [x for x in unique if not x.get("is_government")]
+    internships = [x for x in private if is_internship_job(x)]
+    regular = [x for x in private if not is_internship_job(x)]
+
+    # Internship research is reserved before the ordinary private pool so the
+    # dedicated internship feeds cannot disappear behind general Bdjobs volume.
+    internship_research = _balanced_internship_research_pool(internships, INTERNSHIP_DETAIL_TARGET)
+    internship_keys={x.get("canonical") for x in internship_research}
+    remaining_regular_budget=max(0, PRIVATE_DETAIL_TARGET-len(internship_research))
+    regular_research=_balanced_regular_private_pool(regular, remaining_regular_budget)
+
     gov.sort(key=lambda j:(
         -posted_freshness_score({"posted_date":j.get("listing_posted")}),
         -deadline_urgency_score({"deadline":j.get("listing_deadline")}),
-        j.get("canonical","")
+        j.get("canonical", ""),
     ))
-
-    # Reserve internship candidates before the ordinary private top-N cutoff so
-    # internships cannot disappear simply because their listing text has less BBA detail.
-    internships=[x for x in private if is_internship_job(x)]
-    internships.sort(key=lambda j:(
-        -posted_freshness_score({"posted_date":j.get("listing_posted")}),
-        -bba_mba_candidate_score(j),
-        j.get("canonical","")
-    ))
-    reserved_internships=internships[:min(INTERNSHIP_DETAIL_TARGET, len(internships))]
-    reserved_keys={x.get("canonical") for x in reserved_internships}
-    ordinary=[x for x in private if x.get("canonical") not in reserved_keys]
-
-    # Keep one shared private research budget, but guarantee the new BDJobs Live
-    # source a meaningful slice of that budget. Unused source capacity returns to
-    # the other private source; this is not a publication quota.
-    live=[x for x in ordinary if x.get("source") == "BDJobs Live"]
-    bdjobs=[x for x in ordinary if x.get("source") == "Bdjobs"]
-    other_private=[x for x in ordinary if x.get("source") not in {"Bdjobs", "BDJobs Live"}]
-    remaining=max(0, PRIVATE_DETAIL_TARGET - len(reserved_internships))
-
-    live_target=0
-    if live and remaining > 0:
-        proportional=int((remaining * BDJOBSLIVE_PRIVATE_DETAIL_SHARE) + 0.9999)
-        live_target=max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, proportional)
-        live_target=min(live_target, BDJOBSLIVE_PRIVATE_DETAIL_MAX, len(live), remaining)
-
-    bd_target=min(len(bdjobs), max(0, remaining - live_target))
-    if bd_target < max(0, remaining - live_target) and len(live) > live_target:
-        live_target=min(len(live), remaining - bd_target)
-
-    used=live_target + bd_target
-    other_target=min(len(other_private), max(0, remaining - used))
-    used += other_target
-
-    # Fill any unused capacity from the strongest remaining candidates, preserving
-    # the source allocation preference without wasting the private research budget.
-    selected=[]
-    selected.extend(reserved_internships)
-    selected.extend(live[:live_target])
-    selected.extend(bdjobs[:bd_target])
-    selected.extend(other_private[:other_target])
-
-    if len(selected) < PRIVATE_DETAIL_TARGET:
-        selected_keys={x.get("canonical") for x in selected}
-        remainder=[x for x in ordinary if x.get("canonical") not in selected_keys]
-        remainder.sort(key=lambda j:(
-            -bba_mba_candidate_score(j),
-            -posted_freshness_score({"posted_date":j.get("listing_posted")}),
-            j.get("canonical", ""),
-        ))
-        selected.extend(remainder[:PRIVATE_DETAIL_TARGET-len(selected)])
-
+    private_items = internship_research + regular_research
     logger.info(
-        "PRIVATE DETAIL ALLOCATION | Bdjobs=%d | BDJobsLive=%d | other=%d | internships=%d | budget=%d",
-        len(bdjobs[:bd_target]), len(live[:live_target]), len(other_private[:other_target]),
-        len(reserved_internships), PRIVATE_DETAIL_TARGET,
+        "PRIVATE DETAIL ALLOCATION V2 | regular=%d | internships=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | BdjobsRegular=%d | BDJobsLiveRegular=%d | budget=%d",
+        len(regular_research), len(internship_research),
+        sum(1 for x in internship_research if x.get("source") == "Bdjobs"),
+        sum(1 for x in internship_research if x.get("source") == "BDJobs Live"),
+        sum(1 for x in regular_research if x.get("source") == "Bdjobs"),
+        sum(1 for x in regular_research if x.get("source") == "BDJobs Live"),
+        PRIVATE_DETAIL_TARGET,
     )
-    logger.info("INTERNSHIP DISCOVERED | candidates=%d reserved_for_detail=%d minimum=%d", len(internships), len(reserved_internships), MIN_INTERNSHIP_POSTS_PER_RUN)
-    return gov[:GOVERNMENT_DISCOVERY_TARGET], selected[:PRIVATE_DETAIL_TARGET]
+    logger.info(
+        "INTERNSHIP DISCOVERED | total=%d | reserved=%d | Bdjobs=%d | BDJobsLive=%d | target=%d",
+        len(internships), len(internship_research),
+        sum(1 for x in internship_research if x.get("source") == "Bdjobs"),
+        sum(1 for x in internship_research if x.get("source") == "BDJobs Live"),
+        INTERNSHIP_TARGET_PER_RUN,
+    )
+    return gov[:GOVERNMENT_DISCOVERY_TARGET], private_items[:PRIVATE_DETAIL_TARGET]
 
 
 def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
-    logger.info("CAREER NEWS V1 | category-first | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
+    logger.info("CAREER NEWS V2.0 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
     if dry_run:
         logger.info("DEADLINE SWEEP | skipped in dry-run mode")
@@ -5941,10 +6256,16 @@ def run(*, dry_run=False, print_ranking=False):
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "CareerNewsroom"
-    assert STATE_FORMAT_VERSION == 5
-    assert MAX_STORIES_PER_RUN == 20
-    assert TARGET_STORIES_PER_RUN == 15
+    assert PIPELINE_VERSION == "CareerNewsroom V2.0"
+    assert STATE_FORMAT_VERSION == 6
+    assert MAX_STORIES_PER_RUN == 25
+    assert TARGET_STORIES_PER_RUN == 19
+    assert PRIVATE_TARGET_PER_RUN == 10
+    assert GOVERNMENT_TARGET_PER_RUN == 5
+    assert INTERNSHIP_TARGET_PER_RUN == 4
+    assert INTERNSHIP_BDJOBS_TARGET == 2
+    assert INTERNSHIP_BDJOBSLIVE_TARGET == 2
+    assert EXTRA_TARGET_PER_RUN == 6
     assert MIN_PRIVATE_POSTS_PER_RUN == 0
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 0
     assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
@@ -6084,6 +6405,16 @@ def self_test():
         "posted_date": "2026-09-24",
     }
     assert likely_same_job(mirror_a, mirror_b), "BDJobs Live cross-source mirror dedupe failed"
+
+    # The same vacancy can appear in a regular feed and a dedicated internship
+    # feed. The merged record must retain the internship lane instead of losing it.
+    regular_copy = dict(mirror_a, source="Bdjobs", source_job_id="BI-1", discovery="bdjobs_category")
+    internship_copy = dict(mirror_a, source_job_id="BI-1", discovery="bdjobs_internship",
+                            lane="internship", is_internship_source=True, category_name="Internship")
+    merged_copy = build_unique_job_pool([regular_copy, internship_copy])
+    assert len(merged_copy) == 1
+    assert is_internship_job(merged_copy[0])
+    assert "bdjobs_internship" in merged_copy[0].get("discovery_sources", [])
 
     live_listing = """
     <html><body>
@@ -6230,6 +6561,32 @@ def self_test():
     live_fields["raw_text"] = live_detail_text
     assert bba_mba_candidate_score(live_fields) > 0
 
+    # Map-based BDJobs Live fields are source-authoritative even when generic
+    # labels contain nearby UI headings.
+    assert live_dom_fields["experience"] == "1-2 Year"
+    assert live_dom_fields["location"] == "Anywhere in Bangladesh"
+    assert live_dom_fields["job_shift"] == "Day Shift"
+    assert live_dom_fields["gender"] == "Male"
+
+    # Dedicated internship discovery flags override title-text heuristics.
+    internship_flagged = {
+        "source": "BDJobs Live", "title": "Finance Trainee", "lane": "internship",
+        "is_internship_source": True, "location": "Dhaka",
+        "deadline": self_test_deadline.isoformat(), "education": "BBA",
+        "company": "Example Ltd.", "source_url": "https://www.bdjobslive.com/bdjobs-details/finance-trainee-9002",
+    }
+    assert is_internship_job(internship_flagged)
+
+    # Internship snapshots still require core freshness/location data, but they
+    # do not require normal private-job experience.
+    internship_missing_exp = dict(internship_flagged, experience="", salary="Tk. 15,000",
+                                  employment_type="Internship", posted_date=self_test_posted_iso)
+    ok, reason = snapshot_integrity(internship_missing_exp)
+    assert ok, reason
+    internship_missing_deadline = dict(internship_missing_exp, deadline="")
+    ok, reason = snapshot_integrity(internship_missing_deadline)
+    assert not ok and reason == "private_missing_core_deadline"
+
     live_collision_html = live_detail_html.replace(
         '<span>Salary:</span><strong>Negotiable</strong>',
         '<span>Salary &amp; Benefits</span><strong>&amp; Benefits</strong><div><span>Monthly salary:</span><strong>From 95325 BDT</strong></div>'
@@ -6264,7 +6621,7 @@ def self_test():
         POSTED_URLS.clear()
         index_items = discover_bdjobslive()
         assert len(index_items) == 1
-        assert index_items[0]["discovery"] == "bdjobslive_index_fallback"
+        assert index_items[0]["discovery"] == "bdjobslive_homepage_fallback"
         assert index_items[0]["source_job_id"] == "987654"
     finally:
         globals()["BDJOBSLIVE_ENABLED"] = saved_live_enabled
@@ -6531,7 +6888,7 @@ def self_test():
     # Dynamic publication is opportunistic: an empty qualifying pool is valid.
     saved_max = globals()["MAX_STORIES_PER_RUN"]
     try:
-        globals()["MAX_STORIES_PER_RUN"] = 20
+        globals()["MAX_STORIES_PER_RUN"] = 25
         assert select_final_jobs([], []) == []
         sparse_jobs = [
             {
@@ -6539,25 +6896,75 @@ def self_test():
                 "title": f"Management Executive {i}", "company": f"Example {i}",
                 "location": "Dhaka", "canonical": f"example.com/jobs/{i}",
                 "source_url": f"https://example.com/jobs/{i}", "final_score": 70 - i,
+                "bba_mba_target_score": 50, "judge_publish": True,
                 "career_category": "Management / Admin",
-                "is_government": False,
+                "is_government": False, "experience": "1 to 2 years",
+                "deadline": self_test_deadline.isoformat(), "education": "BBA",
+                "salary": "Tk. 30,000", "workplace": "Work at office",
             }
             for i in range(4)
         ]
         assert len(select_final_jobs(sparse_jobs, [])) == 4
+
+        # Full V2 allocation regression: when enough quality records exist, the
+        # selector reaches the 25-post hard cap while preserving the base buckets.
+        full_private=[]
+        for i in range(16):
+            src = "BDJobs Live" if i < 4 else "Bdjobs"
+            full_private.append({
+                "source": src, "source_job_id": f"R{i}", "title": f"Business Executive {i}",
+                "company": f"Example Private {i}", "location": "Dhaka",
+                "canonical": f"https://example.com/private/{i}",
+                "source_url": f"https://example.com/private/{i}", "final_score": 85-i%5,
+                "bba_mba_target_score": 60, "judge_publish": True, "career_category": "Management / Admin",
+                "is_government": False, "experience": "1 to 2 years",
+                "deadline": self_test_deadline.isoformat(), "education": "BBA",
+                "salary": "Tk. 30,000", "workplace": "Work at office",
+            })
+        for i in range(2):
+            full_private.append({
+                "source": "Bdjobs", "source_job_id": f"IB{i}", "title": f"Finance Internship B{i}",
+                "company": f"Intern Co B{i}", "location": "Dhaka",
+                "canonical": f"https://example.com/intern-b/{i}", "source_url": f"https://example.com/intern-b/{i}",
+                "final_score": 82-i, "bba_mba_target_score": 60, "judge_publish": True,
+                "is_government": False, "lane": "internship", "is_internship_source": True,
+                "employment_type": "Internship", "experience": "", "deadline": self_test_deadline.isoformat(),
+                "education": "BBA", "salary": "Tk. 15,000", "workplace": "Work at office",
+            })
+        for i in range(2):
+            full_private.append({
+                "source": "BDJobs Live", "source_job_id": f"IL{i}", "title": f"Marketing Internship L{i}",
+                "company": f"Intern Co L{i}", "location": "Dhaka",
+                "canonical": f"https://example.com/intern-l/{i}", "source_url": f"https://example.com/intern-l/{i}",
+                "final_score": 81-i, "bba_mba_target_score": 60, "judge_publish": True,
+                "is_government": False, "lane": "internship", "is_internship_source": True,
+                "employment_type": "Internship", "experience": "", "deadline": self_test_deadline.isoformat(),
+                "education": "BBA", "salary": "Tk. 15,000", "workplace": "Work at office",
+            })
+        full_gov=[dict(sparse_jobs[0], source="Teletalk", source_job_id=f"G{i}", title=f"Govt Accounts Officer {i}",
+                       canonical=f"https://example.com/gov/{i}", source_url=f"https://example.com/gov/{i}",
+                       is_government=True, final_score=90-i) for i in range(8)]
+        full_selected = select_final_jobs(full_private, full_gov)
+        assert len(full_selected) == 25
+        assert sum(1 for j in full_selected if j.get("is_government")) == 5
+        full_interns=[j for j in full_selected if is_internship_job(j)]
+        assert len(full_interns) == 4
+        assert sum(1 for j in full_interns if j.get("source") == "Bdjobs") == 2
+        assert sum(1 for j in full_interns if j.get("source") == "BDJobs Live") == 2
+
     finally:
         globals()["MAX_STORIES_PER_RUN"] = saved_max
 
     remote_state = {
-        "format_version": 5,
+        "format_version": 6,
         "queue": {"q1": {"status": "posted", "posted_at": "2026-09-23T08:00:00+06:00"}},
         "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
         "recent_titles": ["Remote Job"],
         "last_run": "2026-09-23T08:00:00+06:00",
-        "pipeline_version": "CareerNewsroom",
+        "pipeline_version": "CareerNewsroom V2.0",
     }
     local_state = {
-        "format_version": 5,
+        "format_version": 6,
         "queue": {"q2": {"status": "posted", "posted_at": "2026-09-23T09:00:00+06:00"}},
         "events": {
             "e1": {"event_id": "e1", "status": "expired", "message_id": 101, "expired_at": "2026-09-23T09:05:00+06:00"},
@@ -6565,7 +6972,7 @@ def self_test():
         },
         "recent_titles": ["Local Job", "Remote Job"],
         "last_run": "2026-09-23T09:05:00+06:00",
-        "pipeline_version": "CareerNewsroom",
+        "pipeline_version": "CareerNewsroom V2.0",
     }
     reconciled = merge_state_data(remote_state, local_state)
     assert set(reconciled["queue"]) == {"q1", "q2"}
@@ -6575,7 +6982,7 @@ def self_test():
     assert reconciled["events"]["e2"]["message_id"] == 202
     assert reconciled["last_run"] == "2026-09-23T09:05:00+06:00"
 
-    logger.info("CareerNewsroom self-test passed.")
+    logger.info("CareerNewsroom V2.0 self-test passed.")
 
 
 if __name__ == "__main__":
