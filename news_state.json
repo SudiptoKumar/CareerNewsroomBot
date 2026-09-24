@@ -10897,7 +10897,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-23T20:03:11.833228+06:00",
-      "last_seen": "2026-09-24T13:58:25.300610+06:00"
+      "last_seen": "2026-09-24T14:32:31.677740+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1537140&fcatId=16&ln=1": {
       "title": "Customer Support Executive (E-commerce)",
@@ -11965,9 +11965,14 @@
       "bba_mba_target_score": 3,
       "event_id": "4dcc436c59153cdcea2ee47f",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T13:58:24.926415+06:00",
-      "last_seen": "2026-09-24T13:58:24.926425+06:00"
+      "last_seen": "2026-09-24T14:32:31.553351+06:00",
+      "posted_at": "2026-09-24T14:32:36.028758+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14822": {
       "title": "Accounts Assistant",
@@ -12004,9 +12009,14 @@
       "bba_mba_target_score": 12,
       "event_id": "5b692362dde15dda5ae4ba67",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T13:58:24.950916+06:00",
-      "last_seen": "2026-09-24T13:58:24.950925+06:00"
+      "last_seen": "2026-09-24T14:32:31.505355+06:00",
+      "posted_at": "2026-09-24T14:32:38.905004+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 52
     },
     "alljobs.teletalk.com.bd?job_primary_id=14830": {
       "title": "Security Guard",
@@ -12045,7 +12055,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:24.974053+06:00",
-      "last_seen": "2026-09-24T13:58:24.974060+06:00"
+      "last_seen": "2026-09-24T14:32:31.601262+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14820": {
       "title": "Draftsman",
@@ -12214,9 +12224,14 @@
       "bba_mba_target_score": 3,
       "event_id": "cb27be69cfd122e9882aa35f",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T13:58:25.071328+06:00",
-      "last_seen": "2026-09-24T13:58:25.071338+06:00"
+      "last_seen": "2026-09-24T14:32:31.648111+06:00",
+      "posted_at": "2026-09-24T14:32:33.197147+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14824": {
       "title": "Driver (Heavy)",
@@ -12255,7 +12270,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.092170+06:00",
-      "last_seen": "2026-09-24T13:58:25.092180+06:00"
+      "last_seen": "2026-09-24T14:32:31.624899+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14819": {
       "title": "Cashier",
@@ -12292,9 +12307,14 @@
       "bba_mba_target_score": 3,
       "event_id": "90b2e72fb487f09b20b282f7",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T13:58:25.114029+06:00",
-      "last_seen": "2026-09-24T13:58:25.114036+06:00"
+      "last_seen": "2026-09-24T14:32:31.483348+06:00",
+      "posted_at": "2026-09-24T14:32:37.453641+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 52
     },
     "alljobs.teletalk.com.bd?job_primary_id=14826": {
       "title": "Electrician",
@@ -12333,7 +12353,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.134828+06:00",
-      "last_seen": "2026-09-24T13:58:25.134837+06:00"
+      "last_seen": "2026-09-24T14:32:31.578166+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14828": {
       "title": "Chainman",
@@ -12370,9 +12390,14 @@
       "bba_mba_target_score": 3,
       "event_id": "e8ebd5e52e75870747a7fdfb",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T13:58:25.156659+06:00",
-      "last_seen": "2026-09-24T13:58:25.156666+06:00"
+      "last_seen": "2026-09-24T14:32:31.461090+06:00",
+      "posted_at": "2026-09-24T14:32:34.615193+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14821": {
       "title": "Office Assistant Cum Computer Typist",
@@ -12499,7 +12524,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.227332+06:00",
-      "last_seen": "2026-09-24T13:58:25.227338+06:00"
+      "last_seen": "2026-09-24T14:32:31.529872+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14827": {
       "title": "Photocopy Operator",
@@ -12538,7 +12563,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.249181+06:00",
-      "last_seen": "2026-09-24T13:58:25.249189+06:00"
+      "last_seen": "2026-09-24T14:32:31.435816+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1530548&fcatId=17&ln=1": {
       "title": "Executive/Senior Executive- HR",
@@ -20102,6 +20127,151 @@
       "selected_at": "2026-09-24T13:58:35.705866+06:00",
       "published_at": "2026-09-24T13:58:35.705869+06:00",
       "message_id": 1053
+    },
+    "cb27be69cfd122e9882aa35f": {
+      "event_id": "cb27be69cfd122e9882aa35f",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14823",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14823",
+      "apply_url": "https://rdarajshahi.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14823",
+      "title": "Surveyor",
+      "company": "Rajshahi Development Authority( Rdarajshahi)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "03",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-24",
+      "deadline": "2026-10-25",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T14:32:33.197175+06:00",
+      "published_at": "2026-09-24T14:32:33.197178+06:00",
+      "message_id": 1054
+    },
+    "e8ebd5e52e75870747a7fdfb": {
+      "event_id": "e8ebd5e52e75870747a7fdfb",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14828",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14828",
+      "apply_url": "https://rdarajshahi.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14828",
+      "title": "Chainman",
+      "company": "Rajshahi Development Authority( Rdarajshahi)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "02",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-24",
+      "deadline": "2026-10-25",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T14:32:34.615223+06:00",
+      "published_at": "2026-09-24T14:32:34.615227+06:00",
+      "message_id": 1055
+    },
+    "4dcc436c59153cdcea2ee47f": {
+      "event_id": "4dcc436c59153cdcea2ee47f",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14829",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14829",
+      "apply_url": "https://rdarajshahi.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14829",
+      "title": "Office Support Staff",
+      "company": "Rajshahi Development Authority( Rdarajshahi)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "02",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-24",
+      "deadline": "2026-10-25",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T14:32:36.028787+06:00",
+      "published_at": "2026-09-24T14:32:36.028790+06:00",
+      "message_id": 1056
+    },
+    "90b2e72fb487f09b20b282f7": {
+      "event_id": "90b2e72fb487f09b20b282f7",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14819",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14819",
+      "apply_url": "https://rdarajshahi.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14819",
+      "title": "Cashier",
+      "company": "Rajshahi Development Authority( Rdarajshahi)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "01",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-24",
+      "deadline": "2026-10-25",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T14:32:37.453675+06:00",
+      "published_at": "2026-09-24T14:32:37.453678+06:00",
+      "message_id": 1057
+    },
+    "5b692362dde15dda5ae4ba67": {
+      "event_id": "5b692362dde15dda5ae4ba67",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14822",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14822",
+      "apply_url": "https://rdarajshahi.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14822",
+      "title": "Accounts Assistant",
+      "company": "Rajshahi Development Authority( Rdarajshahi)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "01",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-24",
+      "deadline": "2026-10-25",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T14:32:38.905030+06:00",
+      "published_at": "2026-09-24T14:32:38.905033+06:00",
+      "message_id": 1058
     }
   },
   "recent_titles": [
@@ -20316,8 +20486,13 @@
     "steno typist cum computer operator",
     "draftsman",
     "office assistant cum computer typist",
-    "office assistant cum computer typist"
+    "office assistant cum computer typist",
+    "surveyor",
+    "chainman",
+    "office support staff",
+    "cashier",
+    "accounts assistant"
   ],
-  "last_run": "2026-09-24T13:58:35.733456+06:00",
+  "last_run": "2026-09-24T14:32:38.932642+06:00",
   "pipeline_version": "CareerNewsroom"
 }
