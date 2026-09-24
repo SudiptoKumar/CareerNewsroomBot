@@ -4957,6 +4957,11 @@ def self_test():
     assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
     assert QUALITY_FLOOR == 65
     assert MAX_POST_AGE_DAYS == 5
+    self_test_today = datetime.now(BD_TZ).date()
+    self_test_posted = self_test_today - timedelta(days=1)
+    self_test_deadline = self_test_today + timedelta(days=23)
+    self_test_posted_iso = self_test_posted.isoformat()
+    self_test_deadline_label = self_test_deadline.strftime("%d %b %Y")
     assert len(BDBJOBS_CATEGORIES) == 14
     assert is_bdjobs_job_url("https://jobs.bdjobs.com/jobdetails.asp?id=1534666")
     assert is_bdjobs_job_url("https://bdjobs.com/h/jobs/1534666")
@@ -4978,13 +4983,15 @@ def self_test():
     ok, reason = _looks_like_job_document(shell_fixture, detail=True)
     assert not ok and reason in {"empty_visible_text", "bdjobs_application_shell", "thin_or_non_job_page:0"}
 
-    fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"2026-09-23","validThrough":"2026-10-18","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: 18 Oct 2026</p></body></html>'''
+    fixture='''<html><head><script type="application/ld+json">{"@context":"https://schema.org","@type":"JobPosting","title":"Management Trainee","datePosted":"__POSTED__","validThrough":"__DEADLINE_ISO__","hiringOrganization":{"name":"Example Bank"},"jobLocation":{"address":{"addressLocality":"Dhaka","addressCountry":"Bangladesh"}},"employmentType":"FULL_TIME"}</script></head><body><h1>Management Trainee</h1><p>Company Name: Example Bank</p><p>Vacancy: 10</p><p>Education: Bachelor of Business Administration (BBA) or MBA</p><p>Experience: Freshers are encouraged to apply.</p><p>Salary: Tk. 35000 - 45000</p><p>Employment Status: Full Time</p><p>Job Work Place: Work at Office</p><p>Age: 18 to 30 years</p><p>Application: Online</p><p>Application Deadline: __DEADLINE_LABEL__</p></body></html>'''
+    fixture=fixture.replace("__POSTED__", self_test_posted_iso).replace("__DEADLINE_ISO__", self_test_deadline.isoformat()).replace("__DEADLINE_LABEL__", self_test_deadline_label)
+
     fake={"title":"Management Trainee","url":"https://jobs.bdjobs.com/jobdetails.asp?id=123","canonical":canonical_url("https://jobs.bdjobs.com/jobdetails.asp?id=123"),"source":"Bdjobs","discovery":"self_test"}
     text_source=_text_from_html(fixture); fields=extract_job_fields(text_source,fixture,fake["url"],fake); fields.update({"raw_text":text_source,"apply_url":"","canonical":fake["canonical"],"audience_pre_score":job_family_score(fields["title"],text_source)})
     fields["bba_mba_target_score"]=bba_mba_candidate_score(fields)
     assert fields["title"] == "Management Trainee" and fields["company"] == "Example Bank"
     assert "BBA" in fields["education"] and "MBA" in fields["education"]
-    assert fields["experience"] == "Freshers" and fields["vacancy"] == "10" and fields["deadline"] == "2026-10-18"
+    assert fields["experience"] == "Freshers" and fields["vacancy"] == "10" and fields["deadline"] == self_test_deadline.isoformat()
     score,components=private_rank_score(fields); assert 0 <= score <= 100 and sum(components.values()) == score
     too_high=dict(fields,experience="5 to 8 years"); ok,reason=deterministic_job_gate(too_high); assert not ok and reason=="experience_above_3_years"
     allowed=dict(fields,experience="2 to 3 years"); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
@@ -4998,9 +5005,9 @@ def self_test():
         "title":"Accounts Executive", "url":"https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1",
         "canonical":canonical_url("https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1"), "source":"Bdjobs",
         "source_job_id":"777001", "category_id":1, "category_name":"Accounting / Finance",
-        "listing_posted":"2026-09-19", "listing_deadline":"2026-10-01",
-        "listing_fields":{"company":"Example Finance Ltd.","experience":"1 to 2 years","education":"BBA","deadline":"2026-10-01","location":"Dhaka","salary":"Tk. 30,000","vacancy":"3"},
-        "excerpt":"Accounts Executive Example Finance Ltd. Dhaka Experience required: 1 to 2 year(s) Deadline: Oct 1, 2026 Education required: BBA Vacancy: 3",
+        "listing_posted":self_test_posted_iso, "listing_deadline":self_test_deadline.isoformat(),
+        "listing_fields":{"company":"Example Finance Ltd.","experience":"1 to 2 years","education":"BBA","deadline":self_test_deadline.isoformat(),"location":"Dhaka","salary":"Tk. 30,000","vacancy":"3"},
+        "excerpt":f"Accounts Executive Example Finance Ltd. Dhaka Experience required: 1 to 2 year(s) Deadline: {self_test_deadline_label} Education required: BBA Vacancy: 3",
     }
     original_retrieve=retrieve_job_content
     try:
@@ -5020,17 +5027,17 @@ def self_test():
     finally:
         globals()["_fetch_bdjobs_detail"] = original_detail
 
-    current_bdjobs = """
+    current_bdjobs = f"""
     Averroes International School
     Logistics Executive
     Application Deadline :
-    17 Oct 2026
+    {self_test_deadline_label}
     Vacancy: 01
     Age: 26 to 28 years
     Location: Dhaka
     Salary: Negotiable
     Experience: 2 to 3 years
-    Published: 17 Sep 2026
+    Published: {self_test_posted.strftime("%d %b %Y")}
     Requirements
     Education
     Bachelor of Business Administration (BBA)
@@ -5048,8 +5055,8 @@ def self_test():
     assert bd_fields["vacancy"]=="01"
     assert bd_fields["experience"]=="2 to 3 years"
     assert bd_fields["age"]=="26-28 Years"
-    assert bd_fields["posted_date"]=="2026-09-17"
-    assert bd_fields["deadline"]=="2026-10-17"
+    assert bd_fields["posted_date"]==self_test_posted_iso
+    assert parse_datetime(bd_fields["deadline"]).date()==self_test_deadline
     assert bd_fields["employment_type"]=="Full Time"
     assert bd_fields["workplace"]=="On-site"
     assert bd_fields["application_method"]=="Online"
@@ -5087,12 +5094,13 @@ def self_test():
         globals()["telegram_call"] = fake_telegram_call
         state_before = json.loads(json.dumps(STATE))
         STATE["queue"]["https://example.com/job"] = dict(expired_render_job, canonical="https://example.com/job", status="posted")
+        self_test_expired_date = self_test_today - timedelta(days=1)
         STATE["events"]["expiry-self-test"] = {
             "event_id":"expiry-self-test", "canonical_url":"https://example.com/job",
             "source_url":"https://example.com/job", "apply_url":"https://example.com/apply",
             "source":"Bdjobs", "source_job_id":"999001", "title":expired_render_job["title"],
-            "company":expired_render_job["company"], "deadline":"2026-09-19",
-            "status":"published", "published_at":"2026-09-18T12:00:00+06:00", "message_id":42,
+            "company":expired_render_job["company"], "deadline":self_test_expired_date.isoformat(),
+            "status":"published", "published_at":f"{self_test_expired_date.isoformat()}T12:00:00+06:00", "message_id":42,
         }
         original_token = TELEGRAM_BOT_TOKEN
         globals()["TELEGRAM_BOT_TOKEN"] = "self-test-token"
@@ -5143,7 +5151,7 @@ def self_test():
 
     # Current Angular Bdjobs regression fixture: the real job title is an h2
     # following the company button. The only h1 is footer chrome.
-    bd_dom_fixture = """
+    bd_dom_fixture = f"""
     <html><head>
       <title>Manager / Senior Manager - Recovery : Hudhud Solutions PLC || Bdjobs.com</title>
       <meta property="og:title" content="Manager / Senior Manager - Recovery : Hudhud Solutions PLC || Bdjobs.com">
@@ -5157,7 +5165,7 @@ def self_test():
           <span>Location:</span><span>Dhaka</span>
           <span>Salary:</span><span>Tk. 40,000 - 60,000</span>
           <span>Experience:</span><span>3 to 5 years</span>
-          <span>Published:</span><span>2026-09-19</span>
+          <span>Published:</span><span>{self_test_posted_iso}</span>
         </div></app-summary>
         <div id="requirements">
           <div><p>Education</p><ul><li>BBA / MBA</li></ul></div>
@@ -5167,7 +5175,7 @@ def self_test():
         <div><p>Workplace :</p><p>Work at office</p></div>
         <div><p>Employment Status :</p><p>Full Time</p></div>
         <div id="skills"><button>Recovery</button><button>Collection</button></div>
-        <p>Application Deadline :</p><p>15 Oct 2026</p>
+        <p>Application Deadline :</p><p>{(self_test_today + timedelta(days=21)).strftime("%d %b %Y")}</p>
       </app-details-main>
       <footer id="footerhide"><h1>Our Valuable Partners</h1></footer>
     </body></html>
@@ -5183,7 +5191,8 @@ def self_test():
     assert bd_dom["is_job_page"]
     assert bd_dom["vacancy"] is None
     assert bd_dom["education"] == "BBA / MBA"
-    assert bd_dom["deadline"] == "15 Oct 2026"
+    self_test_dom_deadline_label = (self_test_today + timedelta(days=21)).strftime("%d %b %Y")
+    assert bd_dom["deadline"] == self_test_dom_deadline_label
     assert bd_dom["workplace"] == "Work at office"
     assert bd_dom["employment_type"] == "Full Time"
 
