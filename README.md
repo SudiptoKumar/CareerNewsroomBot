@@ -68,7 +68,7 @@ Education required
 
 The parser preserves those ALT labels and uses a DOM text window from each job link to the next job link. This prevents a title-only ancestor from causing the listing record to lose company, location, experience, deadline, and education.
 
-A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication. In production, the detail lane first uses `curl_cffi`, then renders the real Bdjobs page with Scrapling/StealthyFetcher when the site returns the Angular shell, and only then falls back to Jina/listing data.
+A detail-page failure is still treated as an enrichment failure. Listing-backed fields remain available for ranking and publication. In production, the Bdjobs and BDJobs Live detail lanes use the same bounded acquisition strategy: direct `curl_cffi` first, real Scrapling/StealthyFetcher browser render when the site returns a client-rendered shell, then Jina/listing data. BDJobs Live category pages also use the browser lane when direct HTML contains no `/bdjobs-details/` links.
 
 ## Resilient Bdjobs acquisition
 
@@ -89,6 +89,24 @@ listing preservation when enrichment is unavailable
 ```
 
 The browser lane waits for the Bdjobs summary container and can also wait for network quiescence. No part of the parser relies on Tailwind utility classes or the first `<h1>`.
+
+### Resilient BDJobs Live acquisition
+
+BDJobs Live currently serves its functional category shell at routes such as `/bdjobs/accounting-finance`, while job cards are populated client-side. CareerNewsroom therefore applies the same source-retrieval philosophy used for Bdjobs, with site-specific validation: 
+
+```text
+curl_cffi + fingerprint rotation
+        ↓
+real Scrapling/StealthyFetcher browser render
+        ↓
+extract /bdjobs-details/... job links
+        ↓
+Jina Reader fallback
+        ↓
+listing-backed preservation when enrichment is unavailable
+```
+
+Browser resources remain enabled for BDJobs Live category pages because the listing data is hydrated by client-side page code. The 14 BBA/MBA-relevant categories share the existing private freshness, relevance, source-fidelity, quality, experience, deadline, AI-review, diversity, and duplicate gates.
 
 Current dependency pin: `scrapling[fetchers]==0.4.15`.
 
@@ -559,7 +577,7 @@ python main.py --reconcile-state <snapshot-dir>
 
 `--self-test` is offline and must pass before a release.
 
-`--source-test` performs live source diagnostics and checks the Teletalk API, one Bdjobs category, and one sampled Bdjobs detail page through the V1 acquisition chain.
+`--source-test` performs live source diagnostics for Teletalk, one Bdjobs category/detail sample, and one BDJobs Live category. The BDJobs Live probe uses the same browser fallback when ordinary HTTP retrieval returns the client-rendered shell.
 
 `--dry-run` performs the pipeline without contacting Telegram.
 

@@ -123,6 +123,12 @@ BDJOBSLIVE_CATEGORY_PAGE_LIMIT = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_
 BDJOBSLIVE_CATEGORY_CAP = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_CAP", "10")))
 BDJOBSLIVE_DISCOVERY_MAX = max(1, int(os.environ.get("BDJOBSLIVE_DISCOVERY_MAX", "120")))
 BDJOBSLIVE_TIMEOUT = int(os.environ.get("BDJOBSLIVE_TIMEOUT", "18"))
+BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "60000"))
+BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "1800"))
+BDJOBSLIVE_BROWSER_DETAIL_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_DETAIL_LIMIT", "60"))
+BDJOBSLIVE_BROWSER_LISTING_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_LISTING_LIMIT", "28"))
+BDJOBSLIVE_BROWSER_FETCH_COUNT = 0
+BDJOBSLIVE_BROWSER_LOCK = threading.Lock()
 TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
 TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
 TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
@@ -1270,11 +1276,13 @@ BDJOBSLIVE_CATEGORIES = (
 
 
 def _bdjobslive_category_urls(slug, current_slug):
+    # Current BDJobs Live category pages use /bdjobs/<slug>. Keep the older
+    # /bdjobs-circular/ routes as compatibility fallbacks only.
     return (
-        f"https://www.bdjobslive.com/bdjobs-circular/{slug}",
-        f"https://bdjobslive.com/bdjobs-circular/{slug}",
         f"https://www.bdjobslive.com/bdjobs/{current_slug}",
         f"https://bdjobslive.com/bdjobs/{current_slug}",
+        f"https://www.bdjobslive.com/bdjobs-circular/{slug}",
+        f"https://bdjobslive.com/bdjobs-circular/{slug}",
     )
 
 
@@ -1420,6 +1428,152 @@ def _bdjobslive_listing_candidates(page_html, page_url, category_name):
     return found
 
 
+def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
+    """Render a BDJobs Live page with the same real-browser fallback used for Bdjobs.
+
+    BDJobs Live category pages currently expose their job cards after client-side
+    rendering. Therefore direct curl/Jina HTML can contain the page shell without
+    any /bdjobs-details links. Unlike the Bdjobs detail renderer, resources stay
+    enabled here because the listing data itself is hydrated by the page scripts.
+    """
+    global BDJOBSLIVE_BROWSER_FETCH_COUNT
+    if not SCRAPLING_BROWSER_ENABLED or StealthyFetcher is None:
+        return None
+
+    limit = BDJOBSLIVE_BROWSER_LISTING_LIMIT if mode == "listing" else BDJOBSLIVE_BROWSER_DETAIL_LIMIT
+    with BDJOBSLIVE_BROWSER_LOCK:
+        if BDJOBSLIVE_BROWSER_FETCH_COUNT >= max(1, limit):
+            return None
+        BDJOBSLIVE_BROWSER_FETCH_COUNT += 1
+        ordinal = BDJOBSLIVE_BROWSER_FETCH_COUNT
+
+    target = request_safe_url(url)
+    if mode == "listing":
+        attempts = (
+            {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": "a[href*='/bdjobs-details/']"},
+            {"wait": max(BDJOBSLIVE_BROWSER_WAIT_MS, 2800), "wait_selector": None},
+        )
+    else:
+        attempts = (
+            {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": None},
+            {"wait": max(BDJOBSLIVE_BROWSER_WAIT_MS, 2800), "wait_selector": None},
+        )
+    last_reason = "no_render"
+    for attempt, opts in enumerate(attempts, start=1):
+        try:
+            kwargs = dict(
+                headless=True,
+                disable_resources=False,
+                load_dom=True,
+                network_idle=False,
+                wait=opts["wait"],
+                timeout=BDJOBSLIVE_BROWSER_TIMEOUT,
+                google_search=True,
+                solve_cloudflare=True,
+                block_webrtc=True,
+                hide_canvas=True,
+                retries=1,
+                retry_delay=0.5,
+            )
+            if opts["wait_selector"]:
+                kwargs.update(wait_selector=opts["wait_selector"], wait_selector_state="attached")
+            page = StealthyFetcher.fetch(target, **kwargs)
+            text = _scrapling_visible_text(page)
+            rendered_html = safe_text(getattr(page, "html_content", ""))
+            if not rendered_html:
+                try:
+                    body = getattr(page, "body", b"")
+                    rendered_html = body.decode("utf-8", "ignore") if isinstance(body, bytes) else safe_text(body)
+                except Exception:
+                    rendered_html = ""
+            final_url = safe_text(getattr(page, "url", "")) or url
+            if not rendered_html and not text:
+                last_reason = "empty_render"
+                continue
+            if mode == "listing":
+                probe = _bdjobslive_listing_candidates(rendered_html or text, final_url, "")
+                if not probe:
+                    last_reason = "no_job_detail_links_after_render"
+                    continue
+            else:
+                ok, reason = _looks_like_job_document(rendered_html or text, url=final_url, detail=True)
+                if not ok:
+                    last_reason = reason
+                    continue
+            return {
+                "ok": True,
+                "status": 200,
+                "text": text,
+                "html": rendered_html,
+                "url": final_url,
+                "backend": "scrapling_stealthy_bdjobslive",
+                "cloudflare": False,
+                "detail_quality": "browser_valid",
+                "browser_attempt": attempt,
+                "browser_mode": mode,
+            }
+        except Exception as exc:
+            last_reason = str(exc)
+            logger.info(
+                "BDJOBSLIVE BROWSER FAILED | mode=%s | attempt=%d | url=%s | error=%s",
+                mode, attempt, urlparse(url).path, exc,
+            )
+    logger.info(
+        "BDJOBSLIVE BROWSER UNAVAILABLE | mode=%s | ordinal=%d | url=%s | reason=%s",
+        mode, ordinal, urlparse(url).path, last_reason,
+    )
+    return None
+
+
+def _fetch_bdjobslive_detail(item):
+    """Acquire a BDJobs Live detail page using Bdjobs-style fallback ordering."""
+    key = cache_key(item.get("url") or item.get("source_url") or item.get("source_job_id"))
+    cached = DETAIL_CACHE.get(key)
+    if cached and time.monotonic() - cached.get("ts", 0) < DETAIL_CACHE_TTL_SECONDS:
+        return cached.get("result")
+
+    url = request_safe_url(item.get("url") or item.get("source_url"))
+    if not url:
+        return None
+
+    # 1) Direct source retrieval first.
+    direct = _fetch_with_curl(url, timeout=DETAIL_TIMEOUT, referer="https://bdjobslive.com/", max_attempts=CURL_MAX_FINGERPRINT_ATTEMPTS)
+    if direct:
+        body = safe_text(direct.get("text"))
+        ok, reason = _looks_like_job_document(body, url=direct.get("url") or url, detail=True)
+        if ok:
+            direct = _detail_payload_from_fetch(direct)
+            direct["detail_quality"] = "direct_valid"
+            direct["detail_route"] = direct.get("url") or url
+            DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": direct}
+            logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | backend=%s", item.get("source_job_id", ""), direct.get("backend", ""))
+            return direct
+        logger.info("BDJOBSLIVE DETAIL REJECT | id=%s | reason=%s | backend=%s", item.get("source_job_id", ""), reason, direct.get("backend", ""))
+
+    # 2) Real browser render, matching the proven Bdjobs strategy.
+    browser = _fetch_bdjobslive_browser_document(url, mode="detail")
+    if browser:
+        DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": browser}
+        logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | backend=scrapling_stealthy_bdjobslive", item.get("source_job_id", ""))
+        return browser
+
+    # 3) Jina Reader as bounded text fallback.
+    fallback = _fetch_jina(url, timeout=min(12, max(5, int(JINA_TIMEOUT))))
+    if fallback:
+        ok, reason = _looks_like_job_document(fallback.get("text", ""), url=url, detail=True)
+        if ok:
+            fallback = _detail_payload_from_fetch(fallback)
+            fallback["detail_quality"] = "jina_valid"
+            fallback["detail_route"] = url
+            DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": fallback}
+            logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | route=jina", item.get("source_job_id", ""))
+            return fallback
+        logger.info("BDJOBSLIVE DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id", ""), reason)
+
+    DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": None}
+    return None
+
+
 def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
@@ -1433,10 +1587,17 @@ def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
                 break
             seen_pages.add(next_url)
             fetched = _fetch_source_document(next_url, timeout=BDJOBSLIVE_TIMEOUT, referer="https://bdjobslive.com/")
-            if not fetched:
-                continue
-            page_url = fetched.get("url") or next_url
-            candidates = _bdjobslive_listing_candidates(fetched.get("text", ""), page_url, category_name)
+            page_url = (fetched or {}).get("url") or next_url
+            candidates = _bdjobslive_listing_candidates((fetched or {}).get("text", ""), page_url, category_name) if fetched else []
+
+            # Same principle as Bdjobs: a successful HTTP 200 shell is not a usable
+            # listing. Render the page in Chromium before falling back to Jina/none.
+            if not candidates:
+                browser = _fetch_bdjobslive_browser_document(next_url, mode="listing")
+                if browser:
+                    fetched = browser
+                    page_url = browser.get("url") or next_url
+                    candidates = _bdjobslive_listing_candidates(browser.get("html", "") or browser.get("text", ""), page_url, category_name)
             page_dates=[]
             new_count=0
             for item in candidates:
@@ -3409,15 +3570,17 @@ def _listing_fallback_content(item):
         "text": trim_source_text(text, MAX_JOB_CONTENT_CHARS),
         "html": "", "final_url": item.get("url", ""),
         "apply_url": item.get("apply_url", ""),
-        "backend": "bdjobs_listing_fallback", "cloudflare": False, "detail_quality": "listing_fallback",
+        "backend": "careernewsroom_listing_fallback", "cloudflare": False, "detail_quality": "listing_fallback",
     }
 
 def retrieve_job_content(item):
     source=item.get("source", "Bdjobs")
     if source == "Bdjobs":
         fetched=_fetch_bdjobs_detail(item)
+    elif source == "BDJobs Live":
+        fetched=_fetch_bdjobslive_detail(item)
     else:
-        fallback_referer = "https://bdjobslive.com/" if source == "BDJobs Live" else BDJOBS_LISTING_URL
+        fallback_referer = BDJOBS_LISTING_URL
         fetched=_fetch_source_document(item["url"], timeout=DETAIL_TIMEOUT, referer=fallback_referer)
 
     if not fetched:
@@ -5039,7 +5202,7 @@ def source_test():
         else:
             fallback=_listing_fallback_content(sample)
             print(f"Bdjobs detail: FALLBACK | id={sample.get('source_job_id','')} | listing_chars={len((fallback or {}).get('text',''))}")
-    print("Production: Teletalk government + Bdjobs private")
+    print("Production: Teletalk government + Bdjobs + BDJobs Live private")
     if BDJOBSLIVE_ENABLED:
         live_name, live_legacy, live_current = BDJOBSLIVE_CATEGORIES[0]
         live_fetch = None
@@ -5048,9 +5211,12 @@ def source_test():
         started=time.monotonic()
         for live_url in _bdjobslive_category_urls(live_legacy, live_current):
             candidate_fetch=_fetch_source_document(live_url, timeout=BDJOBSLIVE_TIMEOUT, referer="https://bdjobslive.com/")
-            if not candidate_fetch:
-                continue
-            candidate_items=_bdjobslive_listing_candidates(candidate_fetch.get("text", ""), candidate_fetch.get("url") or live_url, live_name)
+            candidate_items=_bdjobslive_listing_candidates((candidate_fetch or {}).get("text", ""), (candidate_fetch or {}).get("url") or live_url, live_name) if candidate_fetch else []
+            if not candidate_items:
+                browser_fetch=_fetch_bdjobslive_browser_document(live_url, mode="listing")
+                if browser_fetch:
+                    candidate_fetch=browser_fetch
+                    candidate_items=_bdjobslive_listing_candidates(browser_fetch.get("html", "") or browser_fetch.get("text", ""), browser_fetch.get("url") or live_url, live_name)
             if candidate_items:
                 live_fetch=candidate_fetch
                 live_candidates=candidate_items
@@ -5063,7 +5229,7 @@ def source_test():
         print(f"BDJobs Live category {live_name}: OK | backend={live_fetch.get('backend')} | jobs={len(live_candidates)} | url={selected_live_url} | time={elapsed}s")
 
     print("Discovery: category-first across Bdjobs + BDJobs Live + Teletalk")
-    print("Fallback: curl_cffi -> fingerprint rotation -> Jina -> listing preservation")
+    print("Fallback: curl_cffi -> real browser render -> Jina -> listing preservation")
 
 # ============================================================
 # MAIN
@@ -5403,6 +5569,45 @@ def self_test():
     assert live_item["listing_posted"] == "2026-09-24"
     assert live_item["listing_deadline"] == "2026-09-30"
     assert _is_bdjobslive_detail_url(live_item["url"])
+
+    # BDJobs Live browser-fallback regression: direct HTTP may return only the
+    # client-rendered shell, so the real-browser path must remain independently usable.
+    class _FakeBDJobsLivePage:
+        def __init__(self, html_text, url):
+            self.html_content = html_text
+            self.body = html_text.encode("utf-8")
+            self.url = url
+        def css(self, selector):
+            return []
+
+    class _FakeBDJobsLiveFetcher:
+        @staticmethod
+        def fetch(url, **kwargs):
+            return _FakeBDJobsLivePage(live_detail_text_fixture, url)
+
+    live_detail_text_fixture = """
+    <html><body>
+      <h1>Executive - Finance</h1>
+      <p>Company Name: Example Finance Limited</p>
+      <p>Location: Dhaka</p>
+      <p>Salary: 25000 - 35000 BDT</p>
+      <p>Experience: 0-1 Year</p>
+      <p>Education: Bachelor/Honors, BBA</p>
+      <p>Application Deadline: 30 Sep 2026</p>
+      <p>Published: 24 Sep 2026</p>
+      <p>Job Type: Full Time/Permanent</p>
+      <p>Workplace: from office</p>
+    </body></html>
+    """
+    original_live_fetcher = globals().get("StealthyFetcher")
+    try:
+        globals()["StealthyFetcher"] = _FakeBDJobsLiveFetcher
+        browser_probe = _fetch_bdjobslive_browser_document(
+            live_item["url"], mode="detail"
+        )
+    finally:
+        globals()["StealthyFetcher"] = original_live_fetcher
+    assert browser_probe and browser_probe["backend"] == "scrapling_stealthy_bdjobslive"
 
     live_detail_text = """
     Job List
