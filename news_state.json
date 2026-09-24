@@ -10860,7 +10860,7 @@
       "salary": "Negotiable",
       "age": "At least 40 Years",
       "deadline": "2026-10-20",
-      "posted_date": "2026-09-23",
+      "posted_date": "",
       "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1536412&fcatId=7&ln=1",
       "source": "Bdjobs",
       "source_job_id": "1536412",
@@ -10897,7 +10897,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-23T20:03:11.833228+06:00",
-      "last_seen": "2026-09-24T14:32:31.677740+06:00"
+      "last_seen": "2026-09-24T18:39:49.337763+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1537140&fcatId=16&ln=1": {
       "title": "Customer Support Executive (E-commerce)",
@@ -12055,7 +12055,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:24.974053+06:00",
-      "last_seen": "2026-09-24T17:34:56.668412+06:00"
+      "last_seen": "2026-09-24T18:39:49.024884+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14820": {
       "title": "Draftsman",
@@ -12270,7 +12270,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.092170+06:00",
-      "last_seen": "2026-09-24T17:34:56.582041+06:00"
+      "last_seen": "2026-09-24T18:39:49.088639+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14819": {
       "title": "Cashier",
@@ -12353,7 +12353,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.134828+06:00",
-      "last_seen": "2026-09-24T17:34:56.599299+06:00"
+      "last_seen": "2026-09-24T18:39:49.148058+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14828": {
       "title": "Chainman",
@@ -12524,7 +12524,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.227332+06:00",
-      "last_seen": "2026-09-24T17:34:56.798947+06:00"
+      "last_seen": "2026-09-24T18:39:49.046625+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=14827": {
       "title": "Photocopy Operator",
@@ -12563,7 +12563,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T13:58:25.249181+06:00",
-      "last_seen": "2026-09-24T17:34:56.765074+06:00"
+      "last_seen": "2026-09-24T18:39:49.109965+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1530548&fcatId=17&ln=1": {
       "title": "Executive/Senior Executive- HR",
@@ -12656,9 +12656,14 @@
       "bba_mba_target_score": 0,
       "event_id": "a1deb9469c61ca0bae6da184",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T17:34:56.566859+06:00",
-      "last_seen": "2026-09-24T17:34:56.566869+06:00"
+      "last_seen": "2026-09-24T18:39:49.188900+06:00",
+      "posted_at": "2026-09-24T18:39:56.315597+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14834": {
       "title": "Office Support Staff",
@@ -12695,9 +12700,14 @@
       "bba_mba_target_score": 0,
       "event_id": "4fc803a30e52d497f1382798",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T17:34:56.616534+06:00",
-      "last_seen": "2026-09-24T17:34:56.616538+06:00"
+      "last_seen": "2026-09-24T18:39:49.067794+06:00",
+      "posted_at": "2026-09-24T18:39:53.574956+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14841": {
       "title": "Office Assistant-Cum-Computer Typist",
@@ -12778,9 +12788,14 @@
       "bba_mba_target_score": 0,
       "event_id": "ebcd5b8aceb795af46f40559",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T17:34:56.652304+06:00",
-      "last_seen": "2026-09-24T17:34:56.652308+06:00"
+      "last_seen": "2026-09-24T18:39:49.169182+06:00",
+      "posted_at": "2026-09-24T18:39:54.948268+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14839": {
       "title": "Upper Division Assistant",
@@ -12817,9 +12832,14 @@
       "bba_mba_target_score": 3,
       "event_id": "478d6c4dc8190b97a126ead2",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T17:34:56.685974+06:00",
-      "last_seen": "2026-09-24T17:34:56.685979+06:00"
+      "last_seen": "2026-09-24T18:39:49.003773+06:00",
+      "posted_at": "2026-09-24T18:39:52.216071+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 58
     },
     "alljobs.teletalk.com.bd?job_primary_id=14838": {
       "title": "Head Assistant",
@@ -12988,9 +13008,14 @@
       "bba_mba_target_score": 3,
       "event_id": "d1c16527a4c7d03902280c2f",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-09-24T17:34:56.751885+06:00",
-      "last_seen": "2026-09-24T17:34:56.751889+06:00"
+      "last_seen": "2026-09-24T18:39:49.132370+06:00",
+      "posted_at": "2026-09-24T18:39:50.846657+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 0,
+      "ai_score": 0,
+      "final_score": 64
     },
     "alljobs.teletalk.com.bd?job_primary_id=14843": {
       "title": "Office Support Staff",
@@ -13051,7 +13076,7 @@
         "education": "Additional Requirements",
         "deadline": "2026-10-08",
         "location": "Dhaka (PanthaPath), Sylhet (Sylhet Sadar)",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "Work from home,Work at office",
@@ -13078,7 +13103,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.817853+06:00",
-      "last_seen": "2026-09-24T17:34:56.817859+06:00"
+      "last_seen": "2026-09-24T18:39:49.207654+06:00"
     },
     "bdjobslive.com/bdjobs-details/junior-audit-officer-13486": {
       "title": "Junior Audit Officer",
@@ -13258,7 +13283,7 @@
         "education": "Additional Requirements",
         "deadline": "2026-10-01",
         "location": "Dhaka",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "Work at office",
@@ -13285,7 +13310,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.897124+06:00",
-      "last_seen": "2026-09-24T17:34:56.897130+06:00"
+      "last_seen": "2026-09-24T18:39:49.220011+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1536435&fcatId=7&ln=1": {
       "title": "Assistant Manager - Sales And Marketing",
@@ -13350,7 +13375,7 @@
       "posted_date": "",
       "raw_source_fields": {
         "company": "Computer On Live",
-        "experience": "Additional Requirements",
+        "experience": "At most 1 year The applicants should have",
         "education": "Bachelor/Honors",
         "deadline": "2026-09-30",
         "location": "Dhaka (Dhaka Sadar)",
@@ -13381,7 +13406,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.918445+06:00",
-      "last_seen": "2026-09-24T17:34:56.918449+06:00"
+      "last_seen": "2026-09-24T18:39:49.237621+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1537425&fcatId=9&ln=1": {
       "title": "Business Development Executive (Day/Night Shift)",
@@ -13396,9 +13421,9 @@
         "company": "Offshore Information Technologies Ltd.",
         "experience": "",
         "education": "Additional Requirements",
-        "deadline": "s are met. Monitor project progress & identify potential risks or delays. Allocate resources efficiently to maintain productivity. Conduct quality checks before final delivery to clients. Track project budgets, scope changes, & revision requests. Maintain accurate project records & reporting systems. Prepare quotations, proposals, & other project documentation when required. Research & identify new targeted leads for business development. Maintain strong & professional relationships with international clients. Skills & Expertise Communication and interpersonal skill Computer Literacy Energetic and self-motivated Fluent in English MS Office Multitasking result oriented Working under pressure Other Relevant Skills Sales & Marketing Target Achievement Strategic Planning",
+        "deadline": "2026-10-24",
         "location": "Dhaka (Lalmatia)",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "Work at office",
@@ -13425,41 +13450,41 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.926914+06:00",
-      "last_seen": "2026-09-24T17:34:56.926918+06:00"
+      "last_seen": "2026-09-24T18:39:49.249636+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1537621&fcatId=1&ln=1": {
       "title": "Assistant Project Accountant/Project Accountant (Inventory Management)",
       "company": "Unimass Holdings Ltd",
       "location": "Dhaka",
       "experience": "At least 2 year",
-      "deadline": "2026-10-24",
+      "deadline": "2026-10-04",
       "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1537621&fcatId=1&ln=1",
       "source": "Bdjobs",
       "source_job_id": "1537621",
       "posted_date": "",
       "raw_source_fields": {
         "company": "Unimass Holdings Ltd",
-        "experience": "Additional Requirements",
+        "experience": "At least 2 years The applicants should have",
         "education": "Graduate or Post Graduate from any reputed University",
-        "deadline": "2026-10-24",
+        "deadline": "2026-10-04",
         "location": "Dhaka",
         "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
-        "workplace": "",
+        "workplace": "Work at office",
         "age": "",
         "posted_date": "",
         "application_method": "Insights",
         "gender": ""
       },
-      "source_content": "Requirements Education Graduate or Post Graduate from any reputed University Experience At least 2 years The applicants should have experience in the following business area(s): Real Estate, Developer Freshers are also encouraged to apply. Additional Requirements Must be stay at project site Ability to work in a multi-tasking environment. The incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality. Candidates with experience in real estate or any industry with strong sales focus are encouraged to apply. Responsibilities & Context Prepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents. Safety, security & cleaning compliance according to company standard. Monthly material planning, ensuring quality, quantity & optimum utilization of material. Maintain Store Ledger and related register and provide necessary information to Head Office. Prepare Monthly Stock Report. Petty Cash Management Material receive at any time Skills & Expertise Other Relevant Skills Accounting Accounts and Finance Financial Reporting Financial Analysis Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMust be stay at project site\nAbility to work in a multi-tasking environment.\nThe incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality.\nCandidates with experience in real estate or any industry with strong sales focus are encouraged to apply.\nResponsibilities & Context\nPrepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents.\nSafety, security & cleaning compliance according to company standard.\nMonthly material planning, ensuring quality, quantity & optimum utilization of material.\nMaintain Store Ledger and related register and provide necessary information to Head Office.\nPrepare Monthly Stock Report.\nPetty Cash Management\nMaterial receive at any time\nOther Relevant Skills\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse: 4, Road: 15 (New) 28 (Old), Dhanmondi, Dhaka-1209.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "source_content": "Requirements Education Graduate or Post Graduate from any reputed University Experience At least 2 years The applicants should have experience in the following business area(s): Developer, Real Estate Freshers are also encouraged to apply. Additional Requirements Must be stay at project site Ability to work in a multi-tasking environment. The incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality. Candidates with experience in real estate or any industry with strong sales focus are encouraged to apply. Responsibilities & Context Prepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents. Safety, security & cleaning compliance according to company standard. Monthly material planning, ensuring quality, quantity & optimum utilization of material. Maintain Store Ledger and related register and provide necessary information to Head Office. Prepare Monthly Stock Report. Petty Cash Management Material receive at any time Skills & Expertise Other Relevant Skills Accounting Accounts and Finance Financial Reporting Financial Analysis Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMust be stay at project site\nAbility to work in a multi-tasking environment.\nThe incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality.\nCandidates with experience in real estate or any industry with strong sales focus are encouraged to apply.\nResponsibilities & Context\nPrepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents.\nSafety, security & cleaning compliance according to company standard.\nMonthly material planning, ensuring quality, quantity & optimum utilization of material.\nMaintain Store Ledger and related register and provide necessary information to Head Office.\nPrepare Monthly Stock Report.\nPetty Cash Management\nMaterial receive at any time\nOther Relevant Skills\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse: 4, Road: 15 (New) 28 (Old), Dhanmondi, Dhaka-1209.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
       "canonical": "jobs.bdjobs.com/jobdetails?id=1537621&fcatId=1&ln=1",
       "apply_url": "",
       "retrieval_backend": "scrapling_stealthy",
       "detail_quality": "browser_valid",
-      "raw_text": "Requirements Education Graduate or Post Graduate from any reputed University Experience At least 2 years The applicants should have experience in the following business area(s): Real Estate, Developer Freshers are also encouraged to apply. Additional Requirements Must be stay at project site Ability to work in a multi-tasking environment. The incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality. Candidates with experience in real estate or any industry with strong sales focus are encouraged to apply. Responsibilities & Context Prepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents. Safety, security & cleaning compliance according to company standard. Monthly material planning, ensuring quality, quantity & optimum utilization of material. Maintain Store Ledger and related register and provide necessary information to Head Office. Prepare Monthly Stock Report. Petty Cash Management Material receive at any time Skills & Expertise Other Relevant Skills Accounting Accounts and Finance Financial Reporting Financial Analysis Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMust be stay at project site\nAbility to work in a multi-tasking environment.\nThe incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality.\nCandidates with experience in real estate or any industry with strong sales focus are encouraged to apply.\nResponsibilities & Context\nPrepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents.\nSafety, security & cleaning compliance according to company standard.\nMonthly material planning, ensuring quality, quantity & optimum utilization of material.\nMaintain Store Ledger and related register and provide necessary information to Head Office.\nPrepare Monthly Stock Report.\nPetty Cash Management\nMaterial receive at any time\nOther Relevant Skills\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse: 4, Road: 15 (New) 28 (Old), Dhanmondi, Dhaka-1209.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "raw_text": "Requirements Education Graduate or Post Graduate from any reputed University Experience At least 2 years The applicants should have experience in the following business area(s): Developer, Real Estate Freshers are also encouraged to apply. Additional Requirements Must be stay at project site Ability to work in a multi-tasking environment. The incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality. Candidates with experience in real estate or any industry with strong sales focus are encouraged to apply. Responsibilities & Context Prepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents. Safety, security & cleaning compliance according to company standard. Monthly material planning, ensuring quality, quantity & optimum utilization of material. Maintain Store Ledger and related register and provide necessary information to Head Office. Prepare Monthly Stock Report. Petty Cash Management Material receive at any time Skills & Expertise Other Relevant Skills Accounting Accounts and Finance Financial Reporting Financial Analysis Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMust be stay at project site\nAbility to work in a multi-tasking environment.\nThe incumbent should be dynamic, well organized, self driven, have good personality and possess leadership quality.\nCandidates with experience in real estate or any industry with strong sales focus are encouraged to apply.\nResponsibilities & Context\nPrepare Material Requisition and Receiving Report, Issue etc. and other relevant Documents.\nSafety, security & cleaning compliance according to company standard.\nMonthly material planning, ensuring quality, quantity & optimum utilization of material.\nMaintain Store Ledger and related register and provide necessary information to Head Office.\nPrepare Monthly Stock Report.\nPetty Cash Management\nMaterial receive at any time\nOther Relevant Skills\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse: 4, Road: 15 (New) 28 (Old), Dhanmondi, Dhaka-1209.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
       "listing_posted": "",
-      "listing_deadline": "2026-10-24",
+      "listing_deadline": "2026-10-04",
       "source_category_id": 1,
       "source_category_name": "Accounting / Finance",
       "is_government": false,
@@ -13470,7 +13495,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.939049+06:00",
-      "last_seen": "2026-09-24T17:34:56.939054+06:00"
+      "last_seen": "2026-09-24T18:39:49.351820+06:00"
     },
     "bdjobslive.com/bdjobs-details/credit-officer-13439": {
       "title": "Credit Officer",
@@ -13550,7 +13575,7 @@
         "company": "ShushilanLtd",
         "experience": "",
         "education": "Additional Requirements",
-        "deadline": "s. Willingness to travel and work anywhere in Bangladesh when required. Responsibilities & Context Job Responsibilities The Management Trainee will be expected to: Demonstrate a strong willingness to learn through a hands-on approach. Maintain a positive attitude toward development and consultancy work and demonstrate readiness to face professional challenges. Develop professional skills in fundraising, business development, proposal development, and project management. Assist in preparing Expressions of Interest (EOIs), Requests for Proposals (RFPs), Concept Notes, Research Proposals, Tenders, Quotations, Technical Proposals, Financial Proposals, and Project Proposals. Assist in the preparation and compilation of project reports, research reports, technical documents, and other assignments. Support field-level implementation, monitoring, and documentation of projects. Contribute to the development, maintenance, and updating of Management Information Systems (MIS) and project databases. Participate in qualitative and quantitative research, surveys, assessments, field studies, FGDs, KIIs, interviews, and other data collection activities as required. Assist in data compilation, analysis, presentation, and preparation of reports. Support administrative activities, budgeting, bill and voucher preparation, filing, record keeping, and project documentation. Participate in meetings, workshops, training programs, consultations, and other organizational activities. Undertake extensive field visits and assignments anywhere in Bangladesh as required for professional and development learning. Perform any other duties assigned by the management in line with organizational requirements. Skills & Expertise Other Relevant Skills Project Management Business Development Report Writing Microsoft Excel Database management",
+        "deadline": "2026-09-25",
         "location": "Dhaka (Adabor)",
         "salary": "",
         "vacancy": "",
@@ -13579,7 +13604,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.979592+06:00",
-      "last_seen": "2026-09-24T17:34:56.979596+06:00"
+      "last_seen": "2026-09-24T18:39:49.278756+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1537388&fcatId=1&ln=1": {
       "title": "Trainee - Accounts",
@@ -13596,7 +13621,7 @@
         "education": "Additional Requirements",
         "deadline": "2026-10-04",
         "location": "Chattogram (Chattogram EPZ)",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "Work at office",
@@ -13623,7 +13648,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:56.987446+06:00",
-      "last_seen": "2026-09-24T17:34:56.987450+06:00"
+      "last_seen": "2026-09-24T18:39:49.266982+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1531404&fcatId=16&ln=1": {
       "title": "Customer Relationship Management (CRM) Executive",
@@ -13688,11 +13713,11 @@
       "posted_date": "",
       "raw_source_fields": {
         "company": "Innovative Research & Consultancy Limited",
-        "experience": "Additional Requirements",
+        "experience": "1 to 3 years The applicants should have",
         "education": "Bachelor/Honors",
-        "deadline": "s. Attention to detail and commitment to data quality. Problem-solving mindset and team-oriented attitude. Responsibilities & Context Coordinate and conduct field data collection activities. Recruit, brief, and support field enumerators/interviewers. Monitor survey implementation and ensure compliance with project guidelines. Maintain data quality through spot-checks and verification. Coordinate logistics for field activities nationwide. Prepare field progress reports and daily updates. Support questionnaire testing and pilot surveys. Ensure timely completion of interviews and data submission. Communicate with respondents, local stakeholders, and project teams. Assist in field budgeting and expense tracking. Skills & Expertise KoBo SPSS Microsoft Office ODK Survey CTO Other Relevant Skills Research Data Collection Field Data Collection",
+        "deadline": "2026-10-09",
         "location": "Dhaka (Banani)",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "",
@@ -13719,7 +13744,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:57.007094+06:00",
-      "last_seen": "2026-09-24T17:34:57.007099+06:00"
+      "last_seen": "2026-09-24T18:39:49.300499+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1533038&fcatId=13&ln=1": {
       "title": "Research Associate",
@@ -13788,7 +13813,7 @@
         "education": "Additional Requirements",
         "deadline": "2026-10-01",
         "location": "Gazipur (Gazipur Sadar)",
-        "salary": "& Other Benefits",
+        "salary": "",
         "vacancy": "",
         "employment_type": "Full Time",
         "workplace": "Work at office",
@@ -13815,7 +13840,52 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-24T17:34:57.027501+06:00",
-      "last_seen": "2026-09-24T17:34:57.027506+06:00"
+      "last_seen": "2026-09-24T18:39:49.288900+06:00"
+    },
+    "jobs.bdjobs.com/jobdetails?id=1536273&fcatId=10&ln=1": {
+      "title": "Social Media & Content Executive",
+      "company": "Shelai (Shelai is one of the oldest authentic original Pakistani Brand Dresses seller in Bangladesh",
+      "location": "Banani",
+      "experience": "1 to 3 year",
+      "deadline": "2026-10-21",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1536273&fcatId=10&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1536273",
+      "posted_date": "",
+      "raw_source_fields": {
+        "company": "Shelai (Shelai is one of the oldest authentic original Pakistani Brand Dresses seller in Bangladesh",
+        "experience": "1 to 3 years The applicants should have",
+        "education": "Bachelor/Honors",
+        "deadline": "2026-10-21",
+        "location": "Dhaka (Banani)",
+        "salary": "",
+        "vacancy": "",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "25 to 30 years Only Male Responsibilities & Context Manage and scale company presence across platforms (Facebook, Instagram, LinkedIn, TikTok, YouTube) Develop and execute monthly content calendars Monitor trends and implement platform-specific strategies Create engaging content (posts, captions, blogs, reels, videos) Conduct content research and generate innovative ideas Collaborate with design/video teams for creative assets Plan and execute social media campaigns and promotions Optimize paid campaigns (Facebook Ads, Boosting, etc.) Respond to messages, comments, and customer queries Build and maintain strong online community engagement Skills & Expertise Other Relevant Skills Social Media Management Content Creation facebook ads",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": "Only males are allowed to apply."
+      },
+      "source_content": "Requirements Education Bachelor/Honors Experience 1 to 3 years The applicants should have experience in the following business area(s): E-commerce, E-commerce Startup, F-commerce, Retail Store Additional Requirements Age 25 to 30 years Only Male Responsibilities & Context Manage and scale company presence across platforms (Facebook, Instagram, LinkedIn, TikTok, YouTube) Develop and execute monthly content calendars Monitor trends and implement platform-specific strategies Create engaging content (posts, captions, blogs, reels, videos) Conduct content research and generate innovative ideas Collaborate with design/video teams for creative assets Plan and execute social media campaigns and promotions Optimize paid campaigns (Facebook Ads, Boosting, etc.) Respond to messages, comments, and customer queries Build and maintain strong online community engagement Skills & Expertise Other Relevant Skills Social Media Management Content Creation facebook ads Compensation & Other Benefits Festival Bonus: 2 As per company policy Workplace Work at office Employment Status Full Time Gender Only males are allowed to apply. Job Location Dhaka (Banani)\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nManage and scale company presence across platforms (Facebook, Instagram, LinkedIn, TikTok, YouTube)\nDevelop and execute monthly content calendars\nMonitor trends and implement platform-specific strategies\nCreate engaging content (posts, captions, blogs, reels, videos)\nConduct content research and generate innovative ideas\nCollaborate with design/video teams for creative assets\nPlan and execute social media campaigns and promotions\nOptimize paid campaigns (Facebook Ads, Boosting, etc.)\nRespond to messages, comments, and customer queries\nBuild and maintain strong online community engagement\nOther Relevant Skills\nCompensation & Other Benefits\nAs per company policy\nWorkplace\nWork at office\nEmployment Status\nFull Time\nGender\nOnly males are allowed to apply.\nJob Location\nDhaka (Banani)\nApply Procedure\nEmail Your CV\nSend your CV to the given email career@shelai.com.bd\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1536273&fcatId=10&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Bachelor/Honors Experience 1 to 3 years The applicants should have experience in the following business area(s): E-commerce, E-commerce Startup, F-commerce, Retail Store Additional Requirements Age 25 to 30 years Only Male Responsibilities & Context Manage and scale company presence across platforms (Facebook, Instagram, LinkedIn, TikTok, YouTube) Develop and execute monthly content calendars Monitor trends and implement platform-specific strategies Create engaging content (posts, captions, blogs, reels, videos) Conduct content research and generate innovative ideas Collaborate with design/video teams for creative assets Plan and execute social media campaigns and promotions Optimize paid campaigns (Facebook Ads, Boosting, etc.) Respond to messages, comments, and customer queries Build and maintain strong online community engagement Skills & Expertise Other Relevant Skills Social Media Management Content Creation facebook ads Compensation & Other Benefits Festival Bonus: 2 As per company policy Workplace Work at office Employment Status Full Time Gender Only males are allowed to apply. Job Location Dhaka (Banani)\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nManage and scale company presence across platforms (Facebook, Instagram, LinkedIn, TikTok, YouTube)\nDevelop and execute monthly content calendars\nMonitor trends and implement platform-specific strategies\nCreate engaging content (posts, captions, blogs, reels, videos)\nConduct content research and generate innovative ideas\nCollaborate with design/video teams for creative assets\nPlan and execute social media campaigns and promotions\nOptimize paid campaigns (Facebook Ads, Boosting, etc.)\nRespond to messages, comments, and customer queries\nBuild and maintain strong online community engagement\nOther Relevant Skills\nCompensation & Other Benefits\nAs per company policy\nWorkplace\nWork at office\nEmployment Status\nFull Time\nGender\nOnly males are allowed to apply.\nJob Location\nDhaka (Banani)\nApply Procedure\nEmail Your CV\nSend your CV to the given email career@shelai.com.bd\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-10-21",
+      "source_category_id": 10,
+      "source_category_name": "Media / Advertisement / Event Management",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 45,
+      "bba_mba_target_score": 45,
+      "event_id": "c9cb0d5e069a931b6dc2024c",
+      "record_format": 4,
+      "status": "pending",
+      "first_seen": "2026-09-24T18:39:49.315654+06:00",
+      "last_seen": "2026-09-24T18:39:49.315660+06:00"
     }
   },
   "events": {
@@ -21794,6 +21864,151 @@
       "selected_at": "2026-09-24T17:35:12.569838+06:00",
       "published_at": "2026-09-24T17:35:12.569842+06:00",
       "message_id": 1068
+    },
+    "d1c16527a4c7d03902280c2f": {
+      "event_id": "d1c16527a4c7d03902280c2f",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14842",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14842",
+      "apply_url": "https://tax2.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14842",
+      "title": "Driver",
+      "company": "Taxes Zone-2, Dhaka (TAX2)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "02",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-28",
+      "deadline": "2026-10-18",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T18:39:50.846692+06:00",
+      "published_at": "2026-09-24T18:39:50.846695+06:00",
+      "message_id": 1069
+    },
+    "478d6c4dc8190b97a126ead2": {
+      "event_id": "478d6c4dc8190b97a126ead2",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14839",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14839",
+      "apply_url": "https://tax2.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14839",
+      "title": "Upper Division Assistant",
+      "company": "Taxes Zone-2, Dhaka (TAX2)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "01",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-28",
+      "deadline": "2026-10-18",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T18:39:52.216103+06:00",
+      "published_at": "2026-09-24T18:39:52.216106+06:00",
+      "message_id": 1070
+    },
+    "4fc803a30e52d497f1382798": {
+      "event_id": "4fc803a30e52d497f1382798",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14834",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14834",
+      "apply_url": "http://dcnil.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14834",
+      "title": "Office Support Staff",
+      "company": "DC Office Nilphamari (Dcnilphamari)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "04",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-27",
+      "deadline": "2026-10-26",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T18:39:53.574987+06:00",
+      "published_at": "2026-09-24T18:39:53.574990+06:00",
+      "message_id": 1071
+    },
+    "ebcd5b8aceb795af46f40559": {
+      "event_id": "ebcd5b8aceb795af46f40559",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14835",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14835",
+      "apply_url": "http://dcnil.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14835",
+      "title": "Security Guard",
+      "company": "DC Office Nilphamari (Dcnilphamari)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "04",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-27",
+      "deadline": "2026-10-26",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T18:39:54.948296+06:00",
+      "published_at": "2026-09-24T18:39:54.948299+06:00",
+      "message_id": 1072
+    },
+    "a1deb9469c61ca0bae6da184": {
+      "event_id": "a1deb9469c61ca0bae6da184",
+      "canonical_url": "alljobs.teletalk.com.bd?job_primary_id=14836",
+      "source_url": "https://alljobs.teletalk.com.bd/?job_primary_id=14836",
+      "apply_url": "http://dcnil.teletalk.com.bd/",
+      "source": "Teletalk",
+      "source_job_id": "14836",
+      "title": "Cleaner",
+      "company": "DC Office Nilphamari (Dcnilphamari)",
+      "location": "",
+      "education": "",
+      "experience": "",
+      "salary": "",
+      "vacancy": "04",
+      "age": "",
+      "employment_type": "",
+      "workplace": "",
+      "application_method": "Online",
+      "career_category": "",
+      "display_fields": [],
+      "is_government": true,
+      "posted_date": "2026-09-27",
+      "deadline": "2026-10-26",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-09-24T18:39:56.315628+06:00",
+      "published_at": "2026-09-24T18:39:56.315631+06:00",
+      "message_id": 1073
     }
   },
   "recent_titles": [
@@ -22023,8 +22238,13 @@
     "customer relationship management crm executive",
     "office support staff",
     "office assistant cum computer typist",
-    "senior m e and mis officer"
+    "senior m e and mis officer",
+    "driver",
+    "upper division assistant",
+    "office support staff",
+    "security guard",
+    "cleaner"
   ],
-  "last_run": "2026-09-24T17:35:12.604035+06:00",
+  "last_run": "2026-09-24T18:39:56.346507+06:00",
   "pipeline_version": "CareerNewsroom"
 }
