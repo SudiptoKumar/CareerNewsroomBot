@@ -19,11 +19,29 @@ The system is designed to avoid the previous failure mode where a large global j
 
 ```text
 Government → Teletalk AllJobs API
-Private    → Bdjobs category discovery
+Private    → Bdjobs category discovery + BDJobs Live category discovery
 ```
 
-No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
+BDJobs Live currently exposes the requested business-focused functional categories. CareerNewsroom adds these 14 categories as a separate discovery lane, then sends the resulting jobs through the same private-job gates used by Bdjobs.
 
+1. Accounting / Finance
+2. Bank / Financial Institution
+3. Commercial
+4. Company Secretary / Regulatory Affairs
+5. Customer Service / Call Centre
+6. E-commerce / Digital Marketing
+7. General Management / Admin
+8. HR / Organizational Development
+9. Marketing / Sales
+10. Media / Advertising / Event Management
+11. NGO / Development
+12. Production / Operation
+13. Research / Consultancy
+14. Supply Chain / Procurement
+
+The category lane is bounded and does not create a second publication quota. Freshness, BBA/MBA relevance, source fidelity, information quality, experience, deadline, AI review, diversity, and duplicate gates remain shared with the existing private pipeline.
+
+No Dohaj, Ever Jobs, random search-engine results, uncontrolled aggregators, or alternate-board substitution is used.
 
 
 ## Publication model
@@ -172,7 +190,10 @@ The detail validity gate is structural. A page is not considered a usable Bdjobs
 
 ## Private discovery: category first
 
-The Bdjobs private lane uses the configured BBA/MBA-relevant category universe:
+The original Bdjobs private lane remains unchanged and uses the configured BBA/MBA-relevant category universe. BDJobs Live contributes an additional 14-category functional lane with bounded per-category discovery and the same downstream funnel.
+
+Both private sources feed one shared pool before detail research and selection, so the new source expands discovery without introducing a separate scoring or quota system.
+
 
 ```text
 1   Accounting / Finance
@@ -600,6 +621,12 @@ Maximum total posts: 20 per run
 Private snapshot minimum: 4 source-backed fields
 ```
 
+
+## Cross-source duplicate protection
+
+CareerNewsroom now treats Bdjobs and BDJobs Live as potentially overlapping vacancy sources. Duplicate decisions are layered: exact canonical source URL, matching source/application target, same-source native job IDs, then a conservative cross-source identity match using normalized job title + company, recent posting proximity, and location compatibility.
+
+A company repost with different native IDs on the same source is not fuzzy-collapsed when both source IDs are explicitly different. Cross-source mirrors such as the same company and same role appearing on Bdjobs and BDJobs Live are collapsed before detail research and again protected by persistent published-state checks.
 
 ## Dynamic publication and state persistence
 
