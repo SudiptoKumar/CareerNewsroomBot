@@ -654,3 +654,11 @@ After publishing, the Telegram `message_id`, deadline, canonical URL, and relate
 
 ### Private-source acceptance
 Bdjobs and BDJobs Live both use the same private deterministic gate. BDJobs Live is not a separate quality lane and is never rejected merely because its domain differs from Bdjobs. Its 14 category feeds enter the same freshness, BBA/MBA relevance, experience, information-quality, AI-review, diversity, and duplicate funnel.
+
+### BDJobs Live source adapter
+
+BDJobs Live uses its `/bdjobs-circular/<category>-jobs` routes for category discovery.
+Category pages are client-rendered, so browser rendering is reserved for listing discovery when direct HTML does not contain job-detail links.
+Job-detail pages use stable semantic DOM anchors (`h1`, `/company-detail/` links, labelled summary fields, and `#section-*` blocks), so direct HTML/Jina extraction is preferred and browser rendering is only an exceptional fallback.
+Source diagnostics treat a temporary BDJobs Live category outage as non-fatal while still reporting the condition.
+

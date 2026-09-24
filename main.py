@@ -124,7 +124,7 @@ BDJOBSLIVE_CATEGORY_PAGE_LIMIT = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_
 BDJOBSLIVE_CATEGORY_CAP = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_CAP", "10")))
 BDJOBSLIVE_DISCOVERY_MAX = max(1, int(os.environ.get("BDJOBSLIVE_DISCOVERY_MAX", "120")))
 BDJOBSLIVE_TIMEOUT = int(os.environ.get("BDJOBSLIVE_TIMEOUT", "18"))
-BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "60000"))
+BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "15000"))
 BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "1800"))
 BDJOBSLIVE_BROWSER_DETAIL_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_DETAIL_LIMIT", "60"))
 BDJOBSLIVE_BROWSER_LISTING_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_LISTING_LIMIT", "28"))
@@ -1288,13 +1288,12 @@ BDJOBSLIVE_CATEGORIES = (
 
 
 def _bdjobslive_category_urls(slug, current_slug):
-    # Current BDJobs Live category pages use /bdjobs/<slug>. Keep the older
-    # /bdjobs-circular/ routes as compatibility fallbacks only.
+    # The site's own functional-category navigation currently points to
+    # /bdjobs-circular/<slug>-jobs. Keep /bdjobs/<slug> as a secondary
+    # compatibility route only.
     return (
-        f"https://www.bdjobslive.com/bdjobs/{current_slug}",
-        f"https://bdjobslive.com/bdjobs/{current_slug}",
         f"https://www.bdjobslive.com/bdjobs-circular/{slug}",
-        f"https://bdjobslive.com/bdjobs-circular/{slug}",
+        f"https://www.bdjobslive.com/bdjobs/{current_slug}",
     )
 
 
@@ -1460,16 +1459,12 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
         ordinal = BDJOBSLIVE_BROWSER_FETCH_COUNT
 
     target = request_safe_url(url)
-    if mode == "listing":
-        attempts = (
-            {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": "a[href*='/bdjobs-details/']"},
-            {"wait": max(BDJOBSLIVE_BROWSER_WAIT_MS, 2800), "wait_selector": None},
-        )
-    else:
-        attempts = (
-            {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": None},
-            {"wait": max(BDJOBSLIVE_BROWSER_WAIT_MS, 2800), "wait_selector": None},
-        )
+    # One bounded browser attempt per source page. The category page is
+    # client-rendered, but the job-detail page's core data is static HTML, so
+    # detail browsing is an exceptional fallback rather than the normal path.
+    attempts = (
+        {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": None},
+    )
     last_reason = "no_render"
     for attempt, opts in enumerate(attempts, start=1):
         try:
@@ -1562,14 +1557,9 @@ def _fetch_bdjobslive_detail(item):
             return direct
         logger.info("BDJOBSLIVE DETAIL REJECT | id=%s | reason=%s | backend=%s", item.get("source_job_id", ""), reason, direct.get("backend", ""))
 
-    # 2) Real browser render, matching the proven Bdjobs strategy.
-    browser = _fetch_bdjobslive_browser_document(url, mode="detail")
-    if browser:
-        DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": browser}
-        logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | backend=scrapling_stealthy_bdjobslive", item.get("source_job_id", ""))
-        return browser
-
-    # 3) Jina Reader as bounded text fallback.
+    # 2) Jina Reader as the normal text fallback. BDJobs Live detail pages
+    # expose the core facts directly in HTML, so we do not spend browser time
+    # unless both direct and Jina acquisition fail.
     fallback = _fetch_jina(url, timeout=min(12, max(5, int(JINA_TIMEOUT))))
     if fallback:
         ok, reason = _looks_like_job_document(fallback.get("text", ""), url=url, detail=True)
@@ -1581,6 +1571,13 @@ def _fetch_bdjobslive_detail(item):
             logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | route=jina", item.get("source_job_id", ""))
             return fallback
         logger.info("BDJOBSLIVE DETAIL JINA REJECT | id=%s | reason=%s", item.get("source_job_id", ""), reason)
+
+    # 3) Exceptional browser fallback for live/dynamic edge cases.
+    browser = _fetch_bdjobslive_browser_document(url, mode="detail")
+    if browser:
+        DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": browser}
+        logger.info("BDJOBSLIVE DETAIL SUCCESS | id=%s | backend=scrapling_stealthy_bdjobslive", item.get("source_job_id", ""))
+        return browser
 
     DETAIL_CACHE[key] = {"ts": time.monotonic(), "result": None}
     return None
@@ -3074,6 +3071,123 @@ def _extract_bdjobs_company_from_document(text, expected_title):
     return ""
 
 
+def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
+    """Extract BDJobs Live detail fields from stable semantic DOM anchors.
+
+    The current detail page exposes the job as ordinary HTML. The strongest
+    anchors are h1, the company-detail link, labelled summary values, and the
+    #section-education / experience / skills / responsibilities / company
+    sections. No client-side application-state dump is required for the core
+    job facts.
+    """
+    if not page_html:
+        return {}
+    soup = BeautifulSoup(page_html, "html.parser")
+    out = {"dom_used": False}
+
+    h1 = soup.find("h1")
+    title = _clean_one_line(h1.get_text(" ", strip=True)) if h1 else ""
+    if not title:
+        meta = soup.find("meta", attrs={"property": "og:title"})
+        title = _clean_one_line(meta.get("content", "")) if meta else ""
+        if " | " in title:
+            title = title.split(" | ", 1)[0].strip()
+    if title:
+        out["title"] = title
+
+    company_anchor = soup.select_one('a[href*="/company-detail/"]')
+    company = _clean_one_line(company_anchor.get_text(" ", strip=True)) if company_anchor else ""
+    if company:
+        out["company"] = company
+        out["company_profile_url"] = urljoin(source_url, safe_text(company_anchor.get("href")))
+        parent = company_anchor.parent
+        nearby = []
+        if parent and hasattr(parent, "get_text"):
+            nearby.append(_clean_one_line(parent.get_text(" ", strip=True)))
+            for sibling in list(getattr(parent, "next_siblings", []))[:3]:
+                if hasattr(sibling, "get_text"):
+                    nearby.append(_clean_one_line(sibling.get_text(" ", strip=True)))
+                elif isinstance(sibling, NavigableString):
+                    nearby.append(_clean_one_line(str(sibling)))
+        for block_text in nearby:
+            if not block_text:
+                continue
+            leftovers = block_text.replace(company, " ").strip(" |-")
+            if leftovers and len(leftovers) <= 120 and not is_noise_title(leftovers):
+                out["company_type"] = leftovers
+                break
+
+    summary = _extract_source_label_fields(_text_from_html(page_html))
+    for key in (
+        "location", "salary", "experience", "age", "vacancy",
+        "employment_type", "workplace", "application_method",
+        "deadline", "posted_date", "company",
+    ):
+        if summary.get(key):
+            out[key] = summary[key]
+
+    for field, selector in ((
+        ("education", "#section-education"),
+        ("experience", "#section-experience"),
+    )):
+        node = soup.select_one(selector)
+        if node:
+            value = _clean_one_line(node.get_text(" ", strip=True))
+            if value:
+                out[field] = value.replace("Education", "", 1).strip() if field == "education" else value.replace("Experience", "", 1).strip()
+
+    for field, selector in (("skills", "#section-skills"), ("responsibilities", "#section-responsibilities")):
+        node = soup.select_one(selector)
+        if node:
+            values = []
+            for li in node.find_all("li"):
+                value = _clean_one_line(li.get_text(" ", strip=True))
+                if value:
+                    values.append(value)
+            if values:
+                out[field] = values
+            else:
+                value = _clean_one_line(node.get_text(" ", strip=True))
+                if value:
+                    out[field] = value
+
+    company_section = soup.select_one("#section-company")
+    if company_section:
+        section_text = _clean_one_line(company_section.get_text(" ", strip=True))
+        if section_text:
+            out["company_information"] = section_text
+        address_match = re.search(r"Address\s*:\s*(.+?)(?=Website\s*:|$)", section_text, flags=re.I)
+        if address_match:
+            out["company_address"] = _clean_one_line(address_match.group(1))
+        website = company_section.find("a", href=re.compile(r"^https?://", re.I))
+        if website:
+            out["company_website"] = safe_text(website.get("href"))
+
+    for attr, key in (("description", "meta_description"), ("og:image", "og_image"), ("og:url", "og_url")):
+        node = soup.find("meta", attrs={"name": attr}) or soup.find("meta", attrs={"property": attr})
+        if node and node.get("content"):
+            out[key] = safe_text(node.get("content"))
+
+    description = out.get("meta_description", "")
+    category_match = re.search(r"Category\s+(?:in|:)?\s*([^.!|]+)", description, flags=re.I)
+    if category_match:
+        out["category"] = _clean_one_line(category_match.group(1))
+
+    canonical = soup.find("link", rel=lambda v: v and "canonical" in v)
+    if canonical and canonical.get("href"):
+        out["canonical_url"] = urljoin(source_url, safe_text(canonical.get("href")))
+
+    path = urlparse(source_url).path.rstrip("/")
+    m = re.search(r"-(\d+)$", path)
+    if m:
+        out["job_id"] = m.group(1)
+
+    out["dom_used"] = bool(title and company and (out.get("deadline") or out.get("education") or out.get("experience") or out.get("company_information")))
+    out["detail_is_job_page"] = out["dom_used"]
+    out["detail_identity_status"] = "match" if out["dom_used"] else "unknown"
+    return out
+
+
 def _bdjobs_detail_summary_fields(text, expected_title=""):
     result = _extract_source_label_fields(text)
     if not result.get("company"):
@@ -3089,18 +3203,22 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
     source = safe_text(discovery_item.get("source")) or source_name(source_url)
     is_gov = bool(discovery_item.get("is_government")) or "/gov-job/" in urlparse(source_url).path.lower()
     is_bdjobs = source == "Bdjobs"
+    is_bdjobslive = source == "BDJobs Live"
     bd_dom = _bdjobs_dom_extract(page_html, source_url, discovery_item.get("title", "")) if (page_html and is_bdjobs and not is_gov) else {}
+    bd_live_dom = _bdjobslive_dom_extract(page_html, source_url, discovery_item.get("title", "")) if (page_html and is_bdjobslive and not is_gov) else {}
     bd_summary = _bdjobs_detail_summary_fields(text, discovery_item.get("title", "")) if (is_bdjobs and not is_gov) else _extract_source_label_fields(text)
+    bd_live_summary = _extract_source_label_fields(text) if (is_bdjobslive and not is_gov) else bd_summary
+    source_dom = bd_dom if is_bdjobs else bd_live_dom
+    source_summary = bd_summary if is_bdjobs else bd_live_summary
 
-    title = (safe_text(bd_dom.get("title")) if bd_dom.get("dom_used") else "") or safe_text(jsonld.get("title")) or _html_h1(page_html) or _label_value(text, ["Title", "Job Title", "Position", "Post Name"])
-    if not is_gov and bd_dom.get("dom_used") and safe_text(bd_dom.get("title")):
-        # For Bdjobs, the DOM extractor is authoritative for title identity.
-        title = safe_text(bd_dom.get("title"))
+    title = (safe_text(source_dom.get("title")) if source_dom.get("dom_used") else "") or safe_text(jsonld.get("title")) or _html_h1(page_html) or _label_value(text, ["Title", "Job Title", "Position", "Post Name"])
+    if not is_gov and source_dom.get("dom_used") and safe_text(source_dom.get("title")):
+        title = safe_text(source_dom.get("title"))
     company = ""
     hiring = jsonld.get("hiringOrganization")
     if isinstance(hiring, dict):
         company = safe_text(hiring.get("name"))
-    company = (safe_text(bd_dom.get("company")) or company or bd_summary.get("company") or safe_text(discovery_item.get("company")) or safe_text((discovery_item.get("listing_fields") or {}).get("company")) or _summary_value(text, [
+    company = (safe_text(source_dom.get("company")) or company or source_summary.get("company") or safe_text(discovery_item.get("company")) or safe_text((discovery_item.get("listing_fields") or {}).get("company")) or _summary_value(text, [
         "প্রতিষ্ঠানের নাম", "অফিসের নাম", "দপ্তরের নাম", "মন্ত্রণালয়ের নাম", "মন্ত্রণালয়ের নাম",
         "অধিদপ্তরের নাম", "কার্যালয়ের নাম", "কার্যালয়ের নাম", "Company Name", "Company",
         "Organization Name", "Employer", "Department", "Ministry", "Office", "Directorate",
@@ -3112,25 +3230,25 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "কার্যালয়ের নাম", "কার্যালয়ের নাম"
     ]))
 
-    location = safe_text(bd_dom.get("location")) or bd_summary.get("location") or _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
-    salary = safe_text(bd_dom.get("salary")) or bd_summary.get("salary") or _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
+    location = safe_text(source_dom.get("location")) or source_summary.get("location") or _summary_value(text, ["চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র", "Job Location", "Location", "Job Location(s)", "Work Location"]) or _label_value(text, ["Job Location", "Location", "Job Location(s)", "Work Location", "চাকুরি স্থান", "চাকরি স্থান", "কর্মস্থল", "কর্মস্হল", "কর্মক্ষেত্র"])
+    salary = safe_text(source_dom.get("salary")) or source_summary.get("salary") or _summary_value(text, ["বেতন", "Salary", "Salary Range", "Minimum Salary", "Compensation"]) or _label_value(text, ["Salary", "Salary Range", "Minimum Salary", "Compensation", "বেতন"])
     # Age is intentionally extracted only from explicit age-labelled summary content.
     # Never use a generic fallback that can reinterpret the Experience value as Age.
-    age = safe_text(bd_dom.get("age")) or bd_summary.get("age") or _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"])
-    employment = safe_text(bd_dom.get("employment_type")) or bd_summary.get("employment_type") or _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
-    published = safe_text(bd_dom.get("posted_date")) or bd_summary.get("posted_date") or _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
-    deadline = safe_text(bd_dom.get("deadline")) or bd_summary.get("deadline") or _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
+    age = safe_text(source_dom.get("age")) or source_summary.get("age") or _summary_value(text, ["বয়স", "বয়স", "বয়সসীমা", "বয়সসীমা", "Age", "Age Limit", "Age Requirements"])
+    employment = safe_text(source_dom.get("employment_type")) or source_summary.get("employment_type") or _summary_value(text, ["চাকরির ধরন", "Employment Status", "Job Type", "Employment Type"]) or _label_value(text, ["Employment Status", "Job Type", "Employment Type", "চাকরির ধরন"])
+    published = safe_text(source_dom.get("posted_date")) or source_summary.get("posted_date") or _summary_value(text, ["প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ", "Published", "Posted", "Date Posted", "Publication Date"]) or _label_value(text, ["Published", "Posted", "Date Posted", "Publication Date", "প্রকাশিত", "প্রকাশ তারিখ", "প্রকাশের তারিখ"])
+    deadline = safe_text(source_dom.get("deadline")) or source_summary.get("deadline") or _summary_value(text, ["শেষ তারিখ", "Application Deadline", "Deadline", "Last Date", "Apply Before"]) or _label_value(text, ["Application Deadline", "Deadline", "Last Date", "Apply Before", "শেষ তারিখ"])
 
     # Detail-section fields. Use the same source text as a fallback because some
     # source templates expose the value outside the Job Summary card.
-    experience = safe_text(bd_dom.get("experience")) or bd_summary.get("experience") or _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
-    education = safe_text(bd_dom.get("education")) or bd_summary.get("education") or _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
-    vacancy = safe_text(bd_dom.get("vacancy")) or bd_summary.get("vacancy") or _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
+    experience = safe_text(source_dom.get("experience")) or source_summary.get("experience") or _summary_value(text, ["Experience", "অভিজ্ঞতা"]) or _label_value(text, ["Experience", "Experience Requirements", "Experience Requirement", "অভিজ্ঞতা"])
+    education = safe_text(source_dom.get("education")) or source_summary.get("education") or _summary_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"]) or _label_value(text, ["Education", "Educational Requirements", "Educational Qualification", "Education Requirements", "শিক্ষাগত যোগ্যতা"])
+    vacancy = safe_text(source_dom.get("vacancy")) or source_summary.get("vacancy") or _summary_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"]) or _label_value(text, ["Vacancy", "No. of Vacancy", "Number of Vacancy", "Positions", "পদ সংখ্যা", "পদসংখ্যা", "খালি পদ"])
     if not vacancy and isinstance(jsonld, dict) and jsonld.get("totalJobOpenings") is not None:
         vacancy = safe_text(jsonld.get("totalJobOpenings"))
-    workplace = safe_text(bd_dom.get("workplace")) or bd_summary.get("workplace") or _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
-    category = _label_value(text, ["Category", "Job Category"])
-    application_method = bd_summary.get("application_method") or _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
+    workplace = safe_text(source_dom.get("workplace")) or source_summary.get("workplace") or _summary_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"]) or _label_value(text, ["Job Work Place", "Workplace", "Work Place", "কর্মক্ষেত্র"])
+    category = safe_text(source_dom.get("category")) or _label_value(text, ["Category", "Job Category"])
+    application_method = source_summary.get("application_method") or _label_value(text, ["Application", "Application Process", "Application Procedure", "How to Apply", "Read Before Apply", "আবেদন প্রক্রিয়া", "আবেদন প্রক্রিয়া", "আবেদনের নিয়ম", "আবেদনের নিয়ম"])
     selection_process = _label_value(text, ["Selection Process", "Recruitment Process", "Selection Procedure", "Hiring Process", "Interview Process"])
     application_period = _label_value(text, ["Application Period", "Application Date", "Interview Date", "Walk-in Date"])
 
@@ -3238,18 +3356,27 @@ def extract_job_fields(text, page_html, source_url, discovery_item):
         "discovery": discovery_item.get("discovery", ""),
         "source_category_name": discovery_item.get("category_name", ""),
         "is_government": is_gov,
-        "detail_dom_used": bool(bd_dom.get("dom_used")),
-        "detail_identity_status": safe_text(bd_dom.get("identity_status")) or "not_checked",
-        "detail_identity_ok": safe_text(bd_dom.get("identity_status")) in {"matched", "missing", "not_checked"},
-        "detail_is_job_page": bool(bd_dom.get("is_job_page")) if bd_dom else True,
-        "detail_title_source": safe_text(bd_dom.get("title_source")),
-        "detail_fields_filled": int(bd_dom.get("fields_filled", 0) or 0),
-        "detail_company_address": safe_text(bd_dom.get("company_address")),
-        "detail_company_size": safe_text(bd_dom.get("company_size")),
-        "detail_body_text": safe_text(bd_dom.get("body_text")),
-        "detail_skills": safe_text(bd_dom.get("skills")),
-        "detail_experience_requirements": safe_text(bd_dom.get("experience_requirements")),
-        "detail_additional_requirements": safe_text(bd_dom.get("additional_requirements")),
+        "detail_dom_used": bool(source_dom.get("dom_used")),
+        "detail_identity_status": safe_text(source_dom.get("detail_identity_status") or source_dom.get("identity_status")) or "not_checked",
+        "detail_identity_ok": safe_text(source_dom.get("detail_identity_status") or source_dom.get("identity_status")) in {"match", "matched", "missing", "not_checked"},
+        "detail_is_job_page": bool(source_dom.get("detail_is_job_page")) if source_dom else True,
+        "detail_title_source": safe_text(source_dom.get("title_source")),
+        "detail_fields_filled": int(source_dom.get("fields_filled", 0) or 0),
+        "detail_company_address": safe_text(source_dom.get("company_address")),
+        "detail_company_size": safe_text(source_dom.get("company_size")),
+        "detail_body_text": safe_text(source_dom.get("body_text")),
+        "detail_skills": safe_text(source_dom.get("skills")),
+        "detail_experience_requirements": safe_text(source_dom.get("experience_requirements")),
+        "detail_additional_requirements": safe_text(source_dom.get("additional_requirements")),
+        "company_type": safe_text(source_dom.get("company_type")),
+        "company_profile_url": safe_text(source_dom.get("company_profile_url")),
+        "company_address": safe_text(source_dom.get("company_address")),
+        "company_website": safe_text(source_dom.get("company_website")),
+        "skills": source_dom.get("skills", []),
+        "responsibilities": source_dom.get("responsibilities", []),
+        "meta_description": safe_text(source_dom.get("meta_description")),
+        "og_image": safe_text(source_dom.get("og_image")),
+        "canonical_url": safe_text(source_dom.get("canonical_url")),
     }
 
 
@@ -3805,7 +3932,14 @@ def research_job(item):
                 item.get("source_job_id", ""), fields.get("detail_title_source", ""), identity_status,
                 fields.get("detail_fields_filled", ""),
             )
+    source_extras = {
+        key: value for key, value in detail_fields.items()
+        if key in {"company_type", "company_profile_url", "company_address", "company_website", "skills", "responsibilities", "meta_description", "og_image", "canonical_url"}
+        and value not in ("", None, [], {})
+    }
     fields=merge_job_fields(detail_fields, listing, item)
+    if source_extras:
+        fields["source_extras"] = source_extras
     source_fields = dict(item.get("raw_source_fields") or {})
     extracted_fields = _extract_source_label_fields(retrieved.get("text", ""))
     source_fields.update({k:v for k,v in extracted_fields.items() if v})
@@ -5243,6 +5377,10 @@ def source_test():
             print(f"Bdjobs detail: FALLBACK | id={sample.get('source_job_id','')} | listing_chars={len((fallback or {}).get('text',''))}")
     print("Production: Teletalk government + Bdjobs + BDJobs Live private")
     if BDJOBSLIVE_ENABLED:
+        # Category pages are client-rendered and can be temporarily unavailable.
+        # Keep this diagnostic useful without making a source outage fatal to the
+        # rest of the production pipeline. Then verify the stable detail parser
+        # independently using the first live detail link available from the home page.
         live_name, live_legacy, live_current = BDJOBSLIVE_CATEGORIES[0]
         live_fetch = None
         live_candidates = []
@@ -5262,13 +5400,29 @@ def source_test():
                 selected_live_url=live_url
                 break
         elapsed=round(time.monotonic()-started,2)
-        if not live_fetch:
-            print(f"BDJobs Live category {live_name}: FAIL | time={elapsed}s")
-            raise RuntimeError("BDJobs Live category fetch failed")
-        print(f"BDJobs Live category {live_name}: OK | backend={live_fetch.get('backend')} | jobs={len(live_candidates)} | url={selected_live_url} | time={elapsed}s")
+        if live_fetch:
+            print(f"BDJobs Live category {live_name}: OK | backend={live_fetch.get('backend')} | jobs={len(live_candidates)} | url={selected_live_url} | time={elapsed}s")
+        else:
+            print(f"BDJobs Live category {live_name}: WARN | dynamic listing unavailable | time={elapsed}s | production remains non-fatal")
+
+        homepage=_fetch_source_document("https://www.bdjobslive.com/", timeout=min(BDJOBSLIVE_TIMEOUT, 12), referer="https://bdjobslive.com/")
+        homepage_candidates=_bdjobslive_listing_candidates(
+            (homepage or {}).get("text", ""), (homepage or {}).get("url") or "https://www.bdjobslive.com/", ""
+        ) if homepage else []
+        if homepage_candidates:
+            sample=homepage_candidates[0]
+            detail=_fetch_bdjobslive_detail(sample)
+            if detail:
+                parsed=extract_job_fields(detail.get("text", ""), detail.get("html", ""), sample["url"], sample)
+                sane=bool(parsed.get("title")) and bool(parsed.get("company")) and bool(parsed.get("deadline"))
+                print(f"BDJobs Live detail: {'OK' if sane else 'INVALID_PARSE'} | id={sample.get('source_job_id','')} | backend={detail.get('backend')} | quality={detail.get('detail_quality')} | title={parsed.get('title','')} | company={parsed.get('company','')}")
+            else:
+                print(f"BDJobs Live detail: WARN | id={sample.get('source_job_id','')} | acquisition failed; production remains non-fatal")
+        else:
+            print("BDJobs Live detail: WARN | no live homepage detail link available for diagnostic")
 
     print("Discovery: category-first across Bdjobs + BDJobs Live + Teletalk")
-    print("Fallback: curl_cffi -> real browser render -> Jina -> listing preservation")
+    print("Fallback: curl_cffi -> browser only when required -> Jina -> listing preservation")
 
 # ============================================================
 # MAIN
@@ -5673,6 +5827,46 @@ def self_test():
     Application
     Online
     """
+    live_detail_html = """
+    <html lang="en"><head>
+      <title>Junior Audit Officer | Advanced Chemical Industries PLC (ACI) - BDJobs Live</title>
+      <link rel="canonical" href="https://www.bdjobslive.com/bdjobs-details/junior-audit-officer-13486">
+      <meta name="description" content="Advanced Chemical Industries PLC (ACI) is looking for a Junior Audit Officer on BDJobs Live. Category in Accounting/ Finance.">
+      <meta property="og:title" content="Junior Audit Officer | Advanced Chemical Industries PLC (ACI) - BDJobs Live">
+      <meta property="og:image" content="https://www.bdjobslive.com/media/v1/uploads/og_images/2026/09/junior-audit-officer-13486.jpg">
+    </head><body>
+      <h1>Junior Audit Officer</h1>
+      <a href="/company-detail/advanced-chemical-industries-plc-aci-3430">Advanced Chemical Industries PLC (ACI)</a>
+      <p>Manufacturing Company</p>
+      <div>Application Deadline : 20 Oct 2026</div>
+      <span>Vacancy:</span><strong>N/A</strong>
+      <span>Age:</span><strong>Not Specified</strong>
+      <span>Location:</span><strong>Anywhere in Bangladesh</strong>
+      <span>Salary:</span><strong>Negotiable</strong>
+      <span>Experience:</span><strong>1-2 Year</strong>
+      <span>Gender:</span><strong>Male</strong>
+      <span>Job Type:</span><strong>Contract</strong>
+      <span>Job Shift:</span><strong>Day Shift</strong>
+      <span>Published:</span><strong>23 Sept 2026</strong>
+      <section id="section-education"><h3>Education</h3><ul><li>Bachelor/Honors, Bachelor of Business Studies (BBS)</li></ul></section>
+      <section id="section-experience"><h3>Experience</h3><p>1-2 Year</p></section>
+      <section id="section-skills"><h3>Skills</h3><ul><li>market research</li><li>Audit</li></ul></section>
+      <section id="section-responsibilities"><h3>Responsibilities &amp; Context</h3><ul><li>Conduct surprise visits to outlets.</li><li>Participate in inventory counts.</li></ul></section>
+      <section id="section-company"><h3>Company Information</h3><p>Address: ACI Centre, 245 Tejgaon Industrial Area, Dhaka-1208.</p><p>Website: <a href="https://www.aci-bd.com/">https://www.aci-bd.com/</a></p></section>
+    </body></html>
+    """
+    live_dom_fields = extract_job_fields(
+        _text_from_html(live_detail_html), live_detail_html,
+        "https://www.bdjobslive.com/bdjobs-details/junior-audit-officer-13486",
+        {"source":"BDJobs Live","title":"Junior Audit Officer","source_url":"https://www.bdjobslive.com/bdjobs-details/junior-audit-officer-13486"},
+    )
+    assert live_dom_fields["title"] == "Junior Audit Officer"
+    assert live_dom_fields["company"] == "Advanced Chemical Industries PLC (ACI)"
+    assert live_dom_fields["salary"] == "Negotiable"
+    assert live_dom_fields["deadline"] == "2026-10-20"
+    assert "BBS" in live_dom_fields["education"]
+    assert live_dom_fields["company_website"] == "https://www.aci-bd.com/"
+
     live_fields = extract_job_fields(
         live_detail_text, "", live_item["url"], live_item
     )
