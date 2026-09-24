@@ -118,6 +118,7 @@ BDJOBS_LEGACY_LISTING_URL = "https://jobs.bdjobs.com/jobsearch.asp"
 BDJOBS_DETAIL_BASE = "https://jobs.bdjobs.com/jobdetails.asp?id="
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 BDJOBSLIVE_DOMAIN = "bdjobslive.com"
+PRIVATE_JOB_DOMAINS = [*BDJOBS_DOMAINS, BDJOBSLIVE_DOMAIN]
 BDJOBSLIVE_ENABLED = os.environ.get("BDJOBSLIVE_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
 BDJOBSLIVE_CATEGORY_PAGE_LIMIT = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_PAGE_LIMIT", "2")))
 BDJOBSLIVE_CATEGORY_CAP = max(1, int(os.environ.get("BDJOBSLIVE_CATEGORY_CAP", "10")))
@@ -385,8 +386,15 @@ def is_teletalk_url(url):
     return is_domain_allowed(url, [TELETALK_DOMAIN])
 
 
+def is_bdjobslive_job_url(url):
+    parsed = urlparse(safe_text(url))
+    if not is_domain_allowed(url, [BDJOBSLIVE_DOMAIN]):
+        return False
+    return bool(re.match(r"^/bdjobs-details/[^?#/]+(?:/)?$", parsed.path, flags=re.I))
+
+
 def is_vacancy_url(url):
-    return is_bdjobs_job_url(url) or is_teletalk_url(url)
+    return is_bdjobs_job_url(url) or is_bdjobslive_job_url(url) or is_teletalk_url(url)
 
 
 def job_family_score(title, text):
@@ -492,49 +500,53 @@ def likely_same_job(a, b):
     source_b = safe_text(b.get("source")).lower()
     id_a = safe_text(a.get("source_job_id"))
     id_b = safe_text(b.get("source_job_id"))
-    if source_a and source_a == source_b and id_a and id_b and id_a != id_b:
+    same_source = source_a == source_b and bool(source_a)
+    if same_source and id_a and id_b and id_a != id_b:
         return False
 
     source_url_a = canonical_url(a.get("source_url", ""))
     source_url_b = canonical_url(b.get("source_url", ""))
     if source_url_a and source_url_a == source_url_b:
         return True
-    if _same_application_target(a, b):
-        return True
 
     title_a = _normalized_identity_title(a.get("title", ""))
     title_b = _normalized_identity_title(b.get("title", ""))
     company_a = _normalized_company(a.get("company", ""))
     company_b = _normalized_company(b.get("company", ""))
+    title_sim = title_similarity(a.get("title", ""), b.get("title", "")) if title_a and title_b else 0.0
+    company_sim = SequenceMatcher(None, company_a, company_b).ratio() if company_a and company_b else 0.0
+    location_sim = title_similarity(a.get("location", ""), b.get("location", "")) if a.get("location") and b.get("location") else 0.0
+    close_date = _identity_date_close(a, b)
+
+    # A shared application/ATS endpoint alone is NOT proof of duplication. A single
+    # government circular can contain several distinct roles under one application URL.
+    # Use the endpoint as a strong supporting signal only when role identity also agrees.
+    if _same_application_target(a, b) and close_date:
+        if title_a and title_b and title_sim >= 0.92:
+            if not company_a or not company_b or company_sim >= 0.88:
+                return True
+        if title_a and title_b and company_a and company_b and title_sim >= 0.85 and company_sim >= 0.95:
+            return True
+
     if not title_a or not title_b or not company_a or not company_b:
         return False
 
-    title_exact = title_a == title_b
-    title_sim = title_similarity(a.get("title", ""), b.get("title", ""))
-    company_sim = SequenceMatcher(None, company_a, company_b).ratio()
-    location_sim = title_similarity(a.get("location", ""), b.get("location", "")) if a.get("location") and b.get("location") else 0.0
-    same_source = source_a == source_b and bool(source_a)
-    close_date = _identity_date_close(a, b)
-
     # Strong cross-source mirror: same normalized company + same normalized title.
-    # Require a reasonable recency window when dates are available so a company
-    # legitimately reposting the same role months later is not swallowed.
-    if title_exact and company_sim >= 0.92 and close_date:
+    # Require a reasonable recency window when dates are available so legitimate
+    # reposts are not swallowed.
+    if title_a == title_b and company_sim >= 0.92 and close_date:
         if (not same_source or not id_a or not id_b) and (
             not a.get("location") or not b.get("location") or location_sim >= 0.70
         ):
             return True
 
-    # Near-identical mirrors with slightly different punctuation or title wording,
-    # provided company identity is very strong and locations do not conflict.
+    # Near-identical cross-source mirrors with minor wording/punctuation differences.
     if title_sim >= 0.95 and company_sim >= 0.90 and close_date:
         if (not same_source or not id_a or not id_b) and (
             not a.get("location") or not b.get("location") or location_sim >= 0.65
         ):
             return True
 
-    # When both same-source native IDs are explicitly different, do not fuzzy-merge:
-    # the source has told us they are separate records.
     return False
 
 
@@ -1577,55 +1589,78 @@ def _fetch_bdjobslive_detail(item):
 def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
-    for base_url in _bdjobslive_category_urls(legacy_slug, current_slug):
+    urls = _bdjobslive_category_urls(legacy_slug, current_slug)
+    browser_attempted_for_category = False
+
+    for base_index, base_url in enumerate(urls):
         if len(collected) >= BDJOBSLIVE_CATEGORY_CAP:
             break
+
         next_url = base_url
         seen_pages = set()
         for page_index in range(1, BDJOBSLIVE_CATEGORY_PAGE_LIMIT + 1):
             if not next_url or next_url in seen_pages:
                 break
             seen_pages.add(next_url)
+
             fetched = _fetch_source_document(next_url, timeout=BDJOBSLIVE_TIMEOUT, referer="https://bdjobslive.com/")
             page_url = (fetched or {}).get("url") or next_url
-            candidates = _bdjobslive_listing_candidates((fetched or {}).get("text", ""), page_url, category_name) if fetched else []
+            candidates = _bdjobslive_listing_candidates(
+                (fetched or {}).get("text", ""), page_url, category_name
+            ) if fetched else []
 
-            # Same principle as Bdjobs: a successful HTTP 200 shell is not a usable
-            # listing. Render the page in Chromium before falling back to Jina/none.
-            if not candidates:
+            # Match Bdjobs' proven acquisition strategy: one browser render when
+            # normal HTTP returns only a JS shell. Do not repeat that expensive
+            # browser render for every alias/legacy URL in the same category.
+            if not candidates and not browser_attempted_for_category:
+                browser_attempted_for_category = True
                 browser = _fetch_bdjobslive_browser_document(next_url, mode="listing")
                 if browser:
                     fetched = browser
                     page_url = browser.get("url") or next_url
-                    candidates = _bdjobslive_listing_candidates(browser.get("html", "") or browser.get("text", ""), page_url, category_name)
-            page_dates=[]
-            new_count=0
+                    candidates = _bdjobslive_listing_candidates(
+                        browser.get("html", "") or browser.get("text", ""),
+                        page_url, category_name
+                    )
+
+            page_dates = []
+            new_count = 0
             for item in candidates:
-                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+                canonical = item.get("canonical") or canonical_url(item.get("source_url", ""))
+                if not canonical or canonical in seen or canonical in POSTED_URLS:
                     continue
-                pdt=parse_datetime(item.get("listing_posted"))
+                pdt = parse_datetime(item.get("listing_posted"))
                 if pdt:
                     page_dates.append(pdt)
                     if pdt < cutoff:
                         continue
-                seen.add(item["canonical"])
-                item["discovery_backend"] = fetched.get("backend", "")
+                seen.add(canonical)
+                item["discovery_backend"] = (fetched or {}).get("backend", "")
                 collected.append(item)
                 new_count += 1
                 if len(collected) >= BDJOBSLIVE_CATEGORY_CAP:
                     break
+
             if len(collected) >= BDJOBSLIVE_CATEGORY_CAP:
                 break
-            links=dict(_bdjobslive_pagination_links(fetched.get("text", ""), page_url, BDJOBSLIVE_CATEGORY_PAGE_LIMIT+2))
-            next_url = links.get(page_index+1, "")
+            if not fetched:
+                break
+
+            links = dict(_bdjobslive_pagination_links(
+                fetched.get("text", ""), page_url, BDJOBSLIVE_CATEGORY_PAGE_LIMIT + 2
+            ))
+            next_url = links.get(page_index + 1, "")
             if not next_url and page_index == 1:
-                # Current BDJobs Live uses category pages that accept ?page=2.
-                parsed=urlparse(page_url)
-                next_url=urlunparse(parsed._replace(query=(parsed.query+"&" if parsed.query else "")+"page=2"))
+                parsed = urlparse(page_url)
+                next_url = urlunparse(
+                    parsed._replace(query=(parsed.query + "&" if parsed.query else "") + "page=2")
+                )
+
             if page_dates and max(page_dates) < cutoff:
                 break
             if new_count == 0 and page_index > 1:
                 break
+
     logger.info("BDJOBSLIVE CATEGORY | %s | %d", category_name, len(collected))
     return collected
 
@@ -3939,7 +3974,7 @@ def deterministic_job_gate(job):
         if deadline_status(job) == "expired": return False, "expired"
         return True, "ok_government"
     if not job.get("company"): return False, "missing_company"
-    if not is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS): return False, "source_not_allowed"
+    if not is_domain_allowed(job.get("source_url", ""), PRIVATE_JOB_DOMAINS): return False, "source_not_allowed"
     if deadline_status(job) == "expired": return False, "expired"
     age = posted_age_days(job)
     if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
@@ -4321,6 +4356,10 @@ def build_unique_job_pool(jobs):
     identity_buckets = {}
     for job in jobs:
         if candidate_already_posted(job):
+            logger.info(
+                "DROP duplicate | source=%s | id=%s | title=%s | canonical=%s",
+                job.get("source", ""), job.get("source_job_id", ""), job.get("title", ""), job.get("canonical", ""),
+            )
             continue
         event_key = job_event_key(job)
         if event_key in event_keys:
@@ -5510,6 +5549,8 @@ def self_test():
     tel=_teletalk_record_fields({"job_primary_id":"TL-1001","job_title":"Accounts Assistant","org_name":"Example Government Department","vacancy":"12","deadline_date":"2026-10-10","application_site_url":"https://example.teletalk.com.bd/"}); assert tel["source"]=="Teletalk" and tel["source_job_id"]=="TL-1001"
     a={"source":"Bdjobs","source_job_id":"1","title":"Marketing Executive","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=1","posted_date":"2026-09-19"}; b={"source":"Bdjobs","source_job_id":"","title":"Executive - Marketing","company":"Example Limited","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=2","posted_date":"2026-09-19"}; assert likely_same_job(a,b)
     c={"source":"Bdjobs","source_job_id":"10","title":"Assistant Manager","company":"Example Ltd.","location":"Dhaka","source_url":"https://jobs.bdjobs.com/jobdetails.asp?id=10","posted_date":"2026-09-19"}; d=dict(c,source_job_id="11",source_url="https://jobs.bdjobs.com/jobdetails.asp?id=11"); assert not likely_same_job(c,d)
+    circular_a={"source":"Teletalk","source_job_id":"TL-1","title":"Accounts Officer","company":"Example Authority","location":"Dhaka","source_url":"https://example.teletalk.com.bd/1","apply_url":"https://example.teletalk.com.bd/apply","posted_date":"2026-09-24"}; circular_b=dict(circular_a,source_job_id="TL-2",title="Office Assistant",source_url="https://example.teletalk.com.bd/2"); assert not likely_same_job(circular_a,circular_b), "same circular endpoint with different roles must remain distinct"
+    live_gate={"title":"Senior Executive - Accounts & Finance","company":"Example Private Ltd.","source":"BDJobs Live","source_url":"https://bdjobslive.com/bdjobs-details/senior-executive-accounts-finance-13031","listing_posted":self_test_posted_iso,"posted_date":self_test_posted_iso,"deadline":self_test_deadline.isoformat(),"experience":"1 to 2 years","education":"BBA","raw_text":"BBA Accounts Finance Executive"}; assert deterministic_job_gate(live_gate)[0], "BDJobs Live private source must pass the same private gate"
     listing_item={
         "title":"Accounts Executive", "url":"https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1",
         "canonical":canonical_url("https://jobs.bdjobs.com/jobdetails/?id=777001&ln=1"), "source":"Bdjobs",

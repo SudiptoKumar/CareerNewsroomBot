@@ -642,12 +642,15 @@ Private snapshot minimum: 4 source-backed fields
 
 ## Cross-source duplicate protection
 
-CareerNewsroom now treats Bdjobs and BDJobs Live as potentially overlapping vacancy sources. Duplicate decisions are layered: exact canonical source URL, matching source/application target, same-source native job IDs, then a conservative cross-source identity match using normalized job title + company, recent posting proximity, and location compatibility.
+CareerNewsroom now treats Bdjobs and BDJobs Live as potentially overlapping vacancy sources. Duplicate decisions are layered: exact canonical source URL, same-source native job IDs, then a conservative cross-source identity match using normalized job title + company, recent posting proximity, and location compatibility. A shared application endpoint is only a supporting signal and does not by itself merge different roles from the same government circular or ATS form.
 
-A company repost with different native IDs on the same source is not fuzzy-collapsed when both source IDs are explicitly different. Cross-source mirrors such as the same company and same role appearing on Bdjobs and BDJobs Live are collapsed before detail research and again protected by persistent published-state checks.
+A company repost with different native IDs on the same source is not fuzzy-collapsed when both source IDs are explicitly different. Cross-source mirrors such as the same company and same role appearing on Bdjobs and BDJobs Live are collapsed before detail research and again protected by persistent published-state checks. Distinct Teletalk roles from the same circular remain separate when their source-native IDs or titles differ.
 
 ## Dynamic publication and state persistence
 
 CareerNewsroom does not require a minimum number of posts per run. If only 4 qualifying jobs are found, it publishes 4. If none qualify, it publishes 0. A sparse run is a successful run.
 
 After publishing, the Telegram `message_id`, deadline, canonical URL, and related state are persisted in `news_state.json`; `posted_urls.txt` preserves deduplication history. The workflow uses fast-forward-only Git pushes, retries transient failures, and, when `origin/main` advances independently, reconciles the local state snapshot with remote state before retrying. It never force-pushes or silently discards state. A genuinely unrecoverable persistence failure keeps the workflow failed.
+
+### Private-source acceptance
+Bdjobs and BDJobs Live both use the same private deterministic gate. BDJobs Live is not a separate quality lane and is never rejected merely because its domain differs from Bdjobs. Its 14 category feeds enter the same freshness, BBA/MBA relevance, experience, information-quality, AI-review, diversity, and duplicate funnel.
