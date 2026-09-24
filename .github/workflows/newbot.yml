@@ -61,6 +61,11 @@ jobs:
       JINA_ENABLED: "1"
       JINA_TIMEOUT: "12"
       JINA_RPM_LIMIT: "24"
+      BDJOBSLIVE_ENABLED: "1"
+      BDJOBSLIVE_CATEGORY_PAGE_LIMIT: "2"
+      BDJOBSLIVE_CATEGORY_CAP: "10"
+      BDJOBSLIVE_DISCOVERY_MAX: "120"
+      BDJOBSLIVE_TIMEOUT: "18"
 
     steps:
       - name: Checkout repository
