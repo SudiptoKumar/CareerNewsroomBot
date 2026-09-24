@@ -2,7 +2,10 @@ name: CareerNewsroom
 
 on:
   schedule:
-    - cron: "0 */3 * * *"
+    - cron: "5 10 * * *"
+      timezone: "Asia/Dhaka"
+    - cron: "5 17 * * *"
+      timezone: "Asia/Dhaka"
   workflow_dispatch:
 
 permissions:
@@ -27,15 +30,25 @@ jobs:
       DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
       PYTHONUNBUFFERED: "1"
       MAX_POST_AGE_DAYS: "5"
-      PRIVATE_DISCOVERY_TARGET: "160"
+      TARGET_STORIES_PER_RUN: "19"
+      MAX_STORIES_PER_RUN: "25"
+      PRIVATE_TARGET_PER_RUN: "10"
+      GOVERNMENT_TARGET_PER_RUN: "5"
+      INTERNSHIP_TARGET_PER_RUN: "4"
+      INTERNSHIP_BDJOBS_TARGET: "2"
+      INTERNSHIP_BDJOBSLIVE_TARGET: "2"
+      EXTRA_TARGET_PER_RUN: "6"
+      PRIVATE_DISCOVERY_TARGET: "180"
       PRIVATE_DISCOVERY_MAX: "200"
-      PRIVATE_FAST_RANK_TARGET: "60"
+      PRIVATE_FAST_RANK_TARGET: "80"
       PRIVATE_DETAIL_TARGET: "60"
-      INTERNSHIP_DETAIL_TARGET: "10"
+      INTERNSHIP_DETAIL_TARGET: "12"
       INTERNSHIP_AI_TARGET: "8"
+      INTERNSHIP_SNAPSHOT_MIN_FIELDS: "3"
       MIN_INTERNSHIP_POSTS_PER_RUN: "0"
       PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
       GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
+      MAX_GOVERNMENT_POSTS_PER_RUN: "5"
       AI_REVIEW_TARGET: "50"
       AI_BATCH_SIZE: "8"
       AI_RETRY_COUNT: "1"
@@ -67,10 +80,10 @@ jobs:
       BDJOBSLIVE_DISCOVERY_MAX: "120"
       BDJOBSLIVE_TIMEOUT: "18"
       BDJOBSLIVE_BROWSER_TIMEOUT: "15000"
-      BDJOBSLIVE_BROWSER_WAIT_MS: "1500"
-      BDJOBSLIVE_BROWSER_LISTING_LIMIT: "16"
+      BDJOBSLIVE_BROWSER_WAIT_MS: "2200"
+      BDJOBSLIVE_BROWSER_LISTING_LIMIT: "28"
       BDJOBSLIVE_BROWSER_DETAIL_LIMIT: "60"
-      BDJOBSLIVE_INDEX_FALLBACK_URL: "https://www.bdjobslive.com/index-data"
+      BDJOBSLIVE_INDEX_FALLBACK_URL: "https://www.bdjobslive.com/"
       BDJOBSLIVE_INDEX_FALLBACK_CAP: "60"
       BDJOBSLIVE_PRIVATE_DETAIL_SHARE: "0.25"
       BDJOBSLIVE_PRIVATE_DETAIL_MIN: "8"
@@ -100,7 +113,7 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
-      - name: Run V1 self-test
+      - name: Run V2 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
