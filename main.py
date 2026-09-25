@@ -65,7 +65,7 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "CareerNewsroom V2.2"
+PIPELINE_VERSION = "CareerNewsroom V2.3"
 STATE_FORMAT_VERSION = 7
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
@@ -1288,7 +1288,7 @@ def _fetch_jina(url, *, timeout=None):
             JINA_PREFIX + request_safe_url(url),
             headers={
                 "Accept": "text/plain, text/markdown",
-                "User-Agent": "Career News V2.2/2.1",
+                "User-Agent": "Career News V2.3/2.1",
                 "X-Base": "true",
             },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
@@ -1686,13 +1686,32 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
         ordinal = BDJOBSLIVE_BROWSER_FETCH_COUNT
 
     target = request_safe_url(url)
-    # One bounded browser attempt per source page. The category page is
-    # client-rendered, but the job-detail page's core data is static HTML, so
-    # detail browsing is an exceptional fallback rather than the normal path.
+    # Listing pages are client-rendered and several category templates hydrate
+    # later than the default 2.2s. Wait for the actual job-detail anchor instead
+    # of relying on a flat sleep, then retry once with a longer render window.
+    # Detail pages keep their existing h1 readiness check and one bounded attempt.
     wait_selector = 'a[href*="/bdjobs-details/"]' if mode == "listing" else "h1"
-    attempts = (
-        {"wait": BDJOBSLIVE_BROWSER_WAIT_MS, "wait_selector": wait_selector},
-    )
+    if mode == "listing":
+        attempts = (
+            {
+                "wait": max(800, BDJOBSLIVE_BROWSER_WAIT_MS),
+                "wait_selector": wait_selector,
+                "network_idle": True,
+            },
+            {
+                "wait": max(BDJOBSLIVE_BROWSER_WAIT_MS * 2, 5000),
+                "wait_selector": wait_selector,
+                "network_idle": True,
+            },
+        )
+    else:
+        attempts = (
+            {
+                "wait": max(800, BDJOBSLIVE_BROWSER_WAIT_MS),
+                "wait_selector": wait_selector,
+                "network_idle": False,
+            },
+        )
     last_reason = "no_render"
     for attempt, opts in enumerate(attempts, start=1):
         try:
@@ -1700,7 +1719,7 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 headless=True,
                 disable_resources=False,
                 load_dom=True,
-                network_idle=False,
+                network_idle=opts["network_idle"],
                 wait=opts["wait"],
                 timeout=max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000)),
                 google_search=False,
@@ -1710,10 +1729,10 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 retries=1,
                 retry_delay=0,
             )
-            # The listing shell can take a moment to hydrate and may not expose
-            # a detail link quickly enough for selector-based waiting. Let the
-            # renderer return after a bounded DOM wait and inspect the HTML.
-            if mode == "detail" and opts["wait_selector"]:
+            # Both listing and detail rendering must wait for their real content
+            # to attach. The old code accidentally applied this only to detail
+            # mode, creating a race on slower category templates.
+            if opts["wait_selector"]:
                 kwargs.update(wait_selector=opts["wait_selector"], wait_selector_state="attached")
             page = StealthyFetcher.fetch(target, **kwargs)
             text = _scrapling_visible_text(page)
@@ -2126,11 +2145,21 @@ def discover_all():
     internships_bdjobs = results.get("Bdjobs Internships", [])
     internships_live = results.get("BDJobs Live Internships", [])
 
-    merged, seen = [], set()
+    # Merge duplicate discovery lanes instead of using first-URL-wins. BDJobs Live
+    # regular discovery and its internship fallback can surface the same vacancy;
+    # the internship copy must be allowed to promote the retained record into the
+    # internship lane so it remains eligible for the dedicated internship allocator.
+    merged, seen = [], {}
     for item in government + bdjobs + bdjobslive + internships_bdjobs + internships_live:
         canonical = item.get("canonical") or canonical_url(item.get("source_url", ""))
-        if canonical and canonical not in seen and canonical not in POSTED_URLS:
-            seen.add(canonical); merged.append(item)
+        if not canonical or canonical in POSTED_URLS:
+            continue
+        if canonical in seen:
+            _merge_duplicate_metadata(seen[canonical], item)
+            continue
+        item["canonical"] = canonical
+        seen[canonical] = item
+        merged.append(item)
     internship_count = sum(1 for x in merged if x.get("lane") == "internship" or x.get("is_internship_source"))
     logger.info(
         "DISCOVERED | Teletalk=%d | Bdjobs=%d | BDJobsLive=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | internships=%d | merged=%d",
@@ -4876,7 +4905,7 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the semantic audit layer for Career Newsroom V2.2.
+You are the semantic audit layer for Career Newsroom V2.3.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
@@ -6305,7 +6334,7 @@ def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
     if begin_scheduled_session():
         return {"selected": [], "published": 0, "metrics": {"schedule_skipped": True}}
-    logger.info("CAREER NEWS V2.2 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
+    logger.info("CAREER NEWS V2.3 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
     if dry_run:
         logger.info("DEADLINE SWEEP | skipped in dry-run mode")
@@ -6472,7 +6501,7 @@ def run(*, dry_run=False, print_ranking=False):
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "CareerNewsroom V2.2"
+    assert PIPELINE_VERSION == "CareerNewsroom V2.3"
     assert STATE_FORMAT_VERSION == 7
     assert MAX_STORIES_PER_RUN == 25
     assert TARGET_STORIES_PER_RUN == 19
@@ -6721,6 +6750,37 @@ def self_test():
     assert _FakeBDJobsLiveFetcher.last_kwargs.get("solve_cloudflare") is False
     assert _FakeBDJobsLiveFetcher.last_kwargs.get("network_idle") is False
     assert int(_FakeBDJobsLiveFetcher.last_kwargs.get("timeout", 999999)) <= 15000
+
+    # Listing-render regression: slow category templates must wait on the real
+    # job-detail anchor and retry with a longer render window when the first
+    # browser pass returns only the client shell.
+    class _FakeBDJobsLiveListingFetcher:
+        calls = []
+        @staticmethod
+        def fetch(url, **kwargs):
+            _FakeBDJobsLiveListingFetcher.calls.append(dict(kwargs))
+            if len(_FakeBDJobsLiveListingFetcher.calls) == 1:
+                html_text = "<html><body><div id='app'>loading...</div></body></html>"
+            else:
+                html_text = "<html><body><a href='/bdjobs-details/executive-finance-9002'>Executive - Finance</a></body></html>"
+            return _FakeBDJobsLivePage(html_text, url)
+
+    original_live_fetcher = globals().get("StealthyFetcher")
+    original_fetch_count = globals().get("BDJOBSLIVE_BROWSER_FETCH_COUNT", 0)
+    try:
+        globals()["StealthyFetcher"] = _FakeBDJobsLiveListingFetcher
+        globals()["BDJOBSLIVE_BROWSER_FETCH_COUNT"] = 0
+        listing_browser_probe = _fetch_bdjobslive_browser_document(
+            "https://www.bdjobslive.com/bdjobs-circular/bank-financial-institution-jobs", mode="listing"
+        )
+    finally:
+        globals()["StealthyFetcher"] = original_live_fetcher
+        globals()["BDJOBSLIVE_BROWSER_FETCH_COUNT"] = original_fetch_count
+    assert listing_browser_probe and len(_FakeBDJobsLiveListingFetcher.calls) == 2
+    assert all(call.get("wait_selector") == 'a[href*="/bdjobs-details/"]' for call in _FakeBDJobsLiveListingFetcher.calls)
+    assert all(call.get("wait_selector_state") == "attached" for call in _FakeBDJobsLiveListingFetcher.calls)
+    assert all(call.get("network_idle") is True for call in _FakeBDJobsLiveListingFetcher.calls)
+    assert _FakeBDJobsLiveListingFetcher.calls[1]["wait"] > _FakeBDJobsLiveListingFetcher.calls[0]["wait"]
 
     live_detail_text = """
     Job List
@@ -7199,7 +7259,7 @@ def self_test():
         "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
         "recent_titles": ["Remote Job"],
         "last_run": "2026-09-23T08:00:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.2",
+        "pipeline_version": "CareerNewsroom V2.3",
     }
     local_state = {
         "format_version": 6,
@@ -7210,7 +7270,7 @@ def self_test():
         },
         "recent_titles": ["Local Job", "Remote Job"],
         "last_run": "2026-09-23T09:05:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.2",
+        "pipeline_version": "CareerNewsroom V2.3",
     }
     reconciled = merge_state_data(remote_state, local_state)
     assert set(reconciled["queue"]) == {"q1", "q2"}
@@ -7240,7 +7300,7 @@ def self_test():
                 _os.environ[_k] = _v
         save_state(STATE)
 
-    logger.info("CareerNewsroom V2.2 self-test passed.")
+    logger.info("CareerNewsroom V2.3 self-test passed.")
 
 
 if __name__ == "__main__":
