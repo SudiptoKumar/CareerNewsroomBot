@@ -122,7 +122,7 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
-      - name: Run V2.2 self-test
+      - name: Run V2.3 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
