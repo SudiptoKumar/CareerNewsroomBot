@@ -65,7 +65,7 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "CareerNewsroom V2.1"
+PIPELINE_VERSION = "CareerNewsroom V2.2"
 STATE_FORMAT_VERSION = 7
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
@@ -1288,7 +1288,7 @@ def _fetch_jina(url, *, timeout=None):
             JINA_PREFIX + request_safe_url(url),
             headers={
                 "Accept": "text/plain, text/markdown",
-                "User-Agent": "Career News V2.1/2.0",
+                "User-Agent": "Career News V2.2/2.1",
                 "X-Base": "true",
             },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
@@ -3174,7 +3174,20 @@ def _bdjobs_dom_extract(page_html, url="", listing_title=""):
     }
     for key in ("salary", "experience", "posted_date", "location", "vacancy", "age"):
         if not _valid_source_field_value(key, summary_map.get(key, "")) and _valid_source_field_value(key, body_label_fields.get(key, "")):
-            summary_map[key] = body_label_fields.get(key)
+            summary_map[key] = _normalize_authoritative_field_value(key, body_label_fields.get(key))
+
+    # Some Angular pages expose the summary heading/value separately from the
+    # authoritative detail text. Recover explicit salary/experience phrases from
+    # the same job DOM before leaving the field empty.
+    main_text = main.get_text("\n", strip=True)
+    if not _valid_source_field_value("salary", summary_map.get("salary", "")):
+        candidate = _extract_salary_fallback(main_text)
+        if candidate:
+            summary_map["salary"] = candidate
+    if not _valid_source_field_value("experience", summary_map.get("experience", "")):
+        candidate = _normalize_authoritative_field_value("experience", _extract_source_label_fields(main_text).get("experience", ""))
+        if candidate and _valid_source_field_value("experience", candidate):
+            summary_map["experience"] = candidate
 
     education_items = requirements.get("education", [])
     req_experience = requirements.get("experience", [])
@@ -3329,17 +3342,63 @@ def _normalized_source_label(value):
     return re.sub(r"\s+", " ", value).strip().rstrip(":-").casefold()
 
 
-def _valid_source_field_value(field, value):
+def _normalize_authoritative_field_value(field, value):
+    """Normalize a source-labelled value without inventing data.
+
+    Current Bdjobs/BDJobs Live templates can place headings such as
+    `Salary & Other Benefits` or `Additional Requirements` directly beside the
+    real value. This helper extracts only explicit source-backed patterns and
+    otherwise leaves the value untouched.
+    """
     value = _clean_one_line(value)
+    if not value:
+        return ""
+    if field == "salary":
+        # Preserve a real salary that is embedded after a salary heading.
+        m = re.search(
+            r"(?:monthly\s+salary|salary|salary\s+range|minimum\s+salary|compensation)\s*[:：-]\s*"
+            r"((?:bdt|tk\.?|৳)\s*[0-9][0-9,]*(?:\s*(?:-|–|to)\s*(?:bdt|tk\.?|৳)?\s*[0-9][0-9,]*)?"
+            r"(?:\s*\([^)]*\))?|negotiable|competitive|not\s+disclosed)",
+            value, flags=re.I,
+        )
+        if m:
+            return _clean_one_line(m.group(1))
+        # A compact raw salary without a label is also valid.
+        if re.search(r"(?:bdt|tk\.?|৳)\s*[0-9][0-9,]*|\bnegotiable\b|\bcompetitive\b", value, flags=re.I):
+            return value
+        if re.match(r"^(?:&|and)\s*(?:other\s+)?benefits?\b", value, flags=re.I):
+            return ""
+    elif field == "experience":
+        # Keep explicit experience phrases when a heading was accidentally
+        # concatenated with the following value.
+        patterns = (
+            r"\bfreshers?\b[^.;|]*",
+            r"\b(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than)\s*\d+(?:\s*[-–]\s*\d+)?\s*years?\b[^.;|]*",
+            r"\b\d+(?:\s*[-–]\s*\d+)?\s*(?:years?|yrs?)\b[^.;|]*",
+            r"\b\d+(?:\s*[-–]\s*\d+)?\s*year\(s\)\b[^.;|]*",
+        )
+        if re.search(r"additional\s+requirements", value, flags=re.I):
+            for pattern in patterns:
+                m=re.search(pattern, value, flags=re.I)
+                if m:
+                    return _clean_one_line(m.group(0))
+            return ""
+    return value
+
+
+def _valid_source_field_value(field, value):
+    value = _normalize_authoritative_field_value(field, value)
     if not value:
         return False
     norm = _normalized_source_label(value)
     if norm in {"none", "null", "n/a", "na", "not specified", "not available", "--", "-"}:
         return False
     if field == "salary":
-        # These are headings/chrome, not salary values. In particular, both
-        # Bdjobs and BDJobs Live may render `Salary & Benefits` near a later
-        # actual salary line.
+        # Salary fields must carry a real salary/status signal. A heading or
+        # neighbouring label such as `Experience` must never become salary.
+        known_labels = {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}
+        if norm in known_labels:
+            return False
         if re.fullmatch(r"(?:&|and)\s*(?:other\s+)?benefits?", value, flags=re.I):
             return False
         if re.match(r"^(?:(?:&|and)\s*)?(?:(?:other)\s+)?benefits?\b", value, flags=re.I):
@@ -3348,7 +3407,9 @@ def _valid_source_field_value(field, value):
             return False
         if re.fullmatch(r"(?:salary|salary\s*&\s*benefits|compensation\s*&\s*other\s+benefits|other\s+benefits)", value, flags=re.I):
             return False
-        if "benefit" in norm and not re.search(r"(?:\d|bdt|tk\.?|৳|negotiable|competitive|not disclosed)", norm, flags=re.I):
+        if not re.search(r"(?:\d|bdt|tk\.?|৳|negotiable|competitive|not disclosed)", norm, flags=re.I):
+            return False
+        if re.fullmatch(r"(?:salary|salary\s*&\s*benefits|compensation)", value, flags=re.I):
             return False
     elif field == "experience":
         if norm in {
@@ -3395,7 +3456,7 @@ def _source_label_match(line, aliases, field=None):
         pattern = rf"^{re.escape(alias)}\s*(?:[:：-]\s*|\s+)(.*?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)"
         m = re.match(pattern, line, flags=re.I)
         if m:
-            value = _clean_one_line(m.group(1))
+            value = _normalize_authoritative_field_value(field, _clean_one_line(m.group(1))) if field else _clean_one_line(m.group(1))
             if value and _normalized_source_label(value) in {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}:
                 return False, ""
             if field and value and not _valid_source_field_value(field, value):
@@ -3438,7 +3499,7 @@ def _extract_source_label_fields(text):
                     value = nxt
             value = clean_source_field(value)
             value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
-            value = _clean_one_line(value)
+            value = _normalize_authoritative_field_value(field, _clean_one_line(value))
             if value and _valid_source_field_value(field, value):
                 result[field] = value
 
@@ -3455,7 +3516,7 @@ def _extract_source_label_fields(text):
         if m:
             value = clean_source_field(m.group(1))
             value = re.sub(r"\bImage\s*[:：]?\s*", " ", value, flags=re.I)
-            value = _clean_one_line(value)
+            value = _normalize_authoritative_field_value(field, _clean_one_line(value))
             if value and _valid_source_field_value(field, value):
                 result[field] = value
 
@@ -3516,7 +3577,7 @@ def _extract_bdjobs_company_from_document(text, expected_title):
     return ""
 
 
-def _bdjobslive_label_value(soup, labels):
+def _bdjobslive_label_value(soup, labels, field=None):
     """Read a labelled BDJobs Live value without crossing into unrelated page content.
 
     The detail page normally uses a label element followed immediately by a value
@@ -3541,8 +3602,16 @@ def _bdjobslive_label_value(soup, labels):
             candidate_norm = re.sub(r"\s+", " ", candidate.rstrip(":-")).strip().casefold()
             if candidate_norm in wanted:
                 continue
+            if candidate_norm in {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}:
+                break
             if len(candidate) <= 300 and not is_noise_title(candidate):
-                return candidate
+                normalized = _normalize_authoritative_field_value(field, candidate) if field else candidate
+                if not field or _valid_source_field_value(field, normalized):
+                    return normalized
+                # Invalid candidate for the requested field is not allowed to
+                # unlock a neighbouring label's content.
+                if field == "salary" and not _valid_source_field_value(field, candidate):
+                    break
             # Do not walk through a long unrelated node.
             break
 
@@ -3559,8 +3628,12 @@ def _bdjobslive_label_value(soup, labels):
                     candidate_norm = re.sub(r"\s+", " ", candidate.rstrip(":-")).strip().casefold()
                     if not candidate or candidate_norm in wanted:
                         continue
+                    if candidate_norm in {_normalized_source_label(x) for x in BDJOBS_ALL_SOURCE_LABELS}:
+                        break
                     if len(candidate) <= 300 and not is_noise_title(candidate):
-                        return candidate
+                        normalized = _normalize_authoritative_field_value(field, candidate) if field else candidate
+                        if not field or _valid_source_field_value(field, normalized):
+                            return normalized
 
         # 3. Definition-list semantics.
         if parent is not None and getattr(parent, "name", "") in {"dl", "div", "section", "article"}:
@@ -3581,7 +3654,9 @@ def _bdjobslive_label_value(soup, labels):
                 if m:
                     value = _clean_one_line(m.group(1))
                     if value and value.casefold() != norm and len(value) <= 300 and not is_noise_title(value):
-                        return value
+                        normalized = _normalize_authoritative_field_value(field, value) if field else value
+                        if not field or _valid_source_field_value(field, normalized):
+                            return normalized
     return ""
 
 def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
@@ -3645,11 +3720,24 @@ def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
         "company": ("Company", "Company Name"),
     }
     for key, labels in semantic_labels.items():
-        dom_value = _bdjobslive_label_value(soup, labels)
+        dom_value = _bdjobslive_label_value(soup, labels, field=key)
         if dom_value and _valid_source_field_value(key, dom_value):
             out[key] = dom_value
         elif summary.get(key):
-            out[key] = summary[key]
+            summary_value = _normalize_authoritative_field_value(key, summary.get(key, ""))
+            if summary_value and _valid_source_field_value(key, summary_value):
+                out[key] = summary_value
+
+    live_text = soup.get_text("\n", strip=True)
+    if not _valid_source_field_value("salary", out.get("salary", "")):
+        candidate = _extract_salary_fallback(live_text)
+        if candidate:
+            out["salary"] = candidate
+    if not _valid_source_field_value("experience", out.get("experience", "")):
+        candidate = _extract_source_label_fields(live_text).get("experience", "")
+        candidate = _normalize_authoritative_field_value("experience", candidate)
+        if candidate and _valid_source_field_value("experience", candidate):
+            out["experience"] = candidate
 
     for field, selector in ((
         ("education", "#section-education"),
@@ -3676,13 +3764,13 @@ def _bdjobslive_dom_extract(page_html, source_url, expected_title=""):
                 if value:
                     out[field] = value
 
-    gender = _bdjobslive_label_value(soup, ("Gender",))
+    gender = _bdjobslive_label_value(soup, ("Gender",), field="gender")
     if gender:
         out["gender"] = gender
-    job_shift = _bdjobslive_label_value(soup, ("Job Shift",))
+    job_shift = _bdjobslive_label_value(soup, ("Job Shift",), field="job_shift")
     if job_shift:
         out["job_shift"] = job_shift
-    job_location = _bdjobslive_label_value(soup, ("Job Location", "Location"))
+    job_location = _bdjobslive_label_value(soup, ("Job Location", "Location"), field="location")
     if job_location:
         out["job_location"] = job_location
 
@@ -3744,9 +3832,10 @@ def _extract_salary_fallback(text):
     if not text:
         return ""
     cleaned = clean_reader_markdown(text)
+    known = "|".join(re.escape(x) for x in sorted(BDJOBS_ALL_SOURCE_LABELS, key=len, reverse=True))
     patterns = (
-        r"(?:Monthly\s+salary|Monthly\s+Salary)\s*[:：-]\s*([^|;\n]+)",
-        r"(?:Salary|Salary\s+Range|Minimum\s+Salary|Compensation)\s*[:：-]\s*(?!&\s*(?:other\s+)?benefits)\s*([^|;\n]+)",
+        rf"(?:Monthly\s+salary|Monthly\s+Salary)\s*[:：-]\s*(?!&\s*(?:other\s+)?benefits?\b)(.+?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)",
+        rf"(?:Salary|Salary\s+Range|Minimum\s+Salary|Compensation)\s*[:：-]\s*(?!&\s*(?:other\s+)?benefits?\b)(.+?)(?=\s+(?:{known})\s*(?:[:：-]|\s)|$)",
     )
     for pattern in patterns:
         m = re.search(pattern, cleaned, flags=re.I)
@@ -4467,6 +4556,7 @@ def merge_job_fields(detail_fields, listing_fields, item):
     base_company=safe_text(item.get("company") or listing.get("company") or detail.get("company"))
     for key in keys:
         for candidate in (detail.get(key), listing.get(key), item.get(key)):
+            candidate = _normalize_authoritative_field_value(key, candidate) if key in {"salary", "experience", "deadline", "posted_date", "location", "application_method"} else _clean_one_line(candidate)
             if _valid_merged_field(key,candidate,title=base_title,company=base_company):
                 merged[key]=candidate
                 break
@@ -4512,10 +4602,13 @@ def research_job(item):
             detail_fields = {}
         elif fields.get("detail_dom_used") and not fields.get("detail_is_job_page"):
             logger.warning(
-                "BDJOBS DETAIL STRUCTURE INCOMPLETE | id=%s | title=%s | identity=%s | fields=%s",
+                "BDJOBS DETAIL STRUCTURE PARTIAL | id=%s | title=%s | identity=%s | fields=%s | preserving_valid_fields=yes",
                 item.get("source_job_id", ""), fields.get("title", ""), identity_status, fields.get("detail_fields_filled", ""),
             )
-            detail_fields = {}
+            # Identity is already matched to the discovered job. Preserve each
+            # individually validated field so a partial detail card can enrich the
+            # listing instead of discarding salary/experience/etc. wholesale.
+            detail_fields = fields
         else:
             logger.info(
                 "BDJOBS DETAIL DOM OK | id=%s | title_source=%s | identity=%s | fields=%s",
@@ -4783,7 +4876,7 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the semantic audit layer for Career Newsroom V2.1.
+You are the semantic audit layer for Career Newsroom V2.2.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
@@ -5356,7 +5449,10 @@ def select_final_jobs(private_ranked, government_jobs):
     internship_target=INTERNSHIP_TARGET_PER_RUN
     government_target=GOVERNMENT_TARGET_PER_RUN
 
-    regular_selected=select_private_jobs_by_category(regular, regular_target, minimum_required=regular_target)
+    # Targets are ceilings/preferences, never hard minimums. If one eligible
+    # private job survives the quality gates, publish that one rather than turning
+    # the run into zero simply because the target is 10.
+    regular_selected=select_private_jobs_by_category(regular, regular_target, minimum_required=0)
     internship_selected=_select_internship_quota(interns, internship_target)
     government_pool=select_government_jobs(government_jobs)[:government_target]
 
@@ -6209,7 +6305,7 @@ def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
     if begin_scheduled_session():
         return {"selected": [], "published": 0, "metrics": {"schedule_skipped": True}}
-    logger.info("CAREER NEWS V2.1 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
+    logger.info("CAREER NEWS V2.2 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
     if dry_run:
         logger.info("DEADLINE SWEEP | skipped in dry-run mode")
@@ -6376,7 +6472,7 @@ def run(*, dry_run=False, print_ranking=False):
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "CareerNewsroom V2.1"
+    assert PIPELINE_VERSION == "CareerNewsroom V2.2"
     assert STATE_FORMAT_VERSION == 7
     assert MAX_STORIES_PER_RUN == 25
     assert TARGET_STORIES_PER_RUN == 19
@@ -6509,6 +6605,26 @@ def self_test():
         {"title":"Assistant Manager - Sales And Marketing","source":"Bdjobs"},
     )
     assert bd_salary_fields["salary"] == "Tk. 18,000 - 22,000/month"
+
+    live_salary_fixture = """
+    <html><head><meta property="og:title" content="Senior M&E and MIS Officer | Example Bank"></head><body>
+      <h1>Senior M&amp;E and MIS Officer</h1>
+      <a href="/company-detail/example-bank">Example Bank</a>
+      <div class="summary">
+        <span>Salary:</span><span>&amp; Benefits</span>
+        <span>Experience:</span><span>Additional Requirements</span>
+        <span>Location:</span><span>Dhaka</span>
+      </div>
+      <div id="section-experience"><h3>Experience</h3><p>At least 3 years</p></div>
+      <div id="section-education"><h3>Education</h3><p>BBA / MBA</p></div>
+      <p>Monthly salary: From 95,325 BDT</p>
+      <p>Application Deadline: 30 Sep 2026</p>
+      <div id="section-company"><p>Address: Dhaka</p><a href="https://example.com">Website</a></div>
+    </body></html>
+    """
+    live_dom = _bdjobslive_dom_extract(live_salary_fixture, "https://www.bdjobslive.com/bdjobs-details/senior-me-mis-officer-13472", "Senior M&E and MIS Officer")
+    assert live_dom["salary"] == "From 95,325 BDT"
+    assert "3 years" in live_dom["experience"]
 
     # Cross-source mirror regression: the same company/title on Bdjobs and BDJobs Live
     # must collapse even when URLs and native source IDs differ.
@@ -7025,6 +7141,8 @@ def self_test():
             for i in range(4)
         ]
         assert len(select_final_jobs(sparse_jobs, [])) == 4
+        # A target is not a minimum. One valid private job must remain publishable.
+        assert len(select_final_jobs([sparse_jobs[0]], [])) == 1
 
         # Full V2 allocation regression: when enough quality records exist, the
         # selector reaches the 25-post hard cap while preserving the base buckets.
@@ -7081,7 +7199,7 @@ def self_test():
         "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
         "recent_titles": ["Remote Job"],
         "last_run": "2026-09-23T08:00:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.1",
+        "pipeline_version": "CareerNewsroom V2.2",
     }
     local_state = {
         "format_version": 6,
@@ -7092,7 +7210,7 @@ def self_test():
         },
         "recent_titles": ["Local Job", "Remote Job"],
         "last_run": "2026-09-23T09:05:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.1",
+        "pipeline_version": "CareerNewsroom V2.2",
     }
     reconciled = merge_state_data(remote_state, local_state)
     assert set(reconciled["queue"]) == {"q1", "q2"}
@@ -7122,7 +7240,7 @@ def self_test():
                 _os.environ[_k] = _v
         save_state(STATE)
 
-    logger.info("CareerNewsroom V2.1 self-test passed.")
+    logger.info("CareerNewsroom V2.2 self-test passed.")
 
 
 if __name__ == "__main__":
