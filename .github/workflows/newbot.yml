@@ -39,6 +39,9 @@ jobs:
       DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
       PYTHONUNBUFFERED: "1"
       MAX_POST_AGE_DAYS: "5"
+      MIN_PRIVATE_AGE_YEARS: "18"
+      MAX_PRIVATE_AGE_YEARS: "30"
+      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
       TARGET_STORIES_PER_RUN: "19"
       MAX_STORIES_PER_RUN: "25"
       PRIVATE_TARGET_PER_RUN: "10"
@@ -88,15 +91,15 @@ jobs:
       BDJOBSLIVE_CATEGORY_CAP: "10"
       BDJOBSLIVE_DISCOVERY_MAX: "120"
       BDJOBSLIVE_TIMEOUT: "18"
-      BDJOBSLIVE_BROWSER_TIMEOUT: "15000"
+      BDJOBSLIVE_BROWSER_TIMEOUT: "30000"
       BDJOBSLIVE_BROWSER_WAIT_MS: "2200"
       BDJOBSLIVE_BROWSER_LISTING_LIMIT: "28"
       BDJOBSLIVE_BROWSER_DETAIL_LIMIT: "60"
       BDJOBSLIVE_INDEX_FALLBACK_URL: "https://www.bdjobslive.com/"
       BDJOBSLIVE_INDEX_FALLBACK_CAP: "60"
-      BDJOBSLIVE_PRIVATE_DETAIL_SHARE: "0.25"
-      BDJOBSLIVE_PRIVATE_DETAIL_MIN: "8"
-      BDJOBSLIVE_PRIVATE_DETAIL_MAX: "18"
+      PRIVATE_DETAIL_SOURCE_RESERVE: "4"
+      BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS: "12000"
+      BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT: "30000"
 
     steps:
       - name: Checkout repository
@@ -122,7 +125,7 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
-      - name: Run V2.3 self-test
+      - name: Run V1 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
