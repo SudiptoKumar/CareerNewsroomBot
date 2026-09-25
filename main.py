@@ -65,8 +65,8 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "CareerNewsroom V2.0"
-STATE_FORMAT_VERSION = 6
+PIPELINE_VERSION = "CareerNewsroom V2.1"
+STATE_FORMAT_VERSION = 7
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
 BD_TZ = ZoneInfo("Asia/Dhaka")
@@ -576,6 +576,98 @@ def likely_same_job(a, b):
 # STATE
 # ============================================================
 
+SCHEDULE_SESSION_MAP = {
+    "5 10 * * *": "morning",
+    "20 10 * * *": "morning",
+    "35 10 * * *": "morning",
+    "5 17 * * *": "afternoon",
+    "20 17 * * *": "afternoon",
+    "35 17 * * *": "afternoon",
+}
+SCHEDULE_GUARD_RETENTION_DAYS = 14
+
+
+def scheduled_session_context():
+    """Return the scheduled session key for a GitHub scheduled trigger, else None."""
+    if safe_text(os.getenv("GITHUB_EVENT_NAME")).lower() != "schedule":
+        return None
+    cron = safe_text(os.getenv("CAREER_SCHEDULE_CRON"))
+    slot = SCHEDULE_SESSION_MAP.get(cron)
+    if not slot:
+        logger.warning("SCHEDULE GUARD | unknown schedule trigger=%r; continuing without a guard", cron)
+        return None
+    today = datetime.now(BD_TZ).date().isoformat()
+    return {
+        "key": f"{today}:{slot}",
+        "slot": slot,
+        "date": today,
+        "cron": cron,
+    }
+
+
+def begin_scheduled_session():
+    """Claim the current scheduled session. Return True when it should be skipped."""
+    ctx = scheduled_session_context()
+    if not ctx:
+        return False
+    guard = STATE.setdefault("schedule_guard", {})
+    existing = guard.get(ctx["key"]) if isinstance(guard.get(ctx["key"]), dict) else None
+    if existing and safe_text(existing.get("status")).lower() == "completed":
+        logger.info(
+            "SCHEDULE GUARD | session=%s | already_completed_at=%s | skipping duplicate trigger",
+            ctx["key"], existing.get("completed_at", ""),
+        )
+        return True
+    guard[ctx["key"]] = {
+        "status": "running",
+        "slot": ctx["slot"],
+        "date": ctx["date"],
+        "cron": ctx["cron"],
+        "started_at": now_iso(),
+    }
+    STATE["pipeline_version"] = PIPELINE_VERSION
+    save_state(STATE)
+    logger.info("SCHEDULE GUARD | session=%s | claimed", ctx["key"])
+    return False
+
+
+def complete_scheduled_session():
+    """Mark the current scheduled session complete after the bot has finished publishing/state updates."""
+    ctx = scheduled_session_context()
+    if not ctx:
+        return
+    guard = STATE.setdefault("schedule_guard", {})
+    entry = guard.setdefault(ctx["key"], {"slot": ctx["slot"], "date": ctx["date"], "cron": ctx["cron"]})
+    entry.update({
+        "status": "completed",
+        "slot": ctx["slot"],
+        "date": ctx["date"],
+        "cron": ctx["cron"],
+        "completed_at": now_iso(),
+    })
+    logger.info("SCHEDULE GUARD | session=%s | completed", ctx["key"])
+
+
+def prune_schedule_guard():
+    guard = STATE.get("schedule_guard")
+    if not isinstance(guard, dict):
+        STATE["schedule_guard"] = {}
+        return
+    cutoff = datetime.now(BD_TZ).date() - timedelta(days=SCHEDULE_GUARD_RETENTION_DAYS)
+    kept = {}
+    for key, item in guard.items():
+        if not isinstance(item, dict):
+            continue
+        date_text = safe_text(item.get("date")) or safe_text(key).split(":", 1)[0]
+        try:
+            item_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if item_date >= cutoff:
+            kept[key] = item
+    STATE["schedule_guard"] = kept
+
+
 def default_state():
     return {
         "format_version": STATE_FORMAT_VERSION,
@@ -583,6 +675,7 @@ def default_state():
         "events": {},
         "recent_titles": [],
         "last_run": "",
+        "schedule_guard": {},
     }
 
 
@@ -632,6 +725,7 @@ if int(STATE.get("format_version", 0) or 0) < STATE_FORMAT_VERSION:
 
 
 def prune_state():
+    prune_schedule_guard()
     cutoff = datetime.now(BD_TZ) - timedelta(days=ACTIVE_JOB_RETENTION_DAYS)
     queue = {}
     for key, item in STATE.get("queue", {}).items():
@@ -727,6 +821,26 @@ def merge_state_data(remote_state, local_state):
         if title and title not in titles:
             titles.append(title)
     merged["recent_titles"] = titles[-400:]
+
+    merged_guard = {}
+    remote_guard = remote.get("schedule_guard") if isinstance(remote.get("schedule_guard"), dict) else {}
+    local_guard = local.get("schedule_guard") if isinstance(local.get("schedule_guard"), dict) else {}
+    for key in sorted(set(remote_guard) | set(local_guard)):
+        remote_item = remote_guard.get(key) if isinstance(remote_guard.get(key), dict) else {}
+        local_item = local_guard.get(key) if isinstance(local_guard.get(key), dict) else {}
+        if safe_text(remote_item.get("status")).lower() == "completed" or safe_text(local_item.get("status")).lower() == "completed":
+            preferred = remote_item if safe_text(remote_item.get("status")).lower() == "completed" else local_item
+            secondary = local_item if preferred is remote_item else remote_item
+        else:
+            remote_dt = parse_datetime(remote_item.get("started_at")) or datetime.min.replace(tzinfo=timezone.utc)
+            local_dt = parse_datetime(local_item.get("started_at")) or datetime.min.replace(tzinfo=timezone.utc)
+            preferred, secondary = (local_item, remote_item) if local_dt >= remote_dt else (remote_item, local_item)
+        item = dict(preferred)
+        for field, value in secondary.items():
+            if field not in item or item.get(field) in (None, "", [], {}):
+                item[field] = value
+        merged_guard[key] = item
+    merged["schedule_guard"] = merged_guard
 
     remote_last = parse_datetime(remote.get("last_run"))
     local_last = parse_datetime(local.get("last_run"))
@@ -1174,7 +1288,7 @@ def _fetch_jina(url, *, timeout=None):
             JINA_PREFIX + request_safe_url(url),
             headers={
                 "Accept": "text/plain, text/markdown",
-                "User-Agent": "Career News V2.0/2.0",
+                "User-Agent": "Career News V2.1/2.0",
                 "X-Base": "true",
             },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
@@ -4669,7 +4783,7 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the semantic audit layer for Career Newsroom V2.0.
+You are the semantic audit layer for Career Newsroom V2.1.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
@@ -6093,7 +6207,9 @@ def _prepare_shortlists(discovered):
 
 def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
-    logger.info("CAREER NEWS V2.0 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
+    if begin_scheduled_session():
+        return {"selected": [], "published": 0, "metrics": {"schedule_skipped": True}}
+    logger.info("CAREER NEWS V2.1 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
     if dry_run:
         logger.info("DEADLINE SWEEP | skipped in dry-run mode")
@@ -6221,7 +6337,9 @@ def run(*, dry_run=False, print_ranking=False):
 
     if dry_run:
         logger.info("DRY RUN | selected=%d | Telegram not contacted",len(selected))
-        STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
+        STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION
+        complete_scheduled_session()
+        save_state(STATE)
         return {"selected":selected,"published":0,"metrics":{**research_metrics,"gate_counts":gate_counts}}
 
     published=0
@@ -6246,7 +6364,9 @@ def run(*, dry_run=False, print_ranking=False):
             logger.error("PUBLISH failed | source=%s | id=%s | title=%s",job.get("source",""),job.get("source_job_id",""),job.get("title",""))
         save_state(STATE)
         if POST_DELAY_SECONDS>0 and index<len(selected): time.sleep(POST_DELAY_SECONDS)
-    STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION; save_state(STATE)
+    STATE["last_run"]=now_iso(); STATE["pipeline_version"]=PIPELINE_VERSION
+    complete_scheduled_session()
+    save_state(STATE)
     logger.info("Finished CareerNewsroom. Published=%d | elapsed=%.1fs",published,time.monotonic()-started)
     return {"selected":selected,"published":published,"metrics":{**research_metrics,"gate_counts":gate_counts}}
 
@@ -6256,8 +6376,8 @@ def run(*, dry_run=False, print_ranking=False):
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "CareerNewsroom V2.0"
-    assert STATE_FORMAT_VERSION == 6
+    assert PIPELINE_VERSION == "CareerNewsroom V2.1"
+    assert STATE_FORMAT_VERSION == 7
     assert MAX_STORIES_PER_RUN == 25
     assert TARGET_STORIES_PER_RUN == 19
     assert PRIVATE_TARGET_PER_RUN == 10
@@ -6961,7 +7081,7 @@ def self_test():
         "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
         "recent_titles": ["Remote Job"],
         "last_run": "2026-09-23T08:00:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.0",
+        "pipeline_version": "CareerNewsroom V2.1",
     }
     local_state = {
         "format_version": 6,
@@ -6972,7 +7092,7 @@ def self_test():
         },
         "recent_titles": ["Local Job", "Remote Job"],
         "last_run": "2026-09-23T09:05:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.0",
+        "pipeline_version": "CareerNewsroom V2.1",
     }
     reconciled = merge_state_data(remote_state, local_state)
     assert set(reconciled["queue"]) == {"q1", "q2"}
@@ -6982,7 +7102,27 @@ def self_test():
     assert reconciled["events"]["e2"]["message_id"] == 202
     assert reconciled["last_run"] == "2026-09-23T09:05:00+06:00"
 
-    logger.info("CareerNewsroom V2.0 self-test passed.")
+    # Scheduler guard: repeated recovery triggers must not run the session twice.
+    import os as _os
+    _state_backup = json.loads(json.dumps(STATE))
+    _env_backup = {k: _os.environ.get(k) for k in ("GITHUB_EVENT_NAME", "CAREER_SCHEDULE_CRON")}
+    try:
+        _os.environ["GITHUB_EVENT_NAME"] = "schedule"
+        _os.environ["CAREER_SCHEDULE_CRON"] = "5 10 * * *"
+        STATE["schedule_guard"] = {}
+        assert begin_scheduled_session() is False
+        complete_scheduled_session()
+        assert begin_scheduled_session() is True
+    finally:
+        STATE.clear(); STATE.update(_state_backup)
+        for _k, _v in _env_backup.items():
+            if _v is None:
+                _os.environ.pop(_k, None)
+            else:
+                _os.environ[_k] = _v
+        save_state(STATE)
+
+    logger.info("CareerNewsroom V2.1 self-test passed.")
 
 
 if __name__ == "__main__":

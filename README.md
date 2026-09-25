@@ -1,10 +1,10 @@
-# CareerNewsroom V2.0
+# CareerNewsroom V2.1
 
 Production Telegram job-news bot for BBA/MBA-relevant opportunities in Bangladesh.
 
-## V2.0 goal
+## V2.1 goal
 
-V2.0 keeps the existing Bdjobs + Teletalk architecture, adds BDJobs Live and dedicated internship lanes, and strengthens source-specific extraction, duplicate protection, research allocation, scheduling, and state persistence.
+V2.1 keeps the existing Bdjobs + Teletalk architecture, adds BDJobs Live and dedicated internship lanes, and strengthens source-specific extraction, duplicate protection, research allocation, scheduling, and state persistence.
 
 The core rule remains:
 
@@ -76,7 +76,15 @@ No filler jobs are created to hit 10/5/4/25.
 
 ## Schedule
 
-GitHub Actions runs twice per day in `Asia/Dhaka`:
+GitHub Actions uses two publishing sessions per day in `Asia/Dhaka`. Each session has three scheduler opportunities with a persistent once-per-session guard:
+
+```text
+Morning:   10:05 / 10:20 / 10:35
+Afternoon: 17:05 / 17:20 / 17:35
+```
+
+Only one trigger can execute the actual bot for each morning/afternoon session. Recovery triggers exit without publishing when the session is already marked completed. Manual `workflow_dispatch` runs bypass the scheduler guard.
+
 
 ```text
 10:05 Asia/Dhaka
@@ -406,4 +414,4 @@ Career News V1/
         └── newbot.yml
 ```
 
-The existing `Career News V1/` repository folder name is retained for deployment compatibility. The application pipeline itself reports `CareerNewsroom V2.0`.
+The existing `Career News V1/` repository folder name is retained for deployment compatibility. The application pipeline itself reports `CareerNewsroom V2.1`.
