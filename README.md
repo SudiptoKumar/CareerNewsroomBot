@@ -1,10 +1,10 @@
-# CareerNewsroom V2.3
+# CareerNewsroom V1
 
 Production Telegram job-news bot for BBA/MBA-relevant opportunities in Bangladesh.
 
-## V2.3 goal
+## V1 final goal
 
-V2.3 keeps the existing Bdjobs + Teletalk architecture, adds BDJobs Live and dedicated internship lanes, and strengthens source-specific extraction, duplicate protection, research allocation, scheduling, and state persistence.
+V1 keeps the existing Bdjobs + Teletalk architecture, adds BDJobs Live and dedicated internship lanes, and strengthens source-specific extraction, duplicate protection, research allocation, scheduling, and state persistence.
 
 The core rule remains:
 
@@ -93,7 +93,7 @@ Only one trigger can execute the actual bot for each morning/afternoon session. 
 
 The five-minute offset avoids relying on the exact top-of-hour boundary. Each run is state-aware and must not republish already-posted vacancies.
 
-## V2.3 discovery architecture
+## V1 discovery architecture
 
 ```text
 Bdjobs ------------------┐
@@ -164,7 +164,7 @@ extract /bdjobs-details/... links
 homepage supplement when category feeds are weak
 ```
 
-The browser listing path uses a bounded timeout and one browser attempt per source page. A temporary BDJobs Live outage does not stop Bdjobs or Teletalk from running.
+The browser listing path uses selector-driven waits plus a bounded long retry for slow category templates. A temporary BDJobs Live outage does not stop Bdjobs or Teletalk from running.
 
 ### BDJobs Live detail extraction contract
 
@@ -243,9 +243,25 @@ Persistent duplicate state uses both `news_state.json` and `posted_urls.txt`.
 
 `PRIVATE_DETAIL_TARGET` remains a research budget, not a publication quota.
 
-V2 reserves a bounded internship research slice and gives BDJobs Live a real regular-private research share. Unused source capacity is returned to the remaining private pool.
+V1 uses a freshness-first research funnel:
 
-The goal is to prevent the large Bdjobs discovery volume from starving BDJobs Live and dedicated internship sources without imposing an artificial source publication split for ordinary private jobs.
+```text
+discovery
+   ↓
+listing-level freshness filter
+   ↓
+known-fresh + unknown-date candidates
+   ↓
+small source reserve when both private sources have supply
+   ↓
+remaining budget allocated proportionally within freshness tiers
+   ↓
+detail research
+```
+
+Definitely stale private listings are removed before expensive detail fetching. Listings with unknown posting dates are retained so the detailed page can remain authoritative. The former fixed `BDJOBSLIVE_PRIVATE_DETAIL_SHARE` percentage is no longer used.
+
+This preserves the old Bdjobs + Teletalk quality-first behavior while allowing BDJobs Live to participate in one combined private research pool without starving or dominating it.
 
 ## Selection
 
@@ -344,6 +360,9 @@ INTERNSHIP_BDJOBSLIVE_TARGET=2
 EXTRA_TARGET_PER_RUN=6
 PRIVATE_DETAIL_TARGET=60
 INTERNSHIP_DETAIL_TARGET=12
+PRIVATE_DETAIL_SOURCE_RESERVE=4
+BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS=12000
+BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT=30000
 DETAIL_WORKERS=8
 ```
 
@@ -414,4 +433,22 @@ Career News V1/
         └── newbot.yml
 ```
 
-The existing `Career News V1/` repository folder name is retained for deployment compatibility. The application pipeline itself reports `CareerNewsroom V2.3`.
+The existing `Career News V1/` repository folder name is retained for deployment compatibility. The application pipeline reports `CareerNewsroom V1`.
+
+
+## Final eligibility rules
+
+Regular private jobs are publishable only when they are relevant to BBA/MBA/business careers and pass the deterministic eligibility gate. The core constraints are:
+
+```text
+Experience: Fresher / no experience through 3 years
+Age: explicit source age rule must be compatible with 18-30 years
+Posted: within the last 5 days
+Deadline: active, not expired
+Profession/category: business-relevant; clearly unrelated technical/specialist roles are rejected
+Duplicate: same vacancy is published only once across sources
+```
+
+If a source does not state an age limit, the bot does not invent one and the age field remains unknown. Explicit age limits outside the 18-30 window are rejected. Internship candidates remain a separate lane; missing normal work experience is allowed, but the other source-backed eligibility and quality checks still apply.
+
+BDJobs Live uses source-specific browser discovery and detail extraction. Detail fields are read from the site's semantic DOM sections first, then validated/fallback-parsed without allowing generic page text to overwrite authoritative salary, experience, age, deadline, education, location, or company values.

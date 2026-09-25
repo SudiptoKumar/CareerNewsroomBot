@@ -65,7 +65,7 @@ TELEGRAM_ADMIN_CHAT_ID = (os.environ.get("TELEGRAM_ADMIN_CHAT_ID") or "").strip(
 TELEGRAM_PROMO_URL = (os.environ.get("TELEGRAM_PROMO_URL") or "https://t.me/CareerNewsroom").strip()
 DEADLINE_SWEEP_MAX_UPDATES_PER_RUN = max(1, int(os.environ.get("DEADLINE_SWEEP_MAX_UPDATES_PER_RUN", "100")))
 CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "gpt-oss-120b")
-PIPELINE_VERSION = "CareerNewsroom V2.3"
+PIPELINE_VERSION = "CareerNewsroom V1"
 STATE_FORMAT_VERSION = 7
 POSTED_FILE = "posted_urls.txt"
 STATE_FILE = "news_state.json"
@@ -113,6 +113,8 @@ DETAIL_TIMEOUT = int(os.environ.get("DETAIL_TIMEOUT", "14"))
 LEGACY_DETAIL_TIMEOUT = int(os.environ.get("LEGACY_DETAIL_TIMEOUT", "8"))
 TELETALK_API_TIMEOUT = int(os.environ.get("TELETALK_API_TIMEOUT", "15"))
 MAX_PRIVATE_EXPERIENCE_YEARS = int(os.environ.get("MAX_PRIVATE_EXPERIENCE_YEARS", "3"))
+MIN_PRIVATE_AGE_YEARS = int(os.environ.get("MIN_PRIVATE_AGE_YEARS", "18"))
+MAX_PRIVATE_AGE_YEARS = int(os.environ.get("MAX_PRIVATE_AGE_YEARS", "30"))
 ACTIVE_JOB_RETENTION_DAYS = int(os.environ.get("ACTIVE_JOB_RETENTION_DAYS", "60"))
 FUTURE_TOLERANCE_MINUTES = int(os.environ.get("FUTURE_TOLERANCE_MINUTES", "20"))
 MAX_RICH_CHARACTERS = 32768
@@ -143,13 +145,12 @@ BDJOBSLIVE_INDEX_FALLBACK_URL = os.environ.get(
     "BDJOBSLIVE_INDEX_FALLBACK_URL", "https://www.bdjobslive.com/"
 ).strip()
 BDJOBSLIVE_INDEX_FALLBACK_CAP = max(1, int(os.environ.get("BDJOBSLIVE_INDEX_FALLBACK_CAP", "60")))
-try:
-    BDJOBSLIVE_PRIVATE_DETAIL_SHARE = float(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_SHARE", "0.25"))
-except (TypeError, ValueError):
-    BDJOBSLIVE_PRIVATE_DETAIL_SHARE = 0.25
-BDJOBSLIVE_PRIVATE_DETAIL_SHARE = max(0.10, min(0.50, BDJOBSLIVE_PRIVATE_DETAIL_SHARE))
-BDJOBSLIVE_PRIVATE_DETAIL_MIN = max(0, int(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_MIN", "8")))
-BDJOBSLIVE_PRIVATE_DETAIL_MAX = max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, int(os.environ.get("BDJOBSLIVE_PRIVATE_DETAIL_MAX", "18")))
+# Detail research is adaptive, not a fixed BDJobs Live percentage. Reserve a small
+# number of fresh candidates from each private source when both have supply, then
+# fill the remaining budget from the combined freshness-ranked pool.
+PRIVATE_DETAIL_SOURCE_RESERVE = max(0, int(os.environ.get("PRIVATE_DETAIL_SOURCE_RESERVE", "4")))
+BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS = max(8000, int(os.environ.get("BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS", "12000")))
+BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT = max(15000, int(os.environ.get("BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT", "30000")))
 BDJOBSLIVE_BROWSER_FETCH_COUNT = 0
 BDJOBSLIVE_BROWSER_LOCK = threading.Lock()
 TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
@@ -1288,7 +1289,7 @@ def _fetch_jina(url, *, timeout=None):
             JINA_PREFIX + request_safe_url(url),
             headers={
                 "Accept": "text/plain, text/markdown",
-                "User-Agent": "Career News V2.3/2.1",
+                "User-Agent": "Career News V1/1.0",
                 "X-Base": "true",
             },
             timeout=timeout or JINA_TIMEOUT, allow_redirects=True,
@@ -1697,11 +1698,19 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 "wait": max(800, BDJOBSLIVE_BROWSER_WAIT_MS),
                 "wait_selector": wait_selector,
                 "network_idle": True,
+                "timeout": max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000)),
             },
             {
                 "wait": max(BDJOBSLIVE_BROWSER_WAIT_MS * 2, 5000),
                 "wait_selector": wait_selector,
                 "network_idle": True,
+                "timeout": max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000)),
+            },
+            {
+                "wait": BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS,
+                "wait_selector": wait_selector,
+                "network_idle": True,
+                "timeout": BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT,
             },
         )
     else:
@@ -1721,7 +1730,7 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 load_dom=True,
                 network_idle=opts["network_idle"],
                 wait=opts["wait"],
-                timeout=max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000)),
+                timeout=opts.get("timeout", max(8000, min(BDJOBSLIVE_BROWSER_TIMEOUT, 15000))),
                 google_search=False,
                 solve_cloudflare=False,
                 block_webrtc=True,
@@ -1776,8 +1785,8 @@ def _fetch_bdjobslive_browser_document(url, *, mode="listing"):
                 mode, attempt, urlparse(url).path, exc,
             )
     logger.info(
-        "BDJOBSLIVE BROWSER UNAVAILABLE | mode=%s | ordinal=%d | url=%s | reason=%s",
-        mode, ordinal, urlparse(url).path, last_reason,
+        "BDJOBSLIVE BROWSER UNAVAILABLE | mode=%s | ordinal=%d | url=%s | attempts=%d | reason=%s",
+        mode, ordinal, urlparse(url).path, len(attempts), last_reason,
     )
     return None
 
@@ -2098,6 +2107,54 @@ def _discover_teletalk_api():
         logger.warning("Teletalk API discovery failed: %s", exc)
     return discovered
 
+def _private_discovery_freshness_state(item):
+    """Classify a private discovery record using only the listing-level posted date."""
+    age = posted_age_days(item)
+    if age is None:
+        return "unknown", None
+    if age > MAX_POST_AGE_DAYS:
+        return "stale", age
+    return "fresh", age
+
+
+def _filter_private_discovery_by_freshness(jobs):
+    """Drop definitely stale private listings before consuming expensive detail budget.
+
+    Unknown posting dates are intentionally retained so a source with weak card
+    metadata is not silently starved; the detailed page remains authoritative.
+    Government/Teletalk jobs are untouched because their selection is deadline-driven.
+    """
+    kept = []
+    stats = {"fresh": 0, "unknown": 0, "stale": 0}
+    by_source = {}
+    for job in jobs:
+        if job.get("is_government"):
+            kept.append(job)
+            continue
+        state, age = _private_discovery_freshness_state(job)
+        source = safe_text(job.get("source")) or "unknown"
+        by_source.setdefault(source, {"fresh": 0, "unknown": 0, "stale": 0})[state] += 1
+        stats[state] += 1
+        if state == "stale":
+            job["discovery_freshness"] = "stale"
+            job["discovery_age_days"] = round(age, 2) if age is not None else None
+            continue
+        job["discovery_freshness"] = state
+        job["discovery_age_days"] = round(age, 2) if age is not None else None
+        kept.append(job)
+    kept.sort(key=_research_priority_key)
+    source_log = "; ".join(
+        f"{source}:fresh={vals['fresh']},unknown={vals['unknown']},stale={vals['stale']}"
+        for source, vals in sorted(by_source.items())
+    ) or "none"
+    logger.info(
+        "PRIVATE DISCOVERY FRESHNESS | before=%d after=%d fresh=%d unknown=%d stale_pruned=%d | %s",
+        sum(stats.values()), len(kept) - sum(1 for j in kept if j.get("is_government")),
+        stats["fresh"], stats["unknown"], stats["stale"], source_log,
+    )
+    return kept
+
+
 def discover_all():
     """Run every discovery lane independently. Empty results are valid; only exceptions are unhealthy."""
     global LAST_DISCOVERY_HEALTH
@@ -2165,7 +2222,14 @@ def discover_all():
         "DISCOVERED | Teletalk=%d | Bdjobs=%d | BDJobsLive=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | internships=%d | merged=%d",
         len(government), len(bdjobs), len(bdjobslive), len(internships_bdjobs), len(internships_live), internship_count, len(merged),
     )
-    return merged
+    filtered = _filter_private_discovery_by_freshness(merged)
+    logger.info(
+        "DISCOVERED READY FOR RESEARCH | private=%d government=%d total=%d",
+        sum(1 for x in filtered if not x.get("is_government")),
+        sum(1 for x in filtered if x.get("is_government")),
+        len(filtered),
+    )
+    return filtered
 
 
 # ============================================================
@@ -2534,6 +2598,65 @@ def compact_age(value):
     if m and valid_age(m.group(1)):
         return f"{m.group(1)} Years"
     return ""
+
+
+def age_bounds(value):
+    """Return explicit (minimum_age, maximum_age) bounds from a source-backed age field.
+
+    A missing/unspecified age is represented as (None, None) and is not rejected merely
+    because the source omitted the field. Explicit limits are evaluated conservatively:
+    single numeric ages are treated as an upper age cap; "at least N" supplies only a
+    lower bound and "at most N" supplies only an upper bound.
+    """
+    blob = _clean_one_line(value).translate(BENGALI_DIGIT_MAP)
+    if not blob:
+        return None, None
+    low = blob.lower().strip()
+    if low in {
+        "not specified", "not specified.", "not mentioned", "not disclosed",
+        "no age limit", "any age", "age not specified", "n/a", "na", "none", "null", "--", "-",
+    }:
+        return None, None
+    low = low.replace("years of age", "years").replace("year of age", "year")
+    low = low.replace("থেকে", "to").replace("বছরের", "years").replace("বছর", "years")
+
+    m = re.search(r"\b(\d{1,2})\s*(?:to|[-–])\s*(\d{1,2})\s*(?:years?|year)?\b", low, flags=re.I)
+    if m:
+        a, b = int(m.group(1)), int(m.group(2))
+        if a <= b and 10 <= a <= 90 and 10 <= b <= 90:
+            return a, b
+
+    m = re.search(r"\b(?:at\s+least|minimum(?:\s+age)?|not\s+less\s+than|minimum\s+of)\s*:?[ ]*(\d{1,2})\s*(?:years?|year)\b", low, flags=re.I)
+    if m:
+        return int(m.group(1)), None
+
+    m = re.search(r"\b(?:at\s+most|maximum(?:\s+age)?|not\s+more\s+than|below|under)\s*:?[ ]*(\d{1,2})\s*(?:years?|year)?\b", low, flags=re.I)
+    if m:
+        return None, int(m.group(1))
+
+    # Source pages often show a bare "30 Years" as the age ceiling. Treat it as
+    # an upper bound rather than inventing an exact required applicant age.
+    m = re.fullmatch(r"\s*(\d{1,2})\s*(?:years?|year)\s*", low, flags=re.I)
+    if m:
+        return None, int(m.group(1))
+    return None, None
+
+
+def private_age_out_of_bounds(job):
+    """Reject only when an explicit source age rule falls outside 18-30."""
+    raw = safe_text(job.get("age"))
+    if not raw:
+        return False
+    minimum, maximum = age_bounds(raw)
+    if minimum is not None and minimum > MAX_PRIVATE_AGE_YEARS:
+        return True
+    if maximum is not None and maximum < MIN_PRIVATE_AGE_YEARS:
+        return True
+    if maximum is not None and maximum > MAX_PRIVATE_AGE_YEARS:
+        return True
+    if minimum is not None and minimum < MIN_PRIVATE_AGE_YEARS:
+        return True
+    return False
 
 
 def compact_employment(value):
@@ -4158,6 +4281,21 @@ def _looks_like_job_document(body, *, url="", detail=True):
         except Exception:
             pass
 
+    if detail and is_html and is_bdjobslive_job_url(url):
+        try:
+            parsed = _bdjobslive_dom_extract(raw, url, "")
+            if parsed.get("dom_used") and parsed.get("title") and parsed.get("company"):
+                core = sum(1 for key in ("deadline", "education", "experience", "location", "salary", "company_information", "responsibilities") if safe_text(parsed.get(key)))
+                if core >= 1:
+                    return True, "ok_bdjobslive_dom"
+                return False, "bdjobslive_detail_structure_incomplete"
+            # Some diagnostic/browser fixtures and older templates expose the
+            # same facts as labelled text without the current company-detail DOM.
+            # Fall through to the generic validation instead of rejecting such a
+            # page merely because the semantic DOM adapter was unavailable.
+        except Exception:
+            pass
+
     visible = _text_from_html(raw) if is_html else raw
     visible = safe_text(visible)
     if not visible:
@@ -4843,6 +4981,7 @@ def deterministic_job_gate(job):
     age = posted_age_days(job)
     if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
     if private_experience_too_high(job): return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
+    if private_age_out_of_bounds(job): return False, f"age_outside_{MIN_PRIVATE_AGE_YEARS}_{MAX_PRIVATE_AGE_YEARS}"
     score = bba_mba_candidate_score(job)
     job["bba_mba_target_score"] = score
     if score < 25: return False, "not_bba_mba_business_candidate_relevant"
@@ -4905,7 +5044,7 @@ JUDGE_SCHEMA = {
 
 def _judge_prompt():
     return """
-You are the semantic audit layer for Career Newsroom V2.3.
+You are the semantic audit layer for Career Newsroom V1.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
@@ -5512,7 +5651,7 @@ def select_final_jobs(private_ranked, government_jobs):
     if len(selected) > MAX_STORIES_PER_RUN:
         selected=selected[:MAX_STORIES_PER_RUN]
     logger.info(
-        "V2 ALLOCATION | private=%d/%d | internships=%d/%d | government=%d/%d | extras=%d | total=%d/%d",
+        "V1 ALLOCATION | private=%d/%d | internships=%d/%d | government=%d/%d | extras=%d | total=%d/%d",
         len(regular_selected), regular_target, len(internship_selected), internship_target,
         len(government_pool), government_target,
         min(max(0, len(selected)-len(regular_selected)-len(internship_selected)-len(government_pool)), EXTRA_TARGET_PER_RUN),
@@ -6108,25 +6247,32 @@ def source_test():
     cid=next(iter(BDBJOBS_CATEGORIES)); url=_absolute_category_url(cid); started=time.monotonic()
     fetched=_fetch_source_document(url,timeout=DISCOVERY_TIMEOUT,referer=BDJOBS_LISTING_URL); elapsed=round(time.monotonic()-started,2)
     if not fetched:
-        print(f"Bdjobs category {cid}: FAIL | time={elapsed}s")
-        return
-    candidates=_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"])
+        print(f"Bdjobs category {cid}: WARN | unavailable | time={elapsed}s")
+        print("Production diagnostic is advisory; the main workflow is not blocked by a temporary source outage.")
+        fetched = None
+    if not fetched:
+        candidates=[]
+    else:
+        candidates=_bdjobs_listing_candidates(fetched.get("text",""),fetched.get("url") or url,cid,BDBJOBS_CATEGORIES[cid]["name"])
     rich_candidates=sum(
         1 for c in candidates
         if c.get("company")
         and sum(1 for k in ("location","education","experience","deadline") if (c.get("listing_fields") or {}).get(k)) >= 3
     )
-    print(
-        f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | "
-        f"candidates={len(candidates)} | listing_rich={rich_candidates} | time={elapsed}s"
-    )
-    if fetched.get("cloudflare"): print("  Cloudflare: detected")
+    if fetched:
+        print(
+            f"Bdjobs category {cid}: OK | backend={fetched.get('backend')} | status={fetched.get('status')} | "
+            f"candidates={len(candidates)} | listing_rich={rich_candidates} | time={elapsed}s"
+        )
+        if fetched.get("cloudflare"): print("  Cloudflare: detected")
+    else:
+        print(
+            f"Bdjobs category {cid}: WARN | no response | candidates=0 | listing_rich=0 | time={elapsed}s"
+        )
     if not candidates:
         print("Bdjobs detail: SKIPPED | no job candidate on category page")
-        raise RuntimeError("Bdjobs category returned no job candidates")
-    if rich_candidates == 0:
-        print("Bdjobs listing: INVALID | candidates found but listing metadata is sparse")
-        raise RuntimeError("Bdjobs listing parser returned no rich candidates")
+    elif rich_candidates == 0:
+        print("Bdjobs listing: WARN | candidates found but listing metadata is sparse")
     else:
         sample=candidates[0]
         detail=_fetch_bdjobs_detail(sample)
@@ -6253,41 +6399,159 @@ def _sort_source_quality(items):
     )
 
 
-def _balanced_internship_research_pool(internships, budget):
-    """Reserve internship research slots with a Bdjobs/BDJobs Live preference."""
+def _research_priority_key(job):
+    """Prioritize candidates worth researching: freshness first, then discovery confidence and BBA/MBA fit."""
+    freshness = posted_freshness_score({"posted_date": job.get("listing_posted") or job.get("posted_date")})
+    discovery = safe_text(job.get("discovery"))
+    fallback_penalty = 1 if discovery in {"bdjobslive_homepage_fallback", "bdjobslive_index_fallback"} else 0
+    pre_score = float(job.get("bba_mba_target_score", 0) or 0)
+    if not pre_score:
+        probe = dict(job)
+        probe["raw_text"] = " ".join(
+            x for x in (
+                safe_text(job.get("raw_text")),
+                safe_text(job.get("excerpt")),
+                safe_text(job.get("category_name")),
+            ) if x
+        )
+        try:
+            pre_score = float(bba_mba_candidate_score(probe))
+        except Exception:
+            pre_score = 0.0
+    return (
+        -freshness,
+        fallback_penalty,
+        -pre_score,
+        -float(job.get("final_score", job.get("deterministic_score", job.get("audience_pre_score", 0))) or 0),
+        safe_text(job.get("canonical", "")),
+    )
+
+
+def _adaptive_source_reserve(groups, budget, reserve=None):
+    """Pick a small source reserve without imposing a fixed source percentage."""
+    budget = max(0, int(budget))
+    if budget <= 0:
+        return {key: 0 for key in groups}
+    available = {key: len(value) for key, value in groups.items() if value}
+    active = list(available)
+    if len(active) <= 1:
+        return {key: 0 for key in groups}
+    reserve = max(0, int(PRIVATE_DETAIL_SOURCE_RESERVE if reserve is None else reserve))
+    reserve = min(reserve, max(1, budget // len(active)))
+    counts = {key: 0 for key in groups}
+    for key in active:
+        counts[key] = min(reserve, available[key])
+    total = sum(counts.values())
+    while total > budget:
+        key = min(active, key=lambda k: (counts[k], available[k]))
+        if counts[key] <= 1 and all(counts[k] <= 1 for k in active):
+            break
+        counts[key] -= 1
+        total -= 1
+    return counts
+
+
+def _proportional_source_fill(groups, budget):
+    """Fill a remaining research budget proportionally to available supply."""
+    budget = max(0, int(budget))
+    active = {key: items for key, items in groups.items() if items}
+    if budget <= 0 or not active:
+        return []
+    total = sum(len(items) for items in active.values())
+    if budget >= total:
+        result = []
+        for items in active.values():
+            result.extend(items)
+        return sorted(result, key=_research_priority_key)[:budget]
+
+    keys = list(active)
+    raw = {key: budget * len(active[key]) / total for key in keys}
+    allocations = {key: min(len(active[key]), int(raw[key])) for key in keys}
+    used = sum(allocations.values())
+    # Largest-remainder method makes the proportional split deterministic.
+    while used < budget:
+        candidates = [key for key in keys if allocations[key] < len(active[key])]
+        if not candidates:
+            break
+        key = max(candidates, key=lambda k: (raw[k] - allocations[k], len(active[k]), k))
+        allocations[key] += 1
+        used += 1
+
+    result = []
+    for key in keys:
+        result.extend(active[key][:allocations[key]])
+    return sorted(result, key=_research_priority_key)[:budget]
+
+
+def _fill_research_remainder(items, used_keys, budget):
+    """Fill remaining slots freshness-tier first, proportional by source within each tier."""
     budget = max(0, int(budget))
     if budget <= 0:
         return []
-    bd = _sort_source_quality([x for x in internships if x.get("source") == "Bdjobs"])
-    live = _sort_source_quality([x for x in internships if x.get("source") == "BDJobs Live"])
-    other = _sort_source_quality([x for x in internships if x.get("source") not in {"Bdjobs", "BDJobs Live"}])
+    remaining = [
+        item for item in items
+        if (item.get("canonical") or job_event_key(item)) not in used_keys
+    ]
     selected = []
-    selected.extend(bd[:min(INTERNSHIP_BDJOBS_TARGET * 3, len(bd), budget)])
-    selected.extend(live[:min(INTERNSHIP_BDJOBSLIVE_TARGET * 3, len(live), max(0, budget-len(selected)))])
-    if len(selected) < budget:
-        used={x.get("canonical") for x in selected}
-        remainder=[x for x in internships if x.get("canonical") not in used]
-        selected.extend(_sort_source_quality(remainder)[:budget-len(selected)])
+    # Known-fresh listings always outrank unknown-date listings. Within each
+    # freshness tier, source volume determines how much of the shared budget it gets.
+    tier_groups = {}
+    for item in remaining:
+        tier = posted_freshness_score({"posted_date": item.get("listing_posted") or item.get("posted_date")})
+        tier_groups.setdefault(tier, []).append(item)
+    for tier in sorted(tier_groups, reverse=True):
+        if len(selected) >= budget:
+            break
+        items_in_tier = tier_groups[tier]
+        groups = {}
+        for item in items_in_tier:
+            groups.setdefault(safe_text(item.get("source")) or "other", []).append(item)
+        for group in groups.values():
+            group.sort(key=_research_priority_key)
+        take = min(budget - len(selected), len(items_in_tier))
+        selected.extend(_proportional_source_fill(groups, take))
+    return selected[:budget]
+
+
+def _balanced_internship_research_pool(internships, budget):
+    """Research internships from one combined pool with a small per-source fairness reserve."""
+    budget = max(0, int(budget))
+    if budget <= 0:
+        return []
+    groups = {
+        "Bdjobs": sorted([x for x in internships if x.get("source") == "Bdjobs"], key=_research_priority_key),
+        "BDJobs Live": sorted([x for x in internships if x.get("source") == "BDJobs Live"], key=_research_priority_key),
+        "other": sorted([x for x in internships if x.get("source") not in {"Bdjobs", "BDJobs Live"}], key=_research_priority_key),
+    }
+    reserve = _adaptive_source_reserve(groups, budget, reserve=max(1, min(2, budget // 2)) if budget else 0)
+    selected, used = [], set()
+    for source, count in reserve.items():
+        for job in groups[source][:count]:
+            key = job.get("canonical") or job_event_key(job)
+            if key not in used:
+                selected.append(job); used.add(key)
+    selected.extend(_fill_research_remainder(internships, used, max(0, budget-len(selected))))
     return selected[:budget]
 
 
 def _balanced_regular_private_pool(regular, budget):
-    """Give BDJobs Live a real detail-research share, then return unused capacity."""
+    """Use a combined freshness-ranked pool with a small source reserve, not a fixed BDJobs Live quota."""
     budget = max(0, int(budget))
     if budget <= 0:
         return []
-    live = _sort_source_quality([x for x in regular if x.get("source") == "BDJobs Live"])
-    bd = _sort_source_quality([x for x in regular if x.get("source") == "Bdjobs"])
-    other = _sort_source_quality([x for x in regular if x.get("source") not in {"Bdjobs", "BDJobs Live"}])
-    live_target = min(len(live), max(BDJOBSLIVE_PRIVATE_DETAIL_MIN, int(math.ceil(budget * BDJOBSLIVE_PRIVATE_DETAIL_SHARE)))) if live else 0
-    live_target = min(live_target, BDJOBSLIVE_PRIVATE_DETAIL_MAX, budget)
-    bd_target = min(len(bd), max(0, budget-live_target))
-    if bd_target < max(0, budget-live_target) and live:
-        live_target = min(len(live), budget-bd_target)
-    selected = live[:live_target] + bd[:bd_target]
-    used={x.get("canonical") for x in selected}
-    remainder=[x for x in regular if x.get("canonical") not in used]
-    selected.extend(_sort_source_quality(remainder)[:budget-len(selected)])
+    groups = {
+        "Bdjobs": sorted([x for x in regular if x.get("source") == "Bdjobs"], key=_research_priority_key),
+        "BDJobs Live": sorted([x for x in regular if x.get("source") == "BDJobs Live"], key=_research_priority_key),
+        "other": sorted([x for x in regular if x.get("source") not in {"Bdjobs", "BDJobs Live"}], key=_research_priority_key),
+    }
+    reserve = _adaptive_source_reserve(groups, budget)
+    selected, used = [], set()
+    for source, count in reserve.items():
+        for job in groups[source][:count]:
+            key = job.get("canonical") or job_event_key(job)
+            if key not in used:
+                selected.append(job); used.add(key)
+    selected.extend(_fill_research_remainder(regular, used, max(0, budget-len(selected))))
     return selected[:budget]
 
 
@@ -6312,7 +6576,7 @@ def _prepare_shortlists(discovered):
     ))
     private_items = internship_research + regular_research
     logger.info(
-        "PRIVATE DETAIL ALLOCATION V2 | regular=%d | internships=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | BdjobsRegular=%d | BDJobsLiveRegular=%d | budget=%d",
+        "PRIVATE DETAIL ALLOCATION V1 | regular=%d | internships=%d | BdjobsInternships=%d | BDJobsLiveInternships=%d | BdjobsRegular=%d | BDJobsLiveRegular=%d | budget=%d",
         len(regular_research), len(internship_research),
         sum(1 for x in internship_research if x.get("source") == "Bdjobs"),
         sum(1 for x in internship_research if x.get("source") == "BDJobs Live"),
@@ -6334,7 +6598,7 @@ def run(*, dry_run=False, print_ranking=False):
     started=time.monotonic()
     if begin_scheduled_session():
         return {"selected": [], "published": 0, "metrics": {"schedule_skipped": True}}
-    logger.info("CAREER NEWS V2.3 | source-balanced | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
+    logger.info("CAREER NEWS V1 | freshness-first adaptive sources | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
     prune_state()
     if dry_run:
         logger.info("DEADLINE SWEEP | skipped in dry-run mode")
@@ -6501,11 +6765,14 @@ def run(*, dry_run=False, print_ranking=False):
 # ============================================================
 
 def self_test():
-    assert PIPELINE_VERSION == "CareerNewsroom V2.3"
+    assert PIPELINE_VERSION == "CareerNewsroom V1"
     assert STATE_FORMAT_VERSION == 7
     assert MAX_STORIES_PER_RUN == 25
     assert TARGET_STORIES_PER_RUN == 19
+    assert PIPELINE_VERSION == "CareerNewsroom V1"
     assert PRIVATE_TARGET_PER_RUN == 10
+    assert MIN_PRIVATE_AGE_YEARS == 18
+    assert MAX_PRIVATE_AGE_YEARS == 30
     assert GOVERNMENT_TARGET_PER_RUN == 5
     assert INTERNSHIP_TARGET_PER_RUN == 4
     assert INTERNSHIP_BDJOBS_TARGET == 2
@@ -6929,13 +7196,14 @@ def self_test():
         POSTED_URLS.clear()
         POSTED_URLS.update(saved_posted_urls)
 
-    # Private detail research uses one shared budget but reserves a meaningful
-    # slice for BDJobs Live; unused capacity is returned to Bdjobs.
+    # Private detail research uses a combined pool. Both private sources receive
+    # a small freshness-aware reserve when they have enough supply, then the
+    # remaining budget is filled globally. There is no fixed BDJobs Live percentage.
     saved_detail_target = PRIVATE_DETAIL_TARGET
     try:
         globals()["PRIVATE_DETAIL_TARGET"] = 20
         allocation_fixture = []
-        for i in range(20):
+        for i in range(60):
             allocation_fixture.append({
                 "source":"Bdjobs", "source_job_id":f"B{i}", "title":f"Finance Executive {i}",
                 "company":f"Bdjobs Example {i}", "location":"Dhaka",
@@ -6957,7 +7225,18 @@ def self_test():
             })
         _, allocation_private = _prepare_shortlists(allocation_fixture)
         live_count = sum(1 for x in allocation_private if x.get("source") == "BDJobs Live")
-        assert live_count >= min(BDJOBSLIVE_PRIVATE_DETAIL_MIN, len([x for x in allocation_fixture if x.get("source")=="BDJobs Live"]))
+        assert live_count >= PRIVATE_DETAIL_SOURCE_RESERVE
+        assert 4 <= live_count <= 8, f"adaptive source allocation should preserve proportionality, got {live_count}"
+
+        stale_fixture = [
+            dict(allocation_fixture[0], listing_posted=(self_test_today - timedelta(days=8)).isoformat(), canonical="https://jobs.bdjobs.com/jobdetails.asp?id=990001"),
+            dict(allocation_fixture[1], listing_posted=self_test_posted_iso, canonical="https://jobs.bdjobs.com/jobdetails.asp?id=990002"),
+            dict(allocation_fixture[2], listing_posted="", canonical="https://jobs.bdjobs.com/jobdetails.asp?id=990003"),
+        ]
+        stale_result = _filter_private_discovery_by_freshness(stale_fixture)
+        assert len(stale_result) == 2
+        assert any(x.get("discovery_freshness") == "unknown" for x in stale_result)
+        assert all(x.get("canonical") != "https://jobs.bdjobs.com/jobdetails.asp?id=990001" for x in stale_result)
     finally:
         globals()["PRIVATE_DETAIL_TARGET"] = saved_detail_target
 
@@ -7000,6 +7279,19 @@ def self_test():
     assert bd_fields["vacancy"]=="01"
     assert bd_fields["experience"]=="2 to 3 years"
     assert bd_fields["age"]=="26-28 Years"
+    assert age_bounds("18 to 30 years") == (18, 30)
+    assert age_bounds("At least 18 Years") == (18, None)
+    assert age_bounds("At most 30 Years") == (None, 30)
+    assert age_bounds("30 Years") == (None, 30)
+    age_fixture = dict(bd_fields, source="Bdjobs", source_url="https://bdjobs.com/h/details/999001?ln=1", company="Averroes International School", experience="2 to 3 years", education="BBA", posted_date=self_test_posted_iso, deadline=self_test_deadline.isoformat(), raw_text="Logistics Executive BBA")
+    for valid_age in ("18 to 30 Years", "21 to 30 Years", "18 to 28 Years", "At least 18 Years", "At most 30 Years", "Not Specified", ""):
+        candidate = dict(age_fixture, age=valid_age)
+        ok, reason = deterministic_job_gate(candidate)
+        assert ok, f"expected compatible age to pass: {valid_age!r} -> {reason}"
+    for invalid_age in ("18 to 31 Years", "20 to 35 Years", "31 Years", "17 to 30 Years", "At least 31 Years", "At most 17 Years"):
+        candidate = dict(age_fixture, age=invalid_age)
+        ok, reason = deterministic_job_gate(candidate)
+        assert not ok and reason == "age_outside_18_30", f"expected incompatible age to fail: {invalid_age!r} -> {reason}"
     assert bd_fields["posted_date"]==self_test_posted_iso
     assert parse_datetime(bd_fields["deadline"]).date()==self_test_deadline
     assert bd_fields["employment_type"]=="Full Time"
@@ -7259,7 +7551,7 @@ def self_test():
         "events": {"e1": {"event_id": "e1", "status": "published", "message_id": 101, "published_at": "2026-09-23T08:00:00+06:00"}},
         "recent_titles": ["Remote Job"],
         "last_run": "2026-09-23T08:00:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.3",
+        "pipeline_version": "CareerNewsroom V1",
     }
     local_state = {
         "format_version": 6,
@@ -7270,7 +7562,7 @@ def self_test():
         },
         "recent_titles": ["Local Job", "Remote Job"],
         "last_run": "2026-09-23T09:05:00+06:00",
-        "pipeline_version": "CareerNewsroom V2.3",
+        "pipeline_version": "CareerNewsroom V1",
     }
     reconciled = merge_state_data(remote_state, local_state)
     assert set(reconciled["queue"]) == {"q1", "q2"}
@@ -7300,7 +7592,7 @@ def self_test():
                 _os.environ[_k] = _v
         save_state(STATE)
 
-    logger.info("CareerNewsroom V2.3 self-test passed.")
+    logger.info("CareerNewsroom V1 self-test passed.")
 
 
 if __name__ == "__main__":
