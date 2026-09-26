@@ -186,6 +186,10 @@ canonical + OG metadata             → identity/media metadata
 
 The parser deliberately avoids Tailwind/presentation classes.
 
+## Discovery scope
+
+Discovery is restricted to the configured source entry points only: the 14 Bdjobs category URLs, the 14 BDJobs Live category URLs, the dedicated internship entry point for each private source, and the AllJobs/Teletalk published-jobs API. Job-detail URLs may only be opened after a candidate was discovered from one of those approved entry points. Homepage/global-search supplementation is not used.
+
 ## Eligibility rules
 
 Regular private jobs must satisfy the shared hard eligibility layer before final ranking:
@@ -194,14 +198,14 @@ Regular private jobs must satisfy the shared hard eligibility layer before final
 BBA/MBA-compatible business role
 Experience: fresher to 3 years
 Age: explicit source age must be compatible with 18–30
-Posted: within the last 5 days when the source provides a posting date
-Deadline: active
+Posted: within the last 3 days; missing posting date is rejected at discovery
+Deadline: known and active before research
 Duplicate vacancy: reject
 Clearly unrelated profession: reject
 Clearly incompatible specialist degree: reject
 ```
 
-Unknown age or missing posting date is not invented. Those records remain lower-priority candidates until the detail page can verify the facts.
+Unknown age is never invented. Missing posting date or deadline is a discovery rejection, not a lower-priority candidate.
 
 ## Persistent state protection
 
@@ -275,11 +279,11 @@ Persistent duplicate state uses both `news_state.json` and `posted_urls.txt`.
 V1 uses a freshness-first research funnel:
 
 ```text
-discovery
+discovery from configured source URLs only
    ↓
-listing-level freshness filter
+listing-level freshness + active-deadline filter
    ↓
-known-fresh + unknown-date candidates
+verified fresh + deadline-active candidates only
    ↓
 small source reserve when both private sources have supply
    ↓
@@ -288,7 +292,7 @@ remaining budget allocated proportionally within freshness tiers
 detail research
 ```
 
-Definitely stale private listings are removed before expensive detail fetching. Listings with unknown posting dates are retained so the detailed page can remain authoritative. The former fixed `BDJOBSLIVE_PRIVATE_DETAIL_SHARE` percentage is no longer used.
+Only listings with a verified posting date within the 3-day window and a known active deadline enter expensive detail fetching. Unknown posting dates, unknown deadlines, and expired deadlines are rejected at discovery. The former fixed `BDJOBSLIVE_PRIVATE_DETAIL_SHARE` percentage is no longer used.
 
 This preserves the old Bdjobs + Teletalk quality-first behavior while allowing BDJobs Live to participate in one combined private research pool without starving or dominating it.
 
@@ -378,7 +382,7 @@ AI is never the source of factual job fields.
 Core production values:
 
 ```text
-MAX_POST_AGE_DAYS=5
+MAX_POST_AGE_DAYS=3
 TARGET_STORIES_PER_RUN=19
 MAX_STORIES_PER_RUN=25
 PRIVATE_TARGET_PER_RUN=10
@@ -472,7 +476,7 @@ Regular private jobs are publishable only when they are relevant to BBA/MBA/busi
 ```text
 Experience: Fresher / no experience through 3 years
 Age: explicit source age rule must be compatible with 18-30 years
-Posted: within the last 5 days
+Posted: within the last 3 days; deadline must be active
 Deadline: active, not expired
 Profession/category: business-relevant; clearly unrelated technical/specialist roles are rejected
 Duplicate: same vacancy is published only once across sources

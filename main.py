@@ -89,7 +89,7 @@ INTERNSHIP_BDJOBSLIVE_TARGET = int(os.environ.get("INTERNSHIP_BDJOBSLIVE_TARGET"
 EXTRA_TARGET_PER_RUN = int(os.environ.get("EXTRA_TARGET_PER_RUN", "6"))
 POST_DELAY_SECONDS = float(os.environ.get("POST_DELAY_SECONDS", "1.0"))
 
-MAX_POST_AGE_DAYS = int(os.environ.get("MAX_POST_AGE_DAYS", "5"))
+MAX_POST_AGE_DAYS = int(os.environ.get("MAX_POST_AGE_DAYS", "3"))
 PRIVATE_DISCOVERY_TARGET = int(os.environ.get("PRIVATE_DISCOVERY_TARGET", "180"))
 PRIVATE_DISCOVERY_MAX = int(os.environ.get("PRIVATE_DISCOVERY_MAX", "200"))
 PRIVATE_FAST_RANK_TARGET = int(os.environ.get("PRIVATE_FAST_RANK_TARGET", "80"))
@@ -1364,7 +1364,7 @@ def discover_bdjobs_category(category_id, config):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
 
-    for base_url in (_absolute_category_url(category_id), _absolute_category_url(category_id, legacy=True)):
+    for base_url in (_absolute_category_url(category_id),):
         if len(collected) >= cap:
             break
         next_url = base_url
@@ -1386,8 +1386,9 @@ def discover_bdjobs_category(category_id, config):
                 pdt = parse_datetime(item.get("listing_posted"))
                 if pdt:
                     page_dates.append(pdt)
-                    if pdt < cutoff:
-                        continue
+                eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+                if not eligible:
+                    continue
                 seen.add(item["canonical"])
                 item["discovery_backend"] = fetched.get("backend", "")
                 collected.append(item)
@@ -1453,8 +1454,6 @@ def discover_bdjobs_internships():
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
     base_urls = [BDJOBS_INTERNSHIP_URL]
-    if "?" in BDJOBS_INTERNSHIP_URL and "JobType=intern" in BDJOBS_INTERNSHIP_URL:
-        base_urls.append("https://bdjobs.com/h/jobs?JobType=intern&lang=en")
     for base_url in base_urls:
         if len(collected) >= max(INTERNSHIP_DETAIL_TARGET * 3, 24):
             break
@@ -1473,8 +1472,8 @@ def discover_bdjobs_internships():
             item["lane"] = "internship"
             item["category_name"] = "Internship"
             item["is_internship_source"] = True
-            pdt = parse_datetime(item.get("listing_posted"))
-            if pdt and pdt < cutoff:
+            eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+            if not eligible:
                 continue
             seen.add(canonical)
             collected.append(item)
@@ -1891,7 +1890,7 @@ def _fetch_bdjobslive_detail(item):
 def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
-    urls = _bdjobslive_category_urls(legacy_slug, current_slug)
+    urls = (f"https://www.bdjobslive.com/bdjobs-circular/{legacy_slug}",)
     browser_attempted_for_category = False
 
     for base_index, base_url in enumerate(urls):
@@ -1934,8 +1933,9 @@ def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
                 pdt = parse_datetime(item.get("listing_posted"))
                 if pdt:
                     page_dates.append(pdt)
-                    if pdt < cutoff:
-                        continue
+                eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+                if not eligible:
+                    continue
                 seen.add(canonical)
                 item["discovery_backend"] = (fetched or {}).get("backend", "")
                 collected.append(item)
@@ -1995,42 +1995,6 @@ def discover_bdjobslive():
                 items=[]
             _bdjobslive_add_discovery_items(all_items, seen, items, discovery_name="bdjobslive_category")
 
-    # The category pages are client-rendered and can legitimately expose a shell
-    # to HTTP/Jina. BDJobs Live also maintains a static index page containing
-    # current /bdjobs-details links. Use it only as a bounded supplement, never
-    # as a replacement for the 14 requested category feeds.
-    if len(all_items) < BDJOBSLIVE_DISCOVERY_MAX and BDJOBSLIVE_INDEX_FALLBACK_URL:
-        fallback = _fetch_source_document(
-            BDJOBSLIVE_INDEX_FALLBACK_URL,
-            timeout=min(BDJOBSLIVE_TIMEOUT, 15),
-            referer="https://bdjobslive.com/",
-        )
-        fallback_items = _bdjobslive_listing_candidates(
-            (fallback or {}).get("text", ""),
-            (fallback or {}).get("url") or BDJOBSLIVE_INDEX_FALLBACK_URL,
-            "",
-        ) if fallback else []
-        if not fallback_items and fallback is not None:
-            browser = _fetch_bdjobslive_browser_document(BDJOBSLIVE_INDEX_FALLBACK_URL, mode="listing")
-            if browser:
-                fallback_items = _bdjobslive_listing_candidates(
-                    browser.get("html", "") or browser.get("text", ""),
-                    browser.get("url") or BDJOBSLIVE_INDEX_FALLBACK_URL,
-                    "",
-                )
-        _bdjobslive_add_discovery_items(
-            all_items, seen, fallback_items[:BDJOBSLIVE_INDEX_FALLBACK_CAP],
-            discovery_name="bdjobslive_homepage_fallback",
-            cap=BDJOBSLIVE_DISCOVERY_MAX,
-        )
-        if fallback_items:
-            logger.info(
-                "BDJOBSLIVE HOMEPAGE FALLBACK | candidates=%d added=%d url=%s",
-                len(fallback_items),
-                min(len(fallback_items), BDJOBSLIVE_INDEX_FALLBACK_CAP),
-                BDJOBSLIVE_INDEX_FALLBACK_URL,
-            )
-
     # Deterministic ordering for the next funnel stage: fresh listings first, then category/title.
     all_items.sort(key=lambda j: (
         -posted_freshness_score({"posted_date": j.get("listing_posted", "")}),
@@ -2061,25 +2025,6 @@ def discover_bdjobslive_internships():
                 browser.get("url") or url,
                 "Internship",
             )
-    # Dedicated internship pages can be shell-only. Use the homepage as a bounded
-    # final discovery supplement and retain only clearly internship-labelled cards.
-    if not candidates:
-        homepage_url = "https://www.bdjobslive.com/"
-        home = _fetch_source_document(homepage_url, timeout=min(BDJOBSLIVE_TIMEOUT, 12), referer=homepage_url)
-        home_candidates = _bdjobslive_listing_candidates(
-            (home or {}).get("text", ""), (home or {}).get("url") or homepage_url, "Internship"
-        ) if home else []
-        if not home_candidates and home is not None:
-            browser = _fetch_bdjobslive_browser_document(homepage_url, mode="listing")
-            if browser:
-                home_candidates = _bdjobslive_listing_candidates(
-                    browser.get("html", "") or browser.get("text", ""),
-                    browser.get("url") or homepage_url, "Internship"
-                )
-        candidates = [
-            item for item in home_candidates
-            if re.search(r"\bintern(?:ship|s)?\b", f"{safe_text(item.get('title'))} {safe_text(item.get('category_name'))} {safe_text(item.get('excerpt'))}", flags=re.I)
-        ]
     for item in candidates:
         canonical = item.get("canonical") or canonical_url(item.get("url", ""))
         if not canonical or canonical in seen or canonical in POSTED_URLS:
@@ -2088,8 +2033,8 @@ def discover_bdjobslive_internships():
         item["lane"] = "internship"
         item["category_name"] = "Internship"
         item["is_internship_source"] = True
-        pdt = parse_datetime(item.get("listing_posted"))
-        if pdt and pdt < cutoff:
+        eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+        if not eligible:
             continue
         seen.add(canonical)
         collected.append(item)
@@ -2153,6 +2098,14 @@ def _discover_teletalk_api():
             if canonical in POSTED_URLS:
                 already_posted += 1
                 continue
+            discovery_probe = {
+                "listing_posted": fields["posted_date"],
+                "listing_deadline": fields["deadline"],
+            }
+            eligible, reject_reason, _age = _strict_discovery_eligibility(discovery_probe)
+            if not eligible:
+                invalid += 1
+                continue
             seen.add(canonical)
             discovered.append({
                 "title": fields["title"], "url": fields["url"], "canonical": canonical, "source": "Teletalk",
@@ -2169,6 +2122,25 @@ def _discover_teletalk_api():
         logger.warning("Teletalk API discovery failed | raw=%d | error=%s", raw_records, exc)
     return discovered
 
+def _strict_discovery_eligibility(item):
+    """Return (eligible, reason, age_days) using only listing/discovery metadata."""
+    posted_raw = item.get("listing_posted") or item.get("posted_date")
+    posted_dt = parse_datetime(posted_raw)
+    if not posted_dt:
+        return False, "posted_date_unknown", None
+    age_days = max(0.0, (datetime.now(BD_TZ) - posted_dt).total_seconds() / 86400)
+    if age_days > MAX_POST_AGE_DAYS:
+        return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days", age_days
+
+    deadline_raw = item.get("listing_deadline") or item.get("deadline")
+    deadline_dt = parse_datetime(deadline_raw)
+    if not deadline_dt:
+        return False, "deadline_unknown", age_days
+    if deadline_dt < datetime.now(BD_TZ):
+        return False, "deadline_expired", age_days
+    return True, "ok", age_days
+
+
 def _private_discovery_freshness_state(item):
     """Classify a private discovery record using only the listing-level posted date."""
     age = posted_age_days(item)
@@ -2180,39 +2152,69 @@ def _private_discovery_freshness_state(item):
 
 
 def _filter_private_discovery_by_freshness(jobs):
-    """Drop definitely stale private listings before consuming expensive detail budget.
+    """Strict pre-research eligibility: verified fresh posting + active deadline.
 
-    Unknown posting dates are intentionally retained so a source with weak card
-    metadata is not silently starved; the detailed page remains authoritative.
-    Government/Teletalk jobs are untouched because their selection is deadline-driven.
+    A discovery candidate only enters the expensive detail/research funnel when:
+      * a posting date is known and is within MAX_POST_AGE_DAYS; and
+      * a deadline is known and currently active.
+
+    Unknown posting dates and unknown/expired deadlines are dropped at discovery.
+    This keeps the research budget focused only on verifiable current vacancies.
     """
     kept = []
-    stats = {"fresh": 0, "unknown": 0, "stale": 0}
+    stats = {"fresh": 0, "unknown": 0, "stale": 0, "deadline_unknown": 0, "expired": 0}
     by_source = {}
     for job in jobs:
-        if job.get("is_government"):
-            kept.append(job)
-            continue
-        state, age = _private_discovery_freshness_state(job)
         source = safe_text(job.get("source")) or "unknown"
-        by_source.setdefault(source, {"fresh": 0, "unknown": 0, "stale": 0})[state] += 1
-        stats[state] += 1
+        bucket = by_source.setdefault(source, {
+            "fresh": 0, "unknown": 0, "stale": 0, "deadline_unknown": 0, "expired": 0
+        })
+
+        state, age = _private_discovery_freshness_state(job)
+        if state == "unknown":
+            bucket["unknown"] += 1
+            stats["unknown"] += 1
+            job["discovery_freshness"] = "unknown"
+            job["discovery_reject_reason"] = "posted_date_unknown"
+            job["discovery_age_days"] = None
+            continue
         if state == "stale":
+            bucket["stale"] += 1
+            stats["stale"] += 1
             job["discovery_freshness"] = "stale"
+            job["discovery_reject_reason"] = f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
             job["discovery_age_days"] = round(age, 2) if age is not None else None
             continue
-        job["discovery_freshness"] = state
+
+        bucket["fresh"] += 1
+        stats["fresh"] += 1
+        job["discovery_freshness"] = "fresh"
         job["discovery_age_days"] = round(age, 2) if age is not None else None
+
+        deadline_state = deadline_status(job)
+        if deadline_state == "unknown":
+            bucket["deadline_unknown"] += 1
+            stats["deadline_unknown"] += 1
+            job["discovery_reject_reason"] = "deadline_unknown"
+            continue
+        if deadline_state == "expired":
+            bucket["expired"] += 1
+            stats["expired"] += 1
+            job["discovery_reject_reason"] = "deadline_expired"
+            continue
+
+        job["discovery_deadline_state"] = "active"
         kept.append(job)
+
     kept.sort(key=_research_priority_key)
     source_log = "; ".join(
-        f"{source}:fresh={vals['fresh']},unknown={vals['unknown']},stale={vals['stale']}"
+        f"{source}:fresh={vals['fresh']},unknown={vals['unknown']},stale={vals['stale']},deadline_unknown={vals['deadline_unknown']},expired={vals['expired']}"
         for source, vals in sorted(by_source.items())
     ) or "none"
     logger.info(
-        "PRIVATE DISCOVERY FRESHNESS | before=%d after=%d fresh=%d unknown=%d stale_pruned=%d | %s",
-        sum(stats.values()), len(kept) - sum(1 for j in kept if j.get("is_government")),
-        stats["fresh"], stats["unknown"], stats["stale"], source_log,
+        "DISCOVERY FRESHNESS | before=%d after=%d fresh=%d unknown=%d stale_pruned=%d deadline_unknown=%d expired=%d | %s",
+        len(jobs), len(kept), stats["fresh"], stats["unknown"], stats["stale"],
+        stats["deadline_unknown"], stats["expired"], source_log,
     )
     return kept
 
@@ -6964,8 +6966,17 @@ def self_test():
     assert MIN_GOVERNMENT_POSTS_PER_RUN == 0
     assert MIN_PRIVATE_POSTS_PER_RUN + MIN_GOVERNMENT_POSTS_PER_RUN <= MAX_STORIES_PER_RUN
     assert QUALITY_FLOOR == 65
-    assert MAX_POST_AGE_DAYS == 5
-    self_test_today = datetime.now(BD_TZ).date()
+    assert MAX_POST_AGE_DAYS == 3
+    freshness_today = datetime.now(BD_TZ).date()
+    freshness_ok = {"source":"Bdjobs","title":"Accounts Executive","company":"Example Ltd.","posted_date":(freshness_today - timedelta(days=2)).isoformat(),"deadline":(freshness_today + timedelta(days=2)).isoformat()}
+    freshness_old = dict(freshness_ok, posted_date=(freshness_today - timedelta(days=4)).isoformat())
+    freshness_unknown = dict(freshness_ok, posted_date="")
+    freshness_expired = dict(freshness_ok, deadline=(freshness_today - timedelta(days=1)).isoformat())
+    assert len(_filter_private_discovery_by_freshness([freshness_ok])) == 1
+    assert len(_filter_private_discovery_by_freshness([freshness_old])) == 0
+    assert len(_filter_private_discovery_by_freshness([freshness_unknown])) == 0
+    assert len(_filter_private_discovery_by_freshness([freshness_expired])) == 0
+    self_test_today = freshness_today
     self_test_posted = self_test_today - timedelta(days=1)
     self_test_deadline = self_test_today + timedelta(days=23)
     self_test_posted_iso = self_test_posted.isoformat()
@@ -7343,38 +7354,32 @@ def self_test():
     )
     assert live_collision["salary"] == "From 95325 BDT"
 
-    # BDJobs Live category pages can be a client-rendered shell. The static index
-    # fallback must supplement discovery without replacing the 14 category feeds.
+    # BDJobs Live discovery must remain strictly inside the configured category feeds.
     saved_live_enabled = BDJOBSLIVE_ENABLED
     saved_live_category_fn = globals()["discover_bdjobslive_category"]
-    saved_live_fetch_fn = globals()["_fetch_source_document"]
-    saved_live_browser_fn = globals()["_fetch_bdjobslive_browser_document"]
-    saved_live_discovery_max = BDJOBSLIVE_DISCOVERY_MAX
-    saved_live_index_cap = BDJOBSLIVE_INDEX_FALLBACK_CAP
     saved_posted_urls = set(POSTED_URLS)
     try:
         globals()["BDJOBSLIVE_ENABLED"] = True
-        globals()["BDJOBSLIVE_DISCOVERY_MAX"] = 3
-        globals()["BDJOBSLIVE_INDEX_FALLBACK_CAP"] = 3
-        globals()["discover_bdjobslive_category"] = lambda *args, **kwargs: []
-        globals()["_fetch_source_document"] = lambda url, **kwargs: {
-            "text": '<html><body><a href="https://www.bdjobslive.com/bdjobs-details/index-fallback-987654">Finance Executive</a><span>Example Finance Ltd.</span><span>Published: 24 Sep 2026</span><span>Application Deadline: 30 Sep 2026</span></body></html>',
-            "url": url,
-            "backend": "self-test-index",
-        }
-        globals()["_fetch_bdjobslive_browser_document"] = lambda *args, **kwargs: None
+        globals()["discover_bdjobslive_category"] = lambda *args, **kwargs: [{
+            "source":"BDJobs Live",
+            "title":"Finance Executive",
+            "company":"Example Finance Ltd.",
+            "source_url":"https://www.bdjobslive.com/bdjobs-details/finance-executive-987654",
+            "url":"https://www.bdjobslive.com/bdjobs-details/finance-executive-987654",
+            "canonical":"bdjobslive.com/bdjobs-details/finance-executive-987654",
+            "source_job_id":"987654",
+            "listing_posted":self_test_posted_iso,
+            "listing_deadline":self_test_deadline.isoformat(),
+            "category_name":"Accounting / Finance",
+            "discovery":"bdjobslive_category",
+        }]
         POSTED_URLS.clear()
-        index_items = discover_bdjobslive()
-        assert len(index_items) == 1
-        assert index_items[0]["discovery"] == "bdjobslive_homepage_fallback"
-        assert index_items[0]["source_job_id"] == "987654"
+        strict_items = discover_bdjobslive()
+        assert len(strict_items) == 1
+        assert strict_items[0]["discovery"] == "bdjobslive_category"
     finally:
         globals()["BDJOBSLIVE_ENABLED"] = saved_live_enabled
         globals()["discover_bdjobslive_category"] = saved_live_category_fn
-        globals()["_fetch_source_document"] = saved_live_fetch_fn
-        globals()["_fetch_bdjobslive_browser_document"] = saved_live_browser_fn
-        globals()["BDJOBSLIVE_DISCOVERY_MAX"] = saved_live_discovery_max
-        globals()["BDJOBSLIVE_INDEX_FALLBACK_CAP"] = saved_live_index_cap
         POSTED_URLS.clear()
         POSTED_URLS.update(saved_posted_urls)
 
@@ -7416,9 +7421,10 @@ def self_test():
             dict(allocation_fixture[2], listing_posted="", canonical="https://jobs.bdjobs.com/jobdetails.asp?id=990003"),
         ]
         stale_result = _filter_private_discovery_by_freshness(stale_fixture)
-        assert len(stale_result) == 2
-        assert any(x.get("discovery_freshness") == "unknown" for x in stale_result)
+        assert len(stale_result) == 1
+        assert all(x.get("discovery_freshness") == "fresh" for x in stale_result)
         assert all(x.get("canonical") != "https://jobs.bdjobs.com/jobdetails.asp?id=990001" for x in stale_result)
+        assert all(x.get("canonical") != "https://jobs.bdjobs.com/jobdetails.asp?id=990003" for x in stale_result)
     finally:
         globals()["PRIVATE_DETAIL_TARGET"] = saved_detail_target
 
