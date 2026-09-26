@@ -6739,7 +6739,7 @@
       "bba_mba_target_score": 40,
       "event_id": "445b37a0dea6afc08c624e10",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-09-20T03:22:18.789056+06:00",
       "last_seen": "2026-09-20T03:22:18.789061+06:00",
       "posted_at": "2026-09-20T03:23:32.167312+06:00",
@@ -6794,7 +6794,7 @@
       "bba_mba_target_score": 37,
       "event_id": "3463efeb22a49d8341c27fd9",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-09-20T03:22:18.788451+06:00",
       "last_seen": "2026-09-20T03:22:18.788454+06:00",
       "posted_at": "2026-09-20T03:23:33.536804+06:00",
@@ -18217,10 +18217,15 @@
       "posted_date": "2026-09-15",
       "deadline": "2026-09-26",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-09-20T03:23:33.536827+06:00",
       "published_at": "2026-09-20T03:23:33.536829+06:00",
-      "message_id": 842
+      "message_id": 842,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-09-27T00:07:28.665876+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "3620408ee3e86e09ba21717b": {
       "event_id": "3620408ee3e86e09ba21717b",
@@ -18930,10 +18935,15 @@
       "posted_date": "2026-09-15",
       "deadline": "2026-09-26",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-09-20T03:23:32.167338+06:00",
       "published_at": "2026-09-20T03:23:32.167341+06:00",
-      "message_id": 841
+      "message_id": 841,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-09-27T00:07:28.128301+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "452907482586fcac31dc7a8b": {
       "event_id": "452907482586fcac31dc7a8b",
@@ -25940,7 +25950,7 @@
     "operations intern paid",
     "hr operations governance expert"
   ],
-  "last_run": "2026-09-26T21:08:25.709640+06:00",
+  "last_run": "2026-09-27T00:08:59.196656+06:00",
   "schedule_guard": {
     "2026-09-25:afternoon": {
       "status": "completed",
