@@ -1,254 +1,84 @@
-name: CareerNewsroom
+name: CareerNewsroom V2
 
 on:
   schedule:
-    - cron: "5 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "20 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "35 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "5 17 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "20 17 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "35 17 * * *"
-      timezone: "Asia/Dhaka"
+    # Asia/Dhaka 10:05 / 10:20 / 10:35
+    - cron: "5 4 * * *"
+    - cron: "20 4 * * *"
+    - cron: "35 4 * * *"
+    # Asia/Dhaka 17:05 / 17:20 / 17:35
+    - cron: "5 11 * * *"
+    - cron: "20 11 * * *"
+    - cron: "35 11 * * *"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run pipeline without Telegram publishing"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 concurrency:
-  group: career-newsroom
+  group: career-newsroom-v2
   cancel-in-progress: false
 
 jobs:
-  run-career-bot:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-
-    env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-      GH_TOKEN: ${{ github.token }}
-      CAREER_SCHEDULE_CRON: ${{ github.event.schedule || '' }}
-      CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
-      TELEGRAM_CHANNEL: "@CareerNewsroom"
-      TELEGRAM_PROMO_URL: "https://t.me/CareerNewsroom"
-      DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
-      PYTHONUNBUFFERED: "1"
-      MAX_POST_AGE_DAYS: "3"
-      SCHEDULE_LOCK_MAX_MINUTES: "20"
-      MIN_PRIVATE_AGE_YEARS: "18"
-      MAX_PRIVATE_AGE_YEARS: "30"
-      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
-      TARGET_STORIES_PER_RUN: "19"
-      MAX_STORIES_PER_RUN: "25"
-      PRIVATE_TARGET_PER_RUN: "10"
-      GOVERNMENT_TARGET_PER_RUN: "5"
-      INTERNSHIP_TARGET_PER_RUN: "4"
-      INTERNSHIP_BDJOBS_TARGET: "2"
-      INTERNSHIP_BDJOBSLIVE_TARGET: "2"
-      EXTRA_TARGET_PER_RUN: "6"
-      PRIVATE_DISCOVERY_TARGET: "180"
-      PRIVATE_DISCOVERY_MAX: "200"
-      PRIVATE_FAST_RANK_TARGET: "80"
-      PRIVATE_DETAIL_TARGET: "60"
-      INTERNSHIP_DETAIL_TARGET: "12"
-      INTERNSHIP_AI_TARGET: "8"
-      INTERNSHIP_SNAPSHOT_MIN_FIELDS: "3"
-      MIN_INTERNSHIP_POSTS_PER_RUN: "0"
-      PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
-      GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
-      MAX_GOVERNMENT_POSTS_PER_RUN: "5"
-      AI_REVIEW_TARGET: "50"
-      AI_BATCH_SIZE: "8"
-      AI_RETRY_COUNT: "1"
-      MIN_PRIVATE_POSTS_PER_RUN: "0"
-      MIN_GOVERNMENT_POSTS_PER_RUN: "0"
-      PRIVATE_MIN_FILL_SCORE: "58"
-      PRIVATE_HARD_FILL_SCORE: "55"
-      PRIVATE_MIN_INFORMATION_QUALITY: "3"
-      PRIVATE_HARD_MIN_INFORMATION_QUALITY: "3"
-      DETAIL_WORKERS: "8"
-      DETAIL_TIMEOUT: "14"
-      LEGACY_DETAIL_TIMEOUT: "8"
-      SCRAPLING_BROWSER_ENABLED: "1"
-      SCRAPLING_BROWSER_TIMEOUT: "60000"
-      SCRAPLING_BROWSER_WAIT_MS: "750"
-      SCRAPLING_BROWSER_DETAIL_LIMIT: "60"
-      SCRAPLING_BROWSER_WAIT_SELECTOR: "app-summary #allSection"
-      SCRAPLING_BROWSER_NETWORK_IDLE: "1"
-      DETAIL_MIN_TEXT_CHARS: "180"
-      POST_DELAY_SECONDS: "1.0"
-      CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
-      CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
-      JINA_ENABLED: "1"
-      JINA_TIMEOUT: "12"
-      JINA_RPM_LIMIT: "24"
-      BDJOBSLIVE_ENABLED: "1"
-      BDJOBSLIVE_CATEGORY_PAGE_LIMIT: "2"
-      BDJOBSLIVE_CATEGORY_CAP: "10"
-      BDJOBSLIVE_DISCOVERY_MAX: "120"
-      BDJOBSLIVE_TIMEOUT: "18"
-      BDJOBSLIVE_BROWSER_TIMEOUT: "30000"
-      BDJOBSLIVE_BROWSER_WAIT_MS: "2200"
-      BDJOBSLIVE_BROWSER_LISTING_LIMIT: "28"
-      BDJOBSLIVE_BROWSER_DETAIL_LIMIT: "60"
-      PRIVATE_DETAIL_SOURCE_RESERVE: "4"
-      BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS: "12000"
-      BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT: "30000"
-
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: requirements.txt
+          python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          scrapling install --force
-          patchright install chromium --with-deps
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
-      - name: Compile check
-        run: python -m py_compile main.py
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
 
-      - name: Claim scheduled session and persist guard
-        if: github.event_name == 'schedule'
-        id: schedule_claim
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for attempt in 1 2 3 4 5; do
-            set +e
-            python main.py --claim-schedule
-            rc=$?
-            set -e
-
-            if [ "$rc" -eq 2 ]; then
-              echo "run_bot=false" >> "$GITHUB_OUTPUT"
-              echo "SCHEDULE GUARD: another trigger already owns this session."
-              exit 0
-            fi
-            if [ "$rc" -ne 0 ]; then
-              echo "::error::Unable to claim scheduled session (exit $rc)."
-              exit "$rc"
-            fi
-
-            git config user.name "Career News Bot"
-            git config user.email "actions@github.com"
-            git add news_state.json
-            git commit -m "Claim CareerNewsroom schedule session"
-
-            if git push origin HEAD:main; then
-              echo "run_bot=true" >> "$GITHUB_OUTPUT"
-              echo "CAREER_SCHEDULE_CLAIMED=1" >> "$GITHUB_ENV"
-              echo "Scheduled session claim persisted."
-              exit 0
-            fi
-
-            echo "Schedule claim push conflicted; refreshing remote state (attempt $attempt/5)."
-            git fetch origin main --prune
-            git reset --hard origin/main
-            sleep "$((attempt * 2))"
-          done
-
-          echo "::error::Could not atomically persist scheduled-session claim after 5 attempts."
-          exit 1
-
-      - name: Run V1 self-test
-        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
+      - name: Run self-test
         run: python main.py --self-test
 
-      - name: Run live source diagnostics (manual runs only)
-        if: github.event_name == 'workflow_dispatch'
-        run: python main.py --source-test
-
-      - name: Run CareerNewsroom
-        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
-        run: python main.py
-
-      - name: Save state
-        if: always() && (github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true')
-        shell: bash
+      - name: Run CareerNewsroom V2
+        env:
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+          TELEGRAM_PROMO_URL: ${{ secrets.TELEGRAM_PROMO_URL }}
+          CEREBRAS_MODEL: ${{ vars.CEREBRAS_MODEL }}
         run: |
-          set -euo pipefail
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            python main.py --manual --dry-run
+          else
+            python main.py
+          fi
 
-          git config user.name "Career News Bot"
-          git config user.email "actions@github.com"
+      - name: Persist state safely
+        run: |
+          git config user.name "CareerNewsroom Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add news_state.json posted_urls.txt
-
           if git diff --cached --quiet; then
             echo "No state changes to commit."
             exit 0
           fi
-
-          SNAPSHOT_DIR="${RUNNER_TEMP}/careernewsroom-state"
-          rm -rf "$SNAPSHOT_DIR"
-          mkdir -p "$SNAPSHOT_DIR"
-          cp news_state.json "$SNAPSHOT_DIR/news_state.json"
-          cp posted_urls.txt "$SNAPSHOT_DIR/posted_urls.txt"
-
-          git commit -m "Update CareerNewsroom state"
-
-          pushed=0
-          for attempt in 1 2 3 4 5; do
-            echo "State push attempt ${attempt}/5"
-
-            if git push origin HEAD:main; then
-              pushed=1
-              echo "State persisted to GitHub via git push."
-              break
-            fi
-
-            echo "State push attempt ${attempt} failed; refreshing remote state."
-            git fetch origin main --prune
-
-            LOCAL_HEAD="$(git rev-parse HEAD)"
-            REMOTE_HEAD="$(git rev-parse origin/main)"
-            LOCAL_PARENT="$(git rev-parse HEAD^)"
-
-            if [ "$REMOTE_HEAD" = "$LOCAL_PARENT" ]; then
-              echo "Remote main is unchanged; retrying the same state commit."
-              sleep $((attempt * 3))
-              continue
-            fi
-
-            if [ "$REMOTE_HEAD" = "$LOCAL_HEAD" ]; then
-              echo "Remote main already contains this state commit."
-              pushed=1
-              break
-            fi
-
-            echo "Remote main advanced independently; reconciling both state histories without force-push."
-            git reset --hard origin/main
-            python main.py --reconcile-state "$SNAPSHOT_DIR"
-            git add news_state.json posted_urls.txt
-
-            if git diff --cached --quiet; then
-              echo "Remote state already contains the local state snapshot."
-              pushed=1
-              break
-            fi
-
-            git commit -m "Reconcile CareerNewsroom state"
-            sleep $((attempt * 2))
+          git commit -m "CareerNewsroom V2 state update [skip ci]"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            echo "State push attempt $attempt failed; retrying..."
+            sleep $((attempt * 3))
           done
-
-          if [ "$pushed" -ne 1 ]; then
-            echo "ERROR: CareerNewsroom state could not be persisted safely after 5 attempts."
-            echo "The workflow is intentionally failing rather than claiming success with unpersisted Telegram/message state."
-            exit 1
-          fi
+          echo "Final state push failed."
+          exit 1
