@@ -161,7 +161,7 @@ one bounded Scrapling/StealthyFetcher browser render
         ↓
 extract /bdjobs-details/... links
         ↓
-homepage supplement when category feeds are weak
+only the configured BDJobs Live category and dedicated internship URLs
 ```
 
 The browser listing path uses selector-driven waits plus a bounded long retry for slow category templates. A temporary BDJobs Live outage does not stop Bdjobs or Teletalk from running.
@@ -188,7 +188,7 @@ The parser deliberately avoids Tailwind/presentation classes.
 
 ## Discovery scope
 
-Discovery is restricted to the configured source entry points only: the 14 Bdjobs category URLs, the 14 BDJobs Live category URLs, the dedicated internship entry point for each private source, and the AllJobs/Teletalk published-jobs API. Job-detail URLs may only be opened after a candidate was discovered from one of those approved entry points. Homepage/global-search supplementation is not used.
+Discovery is restricted to the configured source entry points only: the 14 Bdjobs category URLs, the 14 BDJobs Live category URLs, the dedicated internship entry point for each private source, and the AllJobs/Teletalk published-jobs API. Job-detail URLs may only be opened after a candidate was discovered from one of those approved entry points. Homepage/global-search supplementation is not used. Candidates with missing listing metadata are verified only through the detail URL reached from an approved entry point.
 
 ## Eligibility rules
 
@@ -198,8 +198,8 @@ Regular private jobs must satisfy the shared hard eligibility layer before final
 BBA/MBA-compatible business role
 Experience: fresher to 3 years
 Age: explicit source age must be compatible with 18–30
-Posted: within the last 3 days; missing posting date is rejected at discovery
-Deadline: known and active before research
+Posted: today, yesterday, or the previous calendar day; an unavailable listing date is retained only for authoritative detail verification and is never counted as eligible until verified
+Deadline: active; an unavailable listing deadline is retained only for authoritative detail verification and is never counted as eligible until verified
 Duplicate vacancy: reject
 Clearly unrelated profession: reject
 Clearly incompatible specialist degree: reject

@@ -141,10 +141,6 @@ BDJOBSLIVE_BROWSER_TIMEOUT = int(os.environ.get("BDJOBSLIVE_BROWSER_TIMEOUT", "1
 BDJOBSLIVE_BROWSER_WAIT_MS = int(os.environ.get("BDJOBSLIVE_BROWSER_WAIT_MS", "2200"))
 BDJOBSLIVE_BROWSER_DETAIL_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_DETAIL_LIMIT", "60"))
 BDJOBSLIVE_BROWSER_LISTING_LIMIT = int(os.environ.get("BDJOBSLIVE_BROWSER_LISTING_LIMIT", "28"))
-BDJOBSLIVE_INDEX_FALLBACK_URL = os.environ.get(
-    "BDJOBSLIVE_INDEX_FALLBACK_URL", "https://www.bdjobslive.com/"
-).strip()
-BDJOBSLIVE_INDEX_FALLBACK_CAP = max(1, int(os.environ.get("BDJOBSLIVE_INDEX_FALLBACK_CAP", "60")))
 # Detail research is adaptive, not a fixed BDJobs Live percentage. Reserve a small
 # number of fresh candidates from each private source when both have supply, then
 # fill the remaining budget from the combined freshness-ranked pool.
@@ -306,6 +302,22 @@ def parse_datetime(value):
         return dt.astimezone(BD_TZ)
     except Exception:
         return None
+
+
+def posted_calendar_age_days(value, *, now=None):
+    """Return whole calendar days between the local posted date and today."""
+    dt = parse_datetime(value)
+    if not dt:
+        return None
+    current = now or datetime.now(BD_TZ)
+    return (current.date() - dt.date()).days
+
+
+def posted_within_last_calendar_days(value, days=None, *, now=None):
+    """True only for today and the previous (days-1) calendar dates."""
+    age = posted_calendar_age_days(value, now=now)
+    window = max(1, int(days if days is not None else MAX_POST_AGE_DAYS))
+    return age is not None and 0 <= age < window
 
 
 def now_iso():
@@ -1386,8 +1398,9 @@ def discover_bdjobs_category(category_id, config):
                 pdt = parse_datetime(item.get("listing_posted"))
                 if pdt:
                     page_dates.append(pdt)
-                eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+                eligible, reject_reason, _age = _discovery_prefilter_eligibility(item)
                 if not eligible:
+                    item["discovery_reject_reason"] = reject_reason
                     continue
                 seen.add(item["canonical"])
                 item["discovery_backend"] = fetched.get("backend", "")
@@ -1401,7 +1414,11 @@ def discover_bdjobs_category(category_id, config):
             next_url = links.get(page_index + 1, "")
             if not next_url:
                 parsed = urlparse(next_url or page_url)
-                if page_index == 1 and page_dates and max(page_dates) >= cutoff:
+                # When the listing card exposes no posting date, we cannot safely
+                # infer that page 1 contains the newest jobs. Continue through the
+                # bounded category-page budget and let detail verification establish
+                # the authoritative 3-calendar-day window.
+                if page_index == 1 and (not page_dates or max(page_dates) >= cutoff):
                     next_url = parsed._replace(query=(parsed.query + "&" if parsed.query else "") + "page=2").geturl()
                 else:
                     break
@@ -1472,8 +1489,9 @@ def discover_bdjobs_internships():
             item["lane"] = "internship"
             item["category_name"] = "Internship"
             item["is_internship_source"] = True
-            eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+            eligible, reject_reason, _age = _discovery_prefilter_eligibility(item)
             if not eligible:
+                item["discovery_reject_reason"] = reject_reason
                 continue
             seen.add(canonical)
             collected.append(item)
@@ -1527,13 +1545,10 @@ def _bdjobslive_category_allowed(category):
 
 
 def _bdjobslive_category_urls(slug, current_slug):
-    # The site's own functional-category navigation currently points to
-    # /bdjobs-circular/<slug>-jobs. Keep /bdjobs/<slug> as a secondary
-    # compatibility route only.
-    return (
-        f"https://www.bdjobslive.com/bdjobs-circular/{slug}",
-        f"https://www.bdjobslive.com/bdjobs/{current_slug}",
-    )
+    # Production discovery is deliberately bounded to the configured category URL.
+    # The compatibility/current slug is retained only for API signature stability
+    # and is never crawled as an additional discovery source.
+    return (f"https://www.bdjobslive.com/bdjobs-circular/{slug}",)
 
 
 def _is_bdjobslive_detail_url(url):
@@ -1933,8 +1948,9 @@ def discover_bdjobslive_category(category_name, legacy_slug, current_slug):
                 pdt = parse_datetime(item.get("listing_posted"))
                 if pdt:
                     page_dates.append(pdt)
-                eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+                eligible, reject_reason, _age = _discovery_prefilter_eligibility(item)
                 if not eligible:
+                    item["discovery_reject_reason"] = reject_reason
                     continue
                 seen.add(canonical)
                 item["discovery_backend"] = (fetched or {}).get("backend", "")
@@ -2033,8 +2049,9 @@ def discover_bdjobslive_internships():
         item["lane"] = "internship"
         item["category_name"] = "Internship"
         item["is_internship_source"] = True
-        eligible, reject_reason, _age = _strict_discovery_eligibility(item)
+        eligible, reject_reason, _age = _discovery_prefilter_eligibility(item)
         if not eligible:
+            item["discovery_reject_reason"] = reject_reason
             continue
         seen.add(canonical)
         collected.append(item)
@@ -2123,101 +2140,154 @@ def _discover_teletalk_api():
     return discovered
 
 def _strict_discovery_eligibility(item):
-    """Return (eligible, reason, age_days) using only listing/discovery metadata."""
+    """Return (eligible, reason, age_days) for a fully verified discovery record."""
     posted_raw = item.get("listing_posted") or item.get("posted_date")
     posted_dt = parse_datetime(posted_raw)
     if not posted_dt:
         return False, "posted_date_unknown", None
-    age_days = max(0.0, (datetime.now(BD_TZ) - posted_dt).total_seconds() / 86400)
-    if age_days > MAX_POST_AGE_DAYS:
+    age_days = posted_calendar_age_days(posted_raw)
+    if age_days is None:
+        return False, "posted_date_unknown", None
+    if age_days < 0:
+        return False, "posted_date_in_future", age_days
+    if age_days >= max(1, MAX_POST_AGE_DAYS):
         return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days", age_days
 
     deadline_raw = item.get("listing_deadline") or item.get("deadline")
-    deadline_dt = parse_datetime(deadline_raw)
-    if not deadline_dt:
+    if not deadline_raw:
         return False, "deadline_unknown", age_days
-    if deadline_dt < datetime.now(BD_TZ):
+    if _deadline_has_expired(deadline_raw):
         return False, "deadline_expired", age_days
+    if not parse_datetime(normalize_date_text(deadline_raw) or deadline_raw):
+        return False, "deadline_unknown", age_days
     return True, "ok", age_days
 
 
+def _discovery_prefilter_eligibility(item):
+    """Pre-research guard. Reject only explicit stale/expired data.
+
+    Missing posted/deadline metadata is *not* counted as eligible; it is retained
+    for source-detail verification when the candidate came from an approved URL.
+    This prevents JS-rendered category cards from being silently lost before their
+    authoritative detail page can be fetched.
+    """
+    posted_raw = item.get("listing_posted") or item.get("posted_date")
+    posted_dt = parse_datetime(posted_raw)
+    posted_age = posted_calendar_age_days(posted_raw) if posted_dt else None
+    if posted_age is not None:
+        if posted_age < 0:
+            return False, "posted_date_in_future", posted_age
+        if posted_age >= max(1, MAX_POST_AGE_DAYS):
+            return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days", posted_age
+    else:
+        item["needs_detail_verification"] = True
+        item["discovery_verification"] = "posted_date_unknown"
+
+    deadline_raw = item.get("listing_deadline") or item.get("deadline")
+    if deadline_raw:
+        normalized_deadline = normalize_date_text(deadline_raw) or deadline_raw
+        if not parse_datetime(normalized_deadline):
+            item["needs_detail_verification"] = True
+            item["discovery_verification"] = "deadline_unknown"
+        elif _deadline_has_expired(normalized_deadline):
+            return False, "deadline_expired", posted_age
+    else:
+        item["needs_detail_verification"] = True
+        item["discovery_verification"] = "deadline_unknown"
+
+    if item.get("needs_detail_verification"):
+        item["discovery_verification_status"] = "pending_detail"
+        return True, "pending_detail_verification", posted_age
+    item["discovery_verification_status"] = "verified"
+    return True, "ok", posted_age
+
 def _private_discovery_freshness_state(item):
-    """Classify a private discovery record using only the listing-level posted date."""
-    age = posted_age_days(item)
+    """Classify a discovery record using the best available posted-date field."""
+    raw = item.get("posted_date") or item.get("listing_posted")
+    age = posted_calendar_age_days(raw) if raw else None
     if age is None:
         return "unknown", None
-    if age > MAX_POST_AGE_DAYS:
+    if age < 0:
+        return "future", age
+    if age >= max(1, MAX_POST_AGE_DAYS):
         return "stale", age
     return "fresh", age
 
 
+def _discovery_deadline_state(item):
+    raw = item.get("deadline") or item.get("listing_deadline")
+    if not raw:
+        return "unknown"
+    normalized = normalize_date_text(raw) or raw
+    if not parse_datetime(normalized):
+        return "unknown"
+    return "expired" if _deadline_has_expired(normalized) else "active"
+
+
 def _filter_private_discovery_by_freshness(jobs):
-    """Strict pre-research eligibility: verified fresh posting + active deadline.
+    """Pre-research eligibility for approved-source candidates.
 
-    A discovery candidate only enters the expensive detail/research funnel when:
-      * a posting date is known and is within MAX_POST_AGE_DAYS; and
-      * a deadline is known and currently active.
-
-    Unknown posting dates and unknown/expired deadlines are dropped at discovery.
-    This keeps the research budget focused only on verifiable current vacancies.
+    Explicitly stale or expired candidates are removed immediately. Candidates
+    missing posted/deadline metadata remain only as pending-detail-verification
+    records; they are NOT counted as eligible until the authoritative detail page
+    supplies both fields and the deterministic gate verifies them.
     """
     kept = []
-    stats = {"fresh": 0, "unknown": 0, "stale": 0, "deadline_unknown": 0, "expired": 0}
+    stats = {"fresh": 0, "unknown": 0, "stale": 0, "future": 0, "deadline_unknown": 0, "expired": 0, "pending_detail": 0}
     by_source = {}
     for job in jobs:
         source = safe_text(job.get("source")) or "unknown"
-        bucket = by_source.setdefault(source, {
-            "fresh": 0, "unknown": 0, "stale": 0, "deadline_unknown": 0, "expired": 0
-        })
-
+        bucket = by_source.setdefault(source, {"fresh":0,"unknown":0,"stale":0,"future":0,"deadline_unknown":0,"expired":0,"pending_detail":0})
         state, age = _private_discovery_freshness_state(job)
-        if state == "unknown":
-            bucket["unknown"] += 1
-            stats["unknown"] += 1
-            job["discovery_freshness"] = "unknown"
-            job["discovery_reject_reason"] = "posted_date_unknown"
-            job["discovery_age_days"] = None
+        if state == "future":
+            bucket["future"] += 1; stats["future"] += 1
+            job["discovery_freshness"] = "future"
+            job["discovery_reject_reason"] = "posted_date_in_future"
             continue
         if state == "stale":
-            bucket["stale"] += 1
-            stats["stale"] += 1
+            bucket["stale"] += 1; stats["stale"] += 1
             job["discovery_freshness"] = "stale"
             job["discovery_reject_reason"] = f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
-            job["discovery_age_days"] = round(age, 2) if age is not None else None
+            job["discovery_age_days"] = age
             continue
+        if state == "unknown":
+            bucket["unknown"] += 1; stats["unknown"] += 1
+            job["discovery_freshness"] = "unknown"
+            job["discovery_age_days"] = None
+            job["needs_detail_verification"] = True
+        else:
+            bucket["fresh"] += 1; stats["fresh"] += 1
+            job["discovery_freshness"] = "fresh"
+            job["discovery_age_days"] = age
 
-        bucket["fresh"] += 1
-        stats["fresh"] += 1
-        job["discovery_freshness"] = "fresh"
-        job["discovery_age_days"] = round(age, 2) if age is not None else None
-
-        deadline_state = deadline_status(job)
-        if deadline_state == "unknown":
-            bucket["deadline_unknown"] += 1
-            stats["deadline_unknown"] += 1
-            job["discovery_reject_reason"] = "deadline_unknown"
-            continue
+        deadline_state = _discovery_deadline_state(job)
         if deadline_state == "expired":
-            bucket["expired"] += 1
-            stats["expired"] += 1
+            bucket["expired"] += 1; stats["expired"] += 1
             job["discovery_reject_reason"] = "deadline_expired"
             continue
+        if deadline_state == "unknown":
+            bucket["deadline_unknown"] += 1; stats["deadline_unknown"] += 1
+            job["needs_detail_verification"] = True
+            job["discovery_verification_status"] = "pending_detail"
+            stats["pending_detail"] += 1; bucket["pending_detail"] += 1
+        else:
+            job["discovery_deadline_state"] = "active"
+            if state == "fresh":
+                job["discovery_verification_status"] = "verified"
 
-        job["discovery_deadline_state"] = "active"
         kept.append(job)
 
     kept.sort(key=_research_priority_key)
     source_log = "; ".join(
-        f"{source}:fresh={vals['fresh']},unknown={vals['unknown']},stale={vals['stale']},deadline_unknown={vals['deadline_unknown']},expired={vals['expired']}"
+        f"{source}:fresh={vals['fresh']},unknown={vals['unknown']},stale={vals['stale']},future={vals['future']},deadline_unknown={vals['deadline_unknown']},expired={vals['expired']},pending_detail={vals['pending_detail']}"
         for source, vals in sorted(by_source.items())
     ) or "none"
     logger.info(
-        "DISCOVERY FRESHNESS | before=%d after=%d fresh=%d unknown=%d stale_pruned=%d deadline_unknown=%d expired=%d | %s",
-        len(jobs), len(kept), stats["fresh"], stats["unknown"], stats["stale"],
-        stats["deadline_unknown"], stats["expired"], source_log,
+        "DISCOVERY PREFILTER | before=%d ready=%d fresh=%d unknown=%d stale=%d future=%d deadline_unknown=%d expired=%d pending_detail=%d | %s",
+        len(jobs), len(kept), stats["fresh"], stats["unknown"], stats["stale"], stats["future"],
+        stats["deadline_unknown"], stats["expired"], stats["pending_detail"], source_log,
     )
     return kept
-
 
 def discover_all():
     """Run every discovery lane independently. Empty results are valid; only exceptions are unhealthy."""
@@ -4995,11 +5065,11 @@ def research_job(item):
 # ============================================================
 
 def deadline_status(job):
-    raw = safe_text(job.get("deadline"))
+    raw = safe_text(job.get("deadline") or job.get("listing_deadline"))
     if not raw: return "unknown"
-    dt = parse_datetime(raw)
-    if not dt: return "unknown"
-    return "expired" if dt < datetime.now(BD_TZ) else "active"
+    normalized = normalize_date_text(raw) or raw
+    if not parse_datetime(normalized): return "unknown"
+    return "expired" if _deadline_has_expired(normalized) else "active"
 
 def posted_age_days(job):
     dt = parse_datetime(job.get("posted_date") or job.get("listing_posted"))
@@ -5032,10 +5102,16 @@ def experience_upper_bound(value):
     if any(x in blob for x in ("fresh", "no experience", "entry-level", "entry level", "intern")): return 0
     m = re.search(r"(\d+)\s*(?:to|[-–])\s*(\d+)\s*years?", blob)
     if m: return int(m.group(2))
-    m = re.search(r"(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than)\s*(\d+)\s*years?", blob)
+    m = re.search(r"(?:up\s+to|maximum(?:\s+of)?|no\s+more\s+than|not\s+more\s+than)\s*(\d+)\s*years?", blob)
     if m: return int(m.group(1))
-    m = re.search(r"(\d+)\s*\+\s*years?", blob)
-    if m: return int(m.group(1))
+    # Open-ended requirements cannot prove compliance with the hard 0-3 year cap.
+    # Treat them as unbounded so they are rejected by private_experience_too_high.
+    if re.search(r"(?:at\s+least|minimum(?:\s+of)?|not\s+less\s+than|more\s+than)\s*\d+\s*years?", blob):
+        return MAX_PRIVATE_EXPERIENCE_YEARS + 1
+    if re.search(r"\d+\s*\+\s*years?", blob):
+        return MAX_PRIVATE_EXPERIENCE_YEARS + 1
+    if re.search(r"\d+\s*years?\s*(?:or\s+more|and\s+(?:above|over))", blob):
+        return MAX_PRIVATE_EXPERIENCE_YEARS + 1
     m = re.search(r"(\d+)\s*years?", blob)
     return int(m.group(1)) if m else None
 
@@ -5110,9 +5186,26 @@ def private_experience_too_high(job):
 def deterministic_job_gate(job):
     if not job.get("title"): return False, "missing_title"
     if is_noise_title(job["title"], job.get("source_url", "")): return False, "noise_title"
+
+    # Final source-backed freshness/deadline verification. Discovery may carry a
+    # candidate forward when listing metadata is incomplete, but publication is
+    # never allowed without a verified posted date inside the last N calendar days
+    # and a currently active deadline.
+    posted_raw = safe_text(job.get("posted_date") or job.get("listing_posted"))
+    if not posted_raw or not parse_datetime(posted_raw):
+        return False, "posted_date_unknown"
+    posted_age = posted_calendar_age_days(posted_raw)
+    if posted_age is None or posted_age < 0:
+        return False, "posted_date_invalid"
+    if posted_age >= max(1, MAX_POST_AGE_DAYS):
+        return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
+    if deadline_status(job) == "unknown":
+        return False, "deadline_unknown"
+    if deadline_status(job) == "expired":
+        return False, "expired"
+
     if job.get("is_government"):
         if job.get("source") != "Teletalk" or not is_teletalk_url(job.get("source_url", "")): return False, "government_source_not_allowed"
-        if deadline_status(job) == "expired": return False, "expired"
         return True, "ok_government"
     if not job.get("company"): return False, "missing_company"
     if not is_domain_allowed(job.get("source_url", ""), PRIVATE_JOB_DOMAINS): return False, "source_not_allowed"
@@ -5143,15 +5236,6 @@ def deterministic_job_gate(job):
                 clearly_non_business = any(term in title_lower for term in NON_BUSINESS_ROLE_TERMS)
                 if (role_score < 30 and role_fit_score(role_probe) < 10) or clearly_non_business:
                     return False, "bdjobslive_category_not_allowed"
-            if job.get("discovery") == "bdjobslive_index_fallback" and not live_category:
-                return False, "bdjobslive_category_missing"
-            if job.get("discovery") == "bdjobslive_homepage_fallback" and not live_category:
-                # Homepage candidates are validated by detail-page category/BBA relevance
-                # later; the homepage itself intentionally has mixed categories.
-                pass
-    if deadline_status(job) == "expired": return False, "expired"
-    age = posted_age_days(job)
-    if age is not None and age > MAX_POST_AGE_DAYS: return False, f"posted_older_than_{MAX_POST_AGE_DAYS}_days"
     if private_experience_too_high(job): return False, f"experience_above_{MAX_PRIVATE_EXPERIENCE_YEARS}_years"
     if private_age_out_of_bounds(job): return False, f"age_outside_{MIN_PRIVATE_AGE_YEARS}_{MAX_PRIVATE_AGE_YEARS}"
     score = bba_mba_candidate_score(job)
@@ -6226,7 +6310,11 @@ def snapshot_integrity(job):
             return False, "private_missing_secondary_field"
     else:
         minimum=PRIVATE_SNAPSHOT_MIN_FIELDS
-        required_core=("location", "experience", "deadline")
+        # Experience is an optional source field. A vacancy without an explicit
+        # experience statement is still eligible for publication when the other
+        # source-backed identity/core fields are complete. The deterministic gate
+        # already enforces any explicit experience ceiling when one is supplied.
+        required_core=("location", "deadline")
         for key in required_core:
             if not safe_text(job.get(key)):
                 return False, f"private_missing_core_{key}"
@@ -6509,22 +6597,6 @@ def source_test():
         else:
             print(f"BDJobs Live category {live_name}: WARN | dynamic listing unavailable | time={elapsed}s | production remains non-fatal")
 
-        homepage=_fetch_source_document("https://www.bdjobslive.com/", timeout=min(BDJOBSLIVE_TIMEOUT, 12), referer="https://bdjobslive.com/")
-        homepage_candidates=_bdjobslive_listing_candidates(
-            (homepage or {}).get("text", ""), (homepage or {}).get("url") or "https://www.bdjobslive.com/", ""
-        ) if homepage else []
-        if homepage_candidates:
-            sample=homepage_candidates[0]
-            detail=_fetch_bdjobslive_detail(sample)
-            if detail:
-                parsed=extract_job_fields(detail.get("text", ""), detail.get("html", ""), sample["url"], sample)
-                sane=bool(parsed.get("title")) and bool(parsed.get("company")) and bool(parsed.get("deadline"))
-                print(f"BDJobs Live detail: {'OK' if sane else 'INVALID_PARSE'} | id={sample.get('source_job_id','')} | backend={detail.get('backend')} | quality={detail.get('detail_quality')} | title={parsed.get('title','')} | company={parsed.get('company','')}")
-            else:
-                print(f"BDJobs Live detail: WARN | id={sample.get('source_job_id','')} | acquisition failed; production remains non-fatal")
-        else:
-            print("BDJobs Live detail: WARN | no live homepage detail link available for diagnostic")
-
     print("Discovery: category-first across Bdjobs + BDJobs Live + Teletalk")
     print("Fallback: curl_cffi -> browser only when required -> Jina -> listing preservation")
 
@@ -6582,8 +6654,6 @@ def _sort_source_quality(items):
 def _research_priority_key(job):
     """Prioritize candidates worth researching: freshness first, then discovery confidence and BBA/MBA fit."""
     freshness = posted_freshness_score({"posted_date": job.get("listing_posted") or job.get("posted_date")})
-    discovery = safe_text(job.get("discovery"))
-    fallback_penalty = 1 if discovery in {"bdjobslive_homepage_fallback", "bdjobslive_index_fallback"} else 0
     pre_score = float(job.get("bba_mba_target_score", 0) or 0)
     if not pre_score:
         probe = dict(job)
@@ -6600,7 +6670,6 @@ def _research_priority_key(job):
             pre_score = 0.0
     return (
         -freshness,
-        fallback_penalty,
         -pre_score,
         -float(job.get("final_score", job.get("deterministic_score", job.get("audience_pre_score", 0))) or 0),
         safe_text(job.get("canonical", "")),
@@ -6969,19 +7038,37 @@ def self_test():
     assert MAX_POST_AGE_DAYS == 3
     freshness_today = datetime.now(BD_TZ).date()
     freshness_ok = {"source":"Bdjobs","title":"Accounts Executive","company":"Example Ltd.","posted_date":(freshness_today - timedelta(days=2)).isoformat(),"deadline":(freshness_today + timedelta(days=2)).isoformat()}
+    freshness_boundary = dict(freshness_ok, posted_date=(freshness_today - timedelta(days=3)).isoformat())
     freshness_old = dict(freshness_ok, posted_date=(freshness_today - timedelta(days=4)).isoformat())
     freshness_unknown = dict(freshness_ok, posted_date="")
+    freshness_deadline_unknown = dict(freshness_ok, deadline="")
     freshness_expired = dict(freshness_ok, deadline=(freshness_today - timedelta(days=1)).isoformat())
+    # The production discovery schema uses listing_posted/listing_deadline. This
+    # regression catches the exact field-loss bug that previously removed all 21
+    # real candidates from the run.
+    discovery_schema = {"source":"Teletalk","listing_posted":freshness_ok["posted_date"],"listing_deadline":freshness_ok["deadline"]}
     assert len(_filter_private_discovery_by_freshness([freshness_ok])) == 1
+    assert len(_filter_private_discovery_by_freshness([discovery_schema])) == 1
+    assert len(_filter_private_discovery_by_freshness([freshness_boundary])) == 0
     assert len(_filter_private_discovery_by_freshness([freshness_old])) == 0
-    assert len(_filter_private_discovery_by_freshness([freshness_unknown])) == 0
+    unknown_result = _filter_private_discovery_by_freshness([freshness_unknown])
+    assert len(unknown_result) == 1 and unknown_result[0]["needs_detail_verification"]
+    unknown_deadline_result = _filter_private_discovery_by_freshness([freshness_deadline_unknown])
+    assert len(unknown_deadline_result) == 1 and unknown_deadline_result[0]["needs_detail_verification"]
     assert len(_filter_private_discovery_by_freshness([freshness_expired])) == 0
+    assert _strict_discovery_eligibility(discovery_schema)[0]
+    assert not _strict_discovery_eligibility(freshness_unknown)[0]
+    # A date-only deadline is active for the whole local calendar day.
+    assert deadline_status({"deadline": freshness_today.isoformat()}) == "active"
     self_test_today = freshness_today
     self_test_posted = self_test_today - timedelta(days=1)
     self_test_deadline = self_test_today + timedelta(days=23)
     self_test_posted_iso = self_test_posted.isoformat()
     self_test_deadline_label = self_test_deadline.strftime("%d %b %Y")
     assert len(BDBJOBS_CATEGORIES) == 14
+    assert all(url.startswith("https://www.bdjobslive.com/bdjobs-circular/") for url in _bdjobslive_category_urls("accounting-finance-jobs", "accounting-finance"))
+    assert "BDJOBSLIVE_INDEX_FALLBACK_URL" not in globals()
+    assert "BDJOBSLIVE_INDEX_FALLBACK_CAP" not in globals()
     assert is_bdjobs_job_url("https://jobs.bdjobs.com/jobdetails.asp?id=1534666")
     assert is_bdjobs_job_url("https://bdjobs.com/h/jobs/1534666")
     assert not is_bdjobs_job_url("https://bdjobs.com/h/jobs")
@@ -7014,6 +7101,9 @@ def self_test():
     score,components=private_rank_score(fields); assert 0 <= score <= 100 and sum(components.values()) == score
     too_high=dict(fields,experience="5 to 8 years"); ok,reason=deterministic_job_gate(too_high); assert not ok and reason=="experience_above_3_years"
     allowed=dict(fields,experience="2 to 3 years"); ok,reason=deterministic_job_gate(allowed); assert ok and reason=="ok_bba_mba_target"
+    exact_three=dict(fields,experience="3 years"); ok,reason=deterministic_job_gate(exact_three); assert ok and reason=="ok_bba_mba_target"
+    for unbounded in ("3+ years", "At least 3 years", "3 years or more", "More than 2 years"):
+        blocked=dict(fields,experience=unbounded); ok,reason=deterministic_job_gate(blocked); assert not ok and reason=="experience_above_3_years", unbounded
 
     listing='''<html><body><div><a href="/jobdetails.asp?id=101">Accounts Executive</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div><div><a href="/jobdetails.asp?id=102">Software Engineer</a><span>Published: 2026-09-19 Deadline: 2026-10-01 Dhaka</span></div></body></html>'''
     candidates=_bdjobs_listing_candidates(listing,"https://jobs.bdjobs.com/jobsearch-cache.asp?fcatId=1",1,"Accounting / Finance"); assert {x["source_job_id"] for x in candidates} == {"101","102"}
@@ -7342,6 +7432,9 @@ def self_test():
     internship_missing_deadline = dict(internship_missing_exp, deadline="")
     ok, reason = snapshot_integrity(internship_missing_deadline)
     assert not ok and reason == "private_missing_core_deadline"
+    regular_missing_experience = dict(live_gate, experience="", salary="Tk. 30,000", vacancy="2", location="Dhaka")
+    ok, reason = snapshot_integrity(regular_missing_experience)
+    assert ok, reason
 
     live_collision_html = live_detail_html.replace(
         '<span>Salary:</span><strong>Negotiable</strong>',
@@ -7421,10 +7514,9 @@ def self_test():
             dict(allocation_fixture[2], listing_posted="", canonical="https://jobs.bdjobs.com/jobdetails.asp?id=990003"),
         ]
         stale_result = _filter_private_discovery_by_freshness(stale_fixture)
-        assert len(stale_result) == 1
-        assert all(x.get("discovery_freshness") == "fresh" for x in stale_result)
+        assert len(stale_result) == 2
+        assert any(x.get("needs_detail_verification") for x in stale_result if not x.get("canonical", "").endswith("990002"))
         assert all(x.get("canonical") != "https://jobs.bdjobs.com/jobdetails.asp?id=990001" for x in stale_result)
-        assert all(x.get("canonical") != "https://jobs.bdjobs.com/jobdetails.asp?id=990003" for x in stale_result)
     finally:
         globals()["PRIVATE_DETAIL_TARGET"] = saved_detail_target
 
