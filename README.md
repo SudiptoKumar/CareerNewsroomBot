@@ -186,6 +186,35 @@ canonical + OG metadata             → identity/media metadata
 
 The parser deliberately avoids Tailwind/presentation classes.
 
+## Eligibility rules
+
+Regular private jobs must satisfy the shared hard eligibility layer before final ranking:
+
+```text
+BBA/MBA-compatible business role
+Experience: fresher to 3 years
+Age: explicit source age must be compatible with 18–30
+Posted: within the last 5 days when the source provides a posting date
+Deadline: active
+Duplicate vacancy: reject
+Clearly unrelated profession: reject
+Clearly incompatible specialist degree: reject
+```
+
+Unknown age or missing posting date is not invented. Those records remain lower-priority candidates until the detail page can verify the facts.
+
+## Persistent state protection
+
+`news_state.json` and `posted_urls.txt` are production data, not disposable release files. The ZIP contains the current state snapshot, and the Import Project workflow backs up the existing repository copies and restores them after importing new code. A code release therefore cannot reset the bot's duplicate history, Telegram message state, deadline state, or published-event history by accident.
+
+## AI fallback
+
+If Cerebras returns a permanent payment/quota response such as HTTP 402, the current run disables AI immediately and continues with deterministic source-first ranking. Transient 429/5xx failures still use the bounded retry/fallback path.
+
+## Scheduler claim protection
+
+Scheduled runs persist a session claim before the expensive crawl. A second scheduler opportunity for the same morning/afternoon session sees the persisted `running` or `completed` claim and exits without publishing. An interrupted lock is recoverable after the configured stale-lock window. Manual `workflow_dispatch` runs bypass this guard.
+
 ## Source fidelity and field protection
 
 Source extraction is authoritative. AI may rank, audit, and choose display fields, but it cannot invent source facts or remove protected facts.

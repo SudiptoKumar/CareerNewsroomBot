@@ -586,6 +586,9 @@ SCHEDULE_SESSION_MAP = {
     "35 17 * * *": "afternoon",
 }
 SCHEDULE_GUARD_RETENTION_DAYS = 14
+SCHEDULE_LOCK_MAX_MINUTES = max(20, int(os.environ.get("SCHEDULE_LOCK_MAX_MINUTES", "45")))
+AI_DISABLED_FOR_RUN = False
+AI_DISABLE_REASON = ""
 
 
 def scheduled_session_context():
@@ -607,18 +610,43 @@ def scheduled_session_context():
 
 
 def begin_scheduled_session():
-    """Claim the current scheduled session. Return True when it should be skipped."""
+    """Claim the current scheduled session. Return True when it should be skipped.
+
+    The workflow can persist the claim before the expensive crawl. When that
+    persisted claim is present in the same workflow (CAREER_SCHEDULE_CLAIMED=1),
+    allow the actual run to proceed without re-claiming it. A recent running
+    claim from another trigger is treated as a duplicate. Very old running
+    claims are recoverable after an interrupted workflow.
+    """
     ctx = scheduled_session_context()
     if not ctx:
         return False
+    if safe_text(os.getenv("CAREER_SCHEDULE_CLAIMED")).lower() in {"1", "true", "yes"}:
+        logger.info("SCHEDULE GUARD | session=%s | persisted claim already held by this workflow", ctx["key"])
+        return False
     guard = STATE.setdefault("schedule_guard", {})
     existing = guard.get(ctx["key"]) if isinstance(guard.get(ctx["key"]), dict) else None
-    if existing and safe_text(existing.get("status")).lower() == "completed":
-        logger.info(
-            "SCHEDULE GUARD | session=%s | already_completed_at=%s | skipping duplicate trigger",
-            ctx["key"], existing.get("completed_at", ""),
-        )
-        return True
+    if existing:
+        status = safe_text(existing.get("status")).lower()
+        if status == "completed":
+            logger.info(
+                "SCHEDULE GUARD | session=%s | already_completed_at=%s | skipping duplicate trigger",
+                ctx["key"], existing.get("completed_at", ""),
+            )
+            return True
+        if status == "running":
+            started = parse_datetime(existing.get("started_at"))
+            age_minutes = None if not started else max(0.0, (datetime.now(BD_TZ) - started).total_seconds() / 60.0)
+            if age_minutes is None or age_minutes <= SCHEDULE_LOCK_MAX_MINUTES:
+                logger.info(
+                    "SCHEDULE GUARD | session=%s | already_running age=%.1fmin | skipping duplicate trigger",
+                    ctx["key"], age_minutes or 0.0,
+                )
+                return True
+            logger.warning(
+                "SCHEDULE GUARD | session=%s | stale_running_lock age=%.1fmin | reclaiming",
+                ctx["key"], age_minutes,
+            )
     guard[ctx["key"]] = {
         "status": "running",
         "slot": ctx["slot"],
@@ -630,6 +658,16 @@ def begin_scheduled_session():
     save_state(STATE)
     logger.info("SCHEDULE GUARD | session=%s | claimed", ctx["key"])
     return False
+
+
+def claim_scheduled_session_for_workflow():
+    """Persist a scheduled-session claim and return True when this trigger should run.
+
+    Exit code semantics are handled by the CLI: 0 means claimed, 2 means duplicate.
+    The GitHub workflow retries the git push atomically; a push conflict is resolved
+    by refreshing origin/main and checking the remote guard state again.
+    """
+    return not begin_scheduled_session()
 
 
 def complete_scheduled_session():
@@ -911,9 +949,7 @@ BDJOBS_NATIVE_CATEGORY_HINTS = (
 )
 
 def _listing_date_from_text(card_text):
-    return normalize_date_text(_first_match(card_text, [
-        r"(?:Posted|Published|Date Posted|Publication Date|প্রকাশিত|পোস্টেড)\s*[:：-]?\s*([^|]+?)(?=\s+(?:Deadline|শেষ তারিখ|View|দেখুন)\b|$)",
-    ]))
+    return extract_posted_date_from_fragment(card_text)
 
 def _absolute_category_url(category_id, legacy=False):
     base = BDJOBS_LEGACY_LISTING_URL if legacy else BDJOBS_LISTING_URL
@@ -1193,6 +1229,11 @@ def _bdjobs_listing_candidates(page_html, page_url, category_id=None, category_n
                 baseline["company"] = inferred_company
 
         posted = _listing_date_from_text(card_text)
+        if not posted and parent is not None:
+            try:
+                posted = extract_posted_date_from_fragment(str(parent))
+            except Exception:
+                pass
         parsed_href = urlparse(href)
         id_match = re.search(r"(?:^|[?&])id=(\d+)", parsed_href.query, re.I)
         if not id_match:
@@ -1591,13 +1632,18 @@ def _bdjobslive_listing_candidates(page_html, page_url, category_name):
             if title in candidate_text and 40 <= len(candidate_text) <= 5000:
                 card_text = candidate_text
                 break
+        card_html = ""
+        try:
+            card_html = str(parent) if parent is not None else ""
+        except Exception:
+            card_html = ""
         baseline = _extract_source_label_fields(card_text)
-        posted = normalize_date_text(baseline.get("posted_date", ""))
+        posted = normalize_date_text(baseline.get("posted_date", "")) or extract_posted_date_from_fragment(card_html or card_text)
         deadline = normalize_date_text(baseline.get("deadline", ""))
         if not posted:
-            m = re.search(r"(?:Published|Posted)\s*[:：-]\s*([^|]+?)(?=\s+(?:Application Deadline|Deadline)\b|$)", card_text, flags=re.I)
+            m = re.search(r"(?:Published|Posted|Date Posted|Publication Date)\s*[:：-]?\s*([^|]+?)(?=\s+(?:Application Deadline|Deadline)\b|$)", card_text, flags=re.I)
             if m:
-                posted = normalize_date_text(m.group(1))
+                posted = normalize_date_text(m.group(1)) or normalize_relative_date_text(m.group(1))
         if not deadline:
             m = re.search(r"(?:Application Deadline|Deadline)\s*[:：-]\s*([^|]+?)(?=\s+(?:Apply Now|Save|Share|Vacancy|Age|Location|Salary|Experience|Gender|Job Type)\b|$)", card_text, flags=re.I)
             if m:
@@ -2086,14 +2132,27 @@ def _teletalk_records(payload):
 
 def _discover_teletalk_api():
     discovered, seen = [], set()
+    raw_records = invalid = already_posted = duplicates = 0
     try:
         response = session.get(TELETALK_API_URL, params={"searchKeyword": ""}, headers=HEADERS, timeout=TELETALK_API_TIMEOUT)
         response.raise_for_status(); payload = response.json()
-        for record in _teletalk_records(payload):
+        records = _teletalk_records(payload)
+        raw_records = len(records)
+        for record in records:
             fields = _teletalk_record_fields(record)
-            if not fields: continue
+            if not fields:
+                invalid += 1
+                continue
             canonical = canonical_url(fields["source_url"])
-            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
+            if not canonical:
+                invalid += 1
+                continue
+            if canonical in seen:
+                duplicates += 1
+                continue
+            if canonical in POSTED_URLS:
+                already_posted += 1
+                continue
             seen.add(canonical)
             discovered.append({
                 "title": fields["title"], "url": fields["url"], "canonical": canonical, "source": "Teletalk",
@@ -2102,9 +2161,12 @@ def _discover_teletalk_api():
                 "listing_deadline": fields["deadline"], "discovered_at": now_iso(), "api_fields": fields, "is_government": True,
             })
             if len(discovered) >= GOVERNMENT_DISCOVERY_TARGET: break
-        logger.info("TELETALK API DISCOVERY: %d", len(discovered))
+        logger.info(
+            "TELETALK API DISCOVERY | raw=%d | new=%d | already_posted=%d | invalid=%d | duplicates=%d",
+            raw_records, len(discovered), already_posted, invalid, duplicates,
+        )
     except Exception as exc:
-        logger.warning("Teletalk API discovery failed: %s", exc)
+        logger.warning("Teletalk API discovery failed | raw=%d | error=%s", raw_records, exc)
     return discovered
 
 def _private_discovery_freshness_state(item):
@@ -2806,6 +2868,97 @@ def normalize_date_text(value):
     return ""
 
 
+def normalize_relative_date_text(value, *, now=None):
+    """Normalize common relative posting-date phrases to an ISO date.
+
+    Used only for discovery metadata. A relative phrase such as "2 days ago" is
+    converted against the current Bangladesh local date. Time-of-day precision is
+    intentionally discarded because the freshness rule is day-based.
+    """
+    raw = _clean_one_line(value).translate(BENGALI_DIGIT_MAP).lower()
+    if not raw:
+        return ""
+    now = now or datetime.now(BD_TZ)
+    if re.search(r"\b(today|just now|just posted|today only)\b", raw):
+        return now.date().isoformat()
+    if re.search(r"\b(yesterday)\b", raw):
+        return (now - timedelta(days=1)).date().isoformat()
+    m = re.search(r"\b(\d+)\s*(?:day|days)\s+ago\b", raw)
+    if m:
+        return (now - timedelta(days=int(m.group(1)))).date().isoformat()
+    if re.search(r"\b\d+\s*(?:hour|hours|hr|hrs)\s+ago\b", raw):
+        return now.date().isoformat()
+    if re.search(r"\b(আজ|আজকে)\b", raw):
+        return now.date().isoformat()
+    if re.search(r"\b(গতকাল)\b", raw):
+        return (now - timedelta(days=1)).date().isoformat()
+    m = re.search(r"\b(\d+)\s*দিন\s*আগে\b", raw)
+    if m:
+        return (now - timedelta(days=int(m.group(1)))).date().isoformat()
+    return ""
+
+
+def extract_posted_date_from_fragment(fragment, *, now=None):
+    """Extract a posting/publication date from rendered listing text or HTML.
+
+    Preference order is deliberately source-semantic: explicit Published/Posted
+    labels, time/meta attributes, then relative-date phrases. Deadline fields are
+    never treated as posted dates.
+    """
+    raw = safe_text(fragment)
+    if not raw:
+        return ""
+    now = now or datetime.now(BD_TZ)
+
+    # HTML semantic hints: <time datetime>, meta/date attributes, and data-* values.
+    if "<" in raw and ">" in raw:
+        try:
+            soup = BeautifulSoup(raw, "html.parser")
+            for tag in soup.find_all("time"):
+                candidate = safe_text(tag.get("datetime"))
+                parent_text = _clean_one_line(tag.parent.get_text(" ", strip=True) if getattr(tag, "parent", None) else "")
+                if candidate and re.search(r"(?:published|posted|publication|date\s+posted)", parent_text, re.I):
+                    normalized = normalize_date_text(candidate) or normalize_relative_date_text(candidate, now=now)
+                    if normalized:
+                        return normalized
+            for tag in soup.find_all(["meta", "input", "div", "span"], attrs=True):
+                attrs = tag.attrs or {}
+                blob = " ".join(str(attrs.get(k, "")) for k in ("itemprop", "name", "property", "data-date", "data-posted", "data-published", "datetime"))
+                if not re.search(r"published|posted|datePublished|date-posted|date_published", blob, re.I):
+                    continue
+                candidate = safe_text(attrs.get("content") or attrs.get("value") or attrs.get("data-date") or attrs.get("data-posted") or attrs.get("data-published") or attrs.get("datetime"))
+                normalized = normalize_date_text(candidate) or normalize_relative_date_text(candidate, now=now)
+                if normalized:
+                    return normalized
+            raw = _text_from_html(raw)
+        except Exception:
+            raw = _text_from_html(raw) if "<" in raw else raw
+
+    label_pattern = re.compile(
+        r"(?:Published|Posted|Date Posted|Publication Date|Publication|Published On|প্রকাশিত|প্রকাশের তারিখ|প্রকাশ তারিখ|পোস্টেড)\s*[:：-]?\s*(.{1,100})",
+        re.I,
+    )
+    for match in label_pattern.finditer(raw):
+        value = _clean_one_line(match.group(1))
+        value = re.split(r"\b(?:Application Deadline|Deadline|Last Date|শেষ তারিখ)\b", value, maxsplit=1, flags=re.I)[0].strip(" |-:")
+        normalized = normalize_date_text(value) or normalize_relative_date_text(value, now=now)
+        if normalized:
+            return normalized
+
+    for phrase_pattern in (
+        r"\b(?:today|yesterday)\b",
+        r"\b\d+\s*(?:day|days|hour|hours|hr|hrs)\s+ago\b",
+        r"\b(?:আজ|আজকে|গতকাল)\b",
+        r"\b\d+\s*দিন\s*আগে\b",
+    ):
+        m = re.search(phrase_pattern, raw, flags=re.I)
+        if m:
+            normalized = normalize_relative_date_text(m.group(0), now=now)
+            if normalized:
+                return normalized
+    return ""
+
+
 def format_date_display(value):
     """Display every publishable date consistently as DD-MM-YYYY."""
     raw = safe_text(value)
@@ -2979,7 +3132,7 @@ def translate_government_jobs(jobs):
         job["age"]=compact_age(job.get("age")) or job.get("age","")
         job["application_method"]=compact_application(job.get("application_method"),job.get("apply_url","")) or job.get("application_method","")
         job["employment_type"]=compact_employment(job.get("employment_type")) or job.get("employment_type","")
-    client=get_cerebras()
+    client=None if AI_DISABLED_FOR_RUN else get_cerebras()
     if not client or not source_snapshots:
         return jobs
     payload=[]
@@ -4970,7 +5123,24 @@ def deterministic_job_gate(job):
         is_live_internship = bool(job.get("lane") == "internship" or job.get("is_internship_source"))
         if not is_live_internship:
             if live_category and not _bdjobslive_category_allowed(live_category):
-                return False, "bdjobslive_category_not_allowed"
+                # Category names are useful guardrails, but they are not authoritative
+                # enough to reject a clearly BBA/MBA-relevant business function such as
+                # Performance Marketing when the site's taxonomy uses a different label.
+                role_probe = dict(job)
+                role_probe["raw_text"] = " ".join(
+                    x for x in (
+                        safe_text(job.get("raw_text")),
+                        safe_text(job.get("title")),
+                        safe_text(job.get("education")),
+                        safe_text(job.get("responsibilities")),
+                        safe_text(job.get("category")),
+                    ) if x
+                )
+                role_score = bba_mba_candidate_score(role_probe)
+                title_lower = safe_text(job.get("title")).lower()
+                clearly_non_business = any(term in title_lower for term in NON_BUSINESS_ROLE_TERMS)
+                if (role_score < 30 and role_fit_score(role_probe) < 10) or clearly_non_business:
+                    return False, "bdjobslive_category_not_allowed"
             if job.get("discovery") == "bdjobslive_index_fallback" and not live_category:
                 return False, "bdjobslive_category_missing"
             if job.get("discovery") == "bdjobslive_homepage_fallback" and not live_category:
@@ -5165,6 +5335,9 @@ def _validate_judge_rows(rows, batch_len):
 
 
 def _call_judge_once(batch, batch_no, retry=False):
+    global AI_DISABLED_FOR_RUN, AI_DISABLE_REASON
+    if AI_DISABLED_FOR_RUN:
+        return []
     payload = []
     for idx, job in enumerate(batch, 1):
         payload.append("\n".join([
@@ -5199,12 +5372,17 @@ def _call_judge_once(batch, batch_no, retry=False):
             return rows
         raise ValueError("no_valid_judge_rows")
     except Exception as exc:
+        error_text = safe_text(exc)
+        if "402" in error_text or "payment_required" in error_text.lower() or "payment required" in error_text.lower():
+            AI_DISABLED_FOR_RUN = True
+            AI_DISABLE_REASON = "payment_required"
+            logger.error("CEREBRAS DISABLED FOR RUN | reason=payment_required | batch=%d", batch_no)
         logger.warning("CEREBRAS audit batch %d failed%s: %s", batch_no, " on retry" if retry else "", exc)
         return []
 
 
 def judge_batch(batch, batch_no):
-    if not get_cerebras() or not batch:
+    if AI_DISABLED_FOR_RUN or not get_cerebras() or not batch:
         return []
     # Smaller batches materially reduce malformed/truncated structured-output risk.
     chunks = [batch[i:i + max(1, AI_BATCH_SIZE)] for i in range(0, len(batch), max(1, AI_BATCH_SIZE))]
@@ -6595,7 +6773,10 @@ def _prepare_shortlists(discovered):
 
 
 def run(*, dry_run=False, print_ranking=False):
+    global AI_DISABLED_FOR_RUN, AI_DISABLE_REASON
     started=time.monotonic()
+    AI_DISABLED_FOR_RUN = False
+    AI_DISABLE_REASON = ""
     if begin_scheduled_session():
         return {"selected": [], "published": 0, "metrics": {"schedule_skipped": True}}
     logger.info("CAREER NEWS V1 | freshness-first adaptive sources | target=%d max=%d", TARGET_STORIES_PER_RUN, MAX_STORIES_PER_RUN)
@@ -6715,6 +6896,7 @@ def run(*, dry_run=False, print_ranking=False):
     logger.info("RESEARCH SOURCE MIX | %s", " | ".join(f"{k}={v}" for k,v in sorted(research_source_mix.items())) or "none")
     snapshot_counts=[snapshot_field_quality(j) for j in selected]
     logger.info("SNAPSHOT QUALITY | selected=%d | >=5_fields=%d | avg_fields=%.1f", len(snapshot_counts), sum(1 for n in snapshot_counts if n>=5), (sum(snapshot_counts)/len(snapshot_counts) if snapshot_counts else 0.0))
+    logger.info("AI STATUS | disabled_for_run=%s | reason=%s", AI_DISABLED_FOR_RUN, AI_DISABLE_REASON or "none")
 
     if print_ranking:
         print("=== CAREERNEWSROOM PRIVATE RANKING ===")
@@ -7283,6 +7465,12 @@ def self_test():
     assert age_bounds("At least 18 Years") == (18, None)
     assert age_bounds("At most 30 Years") == (None, 30)
     assert age_bounds("30 Years") == (None, 30)
+    assert normalize_relative_date_text("today") == self_test_today.isoformat()
+    assert normalize_relative_date_text("2 days ago") == (self_test_today - timedelta(days=2)).isoformat()
+    assert extract_posted_date_from_fragment("Published: 25 Sep 2026 Deadline: 01 Oct 2026") == "2026-09-25"
+    assert extract_posted_date_from_fragment("Posted: 2 days ago Deadline: 30 Sep 2026") == (self_test_today - timedelta(days=2)).isoformat()
+    live_marketing = dict(live_gate, category="Other Business Services", title="Media Buyer & Performance Marketing Specialist", raw_text="Media Buyer & Performance Marketing Specialist BBA marketing performance marketing")
+    assert deterministic_job_gate(live_marketing)[0], "Clearly business-relevant BDJobs Live marketing roles must not be rejected by taxonomy wording alone"
     age_fixture = dict(bd_fields, source="Bdjobs", source_url="https://bdjobs.com/h/details/999001?ln=1", company="Averroes International School", experience="2 to 3 years", education="BBA", posted_date=self_test_posted_iso, deadline=self_test_deadline.isoformat(), raw_text="Logistics Executive BBA")
     for valid_age in ("18 to 30 Years", "21 to 30 Years", "18 to 28 Years", "At least 18 Years", "At most 30 Years", "Not Specified", ""):
         candidate = dict(age_fixture, age=valid_age)
@@ -7583,6 +7771,8 @@ def self_test():
         assert begin_scheduled_session() is False
         complete_scheduled_session()
         assert begin_scheduled_session() is True
+        STATE["schedule_guard"] = {"2026-09-26:morning": {"status": "running", "started_at": (datetime.now(BD_TZ) - timedelta(minutes=SCHEDULE_LOCK_MAX_MINUTES + 5)).isoformat()}}
+        assert begin_scheduled_session() is False
     finally:
         STATE.clear(); STATE.update(_state_backup)
         for _k, _v in _env_backup.items():
@@ -7602,6 +7792,7 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--print-ranking", action="store_true")
     parser.add_argument("--reconcile-state", metavar="SNAPSHOT_DIR", help="Merge a saved local state snapshot into the current checked-out state.")
+    parser.add_argument("--claim-schedule", action="store_true", help="Claim the current scheduled session and persist its guard; exit 2 when already claimed.")
     args = parser.parse_args()
     if args.self_test:
         self_test()
@@ -7609,5 +7800,7 @@ if __name__ == "__main__":
         source_test()
     elif args.reconcile_state:
         reconcile_state_files(args.reconcile_state)
+    elif args.claim_schedule:
+        raise SystemExit(0 if claim_scheduled_session_for_workflow() else 2)
     else:
         run(dry_run=args.dry_run, print_ranking=args.print_ranking)
