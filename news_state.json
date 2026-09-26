@@ -1,10 +1,10 @@
 {
-  "format_version": 20,
-  "schedule_guard": {},
-  "queue": {},
   "events": {},
+  "format_version": 20,
+  "last_run": "",
+  "pipeline_version": "CareerNewsroom V2",
+  "queue": {},
   "rejections": {},
   "run_history": [],
-  "last_run": "",
-  "pipeline_version": "CareerNewsroom V2"
+  "schedule_guard": {}
 }
