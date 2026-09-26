@@ -1,0 +1,132 @@
+name: CareerNewsroom V2
+
+on:
+  schedule:
+    # Asia/Dhaka = UTC+06:00. Run opportunities at 10:05/10:20/10:35
+    # and 17:05/17:20/17:35 local time.
+    - cron: "5,20,35 4,11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: career-newsroom-v2
+  cancel-in-progress: false
+
+jobs:
+  run-career-bot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
+      TELEGRAM_CHANNEL: "@CareerNewsroom"
+      TELEGRAM_PROMO_URL: "https://t.me/CareerNewsroom"
+      PYTHONUNBUFFERED: "1"
+
+      # V2 policy
+      MAX_POST_AGE_DAYS: "3"
+      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
+      PRIVATE_REGULAR_TARGET: "10"
+      GOVERNMENT_TARGET: "5"
+      INTERNSHIP_TARGET: "4"
+      EXTRA_TARGET: "6"
+      TARGET_STORIES_PER_RUN: "19"
+      MAX_STORIES_PER_RUN: "25"
+      MIN_PRIVATE_POSTS_PER_RUN: "0"
+      MIN_GOVERNMENT_POSTS_PER_RUN: "0"
+      MIN_INTERNSHIP_POSTS_PER_RUN: "0"
+
+      # Discovery / detail capacity
+      PRIVATE_DISCOVERY_TARGET: "120"
+      PRIVATE_DISCOVERY_MAX: "200"
+      PRIVATE_DETAIL_TARGET: "60"
+      INTERNSHIP_DETAIL_TARGET: "10"
+      GOVERNMENT_DISCOVERY_TARGET: "20"
+      DETAIL_WORKERS: "8"
+      DETAIL_TIMEOUT: "18"
+      DISCOVERY_TIMEOUT: "18"
+
+      # Acquisition
+      SCRAPLING_BROWSER_ENABLED: "1"
+      SCRAPLING_BROWSER_TIMEOUT: "60000"
+      SCRAPLING_BROWSER_WAIT_MS: "750"
+      SCRAPLING_BROWSER_DETAIL_LIMIT: "60"
+      SCRAPLING_BROWSER_WAIT_SELECTOR: "app-summary #allSection"
+      SCRAPLING_BROWSER_NETWORK_IDLE: "1"
+      CURL_IMPERSONATES: "safari18_0_ios,safari184_ios,safari260_ios,safari_ios"
+      CURL_MAX_FINGERPRINT_ATTEMPTS: "4"
+      JINA_ENABLED: "1"
+      JINA_TIMEOUT: "10"
+      JINA_RPM_LIMIT: "24"
+      DETAIL_MIN_TEXT_CHARS: "180"
+
+      # AI
+      AI_REVIEW_TARGET: "50"
+      AI_BATCH_SIZE: "8"
+      AI_RETRY_COUNT: "1"
+
+      # Telegram / state
+      POST_DELAY_SECONDS: "1.0"
+      DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          scrapling install --force
+          patchright install chromium --with-deps
+
+      - name: Compile check
+        run: python -m py_compile main.py
+
+      - name: Run V2 self-test
+        run: python main.py --self-test
+
+      - name: Run live source diagnostics (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        env:
+          CAREER_MANUAL_RUN: "1"
+        run: python main.py --source-test
+
+      - name: Run CareerNewsroom V2
+        env:
+          CAREER_MANUAL_RUN: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+        run: python main.py
+
+      - name: Save state
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f news_state.json || printf '%s\n' '{"format_version":6,"queue":{},"events":{},"recent_titles":[],"last_run":"","pipeline_version":"CareerNewsroom V2","schedule_guard":{},"rejections":{}}' > news_state.json
+          test -f posted_urls.txt || : > posted_urls.txt
+
+          git config user.name "Career News Bot"
+          git config user.email "actions@github.com"
+          git add news_state.json posted_urls.txt
+
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+          else
+            git commit -m "Update CareerNewsroom V2 state"
+            git push
+          fi
