@@ -39,6 +39,7 @@ jobs:
       DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
       PYTHONUNBUFFERED: "1"
       MAX_POST_AGE_DAYS: "5"
+      SCHEDULE_LOCK_MAX_MINUTES: "20"
       MIN_PRIVATE_AGE_YEARS: "18"
       MAX_PRIVATE_AGE_YEARS: "30"
       MAX_PRIVATE_EXPERIENCE_YEARS: "3"
@@ -125,7 +126,52 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
+      - name: Claim scheduled session and persist guard
+        if: github.event_name == 'schedule'
+        id: schedule_claim
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            set +e
+            python main.py --claim-schedule
+            rc=$?
+            set -e
+
+            if [ "$rc" -eq 2 ]; then
+              echo "run_bot=false" >> "$GITHUB_OUTPUT"
+              echo "SCHEDULE GUARD: another trigger already owns this session."
+              exit 0
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::Unable to claim scheduled session (exit $rc)."
+              exit "$rc"
+            fi
+
+            git config user.name "Career News Bot"
+            git config user.email "actions@github.com"
+            git add news_state.json
+            git commit -m "Claim CareerNewsroom schedule session"
+
+            if git push origin HEAD:main; then
+              echo "run_bot=true" >> "$GITHUB_OUTPUT"
+              echo "CAREER_SCHEDULE_CLAIMED=1" >> "$GITHUB_ENV"
+              echo "Scheduled session claim persisted."
+              exit 0
+            fi
+
+            echo "Schedule claim push conflicted; refreshing remote state (attempt $attempt/5)."
+            git fetch origin main --prune
+            git reset --hard origin/main
+            sleep "$((attempt * 2))"
+          done
+
+          echo "::error::Could not atomically persist scheduled-session claim after 5 attempts."
+          exit 1
+
       - name: Run V1 self-test
+        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
@@ -133,10 +179,11 @@ jobs:
         run: python main.py --source-test
 
       - name: Run CareerNewsroom
+        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
         run: python main.py
 
       - name: Save state
-        if: always()
+        if: always() && (github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true')
         shell: bash
         run: |
           set -euo pipefail

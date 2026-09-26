@@ -173,11 +173,35 @@ jobs:
           fi
 
       # ==================================================
+      # BACK UP PERSISTENT STATE
+      #
+      # Code releases may replace main.py/workflows/etc., but these two files are
+      # production data and must survive every import.
+      # ==================================================
+      - name: Back up persistent state
+        if: ${{ inputs.operation == 'import' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STATE_DIR="/tmp/careernewsroom-state"
+          rm -rf "$STATE_DIR"
+          mkdir -p "$STATE_DIR"
+
+          for file in news_state.json posted_urls.txt; do
+            if [ -f "$file" ]; then
+              cp "$file" "$STATE_DIR/$file"
+              echo "Preserving existing $file"
+            else
+              echo "No existing $file found; import may create it if supplied."
+            fi
+          done
+
+      # ==================================================
       # IMPORT EVERYTHING
       #
-      # .github is NOT excluded.
-      # Existing files with the same path are replaced.
-      # New files are added.
+      # .github is NOT excluded. Existing files with the same path are replaced.
+      # Persistent state is restored immediately afterward.
       # ==================================================
       - name: Import project
         if: ${{ inputs.operation == 'import' }}
@@ -191,7 +215,15 @@ jobs:
             --exclude=".git/" \
             "$ROOT/" ./
 
-          echo "Project imported successfully."
+          STATE_DIR="/tmp/careernewsroom-state"
+          for file in news_state.json posted_urls.txt; do
+            if [ -f "$STATE_DIR/$file" ]; then
+              cp "$STATE_DIR/$file" "$file"
+              echo "Restored persistent $file"
+            fi
+          done
+
+          echo "Project imported successfully with persistent state preserved."
 
       # ==================================================
       # DELETE ZIP FILES
