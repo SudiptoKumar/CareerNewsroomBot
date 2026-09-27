@@ -2,18 +2,7 @@ name: CareerNewsroom
 
 on:
   schedule:
-    - cron: "5 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "20 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "35 10 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "5 17 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "20 17 * * *"
-      timezone: "Asia/Dhaka"
-    - cron: "35 17 * * *"
-      timezone: "Asia/Dhaka"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -32,36 +21,21 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
       GH_TOKEN: ${{ github.token }}
-      CAREER_SCHEDULE_CRON: ${{ github.event.schedule || '' }}
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
       TELEGRAM_PROMO_URL: "https://t.me/CareerNewsroom"
       DEADLINE_SWEEP_MAX_UPDATES_PER_RUN: "100"
       PYTHONUNBUFFERED: "1"
-      MAX_POST_AGE_DAYS: "3"
-      SCHEDULE_LOCK_MAX_MINUTES: "20"
-      MIN_PRIVATE_AGE_YEARS: "18"
-      MAX_PRIVATE_AGE_YEARS: "30"
-      MAX_PRIVATE_EXPERIENCE_YEARS: "3"
-      TARGET_STORIES_PER_RUN: "19"
-      MAX_STORIES_PER_RUN: "25"
-      PRIVATE_TARGET_PER_RUN: "10"
-      GOVERNMENT_TARGET_PER_RUN: "5"
-      INTERNSHIP_TARGET_PER_RUN: "4"
-      INTERNSHIP_BDJOBS_TARGET: "2"
-      INTERNSHIP_BDJOBSLIVE_TARGET: "2"
-      EXTRA_TARGET_PER_RUN: "6"
-      PRIVATE_DISCOVERY_TARGET: "180"
+      MAX_POST_AGE_DAYS: "5"
+      PRIVATE_DISCOVERY_TARGET: "160"
       PRIVATE_DISCOVERY_MAX: "200"
-      PRIVATE_FAST_RANK_TARGET: "80"
+      PRIVATE_FAST_RANK_TARGET: "60"
       PRIVATE_DETAIL_TARGET: "60"
-      INTERNSHIP_DETAIL_TARGET: "12"
+      INTERNSHIP_DETAIL_TARGET: "10"
       INTERNSHIP_AI_TARGET: "8"
-      INTERNSHIP_SNAPSHOT_MIN_FIELDS: "3"
       MIN_INTERNSHIP_POSTS_PER_RUN: "0"
       PRIVATE_SNAPSHOT_MIN_FIELDS: "4"
       GOVERNMENT_SNAPSHOT_MIN_FIELDS: "3"
-      MAX_GOVERNMENT_POSTS_PER_RUN: "5"
       AI_REVIEW_TARGET: "50"
       AI_BATCH_SIZE: "8"
       AI_RETRY_COUNT: "1"
@@ -87,18 +61,6 @@ jobs:
       JINA_ENABLED: "1"
       JINA_TIMEOUT: "12"
       JINA_RPM_LIMIT: "24"
-      BDJOBSLIVE_ENABLED: "1"
-      BDJOBSLIVE_CATEGORY_PAGE_LIMIT: "2"
-      BDJOBSLIVE_CATEGORY_CAP: "10"
-      BDJOBSLIVE_DISCOVERY_MAX: "120"
-      BDJOBSLIVE_TIMEOUT: "18"
-      BDJOBSLIVE_BROWSER_TIMEOUT: "30000"
-      BDJOBSLIVE_BROWSER_WAIT_MS: "2200"
-      BDJOBSLIVE_BROWSER_LISTING_LIMIT: "28"
-      BDJOBSLIVE_BROWSER_DETAIL_LIMIT: "60"
-      PRIVATE_DETAIL_SOURCE_RESERVE: "4"
-      BDJOBSLIVE_BROWSER_LONG_RETRY_WAIT_MS: "12000"
-      BDJOBSLIVE_BROWSER_LONG_RETRY_TIMEOUT: "30000"
 
     steps:
       - name: Checkout repository
@@ -124,52 +86,7 @@ jobs:
       - name: Compile check
         run: python -m py_compile main.py
 
-      - name: Claim scheduled session and persist guard
-        if: github.event_name == 'schedule'
-        id: schedule_claim
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for attempt in 1 2 3 4 5; do
-            set +e
-            python main.py --claim-schedule
-            rc=$?
-            set -e
-
-            if [ "$rc" -eq 2 ]; then
-              echo "run_bot=false" >> "$GITHUB_OUTPUT"
-              echo "SCHEDULE GUARD: another trigger already owns this session."
-              exit 0
-            fi
-            if [ "$rc" -ne 0 ]; then
-              echo "::error::Unable to claim scheduled session (exit $rc)."
-              exit "$rc"
-            fi
-
-            git config user.name "Career News Bot"
-            git config user.email "actions@github.com"
-            git add news_state.json
-            git commit -m "Claim CareerNewsroom schedule session"
-
-            if git push origin HEAD:main; then
-              echo "run_bot=true" >> "$GITHUB_OUTPUT"
-              echo "CAREER_SCHEDULE_CLAIMED=1" >> "$GITHUB_ENV"
-              echo "Scheduled session claim persisted."
-              exit 0
-            fi
-
-            echo "Schedule claim push conflicted; refreshing remote state (attempt $attempt/5)."
-            git fetch origin main --prune
-            git reset --hard origin/main
-            sleep "$((attempt * 2))"
-          done
-
-          echo "::error::Could not atomically persist scheduled-session claim after 5 attempts."
-          exit 1
-
-      - name: Run V2 self-test
-        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
+      - name: Run V1 self-test
         run: python main.py --self-test
 
       - name: Run live source diagnostics (manual runs only)
@@ -177,11 +94,10 @@ jobs:
         run: python main.py --source-test
 
       - name: Run CareerNewsroom
-        if: github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true'
         run: python main.py
 
       - name: Save state
-        if: always() && (github.event_name != 'schedule' || steps.schedule_claim.outputs.run_bot == 'true')
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
