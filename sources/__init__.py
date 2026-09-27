@@ -1,0 +1,1 @@
+"""CareerNewsroom source adapters."""
