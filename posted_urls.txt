@@ -49,3 +49,7 @@ alljobs.teletalk.com.bd?job_primary_id=14880
 alljobs.teletalk.com.bd?job_primary_id=14862
 alljobs.teletalk.com.bd?job_primary_id=14863
 alljobs.teletalk.com.bd?job_primary_id=14866
+jobs.bdjobs.com/jobdetails?id=1539905&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1539803&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1539567&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1539804&fcatId=17&ln=1
