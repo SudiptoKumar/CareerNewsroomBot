@@ -1203,7 +1203,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-09-30T19:23:56.019801+06:00",
-      "last_seen": "2026-10-02T15:10:12.729576+06:00"
+      "last_seen": "2026-10-02T23:00:54.193127+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1538076&fcatId=10&ln=1": {
       "title": "Sales & Marketing Executive",
@@ -3209,7 +3209,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-01T23:42:31.386325+06:00",
-      "last_seen": "2026-10-02T15:10:12.752167+06:00"
+      "last_seen": "2026-10-02T23:00:54.189603+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1539663&fcatId=17&ln=1": {
       "title": "Intern - HR",
@@ -3473,7 +3473,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-01T23:42:31.401984+06:00",
-      "last_seen": "2026-10-02T15:10:12.735504+06:00"
+      "last_seen": "2026-10-02T23:00:54.186097+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540020&fcatId=17&ln=1": {
       "title": "Executive/ Sr Executive - HR and Admin",
@@ -3894,7 +3894,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-02T04:12:36.403376+06:00",
-      "last_seen": "2026-10-02T15:10:12.757590+06:00"
+      "last_seen": "2026-10-02T23:00:54.203410+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1534625&fcatId=17&ln=1": {
       "title": "Recruitment Officer",
@@ -3943,7 +3943,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-02T15:10:12.747562+06:00",
-      "last_seen": "2026-10-02T15:10:12.747569+06:00"
+      "last_seen": "2026-10-02T23:00:54.198827+06:00"
     }
   },
   "events": {
@@ -6339,6 +6339,6 @@
     "business development executive",
     "sales representative territory sales officer sales marketing"
   ],
-  "last_run": "2026-10-02T15:10:12.795640+06:00",
+  "last_run": "2026-10-02T23:00:54.231031+06:00",
   "pipeline_version": "CareerNewsroom"
 }
