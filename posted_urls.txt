@@ -134,3 +134,7 @@ jobs.bdjobs.com/jobdetails?id=1540749&fcatId=7&ln=1
 jobs.bdjobs.com/jobdetails?id=1540702&fcatId=16&ln=1
 jobs.bdjobs.com/jobdetails?id=1536881&fcatId=1&ln=1
 jobs.bdjobs.com/jobdetails?id=1540718&fcatId=2&ln=1
+jobs.bdjobs.com/jobdetails?id=1540689&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1540625&fcatId=10&ln=1
+jobs.bdjobs.com/jobdetails?id=1540685&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1540819&fcatId=9&ln=1
