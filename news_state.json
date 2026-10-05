@@ -3943,7 +3943,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-02T15:10:12.747562+06:00",
-      "last_seen": "2026-10-05T05:47:17.382263+06:00"
+      "last_seen": "2026-10-05T08:37:58.152292+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540295&fcatId=8&ln=1": {
       "title": "E-commerce & Marketplace Specialist",
@@ -7227,7 +7227,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-04T22:08:48.861423+06:00",
-      "last_seen": "2026-10-05T05:47:17.388271+06:00"
+      "last_seen": "2026-10-05T08:37:58.157908+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540061&fcatId=7&ln=1": {
       "title": "Admin Officer",
@@ -7719,7 +7719,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T02:37:49.794150+06:00",
-      "last_seen": "2026-10-05T05:47:17.369265+06:00"
+      "last_seen": "2026-10-05T08:37:58.146514+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540904&fcatId=12&ln=1": {
       "title": "Accounts and Admin Officer",
@@ -7768,7 +7768,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T02:37:49.799516+06:00",
-      "last_seen": "2026-10-05T05:47:17.374729+06:00"
+      "last_seen": "2026-10-05T08:37:58.139955+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1541000&fcatId=9&ln=1": {
       "title": "Executive - Sales And Field Marketing",
@@ -8313,7 +8313,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T02:37:49.867713+06:00",
-      "last_seen": "2026-10-05T05:47:17.433114+06:00"
+      "last_seen": "2026-10-05T08:37:58.180067+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540776&fcatId=9&ln=1": {
       "title": "Sales Engineer - HVAC",
@@ -8361,7 +8361,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T02:37:49.872715+06:00",
-      "last_seen": "2026-10-05T05:47:17.418110+06:00"
+      "last_seen": "2026-10-05T08:37:58.175206+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540795&fcatId=9&ln=1": {
       "title": "Telesales Executive",
@@ -8467,7 +8467,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T05:47:17.362192+06:00",
-      "last_seen": "2026-10-05T05:47:17.362204+06:00"
+      "last_seen": "2026-10-05T08:37:58.133109+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1539922&fcatId=10&ln=1": {
       "title": "Executive - Social Media & WordPress",
@@ -8515,9 +8515,14 @@
       "bba_mba_target_score": 58,
       "event_id": "fc39260d63395ec987397adf",
       "record_format": 4,
-      "status": "pending",
+      "status": "posted",
       "first_seen": "2026-10-05T05:47:17.393334+06:00",
-      "last_seen": "2026-10-05T05:47:17.393340+06:00"
+      "last_seen": "2026-10-05T08:37:58.162727+06:00",
+      "posted_at": "2026-10-05T08:38:01.786674+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 76,
+      "ai_score": 75,
+      "final_score": 75.85
     },
     "jobs.bdjobs.com/jobdetails?id=1540689&fcatId=1&ln=1": {
       "title": "Jr. Executive - Accounts",
@@ -8733,7 +8738,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-05T05:47:17.422911+06:00",
-      "last_seen": "2026-10-05T05:47:17.422916+06:00"
+      "last_seen": "2026-10-05T08:37:58.192196+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1540819&fcatId=9&ln=1": {
       "title": "Territory Sales Officer",
@@ -8789,6 +8794,111 @@
       "deterministic_score": 64,
       "ai_score": 55,
       "final_score": 62.65
+    },
+    "jobs.bdjobs.com/jobdetails?id=1540732&fcatId=9&ln=1": {
+      "title": "Executive - Sales",
+      "company": "Oner Systems Limited",
+      "location": "Dhaka",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "education": "BBS/Bachelor's",
+      "experience": "1 year",
+      "salary": "Negotiable",
+      "vacancy": "2",
+      "age": "22-30 Years",
+      "deadline": "2026-10-14",
+      "posted_date": "2026-10-04",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1540732&fcatId=9&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1540732",
+      "raw_source_fields": {
+        "company": "Oner Systems Limited",
+        "experience": "Additional Requirements",
+        "education": "Bachelor of Science (BSc) in Computer Science Bachelor of Business Studies (BBS)",
+        "deadline": "2026-10-14",
+        "location": "Dhaka",
+        "salary": "& Other Benefits",
+        "vacancy": "",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "22 to 30 years IT & ITES knowledge will be preferable. Responsibilities & Context Identify and approach potential clients for ERP software solutions. Generate new sales leads through calls, meetings, networking and other channels. Understand clients’ business requirements and present suitable ERP solutions. Conduct product demonstrations and explain ERP features and benefits. Follow up with prospective clients and convert leads into successful sales. Maintain regular communication with existing and prospective customers. Achieve assigned monthly sales targets. Prepare sales reports and maintain accurate customer and lead information. Skills & Expertise Business/ Product Development Communication and interpersonal skill IT & Software Marketing Negotiation and Conflict Resolution Performing job independently Presentation and Reporting Proactive and Positive attitude Other Relevant Skills Client Relationship Market Research Sales & Marketing Sales Target Achievement Software Sales",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Bachelor of Science (BSc) in Computer Science Bachelor of Business Studies (BBS) Experience At most 1 year The applicants should have experience in the following business area(s): Software Company Freshers are also encouraged to apply. Additional Requirements Age 22 to 30 years IT & ITES knowledge will be preferable. Responsibilities & Context Identify and approach potential clients for ERP software solutions. Generate new sales leads through calls, meetings, networking and other channels. Understand clients’ business requirements and present suitable ERP solutions. Conduct product demonstrations and explain ERP features and benefits. Follow up with prospective clients and convert leads into successful sales. Maintain regular communication with existing and prospective customers. Achieve assigned monthly sales targets. Prepare sales reports and maintain accurate customer and lead information. Skills & Expertise Business/ Product Development Communication and interpersonal skill IT & Software Marketing Negotiation and Conflict Resolution Performing job independently Presentation and Reporting Proactive and Positive attitude Other Relevant Skills Client Relationship Market Research Sales & Marketing Sales Target Achievement Software Sales Compensation & Other Benefits T/A, Mobile bill Salary Review: Yearly Festival Bonus: 2 (Yearly) Sales Commission as per company policy. Yearly Paid Leave for confirmed employee. Conveyance Bill Others as per company policy. Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nIT & ITES knowledge will be preferable.\nResponsibilities & Context\nIdentify and approach potential clients for ERP software solutions.\nGenerate new sales leads through calls, meetings, networking and other channels.\nUnderstand clients’ business requirements and present suitable ERP solutions.\nConduct product demonstrations and explain ERP features and benefits.\nFollow up with prospective clients and convert leads into successful sales.\nMaintain regular communication with existing and prospective customers.\nAchieve assigned monthly sales targets.\nPrepare sales reports and maintain accurate customer and lead information.\nOther Relevant Skills\nCompensation & Other Benefits\nT/A, Mobile bill\nSalary Review: Yearly\nFestival Bonus: 2 (Yearly)\nSales Commission as per company policy.\nYearly Paid Leave for confirmed employee.\nConveyance Bill\nOthers as per company policy.\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse # 396 (1st Floor), Flat # A2, Road # 29, Mohakhali DOHS, Mohakhali, Dhaka-1206\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1540732&fcatId=9&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Bachelor of Science (BSc) in Computer Science Bachelor of Business Studies (BBS) Experience At most 1 year The applicants should have experience in the following business area(s): Software Company Freshers are also encouraged to apply. Additional Requirements Age 22 to 30 years IT & ITES knowledge will be preferable. Responsibilities & Context Identify and approach potential clients for ERP software solutions. Generate new sales leads through calls, meetings, networking and other channels. Understand clients’ business requirements and present suitable ERP solutions. Conduct product demonstrations and explain ERP features and benefits. Follow up with prospective clients and convert leads into successful sales. Maintain regular communication with existing and prospective customers. Achieve assigned monthly sales targets. Prepare sales reports and maintain accurate customer and lead information. Skills & Expertise Business/ Product Development Communication and interpersonal skill IT & Software Marketing Negotiation and Conflict Resolution Performing job independently Presentation and Reporting Proactive and Positive attitude Other Relevant Skills Client Relationship Market Research Sales & Marketing Sales Target Achievement Software Sales Compensation & Other Benefits T/A, Mobile bill Salary Review: Yearly Festival Bonus: 2 (Yearly) Sales Commission as per company policy. Yearly Paid Leave for confirmed employee. Conveyance Bill Others as per company policy. Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nIT & ITES knowledge will be preferable.\nResponsibilities & Context\nIdentify and approach potential clients for ERP software solutions.\nGenerate new sales leads through calls, meetings, networking and other channels.\nUnderstand clients’ business requirements and present suitable ERP solutions.\nConduct product demonstrations and explain ERP features and benefits.\nFollow up with prospective clients and convert leads into successful sales.\nMaintain regular communication with existing and prospective customers.\nAchieve assigned monthly sales targets.\nPrepare sales reports and maintain accurate customer and lead information.\nOther Relevant Skills\nCompensation & Other Benefits\nT/A, Mobile bill\nSalary Review: Yearly\nFestival Bonus: 2 (Yearly)\nSales Commission as per company policy.\nYearly Paid Leave for confirmed employee.\nConveyance Bill\nOthers as per company policy.\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nAddress:\nHouse # 396 (1st Floor), Flat # A2, Road # 29, Mohakhali DOHS, Mohakhali, Dhaka-1206\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-10-14",
+      "source_category_id": 9,
+      "source_category_name": "Marketing / Sales",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 71,
+      "bba_mba_target_score": 75,
+      "event_id": "732b636eda2b3bfd86245c1a",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-10-05T08:37:58.170257+06:00",
+      "last_seen": "2026-10-05T08:37:58.170263+06:00",
+      "posted_at": "2026-10-05T08:38:00.406216+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 77,
+      "ai_score": 90,
+      "final_score": 78.95
+    },
+    "jobs.bdjobs.com/jobdetails?id=1540824&fcatId=2&ln=1": {
+      "title": "Product Development, Campaign Management & MIS",
+      "company": "The Premier Bank PLC",
+      "location": "Dhaka",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "experience": "At least 3 years",
+      "salary": "& Other Benefits",
+      "age": "At most 40 Years",
+      "deadline": "2026-10-20",
+      "posted_date": "2026-10-04",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1540824&fcatId=2&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1540824",
+      "raw_source_fields": {
+        "company": "The Premier Bank PLC",
+        "experience": "Additional Requirements",
+        "education": "Post Graduation from any reputed university with no Third Division/Class",
+        "deadline": "2026-10-20",
+        "location": "Dhaka",
+        "salary": "& Other Benefits",
+        "vacancy": ". A. Assistant Manager – Product Development & Campaign Management, Cards (SO-SEO) Develop and enhance credit card products and propositions based on customer needs, market trends and business objectives. Manage end-to-end product lifecycle, including developing business cases, coordinating product launches, executing upgrades and conducting periodic performance reviews. Plan, launch, and monitor card campaigns by managing data-driven customer segmentation, defining rewarding propositions and analyzing return on investment (ROI). Track and analyze the performance of existing products, active campaigns and competitor offerings to deliver actionable insights for portfolio optimization. Collaborate closely with Sales, Marketing, IT, Operations, Risk, and Compliance teams to ensure the seamless rollout of products and campaigns. B. Assistant Manager – MIS (Cards) (SO-SEO) manage large-scale Card Business data to guarantee absolute accuracy, completeness, and timely availability for business reporting. Design and distribute daily, weekly, and monthly MIS reports, executive dashboards, and KPIs tracking overall card business activities. Conduct rigorous variance analysis, portfolio health checks and product profitability assessments to identify revenue opportunities and operational bottlenecks. Monitor data integrity, reconcile information and maintain appropriate documentation and reporting controls. Support reporting automation, dashboard enhancement and timely delivery of management information to relevant stakeholders. C. Assistant Manager/Team Leader – Sales Governance (Officer-EO) Monitor Card Sales activities and processes to ensure compliance with approved policies, KYC, documentation and sales-governance requirements. Identify and monitor mis-selling, process deviations, exceptions, documentation gaps and other sales-control issues. Review sales MIS, campaign/product eligibility, incentive-related controls and governance trackers to identify irregularities and performance risks. Coordinate corrective and preventive actions with Sales, Operations, Compliance, Risk and other relevant functions and support audit requirements. Analyze customer complaints, post-issuance verification trends, and responsible-sales performance indicators to build comprehensive governance dashboards for senior leadership. Skills & Expertise Credit Control And Recovery Direct Sales MIS Monitoring Monitoring and Reporting Payroll and Banking Product Development Retail Banking Sales Specialized Leasing Operational (Monitoring/ collection)",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "not exceeding 40 years as of 01 October, 2026.",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Post Graduation from any reputed university with no Third Division/Class Experience At least 3 years The applicants should have experience in the following business area(s): Banks, Group of Companies Additional Requirements Age At most 40 years Minimum of 3 years for Officer, 4 years for SO, 6 years for SEO of progressive experience in Retail Liability Business, with any reputed private commercial bank focusing on Product Development, Campaign Management & MIS. To facilitate prompt processing and support, candidates are required to submit their applications through The Premier Bank PLC Career Portal ( https://recruitment.thepremierbankplc.com/ ) Strong analytical and quantitative capability with Product Development, MIS, Team Leader and etc. Sound knowledge of modern Retail Business & practices strategic frameworks Proficiency in MS Office and Retail information systems. Age not exceeding 40 years as of 01 October, 2026. Responsibilities & Context The Premier Bank PLC. , one of Bangladesh’s leading private commercial banks, is looking for dynamic, customer-focused and experienced professionals to join its Retail Banking Division in the following positions. A. Assistant Manager – Product Development & Campaign Management, Cards (SO-SEO) Develop and enhance credit card products and propositions based on customer needs, market trends and business objectives. Manage end-to-end product lifecycle, including developing business cases, coordinating product launches, executing upgrades and conducting periodic performance reviews. Plan, launch, and monitor card campaigns by managing data-driven customer segmentation, defining rewarding propositions and analyzing return on investment (ROI). Track and analyze the performance of existing products, active campaigns and competitor offerings to deliver actionable insights for portfolio optimization. Collaborate closely with Sales, Marketing, IT, Operations, Risk, and Compliance teams to ensure the seamless rollout of products and campaigns. B. Assistant Manager – MIS (Cards) (SO-SEO) manage large-scale Card Business data to guarantee absolute accuracy, completeness, and timely availability for business reporting. Design and distribute daily, weekly, and monthly MIS reports, executive dashboards, and KPIs tracking overall card business activities. Conduct rigorous variance analysis, portfolio health checks and product profitability assessments to identify revenue opportunities and operational bottlenecks. Monitor data integrity, reconcile information and maintain appropriate documentation and reporting controls. Support reporting automation, dashboard enhancement and timely delivery of management information to relevant stakeholders. C. Assistant Manager/Team Leader – Sales Governance (Officer-EO) Monitor Card Sales activities and processes to ensure compliance with approved policies, KYC, documentation and sales-governance requirements. Identify and monitor mis-selling, process deviations, exceptions, documentation gaps and other sales-control issues. Review sales MIS, campaign/product eligibility, incentive-related controls and governance trackers to identify irregularities and performance risks. Coordinate corrective and preventive actions with Sales, Operations, Compliance, Risk and other relevant functions and support audit requirements. Analyze customer complaints, post-issuance verification trends, and responsible-sales performance indicators to build comprehensive governance dashboards for senior leadership. Skills & Expertise Credit Control And Recovery Direct Sales MIS Monitoring Monitoring and Reporting Payroll and Banking Product Development Retail Banking Sales Specialized Leasing Operational (Monitoring/ collection) Compensation & Other Benefits Attractive compensation package including Group Insurance coverage A professional and friendly working environment; Clear career progression opportunities. Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMinimum of 3 years for Officer, 4 years for SO, 6 years for SEO of progressive experience in Retail Liability Business, with any reputed private commercial bank focusing on Product Development, Campaign Management & MIS.\nTo facilitate prompt processing and support, candidates are required to submit their applications through The Premier Bank PLC Career Portal (https://recruitment.thepremierbankplc.com/)\nStrong analytical and quantitative capability with Product Development, MIS, Team Leader and etc.\nSound knowledge of modern Retail Business & practices strategic frameworks\nProficiency in MS Office and Retail information systems.\nAge not exceeding 40 years as of 01 October, 2026.\nResponsibilities & Context\nThe Premier Bank PLC., one of Bangladesh’s leading private commercial banks, is looking for dynamic, customer-focused and experienced professionals to join its Retail Banking Division in the following positions.\nA. Assistant Manager – Product Development & Campaign Management, Cards (SO-SEO)\nDevelop and enhance credit card products and propositions based on customer needs, market trends and business objectives.\nManage end-to-end product lifecycle, including developing business cases, coordinating product launches, executing upgrades and conducting periodic performance reviews.\nPlan, launch, and monitor card campaigns by managing data-driven customer segmentation, defining rewarding propositions and analyzing return on investment (ROI).\nTrack and analyze the performance of existing products, active campaigns and competitor offerings to deliver actionable insights for portfolio optimization.\nCollaborate closely with Sales, Marketing, IT, Operations, Risk, and Compliance teams to ensure the seamless rollout of products and campaigns.\nB. Assistant Manager – MIS (Cards) (SO-SEO)\nmanage large-scale Card Business data to guarantee absolute accuracy, completeness, and timely availability for business reporting.\nDesign and distribute daily, weekly, and monthly MIS reports, executive dashboards, and KPIs tracking overall card business activities.\nConduct rigorous variance analysis, portfolio health checks and product profitability assessments to identify revenue opportunities and operational bottlenecks.\nMonitor data integrity, reconcile information and maintain appropriate documentation and reporting controls.\nSupport reporting automation, dashboard enhancement and timely delivery of management information to relevant stakeholders.\nC. Assistant Manager/Team Leader – Sales Governance (Officer-EO)\nMonitor Card Sales activities and processes to ensure compliance with approved policies, KYC, documentation and sales-governance requirements.\nIdentify and monitor mis-selling, process deviations, exceptions, documentation gaps and other sales-control issues.\nReview sales MIS, campaign/product eligibility, incentive-related controls and governance trackers to identify irregularities and performance risks.\nCoordinate corrective and preventive actions with Sales, Operations, Compliance, Risk and other relevant functions and support audit requirements.\nAnalyze customer complaints, post-issuance verification trends, and responsible-sales performance indicators to build comprehensive governance dashboards for senior leadership.\nCompensation & Other Benefits\nAttractive compensation package including Group Insurance coverage\nA professional and friendly working environment;\nClear career progression opportunities.\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nRead Before Apply\nAddress:\nShanta Pinnacle, 30th Floor, Plot No. 190/A, Bir Uttam Mir Shawkat Sarak, Tejgaon, Dhaka - 1208, Bangladesh.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1540824&fcatId=2&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Post Graduation from any reputed university with no Third Division/Class Experience At least 3 years The applicants should have experience in the following business area(s): Banks, Group of Companies Additional Requirements Age At most 40 years Minimum of 3 years for Officer, 4 years for SO, 6 years for SEO of progressive experience in Retail Liability Business, with any reputed private commercial bank focusing on Product Development, Campaign Management & MIS. To facilitate prompt processing and support, candidates are required to submit their applications through The Premier Bank PLC Career Portal ( https://recruitment.thepremierbankplc.com/ ) Strong analytical and quantitative capability with Product Development, MIS, Team Leader and etc. Sound knowledge of modern Retail Business & practices strategic frameworks Proficiency in MS Office and Retail information systems. Age not exceeding 40 years as of 01 October, 2026. Responsibilities & Context The Premier Bank PLC. , one of Bangladesh’s leading private commercial banks, is looking for dynamic, customer-focused and experienced professionals to join its Retail Banking Division in the following positions. A. Assistant Manager – Product Development & Campaign Management, Cards (SO-SEO) Develop and enhance credit card products and propositions based on customer needs, market trends and business objectives. Manage end-to-end product lifecycle, including developing business cases, coordinating product launches, executing upgrades and conducting periodic performance reviews. Plan, launch, and monitor card campaigns by managing data-driven customer segmentation, defining rewarding propositions and analyzing return on investment (ROI). Track and analyze the performance of existing products, active campaigns and competitor offerings to deliver actionable insights for portfolio optimization. Collaborate closely with Sales, Marketing, IT, Operations, Risk, and Compliance teams to ensure the seamless rollout of products and campaigns. B. Assistant Manager – MIS (Cards) (SO-SEO) manage large-scale Card Business data to guarantee absolute accuracy, completeness, and timely availability for business reporting. Design and distribute daily, weekly, and monthly MIS reports, executive dashboards, and KPIs tracking overall card business activities. Conduct rigorous variance analysis, portfolio health checks and product profitability assessments to identify revenue opportunities and operational bottlenecks. Monitor data integrity, reconcile information and maintain appropriate documentation and reporting controls. Support reporting automation, dashboard enhancement and timely delivery of management information to relevant stakeholders. C. Assistant Manager/Team Leader – Sales Governance (Officer-EO) Monitor Card Sales activities and processes to ensure compliance with approved policies, KYC, documentation and sales-governance requirements. Identify and monitor mis-selling, process deviations, exceptions, documentation gaps and other sales-control issues. Review sales MIS, campaign/product eligibility, incentive-related controls and governance trackers to identify irregularities and performance risks. Coordinate corrective and preventive actions with Sales, Operations, Compliance, Risk and other relevant functions and support audit requirements. Analyze customer complaints, post-issuance verification trends, and responsible-sales performance indicators to build comprehensive governance dashboards for senior leadership. Skills & Expertise Credit Control And Recovery Direct Sales MIS Monitoring Monitoring and Reporting Payroll and Banking Product Development Retail Banking Sales Specialized Leasing Operational (Monitoring/ collection) Compensation & Other Benefits Attractive compensation package including Group Insurance coverage A professional and friendly working environment; Clear career progression opportunities. Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nMinimum of 3 years for Officer, 4 years for SO, 6 years for SEO of progressive experience in Retail Liability Business, with any reputed private commercial bank focusing on Product Development, Campaign Management & MIS.\nTo facilitate prompt processing and support, candidates are required to submit their applications through The Premier Bank PLC Career Portal (https://recruitment.thepremierbankplc.com/)\nStrong analytical and quantitative capability with Product Development, MIS, Team Leader and etc.\nSound knowledge of modern Retail Business & practices strategic frameworks\nProficiency in MS Office and Retail information systems.\nAge not exceeding 40 years as of 01 October, 2026.\nResponsibilities & Context\nThe Premier Bank PLC., one of Bangladesh’s leading private commercial banks, is looking for dynamic, customer-focused and experienced professionals to join its Retail Banking Division in the following positions.\nA. Assistant Manager – Product Development & Campaign Management, Cards (SO-SEO)\nDevelop and enhance credit card products and propositions based on customer needs, market trends and business objectives.\nManage end-to-end product lifecycle, including developing business cases, coordinating product launches, executing upgrades and conducting periodic performance reviews.\nPlan, launch, and monitor card campaigns by managing data-driven customer segmentation, defining rewarding propositions and analyzing return on investment (ROI).\nTrack and analyze the performance of existing products, active campaigns and competitor offerings to deliver actionable insights for portfolio optimization.\nCollaborate closely with Sales, Marketing, IT, Operations, Risk, and Compliance teams to ensure the seamless rollout of products and campaigns.\nB. Assistant Manager – MIS (Cards) (SO-SEO)\nmanage large-scale Card Business data to guarantee absolute accuracy, completeness, and timely availability for business reporting.\nDesign and distribute daily, weekly, and monthly MIS reports, executive dashboards, and KPIs tracking overall card business activities.\nConduct rigorous variance analysis, portfolio health checks and product profitability assessments to identify revenue opportunities and operational bottlenecks.\nMonitor data integrity, reconcile information and maintain appropriate documentation and reporting controls.\nSupport reporting automation, dashboard enhancement and timely delivery of management information to relevant stakeholders.\nC. Assistant Manager/Team Leader – Sales Governance (Officer-EO)\nMonitor Card Sales activities and processes to ensure compliance with approved policies, KYC, documentation and sales-governance requirements.\nIdentify and monitor mis-selling, process deviations, exceptions, documentation gaps and other sales-control issues.\nReview sales MIS, campaign/product eligibility, incentive-related controls and governance trackers to identify irregularities and performance risks.\nCoordinate corrective and preventive actions with Sales, Operations, Compliance, Risk and other relevant functions and support audit requirements.\nAnalyze customer complaints, post-issuance verification trends, and responsible-sales performance indicators to build comprehensive governance dashboards for senior leadership.\nCompensation & Other Benefits\nAttractive compensation package including Group Insurance coverage\nA professional and friendly working environment;\nClear career progression opportunities.\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nRead Before Apply\nAddress:\nShanta Pinnacle, 30th Floor, Plot No. 190/A, Bir Uttam Mir Shawkat Sarak, Tejgaon, Dhaka - 1208, Bangladesh.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-10-20",
+      "source_category_id": 2,
+      "source_category_name": "Bank / Non-Bank Financial Institution",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 47,
+      "bba_mba_target_score": 26,
+      "event_id": "6b6243b85c58af146c68c452",
+      "record_format": 4,
+      "status": "pending",
+      "first_seen": "2026-10-05T08:37:58.185548+06:00",
+      "last_seen": "2026-10-05T08:37:58.185555+06:00"
     }
   },
   "events": {
@@ -13912,6 +14022,84 @@
       "selected_at": "2026-10-05T05:47:24.507428+06:00",
       "published_at": "2026-10-05T05:47:24.507431+06:00",
       "message_id": 1306
+    },
+    "732b636eda2b3bfd86245c1a": {
+      "event_id": "732b636eda2b3bfd86245c1a",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1540732&fcatId=9&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1540732&fcatId=9&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1540732",
+      "title": "Executive - Sales",
+      "company": "Oner Systems Limited",
+      "location": "Dhaka",
+      "education": "BBS/Bachelor's",
+      "experience": "1 year",
+      "salary": "Negotiable",
+      "vacancy": "2",
+      "age": "22-30 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "",
+      "career_category": "Marketing & Sales",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "age",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-04",
+      "deadline": "2026-10-14",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-05T08:38:00.406246+06:00",
+      "published_at": "2026-10-05T08:38:00.406249+06:00",
+      "message_id": 1307
+    },
+    "fc39260d63395ec987397adf": {
+      "event_id": "fc39260d63395ec987397adf",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1539922&fcatId=10&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1539922&fcatId=10&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1539922",
+      "title": "Executive - Social Media & WordPress",
+      "company": "Lumen SoftTech",
+      "location": "Dhaka (Uttara)",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 1 year",
+      "salary": "Tk. 12000/month",
+      "vacancy": "",
+      "age": "20-35 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "",
+      "career_category": "Marketing & Sales",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "age",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-04",
+      "deadline": "2026-10-11",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-05T08:38:01.786700+06:00",
+      "published_at": "2026-10-05T08:38:01.786703+06:00",
+      "message_id": 1308
     }
   },
   "recent_titles": [
@@ -14054,8 +14242,10 @@
     "jr executive accounts",
     "assistant officer event management",
     "executive institutional sales corporate sales",
-    "territory sales officer"
+    "territory sales officer",
+    "executive sales",
+    "executive social media wordpress"
   ],
-  "last_run": "2026-10-05T05:47:24.528793+06:00",
+  "last_run": "2026-10-05T08:38:01.808267+06:00",
   "pipeline_version": "CareerNewsroom"
 }
