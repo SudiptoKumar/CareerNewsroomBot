@@ -2505,7 +2505,7 @@
       "bba_mba_target_score": 60,
       "event_id": "84cafce039738a6e8f8e05af",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-01T03:41:26.974738+06:00",
       "last_seen": "2026-10-01T03:41:26.974745+06:00",
       "posted_at": "2026-10-01T03:41:30.486189+06:00",
@@ -6350,7 +6350,7 @@
       "bba_mba_target_score": 66,
       "event_id": "43bc8d9ff234b71c5f598dcc",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-04T15:24:15.527830+06:00",
       "last_seen": "2026-10-04T15:24:15.527834+06:00",
       "posted_at": "2026-10-04T15:24:20.401040+06:00",
@@ -6627,7 +6627,7 @@
       "bba_mba_target_score": 60,
       "event_id": "2ac0e9c03432659d6efbb93a",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-04T15:24:15.551965+06:00",
       "last_seen": "2026-10-04T15:24:15.551968+06:00",
       "posted_at": "2026-10-04T15:24:21.768046+06:00",
@@ -11214,7 +11214,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-06T23:33:54.076039+06:00",
-      "last_seen": "2026-10-09T23:42:11.892425+06:00"
+      "last_seen": "2026-10-10T03:59:45.094745+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1541046&fcatId=17&ln=1": {
       "title": "Executive - HR",
@@ -12836,7 +12836,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T06:36:33.621893+06:00",
-      "last_seen": "2026-10-09T23:42:11.847966+06:00"
+      "last_seen": "2026-10-10T03:59:45.049434+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542325&fcatId=10&ln=1": {
       "title": "Executive - Social Media Marketing",
@@ -13158,7 +13158,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T06:36:33.683919+06:00",
-      "last_seen": "2026-10-09T23:42:11.910245+06:00"
+      "last_seen": "2026-10-10T03:59:45.112478+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542372&fcatId=17&ln=1": {
       "title": "HR Intern (Paid Internship)",
@@ -14155,7 +14155,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T15:41:03.018531+06:00",
-      "last_seen": "2026-10-09T23:42:11.901354+06:00",
+      "last_seen": "2026-10-10T03:59:45.103840+06:00",
       "salary": "& Other Benefits",
       "workplace": "On-site"
     },
@@ -14416,7 +14416,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.573208+06:00",
-      "last_seen": "2026-10-09T23:42:11.835675+06:00"
+      "last_seen": "2026-10-10T03:59:45.037111+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542411&fcatId=17&ln=1": {
       "title": "Intern - Easy Internship Program (EIP)",
@@ -14628,7 +14628,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.612575+06:00",
-      "last_seen": "2026-10-09T15:48:26.628358+06:00"
+      "last_seen": "2026-10-10T03:59:45.057489+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542966&fcatId=17&ln=1": {
       "title": "HR & Admin Executive (Male)",
@@ -14786,7 +14786,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.634176+06:00",
-      "last_seen": "2026-10-09T23:42:11.864042+06:00"
+      "last_seen": "2026-10-10T03:59:45.073196+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542984&fcatId=2&ln=1": {
       "title": "Sales Officer (Product Marketing Officer)",
@@ -14835,7 +14835,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.641721+06:00",
-      "last_seen": "2026-10-09T23:42:11.855920+06:00"
+      "last_seen": "2026-10-10T03:59:45.065345+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1543060&fcatId=13&ln=1": {
       "title": "Deputy Manager, Research and Operations, Otithi",
@@ -15536,7 +15536,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T23:42:11.872100+06:00",
-      "last_seen": "2026-10-09T23:42:11.872107+06:00"
+      "last_seen": "2026-10-10T03:59:45.081328+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1543155&fcatId=9&ln=1": {
       "title": "Sales & Marketing Executive",
@@ -15648,6 +15648,61 @@
       "deterministic_score": 85,
       "ai_score": 92,
       "final_score": 86.05
+    },
+    "jobs.bdjobs.com/jobdetails?id=1543189&fcatId=10&ln=1": {
+      "title": "Digital Marketing Assistant",
+      "company": "UniEducare",
+      "location": "Dhaka",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "experience": "1 to 2 years",
+      "salary": "Tk. 15000 - 18000/month",
+      "vacancy": "2",
+      "age": "22-35 Years",
+      "deadline": "2026-10-19",
+      "posted_date": "2026-10-09",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1543189&fcatId=10&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1543189",
+      "raw_source_fields": {
+        "company": "UniEducare",
+        "experience": "Additional Requirements",
+        "education": "Diploma",
+        "deadline": "2026-10-19",
+        "location": "Dhaka",
+        "salary": "",
+        "vacancy": "",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "22 to 35 years Responsibilities & Context Manage and grow social media pages (content posting, engagement, inbox replies) Support social media marketing and promotional campaigns Assist with Google Ads & Google AdSense setup, monitoring, and optimization. Track and report performance using Google Analytics, Meta Business Suite, and Ads dashboards Coordinate with design/content teams to maintain brand consistency Stay updated with digital marketing trends, basic SEO, and platform changes Skills & Expertise Digital Marketing (Social Media Marketing) Facebook marketing Instagram Marketing Sales & Marketing Tiktok ads Other Relevant Skills Advertising & Promotion keyword research Sales & Marketing SEO and Digital Marketing",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Diploma Experience 1 to 2 years The applicants should have experience in the following business area(s): Direct Selling/Marketing Service Company Additional Requirements Age 22 to 35 years Responsibilities & Context Manage and grow social media pages (content posting, engagement, inbox replies) Support social media marketing and promotional campaigns Assist with Google Ads & Google AdSense setup, monitoring, and optimization. Track and report performance using Google Analytics, Meta Business Suite, and Ads dashboards Coordinate with design/content teams to maintain brand consistency Stay updated with digital marketing trends, basic SEO, and platform changes Skills & Expertise Digital Marketing (Social Media Marketing) Facebook marketing Instagram Marketing Sales & Marketing Tiktok ads Other Relevant Skills Advertising & Promotion keyword research Sales & Marketing SEO and Digital Marketing Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nManage and grow social media pages (content posting, engagement, inbox replies)\nSupport social media marketing and promotional campaigns\nAssist with Google Ads & Google AdSense setup, monitoring, and optimization.\nTrack and report performance using Google Analytics, Meta Business Suite, and Ads dashboards\nCoordinate with design/content teams to maintain brand consistency\nStay updated with digital marketing trends, basic SEO, and platform changes\nOther Relevant Skills\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1543189&fcatId=10&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Diploma Experience 1 to 2 years The applicants should have experience in the following business area(s): Direct Selling/Marketing Service Company Additional Requirements Age 22 to 35 years Responsibilities & Context Manage and grow social media pages (content posting, engagement, inbox replies) Support social media marketing and promotional campaigns Assist with Google Ads & Google AdSense setup, monitoring, and optimization. Track and report performance using Google Analytics, Meta Business Suite, and Ads dashboards Coordinate with design/content teams to maintain brand consistency Stay updated with digital marketing trends, basic SEO, and platform changes Skills & Expertise Digital Marketing (Social Media Marketing) Facebook marketing Instagram Marketing Sales & Marketing Tiktok ads Other Relevant Skills Advertising & Promotion keyword research Sales & Marketing SEO and Digital Marketing Workplace Work at office Employment Status Full Time Job Location Dhaka\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nManage and grow social media pages (content posting, engagement, inbox replies)\nSupport social media marketing and promotional campaigns\nAssist with Google Ads & Google AdSense setup, monitoring, and optimization.\nTrack and report performance using Google Analytics, Meta Business Suite, and Ads dashboards\nCoordinate with design/content teams to maintain brand consistency\nStay updated with digital marketing trends, basic SEO, and platform changes\nOther Relevant Skills\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-10-19",
+      "source_category_id": 10,
+      "source_category_name": "Media / Advertisement / Event Management",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 50,
+      "bba_mba_target_score": 30,
+      "event_id": "b6a79808b800d76234ed0849",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-10-10T03:59:45.088375+06:00",
+      "last_seen": "2026-10-10T03:59:45.088383+06:00",
+      "posted_at": "2026-10-10T03:59:46.966143+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 69,
+      "ai_score": 68,
+      "final_score": 68.85
     }
   },
   "events": {
@@ -16791,10 +16846,15 @@
       "posted_date": "2026-09-30",
       "deadline": "2026-10-09",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-01T03:41:30.486219+06:00",
       "published_at": "2026-10-01T03:41:30.486222+06:00",
-      "message_id": 1198
+      "message_id": 1198,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-10T03:55:16.950562+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "fd1fb0d6be8f7e0d6ae02e83": {
       "event_id": "fd1fb0d6be8f7e0d6ae02e83",
@@ -19182,10 +19242,15 @@
       "posted_date": "2026-10-03",
       "deadline": "2026-10-09",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-04T15:24:20.401075+06:00",
       "published_at": "2026-10-04T15:24:20.401077+06:00",
-      "message_id": 1263
+      "message_id": 1263,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-10T03:55:17.449227+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "2ac0e9c03432659d6efbb93a": {
       "event_id": "2ac0e9c03432659d6efbb93a",
@@ -19220,10 +19285,15 @@
       "posted_date": "2026-10-03",
       "deadline": "2026-10-09",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-04T15:24:21.768080+06:00",
       "published_at": "2026-10-04T15:24:21.768082+06:00",
-      "message_id": 1264
+      "message_id": 1264,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-10T03:55:17.956732+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "2cd2c31d88958e9718d86793": {
       "event_id": "2cd2c31d88958e9718d86793",
@@ -24772,6 +24842,45 @@
       "selected_at": "2026-10-09T23:42:15.236761+06:00",
       "published_at": "2026-10-09T23:42:15.236765+06:00",
       "message_id": 1414
+    },
+    "b6a79808b800d76234ed0849": {
+      "event_id": "b6a79808b800d76234ed0849",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1543189&fcatId=10&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1543189&fcatId=10&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1543189",
+      "title": "Digital Marketing Assistant",
+      "company": "UniEducare",
+      "location": "Dhaka",
+      "education": "",
+      "experience": "1 to 2 years",
+      "salary": "Tk. 15000 - 18000/month",
+      "vacancy": "2",
+      "age": "22-35 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "",
+      "career_category": "Marketing & Sales",
+      "display_fields": [
+        "location",
+        "experience",
+        "salary",
+        "deadline",
+        "posted_date",
+        "employment_type",
+        "workplace",
+        "vacancy",
+        "age"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-09",
+      "deadline": "2026-10-19",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-10T03:59:46.966177+06:00",
+      "published_at": "2026-10-10T03:59:46.966180+06:00",
+      "message_id": 1415
     }
   },
   "recent_titles": [
@@ -25022,8 +25131,9 @@
     "computer operator",
     "asst manager deputy manager marketing sales",
     "sales operations officer",
-    "sales marketing executive"
+    "sales marketing executive",
+    "digital marketing assistant"
   ],
-  "last_run": "2026-10-09T23:42:15.275797+06:00",
+  "last_run": "2026-10-10T03:59:47.005210+06:00",
   "pipeline_version": "CareerNewsroom"
 }
