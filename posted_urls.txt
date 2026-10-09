@@ -243,3 +243,4 @@ jobs.bdjobs.com/jobdetails?id=1542587&fcatId=17&ln=1
 alljobs.teletalk.com.bd?job_primary_id=14905
 alljobs.teletalk.com.bd?job_primary_id=14898
 alljobs.teletalk.com.bd?job_primary_id=14904
+jobs.bdjobs.com/jobdetails?id=1543130&fcatId=9&ln=1

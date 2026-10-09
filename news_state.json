@@ -11214,7 +11214,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-06T23:33:54.076039+06:00",
-      "last_seen": "2026-10-09T06:47:59.120101+06:00"
+      "last_seen": "2026-10-09T15:48:26.664947+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1541046&fcatId=17&ln=1": {
       "title": "Executive - HR",
@@ -12836,7 +12836,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T06:36:33.621893+06:00",
-      "last_seen": "2026-10-09T06:47:59.100990+06:00"
+      "last_seen": "2026-10-09T15:48:26.619392+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542325&fcatId=10&ln=1": {
       "title": "Executive - Social Media Marketing",
@@ -13158,7 +13158,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T06:36:33.683919+06:00",
-      "last_seen": "2026-10-09T06:47:59.136375+06:00"
+      "last_seen": "2026-10-09T15:48:26.685049+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542372&fcatId=17&ln=1": {
       "title": "HR Intern (Paid Internship)",
@@ -14155,7 +14155,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-08T15:41:03.018531+06:00",
-      "last_seen": "2026-10-09T06:47:59.125809+06:00",
+      "last_seen": "2026-10-09T15:48:26.674948+06:00",
       "salary": "& Other Benefits"
     },
     "jobs.bdjobs.com/jobdetails?id=1540320&fcatId=1&ln=1": {
@@ -14415,7 +14415,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.573208+06:00",
-      "last_seen": "2026-10-09T06:47:59.157143+06:00"
+      "last_seen": "2026-10-09T15:48:26.606735+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542411&fcatId=17&ln=1": {
       "title": "Intern - Easy Internship Program (EIP)",
@@ -14627,7 +14627,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.612575+06:00",
-      "last_seen": "2026-10-09T06:47:59.106128+06:00"
+      "last_seen": "2026-10-09T15:48:26.628358+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542966&fcatId=17&ln=1": {
       "title": "HR & Admin Executive (Male)",
@@ -14785,7 +14785,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.634176+06:00",
-      "last_seen": "2026-10-09T06:47:59.115398+06:00"
+      "last_seen": "2026-10-09T15:48:26.645896+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1542984&fcatId=2&ln=1": {
       "title": "Sales Officer (Product Marketing Officer)",
@@ -14834,7 +14834,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-09T00:08:11.641721+06:00",
-      "last_seen": "2026-10-09T06:47:59.110751+06:00"
+      "last_seen": "2026-10-09T15:48:26.636991+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1543060&fcatId=13&ln=1": {
       "title": "Deputy Manager, Research and Operations, Otithi",
@@ -15431,6 +15431,62 @@
       "deterministic_score": 68,
       "ai_score": 72,
       "final_score": 68.6
+    },
+    "jobs.bdjobs.com/jobdetails?id=1543130&fcatId=9&ln=1": {
+      "title": "Asst.Manager / Deputy Manager - Marketing & Sales",
+      "company": "MAK-INNO Development Ltd.",
+      "location": "Dhaka (Dhanmondi 27)",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 1 year",
+      "salary": "Tk. 35000 - 50000/month",
+      "vacancy": "10",
+      "age": "At least 25 Years",
+      "deadline": "2026-11-08",
+      "posted_date": "2026-10-09",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1543130&fcatId=9&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1543130",
+      "raw_source_fields": {
+        "company": "MAK-INNO Development Ltd.",
+        "experience": "Additional Requirements",
+        "education": "Bachelor/Honors",
+        "deadline": "2026-11-08",
+        "location": "Dhaka (Dhanmondi 27)",
+        "salary": "& Other Benefits",
+        "vacancy": "",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "At least 25 years Proven leadership skills with the ability to guide and motivate a sales team. Excellent communication, negotiation, and client-handling skills. Strong understanding of the local property market, pricing, and legal procedures. Capable of working under pressure and achieving monthly sales targets. Responsibilities & Context At Universe Group , our journey began in 2016 with a simple yet powerful vision—to make finding a dream home as inspiring and extraordinary as the universe itself. We are committed to excellence, trust, integrity, and personalized service . Job Context We are looking for a dynamic, target-driven, and energetic professional with real estate sales",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Bachelor/Honors Experience At least 1 year The applicants should have experience in the following business area(s): Developer, Real Estate, Real Estate Startup, Resort Freshers are also encouraged to apply. Additional Requirements Age At least 25 years Proven leadership skills with the ability to guide and motivate a sales team. Excellent communication, negotiation, and client-handling skills. Strong understanding of the local property market, pricing, and legal procedures. Capable of working under pressure and achieving monthly sales targets. Responsibilities & Context At Universe Group , our journey began in 2016 with a simple yet powerful vision—to make finding a dream home as inspiring and extraordinary as the universe itself. We are committed to excellence, trust, integrity, and personalized service . Job Context We are looking for a dynamic, target-driven, and energetic professional with real estate sales experience to support and lead our growing sales team. Job Responsibilities 1. Sales & Target Achievement Actively participate in sales and achieve individual and team targets. Generate leads, arrange project visits, follow up with prospects, and support deal closing. Prepare and execute daily, weekly, and monthly sales plans. 2. Sales Team Support Assist the Sales Manager in coordinating and monitoring the sales team. Monitor daily sales activities, client visits, follow-ups, and lead conversion. Guide team members in customer handling, negotiation, and closing. 3. Customer & Lead Management Build strong relationships with existing and potential customers. Handle inquiries, objections, and important clients professionally. Follow up on leads and ensure effective lead conversion. 4. Sales Reporting Prepare daily, weekly, and monthly sales reports. Track individual and team performance against targets. Report sales progress, challenges, and opportunities to the Sales Manager. 5. Business Development Identify new customers, sales opportunities, and market trends. Support marketing campaigns, market research, and competitor analysis. 6. Coordination Coordinate with Marketing, Legal, Finance, Customer Service, and Project Teams for smooth sales operations. Skills & Expertise Flat and land Sale Real Estate Marketing Sales Other Relevant Skills Client Relationship Corporate Marketing Market Research Marketing Strategy Sales & Marketing Sales Target Achievement Compensation & Other Benefits T/A,Mobile bill,Medical allowance,Performance bonus Salary Review: Yearly Festival Bonus: 2 Workplace Work at office Employment Status Full Time Job Location Dhaka (Dhanmondi 27)\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nAt Universe Group, our journey began in 2016 with a simple yet powerful vision—to make finding a dream home as inspiring and extraordinary as the universe itself. We are committed to excellence, trust, integrity, and personalized service.\nWe are looking for a dynamic, target-driven, and energetic professional with real estate sales experience to support and lead our growing sales team.\n1. Sales & Target Achievement\nActively participate in sales and achieve individual and team targets.\nGenerate leads, arrange project visits, follow up with prospects, and support deal closing.\nPrepare and execute daily, weekly, and monthly sales plans.\n2. Sales Team Support\nAssist the Sales Manager in coordinating and monitoring the sales team.\nMonitor daily sales activities, client visits, follow-ups, and lead conversion.\nGuide team members in customer handling, negotiation, and closing.\n3. Customer & Lead Management\nBuild strong relationships with existing and potential customers.\nHandle inquiries, objections, and important clients professionally.\nFollow up on leads and ensure effective lead conversion.\n4. Sales Reporting\nPrepare daily, weekly, and monthly sales reports.\nTrack individual and team performance against targets.\nReport sales progress, challenges, and opportunities to the Sales Manager.\n5. Business Development\nIdentify new customers, sales opportunities, and market trends.\nSupport marketing campaigns, market research, and competitor analysis.\n6. Coordination\nCoordinate with Marketing, Legal, Finance, Customer Service, and Project Teams for smooth sales operations.\nOther Relevant Skills\nCompensation & Other Benefits\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka (Dhanmondi 27)\nApply Procedure\nEmail Your CV\nSend your CV to the given email hr.migbd@gmail.com\nAddress:\nUniverse Group Orchid Plaza, Level# 3 & 4, Plot#02, Road#28(Old), 15(New), Dhanmondi, Dhaka.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1543130&fcatId=9&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Bachelor/Honors Experience At least 1 year The applicants should have experience in the following business area(s): Developer, Real Estate, Real Estate Startup, Resort Freshers are also encouraged to apply. Additional Requirements Age At least 25 years Proven leadership skills with the ability to guide and motivate a sales team. Excellent communication, negotiation, and client-handling skills. Strong understanding of the local property market, pricing, and legal procedures. Capable of working under pressure and achieving monthly sales targets. Responsibilities & Context At Universe Group , our journey began in 2016 with a simple yet powerful vision—to make finding a dream home as inspiring and extraordinary as the universe itself. We are committed to excellence, trust, integrity, and personalized service . Job Context We are looking for a dynamic, target-driven, and energetic professional with real estate sales experience to support and lead our growing sales team. Job Responsibilities 1. Sales & Target Achievement Actively participate in sales and achieve individual and team targets. Generate leads, arrange project visits, follow up with prospects, and support deal closing. Prepare and execute daily, weekly, and monthly sales plans. 2. Sales Team Support Assist the Sales Manager in coordinating and monitoring the sales team. Monitor daily sales activities, client visits, follow-ups, and lead conversion. Guide team members in customer handling, negotiation, and closing. 3. Customer & Lead Management Build strong relationships with existing and potential customers. Handle inquiries, objections, and important clients professionally. Follow up on leads and ensure effective lead conversion. 4. Sales Reporting Prepare daily, weekly, and monthly sales reports. Track individual and team performance against targets. Report sales progress, challenges, and opportunities to the Sales Manager. 5. Business Development Identify new customers, sales opportunities, and market trends. Support marketing campaigns, market research, and competitor analysis. 6. Coordination Coordinate with Marketing, Legal, Finance, Customer Service, and Project Teams for smooth sales operations. Skills & Expertise Flat and land Sale Real Estate Marketing Sales Other Relevant Skills Client Relationship Corporate Marketing Market Research Marketing Strategy Sales & Marketing Sales Target Achievement Compensation & Other Benefits T/A,Mobile bill,Medical allowance,Performance bonus Salary Review: Yearly Festival Bonus: 2 Workplace Work at office Employment Status Full Time Job Location Dhaka (Dhanmondi 27)\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nAt Universe Group, our journey began in 2016 with a simple yet powerful vision—to make finding a dream home as inspiring and extraordinary as the universe itself. We are committed to excellence, trust, integrity, and personalized service.\nWe are looking for a dynamic, target-driven, and energetic professional with real estate sales experience to support and lead our growing sales team.\n1. Sales & Target Achievement\nActively participate in sales and achieve individual and team targets.\nGenerate leads, arrange project visits, follow up with prospects, and support deal closing.\nPrepare and execute daily, weekly, and monthly sales plans.\n2. Sales Team Support\nAssist the Sales Manager in coordinating and monitoring the sales team.\nMonitor daily sales activities, client visits, follow-ups, and lead conversion.\nGuide team members in customer handling, negotiation, and closing.\n3. Customer & Lead Management\nBuild strong relationships with existing and potential customers.\nHandle inquiries, objections, and important clients professionally.\nFollow up on leads and ensure effective lead conversion.\n4. Sales Reporting\nPrepare daily, weekly, and monthly sales reports.\nTrack individual and team performance against targets.\nReport sales progress, challenges, and opportunities to the Sales Manager.\n5. Business Development\nIdentify new customers, sales opportunities, and market trends.\nSupport marketing campaigns, market research, and competitor analysis.\n6. Coordination\nCoordinate with Marketing, Legal, Finance, Customer Service, and Project Teams for smooth sales operations.\nOther Relevant Skills\nCompensation & Other Benefits\nWorkplace\nWork at office\nEmployment Status\nFull Time\nJob Location\nDhaka (Dhanmondi 27)\nApply Procedure\nEmail Your CV\nSend your CV to the given email hr.migbd@gmail.com\nAddress:\nUniverse Group Orchid Plaza, Level# 3 & 4, Plot#02, Road#28(Old), 15(New), Dhanmondi, Dhaka.\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-11-08",
+      "source_category_id": 9,
+      "source_category_name": "Marketing / Sales",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 58,
+      "bba_mba_target_score": 46,
+      "event_id": "ecb2f62439e4e743ab0ed5a6",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-10-09T15:48:26.655040+06:00",
+      "last_seen": "2026-10-09T15:48:26.655046+06:00",
+      "posted_at": "2026-10-09T15:48:29.663104+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 83,
+      "ai_score": 80,
+      "final_score": 82.55
     }
   },
   "events": {
@@ -24438,6 +24494,45 @@
       "selected_at": "2026-10-09T06:48:12.080222+06:00",
       "published_at": "2026-10-09T06:48:12.080223+06:00",
       "message_id": 1411
+    },
+    "ecb2f62439e4e743ab0ed5a6": {
+      "event_id": "ecb2f62439e4e743ab0ed5a6",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1543130&fcatId=9&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1543130&fcatId=9&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1543130",
+      "title": "Asst.Manager / Deputy Manager - Marketing & Sales",
+      "company": "MAK-INNO Development Ltd.",
+      "location": "Dhaka (Dhanmondi 27)",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 1 year",
+      "salary": "Tk. 35000 - 50000/month",
+      "vacancy": "10",
+      "age": "At least 25 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "",
+      "career_category": "Finance & Accounting",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "vacancy",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-09",
+      "deadline": "2026-11-08",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-09T15:48:29.663134+06:00",
+      "published_at": "2026-10-09T15:48:29.663136+06:00",
+      "message_id": 1412
     }
   },
   "recent_titles": [
@@ -24685,8 +24780,9 @@
     "talent acquisition specialist",
     "personal assistant",
     "personal assistant",
-    "computer operator"
+    "computer operator",
+    "asst manager deputy manager marketing sales"
   ],
-  "last_run": "2026-10-09T06:48:12.104156+06:00",
+  "last_run": "2026-10-09T15:48:29.701888+06:00",
   "pipeline_version": "CareerNewsroom"
 }
