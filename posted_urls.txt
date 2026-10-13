@@ -323,3 +323,7 @@ jobs.bdjobs.com/jobdetails?id=1543900&fcatId=7&ln=1
 jobs.bdjobs.com/jobdetails?id=1543788&fcatId=3&ln=1
 alljobs.teletalk.com.bd?job_primary_id=14926
 alljobs.teletalk.com.bd?job_primary_id=14921
+jobs.bdjobs.com/jobdetails?id=1544414&fcatId=12&ln=1
+jobs.bdjobs.com/jobdetails?id=1544081&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1544032&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1544098&fcatId=1&ln=1
