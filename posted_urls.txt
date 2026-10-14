@@ -363,3 +363,11 @@ alljobs.teletalk.com.bd?job_primary_id=14945
 alljobs.teletalk.com.bd?job_primary_id=14947
 alljobs.teletalk.com.bd?job_primary_id=14949
 jobs.bdjobs.com/jobdetails?id=1544725&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1544936&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1544762&fcatId=16&ln=1
+alljobs.teletalk.com.bd?job_primary_id=14963
+alljobs.teletalk.com.bd?job_primary_id=14965
+alljobs.teletalk.com.bd?job_primary_id=14975
+alljobs.teletalk.com.bd?job_primary_id=14978
+jobs.bdjobs.com/jobdetails?id=1544770&fcatId=1&ln=1
+alljobs.teletalk.com.bd?job_primary_id=14964
