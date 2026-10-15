@@ -414,3 +414,6 @@ alljobs.teletalk.com.bd?job_primary_id=14966
 alljobs.teletalk.com.bd?job_primary_id=14967
 alljobs.teletalk.com.bd?job_primary_id=14968
 alljobs.teletalk.com.bd?job_primary_id=14969
+jobs.bdjobs.com/jobdetails?id=1545388&fcatId=10&ln=1
+jobs.bdjobs.com/jobdetails?id=1545325&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1545119&fcatId=7&ln=1
