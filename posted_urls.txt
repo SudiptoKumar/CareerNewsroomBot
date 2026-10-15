@@ -417,3 +417,8 @@ alljobs.teletalk.com.bd?job_primary_id=14969
 jobs.bdjobs.com/jobdetails?id=1545388&fcatId=10&ln=1
 jobs.bdjobs.com/jobdetails?id=1545325&fcatId=9&ln=1
 jobs.bdjobs.com/jobdetails?id=1545119&fcatId=7&ln=1
+jobs.bdjobs.com/jobdetails?id=1545280&fcatId=7&ln=1
+jobs.bdjobs.com/jobdetails?id=1545228&fcatId=2&ln=1
+jobs.bdjobs.com/jobdetails?id=1543819&fcatId=16&ln=1
+jobs.bdjobs.com/jobdetails?id=1545436&fcatId=3&ln=1
+jobs.bdjobs.com/jobdetails?id=1545212&fcatId=1&ln=1
