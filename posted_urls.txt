@@ -431,3 +431,4 @@ jobs.bdjobs.com/jobdetails?id=1543163&fcatId=16&ln=1
 jobs.bdjobs.com/jobdetails?id=1545859&fcatId=17&ln=1
 jobs.bdjobs.com/jobdetails?id=1545620&fcatId=2&ln=1
 jobs.bdjobs.com/jobdetails?id=1542786&fcatId=10&ln=1
+jobs.bdjobs.com/jobdetails?id=1545311&fcatId=2&ln=1
