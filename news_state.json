@@ -1673,7 +1673,7 @@
       "bba_mba_target_score": 86,
       "event_id": "48acf2870a3bb6d82b457a7a",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-09-30T23:09:25.901463+06:00",
       "last_seen": "2026-09-30T23:09:25.901478+06:00",
       "posted_at": "2026-09-30T23:09:32.181219+06:00",
@@ -2436,7 +2436,7 @@
       "bba_mba_target_score": 81,
       "event_id": "c656736a13eb8da3862786e2",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-01T23:42:31.383198+06:00",
       "last_seen": "2026-10-01T23:42:31.383209+06:00",
       "posted_at": "2026-10-01T23:42:41.695892+06:00",
@@ -2539,7 +2539,7 @@
       "bba_mba_target_score": 40,
       "event_id": "02d2de834106a03a9a3c6ee5",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-01T23:42:31.392021+06:00",
       "last_seen": "2026-10-01T23:42:31.392026+06:00",
       "posted_at": "2026-10-01T23:42:45.818829+06:00",
@@ -2594,7 +2594,7 @@
       "bba_mba_target_score": 90,
       "event_id": "f1064a7159ef1f6a77cccfde",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-01T23:42:31.395019+06:00",
       "last_seen": "2026-10-01T23:42:31.395025+06:00",
       "posted_at": "2026-10-01T23:42:37.616876+06:00",
@@ -8834,7 +8834,7 @@
       "bba_mba_target_score": 80,
       "event_id": "5b153cef4d171bc3d649b0d9",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-06T23:33:54.043633+06:00",
       "last_seen": "2026-10-06T23:33:54.043639+06:00",
       "posted_at": "2026-10-06T23:33:55.341002+06:00",
@@ -19554,7 +19554,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-14T00:41:06.466656+06:00",
-      "last_seen": "2026-10-14T06:06:35.444292+06:00"
+      "last_seen": "2026-10-17T00:33:40.750249+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1544812&fcatId=6&ln=1": {
       "title": "Management Trainee Officer (MTO) - Mechanical & Electrical",
@@ -21349,7 +21349,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-14T14:09:17.213761+06:00",
-      "last_seen": "2026-10-16T19:40:35.314954+06:00"
+      "last_seen": "2026-10-17T00:33:40.759968+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1544762&fcatId=16&ln=1": {
       "title": "Customer Service Executive",
@@ -22412,7 +22412,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T01:04:44.120628+06:00",
-      "last_seen": "2026-10-16T19:40:35.301209+06:00"
+      "last_seen": "2026-10-17T00:33:40.826104+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545332&fcatId=20&ln=1": {
       "title": "Marketing Executive",
@@ -23488,7 +23488,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T05:35:38.074185+06:00",
-      "last_seen": "2026-10-16T19:40:35.263136+06:00"
+      "last_seen": "2026-10-17T00:33:40.814602+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545097&fcatId=17&ln=1": {
       "title": "Officer, HR",
@@ -24237,7 +24237,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.562736+06:00",
-      "last_seen": "2026-10-16T19:40:35.184357+06:00"
+      "last_seen": "2026-10-17T00:33:40.771430+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545588&fcatId=9&ln=1": {
       "title": "Jr. Executive / Executive - Sales & Marketing",
@@ -24336,7 +24336,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.598539+06:00",
-      "last_seen": "2026-10-16T19:40:35.200684+06:00"
+      "last_seen": "2026-10-17T00:33:40.787644+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545685&fcatId=1&ln=1": {
       "title": "Executive, Accounts and Finance",
@@ -24381,7 +24381,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.616476+06:00",
-      "last_seen": "2026-10-16T19:40:35.217151+06:00"
+      "last_seen": "2026-10-17T00:33:40.780294+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545566&fcatId=6&ln=1": {
       "title": "Management Trainee Officer",
@@ -24849,7 +24849,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-16T00:50:16.016353+06:00",
-      "last_seen": "2026-10-16T19:40:35.230010+06:00"
+      "last_seen": "2026-10-17T00:33:40.797251+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1543163&fcatId=16&ln=1": {
       "title": "Telesales Executive",
@@ -25126,6 +25126,115 @@
       "deterministic_score": 82,
       "ai_score": null,
       "final_score": 82
+    },
+    "jobs.bdjobs.com/jobdetails?id=1546110&fcatId=9&ln=1": {
+      "title": "Digital Marketing Manager",
+      "company": "PLAYD8 LTD",
+      "location": "Anywhere in Bangladesh",
+      "employment_type": "Full Time",
+      "workplace": "Remote",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 3 years",
+      "salary": "Tk. 60000 - 100000/month",
+      "vacancy": "2",
+      "age": "20-40 Years",
+      "deadline": "2026-11-15",
+      "posted_date": "2026-10-16",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1546110&fcatId=9&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1546110",
+      "raw_source_fields": {
+        "company": "PLAYD8 LTD",
+        "experience": "Additional Requirements",
+        "education": "Bachelor/Honors Masters",
+        "deadline": "s, and take ownership of measurable results. A proactive, commercially minded approach with a strong focus on continuous improvement and business growth. Preferred",
+        "location": "Anywhere in Bangladesh",
+        "salary": "& Other Benefits",
+        "vacancy": "",
+        "employment_type": "Full Time",
+        "workplace": "Work from home",
+        "age": "20 to 40 years Responsibilities & Context About PlayD8 Ltd PlayD8 Ltd is a UK-based company providing smart offshore staffing solutions to businesses across various industries. We are looking for a results-driven Digital Marketing Manager to lead our digital marketing initiatives, develop effective growth strategies, and drive measurable business results. The ideal candidate must have strong hands-on",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Bachelor/Honors Masters Experience At least 3 years The applicants should have experience in the following business area(s): Advertising Technology (AdTech) Startup, BPO/ Data Entry Firm, Business-to-Business (B2B) Software and Services Startup, Consulting Firms, Direct Selling/Marketing Service Company, Event Management, Immigration and Education Consultancy Service, Market Research Firms Additional Requirements Age 20 to 40 years Responsibilities & Context About PlayD8 Ltd PlayD8 Ltd is a UK-based company providing smart offshore staffing solutions to businesses across various industries. We are looking for a results-driven Digital Marketing Manager to lead our digital marketing initiatives, develop effective growth strategies, and drive measurable business results. The ideal candidate must have strong hands-on experience in paid advertising, performance marketing, lead generation, conversion optimisation, and digital growth strategy. The candidate must be well versed with Meta & Google advertisement policies. This role requires a commercially minded professional who can manage advertising campaigns, analyse performance data, optimise marketing budgets, and identify opportunities to increase customer acquisition and business growth. Key Responsibilities Digital Growth Strategy: Develop and implement data-driven digital marketing strategies aligned with business objectives, lead generation targets, and revenue growth. Paid Advertising & Campaign Management: Plan, launch, manage, and optimise advertising campaigns across platforms such as Meta (Facebook and Instagram), Google Ads, LinkedIn, and TikTok. Performance Marketing: Monitor campaign performance, manage advertising budgets, and improve key metrics such as cost per lead (CPL), cost per acquisition (CPA), conversion rate, and return on ad spend (ROAS). Lead Generation: Develop and execute strategies to attract qualified leads, improve lead quality, and increase the efficiency of customer acquisition. Conversion Rate Optimisation (CRO): Analyse landing pages, advertising funnels, and user journeys to identify opportunities to improve conversion rates and reduce drop-offs. Campaign Analytics & Reporting: Track, analyse, and report on campaign performance using Google Analytics 4 (GA4), advertising platform analytics, and other relevant tools. Audience Targeting & Retargeting: Build and refine audience segments, implement retargeting strategies, and optimise campaigns based on customer behaviour and engagement. A/B Testing & Experimentation: Conduct structured tests on ad creatives, copy, audience segments, landing pages, and campaign strategies to improve performance. Content & Creative Strategy: Collaborate with content creators, designers, and other team members to develop compelling advertising creatives, messaging, and marketing materials. Social Media Growth: Develop strategies to improve social media reach, engagement, and lead generation across relevant platforms. Competitor & Market Research: Analyse competitors, audience behaviour, market trends, and campaign opportunities to identify areas for growth. Continuous Optimisation: Regularly evaluate campaign results, identify performance gaps, and implement improvements to maximise marketing efficiency and business impact. Cross-Functional Collaboration: Work with internal teams and relevant stakeholders to ensure marketing activities support wider commercial objectives. Search Engine Optimisation (SEO): To lead our digital marketing strategy and improve our online visibility, organic traffic, and lead generation. The ideal candidate will have proven experience in technical SEO, on-page and off-page optimisation, keyword research, content strategy, backlink building, local SEO, and competitor analysis. Required Skills & Qualifications Minimum 3 years of professional experience in digital marketing, performance marketing, growth marketing, or a closely related field. Proven experience planning, managing, and optimising paid advertising campaigns across multiple digital platforms. Strong hands-on knowledge of Meta Ads Manager and Google Ads . Demonstrated ability to generate qualified leads and improve campaign performance through data-driven optimisation. Strong understanding of key performance indicators, including CTR, CPC, CPL, CPA, conversion rate, and ROAS. Experience using Google Analytics 4 and advertising platform analytics to monitor performance and generate actionable insights. Good understanding of audience targeting, retargeting, lead funnels, landing page performance, and conversion optimisation. Ability to manage advertising budgets effectively and allocate resources based on campaign performance. Experience conducting A/B tests and using performance data to make informed marketing decisions. Strong analytical, problem-solving, and decision-making skills. Excellent communication, organisation, and project management abilities. Ability to work independently, manage multiple campaigns, meet deadlines, and take ownership of measurable results. A proactive, commercially minded approach with a strong focus on continuous improvement and business growth. Preferred Experience Experience working with UK-based or international businesses and audiences. Experience with CRM platforms, marketing automation tools, lead tracking, and campaign attribution. Knowledge of email marketing, remarketing, audience segmentation, and customer lifecycle campaigns. Experience improving landing pages and marketing funnels to increase lead conversion. Familiarity with creative tools such as Canva, Photoshop, or Illustrator for reviewing or supporting advertising creatives. Experience using AI-powered marketing tools to improve campaign planning, analysis, and execution. A portfolio or case studies demonstrating measurable improvements in lead generation, campaign efficiency, conversion rates, customer acquisition costs, or revenue growth. Key Performance Expectations The successful candidate will be expected to contribute to measurable business growth through: Increased volume and quality of qualified leads. Improved paid advertising performance and return on ad spend. More efficient use of marketing budgets. Reduced cost per lead and customer acquisition cost. Improved landing page and lead funnel conversion rates. Stronger campaign performance through testing and optimisation. Improved audience engagement and campaign effectiveness. Clear, data-driven reporting and actionable growth recommendations. Consistent progress towards agreed marketing and business objectives. Skills & Expertise Advertising & Promotion Digital Marketing (Social Media Marketing) Fluent in English SEO and Digital Marketing Compensation & Other Benefits Weekly 2 holidays,Over time allowance,Performance bonus Festival Bonus: 2 Salary Review: Yearly Workplace Work from home Employment Status Full Time Job Location Anywhere in Bangladesh\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nPlayD8 Ltd is a UK-based company providing smart offshore staffing solutions to businesses across various industries. We are looking for a results-driven Digital Marketing Manager to lead our digital marketing initiatives, develop effective growth strategies, and drive measurable business results.\nThe ideal candidate must have strong hands-on experience in paid advertising, performance marketing, lead generation, conversion optimisation, and digital growth strategy. The candidate must be well versed with Meta & Google advertisement policies. \nThis role requires a commercially minded professional who can manage advertising campaigns, analyse performance data, optimise marketing budgets, and identify opportunities to increase customer acquisition and business growth.\nKey Responsibilities\nDigital Growth Strategy: Develop and implement data-driven digital marketing strategies aligned with business objectives, lead generation targets, and revenue growth.\nPaid Advertising & Campaign Management: Plan, launch, manage, and optimise advertising campaigns across platforms such as Meta (Facebook and Instagram), Google Ads, LinkedIn, and TikTok.\nPerformance Marketing: Monitor campaign performance, manage advertising budgets, and improve key metrics such as cost per lead (CPL), cost per acquisition (CPA), conversion rate, and return on ad spend (ROAS).\nLead Generation: Develop and execute strategies to attract qualified leads, improve lead quality, and increase the efficiency of customer acquisition.\nConversion Rate Optimisation (CRO): Analyse landing pages, advertising funnels, and user journeys to identify opportunities to improve conversion rates and reduce drop-offs.\nCampaign Analytics & Reporting: Track, analyse, and report on campaign performance using Google Analytics 4 (GA4), advertising platform analytics, and other relevant tools.\nAudience Targeting & Retargeting: Build and refine audience segments, implement retargeting strategies, and optimise campaigns based on customer behaviour and engagement.\nA/B Testing & Experimentation: Conduct structured tests on ad creatives, copy, audience segments, landing pages, and campaign strategies to improve performance.\nContent & Creative Strategy: Collaborate with content creators, designers, and other team members to develop compelling advertising creatives, messaging, and marketing materials.\nSocial Media Growth: Develop strategies to improve social media reach, engagement, and lead generation across relevant platforms.\nCompetitor & Market Research: Analyse competitors, audience behaviour, market trends, and campaign opportunities to identify areas for growth.\nContinuous Optimisation: Regularly evaluate campaign results, identify performance gaps, and implement improvements to maximise marketing efficiency and business impact.\nCross-Functional Collaboration: Work with internal teams and relevant stakeholders to ensure marketing activities support wider commercial objectives.\nSearch Engine Optimisation (SEO):\nTo lead our digital marketing strategy and improve our online visibility, organic traffic, and lead generation. The ideal candidate will have proven experience in technical SEO, on-page and off-page optimisation, keyword research, content strategy, backlink building, local SEO, and competitor analysis.\nMinimum 3 years of professional experience in digital marketing, performance marketing, growth marketing, or a closely related field.\nProven experience planning, managing, and optimising paid advertising campaigns across multiple digital platforms.\nStrong hands-on knowledge of Meta Ads Manager and Google Ads.\nDemonstrated ability to generate qualified leads and improve campaign performance through data-driven optimisation.\nStrong understanding of key performance indicators, including CTR, CPC, CPL, CPA, conversion rate, and ROAS.\nExperience using Google Analytics 4 and advertising platform analytics to monitor performance and generate actionable insights.\nGood understanding of audience targeting, retargeting, lead funnels, landing page performance, and conversion optimisation.\nAbility to manage advertising budgets effectively and allocate resources based on campaign performance.\nExperience conducting A/B tests and using performance data to make informed marketing decisions.\nStrong analytical, problem-solving, and decision-making skills.\nExcellent communication, organisation, and project management abilities.\nAbility to work independently, manage multiple campaigns, meet deadlines, and take ownership of measurable results.\nA proactive, commercially minded approach with a strong focus on continuous improvement and business growth.\nExperience working with UK-based or international businesses and audiences.\nExperience with CRM platforms, marketing automation tools, lead tracking, and campaign attribution.\nKnowledge of email marketing, remarketing, audience segmen",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1546110&fcatId=9&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Bachelor/Honors Masters Experience At least 3 years The applicants should have experience in the following business area(s): Advertising Technology (AdTech) Startup, BPO/ Data Entry Firm, Business-to-Business (B2B) Software and Services Startup, Consulting Firms, Direct Selling/Marketing Service Company, Event Management, Immigration and Education Consultancy Service, Market Research Firms Additional Requirements Age 20 to 40 years Responsibilities & Context About PlayD8 Ltd PlayD8 Ltd is a UK-based company providing smart offshore staffing solutions to businesses across various industries. We are looking for a results-driven Digital Marketing Manager to lead our digital marketing initiatives, develop effective growth strategies, and drive measurable business results. The ideal candidate must have strong hands-on experience in paid advertising, performance marketing, lead generation, conversion optimisation, and digital growth strategy. The candidate must be well versed with Meta & Google advertisement policies. This role requires a commercially minded professional who can manage advertising campaigns, analyse performance data, optimise marketing budgets, and identify opportunities to increase customer acquisition and business growth. Key Responsibilities Digital Growth Strategy: Develop and implement data-driven digital marketing strategies aligned with business objectives, lead generation targets, and revenue growth. Paid Advertising & Campaign Management: Plan, launch, manage, and optimise advertising campaigns across platforms such as Meta (Facebook and Instagram), Google Ads, LinkedIn, and TikTok. Performance Marketing: Monitor campaign performance, manage advertising budgets, and improve key metrics such as cost per lead (CPL), cost per acquisition (CPA), conversion rate, and return on ad spend (ROAS). Lead Generation: Develop and execute strategies to attract qualified leads, improve lead quality, and increase the efficiency of customer acquisition. Conversion Rate Optimisation (CRO): Analyse landing pages, advertising funnels, and user journeys to identify opportunities to improve conversion rates and reduce drop-offs. Campaign Analytics & Reporting: Track, analyse, and report on campaign performance using Google Analytics 4 (GA4), advertising platform analytics, and other relevant tools. Audience Targeting & Retargeting: Build and refine audience segments, implement retargeting strategies, and optimise campaigns based on customer behaviour and engagement. A/B Testing & Experimentation: Conduct structured tests on ad creatives, copy, audience segments, landing pages, and campaign strategies to improve performance. Content & Creative Strategy: Collaborate with content creators, designers, and other team members to develop compelling advertising creatives, messaging, and marketing materials. Social Media Growth: Develop strategies to improve social media reach, engagement, and lead generation across relevant platforms. Competitor & Market Research: Analyse competitors, audience behaviour, market trends, and campaign opportunities to identify areas for growth. Continuous Optimisation: Regularly evaluate campaign results, identify performance gaps, and implement improvements to maximise marketing efficiency and business impact. Cross-Functional Collaboration: Work with internal teams and relevant stakeholders to ensure marketing activities support wider commercial objectives. Search Engine Optimisation (SEO): To lead our digital marketing strategy and improve our online visibility, organic traffic, and lead generation. The ideal candidate will have proven experience in technical SEO, on-page and off-page optimisation, keyword research, content strategy, backlink building, local SEO, and competitor analysis. Required Skills & Qualifications Minimum 3 years of professional experience in digital marketing, performance marketing, growth marketing, or a closely related field. Proven experience planning, managing, and optimising paid advertising campaigns across multiple digital platforms. Strong hands-on knowledge of Meta Ads Manager and Google Ads . Demonstrated ability to generate qualified leads and improve campaign performance through data-driven optimisation. Strong understanding of key performance indicators, including CTR, CPC, CPL, CPA, conversion rate, and ROAS. Experience using Google Analytics 4 and advertising platform analytics to monitor performance and generate actionable insights. Good understanding of audience targeting, retargeting, lead funnels, landing page performance, and conversion optimisation. Ability to manage advertising budgets effectively and allocate resources based on campaign performance. Experience conducting A/B tests and using performance data to make informed marketing decisions. Strong analytical, problem-solving, and decision-making skills. Excellent communication, organisation, and project management abilities. Ability to work independently, manage multiple campaigns, meet deadlines, and take ownership of measurable results. A proactive, commercially minded approach with a strong focus on continuous improvement and business growth. Preferred Experience Experience working with UK-based or international businesses and audiences. Experience with CRM platforms, marketing automation tools, lead tracking, and campaign attribution. Knowledge of email marketing, remarketing, audience segmentation, and customer lifecycle campaigns. Experience improving landing pages and marketing funnels to increase lead conversion. Familiarity with creative tools such as Canva, Photoshop, or Illustrator for reviewing or supporting advertising creatives. Experience using AI-powered marketing tools to improve campaign planning, analysis, and execution. A portfolio or case studies demonstrating measurable improvements in lead generation, campaign efficiency, conversion rates, customer acquisition costs, or revenue growth. Key Performance Expectations The successful candidate will be expected to contribute to measurable business growth through: Increased volume and quality of qualified leads. Improved paid advertising performance and return on ad spend. More efficient use of marketing budgets. Reduced cost per lead and customer acquisition cost. Improved landing page and lead funnel conversion rates. Stronger campaign performance through testing and optimisation. Improved audience engagement and campaign effectiveness. Clear, data-driven reporting and actionable growth recommendations. Consistent progress towards agreed marketing and business objectives. Skills & Expertise Advertising & Promotion Digital Marketing (Social Media Marketing) Fluent in English SEO and Digital Marketing Compensation & Other Benefits Weekly 2 holidays,Over time allowance,Performance bonus Festival Bonus: 2 Salary Review: Yearly Workplace Work from home Employment Status Full Time Job Location Anywhere in Bangladesh\nApplicants are encouraged to submit Video CV.\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nResponsibilities & Context\nPlayD8 Ltd is a UK-based company providing smart offshore staffing solutions to businesses across various industries. We are looking for a results-driven Digital Marketing Manager to lead our digital marketing initiatives, develop effective growth strategies, and drive measurable business results.\nThe ideal candidate must have strong hands-on experience in paid advertising, performance marketing, lead generation, conversion optimisation, and digital growth strategy. The candidate must be well versed with Meta & Google advertisement policies. \nThis role requires a commercially minded professional who can manage advertising campaigns, analyse performance data, optimise marketing budgets, and identify opportunities to increase customer acquisition and business growth.\nKey Responsibilities\nDigital Growth Strategy: Develop and implement data-driven digital marketing strategies aligned with business objectives, lead generation targets, and revenue growth.\nPaid Advertising & Campaign Management: Plan, launch, manage, and optimise advertising campaigns across platforms such as Meta (Facebook and Instagram), Google Ads, LinkedIn, and TikTok.\nPerformance Marketing: Monitor campaign performance, manage advertising budgets, and improve key metrics such as cost per lead (CPL), cost per acquisition (CPA), conversion rate, and return on ad spend (ROAS).\nLead Generation: Develop and execute strategies to attract qualified leads, improve lead quality, and increase the efficiency of customer acquisition.\nConversion Rate Optimisation (CRO): Analyse landing pages, advertising funnels, and user journeys to identify opportunities to improve conversion rates and reduce drop-offs.\nCampaign Analytics & Reporting: Track, analyse, and report on campaign performance using Google Analytics 4 (GA4), advertising platform analytics, and other relevant tools.\nAudience Targeting & Retargeting: Build and refine audience segments, implement retargeting strategies, and optimise campaigns based on customer behaviour and engagement.\nA/B Testing & Experimentation: Conduct structured tests on ad creatives, copy, audience segments, landing pages, and campaign strategies to improve performance.\nContent & Creative Strategy: Collaborate with content creators, designers, and other team members to develop compelling advertising creatives, messaging, and marketing materials.\nSocial Media Growth: Develop strategies to improve social media reach, engagement, and lead generation across relevant platforms.\nCompetitor & Market Research: Analyse competitors, audience behaviour, market trends, and campaign opportunities to identify areas for growth.\nContinuous Optimisation: Regularly evaluate campaign results, identify performance gaps, and implement improvements to maximise marketing efficiency and business impact.\nCross-Functional Collaboration: Work with internal teams and relevant stakeholders to ensure marketing activities support wider commercial objectives.\nSearch Engine Optimisation (SEO):\nTo lead our digital marketing strategy and improve our online visibility, organic traffic, and lead generation. The ideal candidate will have proven experience in technical SEO, on-page and off-page optimisation, keyword research, content strategy, backlink building, local SEO, and competitor analysis.\nMinimum 3 years of professional experience in digital marketing, performance marketing, growth marketing, or a closely related field.\nProven experience planning, managing, and optimising paid advertising campaigns across multiple digital platforms.\nStrong hands-on knowledge of Meta Ads Manager and Google Ads.\nDemonstrated ability to generate qualified leads and improve campaign performance through data-driven optimisation.\nStrong understanding of key performance indicators, including CTR, CPC, CPL, CPA, conversion rate, and ROAS.\nExperience using Google Analytics 4 and advertising platform analytics to monitor performance and generate actionable insights.\nGood understanding of audience targeting, retargeting, lead funnels, landing page performance, and conversion optimisation.\nAbility to manage advertising budgets effectively and allocate resources based on campaign performance.\nExperience conducting A/B tests and using performance data to make informed marketing decisions.\nStrong analytical, problem-solving, and decision-making skills.\nExcellent communication, organisation, and project management abilities.\nAbility to work independently, manage multiple campaigns, meet deadlines, and take ownership of measurable results.\nA proactive, commercially minded approach with a strong focus on continuous improvement and business growth.\nExperience working with UK-based or international businesses and audiences.\nExperience with CRM platforms, marketing automation tools, lead tracking, and campaign attribution.\nKnowledge of email marketing, remarketing, audience segmentation, and customer lifecycle campaigns.\nExperience improving landing pages and marketing funnels to increase lead conversion.\nFamiliarity with creative tools such as Canva, Photoshop, or Illustrator for reviewing or supporting advertising creatives.\nExperience using AI-powered marketing tools to improve campaign planning, analysis, and execution.\nA portfolio or case studies demonstrating measurable improvements in lead generation, campaign efficiency, conversion rates, customer acquisition costs, or revenue growth.\nThe successful candidate will be expected to contribute to measurable business growth through:\nIncreased volume and quality of qualified leads.\nImproved paid advertising performance and return on ad spend.\nMore efficient use of marketing budgets.\nReduced cost per lead and customer acquisition cost.\nImproved landing page and lead funnel conversion rates.\nStronger campaign performance through testing and optimisation.\nImproved audience engagement and campaign effectiveness.\nClear, data-driven reporting and actionable growth recommendations.\nConsistent progress towards agreed marketing and business objectives.\nCompensation & Other Benefits\nWorkplace\nWork from home\nEmployment Status\nFull Time\nJob Location\nAnywhere in Bangladesh\nJob Highlights\nWeekly 2 holidays,Over time allowance,Performance bonus\nSalary Review: Yearly\nFestival Bonus: 2\n20 paid annual leave days, plus all UK bank holidays off, plus 6 days of Eid bonus\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-11-15",
+      "source_category_id": 9,
+      "source_category_name": "Marketing / Sales",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 58,
+      "bba_mba_target_score": 46,
+      "event_id": "875e415b8383c7583350cc7f",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-10-17T00:33:40.806501+06:00",
+      "last_seen": "2026-10-17T00:33:40.806505+06:00",
+      "posted_at": "2026-10-17T00:33:42.009691+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 79,
+      "ai_score": null,
+      "final_score": 79
+    },
+    "jobs.bdjobs.com/jobdetails?id=1545432&fcatId=1&ln=1": {
+      "title": "Finance Assistant Bangladesh Coxs Bazar",
+      "company": "Norwegian Refugee Council, Bangladesh",
+      "location": "Coxs Bazar",
+      "employment_type": "Contract",
+      "education": "Bachelor's",
+      "experience": "At least 1 year",
+      "salary": "Tk. 45785/month",
+      "deadline": "2026-10-24",
+      "posted_date": "2026-10-15",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1545432&fcatId=1&ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1545432",
+      "raw_source_fields": {
+        "company": "Norwegian Refugee Council, Bangladesh",
+        "experience": "Additional Requirements",
+        "education": "Bachelor’s degree in finance or accounting",
+        "deadline": "2026-10-24",
+        "location": "Coxs Bazar",
+        "salary": "& Other Benefits",
+        "vacancy": "",
+        "employment_type": "Contractual",
+        "workplace": "",
+        "age": "",
+        "posted_date": "",
+        "application_method": "Insights",
+        "gender": ""
+      },
+      "source_content": "Requirements Education Bachelor’s degree in finance or accounting Experience At least 1 year The applicants should have experience in the following business area(s): NGO Additional Requirements Proven minimum of one year of experience in a finance role in a humanitarian context Responsibilities & Context The Norwegian Refugee Council (NRC) is an independent humanitarian organisation dedicated to protecting the rights of displaced and affected people during crises. NRC delivers high-quality programmes to support people forced to flee, helping them rebuild their lives and establish a new future. It operates across both new and protracted crises across 40 countries. NRC specialises in five core competencies: counselling and legal assistance (ICLA), protection from violence, education, shelter and settlements, and water, sanitation, and hygiene (WASH). These specialised areas enable NRC to respond effectively to the diverse needs of displaced populations. NRC began operations in Bangladesh in 2018 and continues to support Rohingya refugees and vulnerable Bangladeshi communities affected by climate change and displacement. NRC Bangladesh currently implements programs across camps and unions in Ukhiya and Teknaf, with interventions in education, Information, Counselling and Legal Assistance (ICLA), shelter, WASH, and protection. In the Rohingya camps, the NRC manages learning centres, ICLA, and WASH hubs. Responsibilities Managed end-to-end financial operations across Cox’s Bazar operations, including cash and bank management, payment processing, reconciliations, staff advances, petty cash, travel claims, and volunteer payments. Ensured compliance with NRC policies, donor requirements, and Bangladesh VAT and Tax regulations, while maintaining accurate financial records, supporting financial reporting, and ensuring audit readiness and effective financial controls. To view Job Description please visit the URL in Apply Procedure . Skills & Expertise Other Relevant Skills Financial Reporting Cash Management Bank Reconciliation petty cash management Compensation & Other Benefits Grade 03 in NRCs Salary Scale: monthly Gross Salary is 45,785 BDT, with accompanying terms and conditions. NRC offers an excellent compensation and benefits package. Group Insurance for staff and dependents, 24/7 Psychosocial assistant. Two festival bonuses, end-of-service benefit, Contributory provident fund, maternity allowance, Nursery/Childcare allowance, and various types of leave (Annual, casual, maternity, paternity, etc.) Employment Status Contractual Job Location Coxs Bazar\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nProven minimum of one year of experience in a finance role in a humanitarian context\nResponsibilities & Context\nThe Norwegian Refugee Council (NRC) is an independent humanitarian organisation dedicated to protecting the rights of displaced and affected people during crises. NRC delivers high-quality programmes to support people forced to flee, helping them rebuild their lives and establish a new future. It operates across both new and protracted crises across 40 countries.\nNRC specialises in five core competencies: counselling and legal assistance (ICLA), protection from violence, education, shelter and settlements, and water, sanitation, and hygiene (WASH). These specialised areas enable NRC to respond effectively to the diverse needs of displaced populations.\nNRC began operations in Bangladesh in 2018 and continues to support Rohingya refugees and vulnerable Bangladeshi communities affected by climate change and displacement.\nNRC Bangladesh currently implements programs across camps and unions in Ukhiya and Teknaf, with interventions in education, Information, Counselling and Legal Assistance (ICLA), shelter, WASH, and protection. In the Rohingya camps, the NRC manages learning centres, ICLA, and WASH hubs.\nResponsibilities\nManaged end-to-end financial operations across Cox’s Bazar operations, including cash and bank management, payment processing, reconciliations, staff advances, petty cash, travel claims, and volunteer payments. Ensured compliance with NRC policies, donor requirements, and Bangladesh VAT and Tax regulations, while maintaining accurate financial records, supporting financial reporting, and ensuring audit readiness and effective financial controls.\nTo view Job Description please visit the URL in Apply Procedure .\nOther Relevant Skills\nCompensation & Other Benefits\nGrade 03 in NRC`s Salary Scale: monthly Gross Salary is 45,785 BDT, with accompanying terms and conditions. NRC offers an excellent compensation and benefits package. Group Insurance for staff and dependents, 24/7 Psychosocial assistant. Two festival bonuses, end-of-service benefit, Contributory provident fund, maternity allowance, Nursery/Childcare allowance, and various types of leave (Annual, casual, maternity, paternity, etc.)\nEmployment Status\nContractual\nJob Location\nCox`s Bazar\nRead Before Apply\nApply Procedure\nApply URL:\nAddress:\nSamad Abode, Road # 95, House # CEN-D-3, Gulshan-2, Dhaka\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "canonical": "jobs.bdjobs.com/jobdetails?id=1545432&fcatId=1&ln=1",
+      "apply_url": "",
+      "retrieval_backend": "scrapling_stealthy",
+      "detail_quality": "browser_valid",
+      "raw_text": "Requirements Education Bachelor’s degree in finance or accounting Experience At least 1 year The applicants should have experience in the following business area(s): NGO Additional Requirements Proven minimum of one year of experience in a finance role in a humanitarian context Responsibilities & Context The Norwegian Refugee Council (NRC) is an independent humanitarian organisation dedicated to protecting the rights of displaced and affected people during crises. NRC delivers high-quality programmes to support people forced to flee, helping them rebuild their lives and establish a new future. It operates across both new and protracted crises across 40 countries. NRC specialises in five core competencies: counselling and legal assistance (ICLA), protection from violence, education, shelter and settlements, and water, sanitation, and hygiene (WASH). These specialised areas enable NRC to respond effectively to the diverse needs of displaced populations. NRC began operations in Bangladesh in 2018 and continues to support Rohingya refugees and vulnerable Bangladeshi communities affected by climate change and displacement. NRC Bangladesh currently implements programs across camps and unions in Ukhiya and Teknaf, with interventions in education, Information, Counselling and Legal Assistance (ICLA), shelter, WASH, and protection. In the Rohingya camps, the NRC manages learning centres, ICLA, and WASH hubs. Responsibilities Managed end-to-end financial operations across Cox’s Bazar operations, including cash and bank management, payment processing, reconciliations, staff advances, petty cash, travel claims, and volunteer payments. Ensured compliance with NRC policies, donor requirements, and Bangladesh VAT and Tax regulations, while maintaining accurate financial records, supporting financial reporting, and ensuring audit readiness and effective financial controls. To view Job Description please visit the URL in Apply Procedure . Skills & Expertise Other Relevant Skills Financial Reporting Cash Management Bank Reconciliation petty cash management Compensation & Other Benefits Grade 03 in NRCs Salary Scale: monthly Gross Salary is 45,785 BDT, with accompanying terms and conditions. NRC offers an excellent compensation and benefits package. Group Insurance for staff and dependents, 24/7 Psychosocial assistant. Two festival bonuses, end-of-service benefit, Contributory provident fund, maternity allowance, Nursery/Childcare allowance, and various types of leave (Annual, casual, maternity, paternity, etc.) Employment Status Contractual Job Location Coxs Bazar\nApplication Insights\nView\nRequirements\nEducation\nExperience\nAdditional Requirements\nProven minimum of one year of experience in a finance role in a humanitarian context\nResponsibilities & Context\nThe Norwegian Refugee Council (NRC) is an independent humanitarian organisation dedicated to protecting the rights of displaced and affected people during crises. NRC delivers high-quality programmes to support people forced to flee, helping them rebuild their lives and establish a new future. It operates across both new and protracted crises across 40 countries.\nNRC specialises in five core competencies: counselling and legal assistance (ICLA), protection from violence, education, shelter and settlements, and water, sanitation, and hygiene (WASH). These specialised areas enable NRC to respond effectively to the diverse needs of displaced populations.\nNRC began operations in Bangladesh in 2018 and continues to support Rohingya refugees and vulnerable Bangladeshi communities affected by climate change and displacement.\nNRC Bangladesh currently implements programs across camps and unions in Ukhiya and Teknaf, with interventions in education, Information, Counselling and Legal Assistance (ICLA), shelter, WASH, and protection. In the Rohingya camps, the NRC manages learning centres, ICLA, and WASH hubs.\nResponsibilities\nManaged end-to-end financial operations across Cox’s Bazar operations, including cash and bank management, payment processing, reconciliations, staff advances, petty cash, travel claims, and volunteer payments. Ensured compliance with NRC policies, donor requirements, and Bangladesh VAT and Tax regulations, while maintaining accurate financial records, supporting financial reporting, and ensuring audit readiness and effective financial controls.\nTo view Job Description please visit the URL in Apply Procedure .\nOther Relevant Skills\nCompensation & Other Benefits\nGrade 03 in NRC`s Salary Scale: monthly Gross Salary is 45,785 BDT, with accompanying terms and conditions. NRC offers an excellent compensation and benefits package. Group Insurance for staff and dependents, 24/7 Psychosocial assistant. Two festival bonuses, end-of-service benefit, Contributory provident fund, maternity allowance, Nursery/Childcare allowance, and various types of leave (Annual, casual, maternity, paternity, etc.)\nEmployment Status\nContractual\nJob Location\nCox`s Bazar\nRead Before Apply\nApply Procedure\nApply URL:\nAddress:\nSamad Abode, Road # 95, House # CEN-D-3, Gulshan-2, Dhaka\nFind out more about services, features, and available opportunities.\nএই চাকরির জন্য বিজ্ঞাপনদাতা ব্যাক্তি/প্রতিষ্ঠান আপনার কাছ থেকে কোন অর্থ চাইলে কিংবা নিয়োগ প্রক্রিয়া চলাকালীন কোন প্রকার হয়রানিমূলক (শারীরিক/মানসিক) আচরণ করলে অতিসত্ত্বর আমাদেরকে জানান অথবা জবটি রিপোর্ট করুন। চাকরি পাওয়ার জন্য কোন ব্যাক্তি/প্রতিষ্ঠানকে অর্থ প্রদান করবেন না। চাকরিকালীন কোন প্রকার হয়রানির (শারীরিক/মানসিক) সম্ভাবনা থাকলে সেখানে জয়েন করবেন না। কোন প্রকার অর্থ লেনদেন বা নিয়োগদাতা কর্তৃক হয়রানির দায়িত্ব বিডিজবস বহন করবে না।",
+      "listing_posted": "",
+      "listing_deadline": "2026-10-24",
+      "source_category_id": 1,
+      "source_category_name": "Accounting / Finance",
+      "is_government": false,
+      "application_method": "",
+      "audience_pre_score": 47,
+      "bba_mba_target_score": 36,
+      "event_id": "94702dde618b008bb91e3244",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-10-17T00:33:40.834510+06:00",
+      "last_seen": "2026-10-17T00:33:40.834514+06:00",
+      "posted_at": "2026-10-17T00:33:43.413403+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 71,
+      "ai_score": null,
+      "final_score": 71
     }
   },
   "events": {
@@ -25918,10 +26027,15 @@
       "posted_date": "2026-09-30",
       "deadline": "2026-10-16",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-09-30T23:09:32.181246+06:00",
       "published_at": "2026-09-30T23:09:32.181248+06:00",
-      "message_id": 1187
+      "message_id": 1187,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-17T00:29:25.023973+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "c0d6f98ce42b6af9ddb81f13": {
       "event_id": "c0d6f98ce42b6af9ddb81f13",
@@ -27209,10 +27323,15 @@
       "posted_date": "2026-10-01",
       "deadline": "2026-10-16",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-01T23:42:37.616905+06:00",
       "published_at": "2026-10-01T23:42:37.616909+06:00",
-      "message_id": 1223
+      "message_id": 1223,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-17T00:29:25.549562+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "cd885792180a848264b1af97": {
       "event_id": "cd885792180a848264b1af97",
@@ -27323,10 +27442,15 @@
       "posted_date": "2026-10-01",
       "deadline": "2026-10-16",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-01T23:42:41.695921+06:00",
       "published_at": "2026-10-01T23:42:41.695924+06:00",
-      "message_id": 1226
+      "message_id": 1226,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-17T00:29:26.101695+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "e7f77271b25d0579ad681452": {
       "event_id": "e7f77271b25d0579ad681452",
@@ -27441,10 +27565,15 @@
       "posted_date": "2026-10-01",
       "deadline": "2026-10-16",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-01T23:42:45.818858+06:00",
       "published_at": "2026-10-01T23:42:45.818862+06:00",
-      "message_id": 1229
+      "message_id": 1229,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-17T00:29:26.625441+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "248c590ba4ff7ac7c3d2f8d1": {
       "event_id": "248c590ba4ff7ac7c3d2f8d1",
@@ -31620,10 +31749,15 @@
       "posted_date": "2026-10-06",
       "deadline": "2026-10-16",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-06T23:33:55.341028+06:00",
       "published_at": "2026-10-06T23:33:55.341031+06:00",
-      "message_id": 1338
+      "message_id": 1338,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-17T00:29:27.151798+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "d9528e557cca27088a12fb15": {
       "event_id": "d9528e557cca27088a12fb15",
@@ -41267,10 +41401,86 @@
       "selected_at": "2026-10-16T19:40:36.630254+06:00",
       "published_at": "2026-10-16T19:40:36.630256+06:00",
       "message_id": 1603
+    },
+    "875e415b8383c7583350cc7f": {
+      "event_id": "875e415b8383c7583350cc7f",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1546110&fcatId=9&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1546110&fcatId=9&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1546110",
+      "title": "Digital Marketing Manager",
+      "company": "PLAYD8 LTD",
+      "location": "Anywhere in Bangladesh",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 3 years",
+      "salary": "Tk. 60000 - 100000/month",
+      "vacancy": "2",
+      "age": "20-40 Years",
+      "employment_type": "Full Time",
+      "workplace": "Remote",
+      "application_method": "",
+      "career_category": "Banking & Financial Services",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "vacancy",
+        "age",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-16",
+      "deadline": "2026-11-15",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-17T00:33:42.009721+06:00",
+      "published_at": "2026-10-17T00:33:42.009723+06:00",
+      "message_id": 1604
+    },
+    "94702dde618b008bb91e3244": {
+      "event_id": "94702dde618b008bb91e3244",
+      "canonical_url": "jobs.bdjobs.com/jobdetails?id=1545432&fcatId=1&ln=1",
+      "source_url": "https://jobs.bdjobs.com/jobdetails/?id=1545432&fcatId=1&ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1545432",
+      "title": "Finance Assistant Bangladesh Coxs Bazar",
+      "company": "Norwegian Refugee Council, Bangladesh",
+      "location": "Coxs Bazar",
+      "education": "Bachelor's",
+      "experience": "At least 1 year",
+      "salary": "Tk. 45785/month",
+      "vacancy": "",
+      "age": "",
+      "employment_type": "Contract",
+      "workplace": "",
+      "application_method": "",
+      "career_category": "Finance & Accounting",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "education",
+        "experience",
+        "salary",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-10-15",
+      "deadline": "2026-10-24",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-10-17T00:33:43.413430+06:00",
+      "published_at": "2026-10-17T00:33:43.413432+06:00",
+      "message_id": 1605
     }
   },
   "recent_titles": [
-    "accounting assistant",
     "cashier govt physical education college",
     "driver govt physical education college",
     "computer operator",
@@ -41670,8 +41880,10 @@
     "srm rm transaction banking up to avp",
     "accountant executive",
     "social media executive",
-    "sales development consultant australia market"
+    "sales development consultant australia market",
+    "digital marketing manager",
+    "finance assistant bangladesh coxs bazar"
   ],
-  "last_run": "2026-10-16T19:40:36.687002+06:00",
+  "last_run": "2026-10-17T00:33:43.449373+06:00",
   "pipeline_version": "CareerNewsroom"
 }
