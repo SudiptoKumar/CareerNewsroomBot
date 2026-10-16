@@ -21349,7 +21349,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-14T14:09:17.213761+06:00",
-      "last_seen": "2026-10-16T07:55:49.329205+06:00"
+      "last_seen": "2026-10-16T13:40:43.206206+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1544762&fcatId=16&ln=1": {
       "title": "Customer Service Executive",
@@ -22412,7 +22412,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T01:04:44.120628+06:00",
-      "last_seen": "2026-10-16T07:55:49.449922+06:00"
+      "last_seen": "2026-10-16T13:40:43.342024+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545332&fcatId=20&ln=1": {
       "title": "Marketing Executive",
@@ -23488,7 +23488,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T05:35:38.074185+06:00",
-      "last_seen": "2026-10-16T07:55:49.406695+06:00"
+      "last_seen": "2026-10-16T13:40:43.298740+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545097&fcatId=17&ln=1": {
       "title": "Officer, HR",
@@ -23808,7 +23808,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T08:03:38.453018+06:00",
-      "last_seen": "2026-10-16T07:55:49.428922+06:00"
+      "last_seen": "2026-10-16T13:40:43.320118+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545212&fcatId=1&ln=1": {
       "title": "Manager - Audit & Assurance",
@@ -24237,7 +24237,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.562736+06:00",
-      "last_seen": "2026-10-16T07:55:49.352894+06:00"
+      "last_seen": "2026-10-16T13:40:43.228931+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545588&fcatId=9&ln=1": {
       "title": "Jr. Executive / Executive - Sales & Marketing",
@@ -24336,7 +24336,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.598539+06:00",
-      "last_seen": "2026-10-16T07:55:49.371368+06:00"
+      "last_seen": "2026-10-16T13:40:43.246683+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545685&fcatId=1&ln=1": {
       "title": "Executive, Accounts and Finance",
@@ -24381,7 +24381,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-15T19:51:07.616476+06:00",
-      "last_seen": "2026-10-16T07:55:49.389999+06:00"
+      "last_seen": "2026-10-16T13:40:43.265038+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1545566&fcatId=6&ln=1": {
       "title": "Management Trainee Officer",
@@ -24849,7 +24849,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-16T00:50:16.016353+06:00",
-      "last_seen": "2026-10-16T05:26:44.113734+06:00"
+      "last_seen": "2026-10-16T13:40:43.279811+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1543163&fcatId=16&ln=1": {
       "title": "Telesales Executive",
@@ -41178,8 +41178,6 @@
     }
   },
   "recent_titles": [
-    "executive local procurement",
-    "officer regulatory corporate affairs",
     "accounting assistant",
     "cashier govt physical education college",
     "driver govt physical education college",
@@ -41581,6 +41579,6 @@
     "accountant executive",
     "social media executive"
   ],
-  "last_run": "2026-10-16T07:55:52.576926+06:00",
+  "last_run": "2026-10-16T13:40:43.555796+06:00",
   "pipeline_version": "CareerNewsroom"
 }
