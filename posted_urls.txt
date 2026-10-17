@@ -442,3 +442,10 @@ alljobs.teletalk.com.bd?job_primary_id=14983
 alljobs.teletalk.com.bd?job_primary_id=14985
 alljobs.teletalk.com.bd?job_primary_id=14986
 alljobs.teletalk.com.bd?job_primary_id=14984
+jobs.bdjobs.com/jobdetails?id=1546246&fcatId=9&ln=1
+jobs.bdjobs.com/jobdetails?id=1546161&fcatId=17&ln=1
+jobs.bdjobs.com/jobdetails?id=1542443&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1546153&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1546438&fcatId=16&ln=1
+jobs.bdjobs.com/jobdetails?id=1545641&fcatId=2&ln=1
+alljobs.teletalk.com.bd?job_primary_id=14987
