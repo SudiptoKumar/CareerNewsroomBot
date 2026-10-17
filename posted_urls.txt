@@ -449,3 +449,7 @@ jobs.bdjobs.com/jobdetails?id=1546153&fcatId=1&ln=1
 jobs.bdjobs.com/jobdetails?id=1546438&fcatId=16&ln=1
 jobs.bdjobs.com/jobdetails?id=1545641&fcatId=2&ln=1
 alljobs.teletalk.com.bd?job_primary_id=14987
+jobs.bdjobs.com/jobdetails?id=1546129&fcatId=16&ln=1
+jobs.bdjobs.com/jobdetails?id=1545982&fcatId=16&ln=1
+jobs.bdjobs.com/jobdetails?id=1545673&fcatId=3&ln=1
+jobs.bdjobs.com/jobdetails?id=1545900&fcatId=8&ln=1
