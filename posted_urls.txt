@@ -466,3 +466,16 @@ alljobs.teletalk.com.bd?job_primary_id=15008
 alljobs.teletalk.com.bd?job_primary_id=15009
 alljobs.teletalk.com.bd?job_primary_id=15012
 alljobs.teletalk.com.bd?job_primary_id=15013
+jobs.bdjobs.com/jobdetails?id=1546796&fcatId=17&ln=1
+jobs.bdjobs.com/jobdetails?id=1546315&fcatId=16&ln=1
+jobs.bdjobs.com/jobdetails?id=1546378&fcatId=1&ln=1
+jobs.bdjobs.com/jobdetails?id=1543761&fcatId=17&ln=1
+jobs.bdjobs.com/jobdetails?id=1546258&fcatId=17&ln=1
+jobs.bdjobs.com/jobdetails?id=1546818&fcatId=7&ln=1
+alljobs.teletalk.com.bd?job_primary_id=15014
+alljobs.teletalk.com.bd?job_primary_id=15015
+alljobs.teletalk.com.bd?job_primary_id=15028
+jobs.bdjobs.com/jobdetails?id=1544862&fcatId=13&ln=1
+jobs.bdjobs.com/jobdetails?id=1545284&fcatId=3&ln=1
+alljobs.teletalk.com.bd?job_primary_id=15023
+alljobs.teletalk.com.bd?job_primary_id=15016
