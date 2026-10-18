@@ -503,3 +503,6 @@ alljobs.teletalk.com.bd?job_primary_id=15017
 alljobs.teletalk.com.bd?job_primary_id=15022
 alljobs.teletalk.com.bd?job_primary_id=15026
 alljobs.teletalk.com.bd?job_primary_id=15029
+alljobs.teletalk.com.bd?job_primary_id=15011
+alljobs.teletalk.com.bd?job_primary_id=15021
+alljobs.teletalk.com.bd?job_primary_id=15024
