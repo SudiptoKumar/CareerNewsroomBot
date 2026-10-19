@@ -25509,7 +25509,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-18T07:47:18.608398+06:00",
-      "last_seen": "2026-10-19T04:43:59.570026+06:00"
+      "last_seen": "2026-10-19T08:04:22.543733+06:00"
     },
     "alljobs.teletalk.com.bd?job_primary_id=15005": {
       "title": "Assistant Manager(Environment)",
@@ -27811,7 +27811,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-18T23:43:21.240856+06:00",
-      "last_seen": "2026-10-19T04:43:59.511242+06:00"
+      "last_seen": "2026-10-19T08:04:22.494495+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1546859&fcatId=3&ln=1": {
       "title": "Sr. Executive - Import & Supply Chain",
@@ -28133,7 +28133,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-19T01:50:30.444566+06:00",
-      "last_seen": "2026-10-19T04:43:59.496516+06:00"
+      "last_seen": "2026-10-19T08:04:22.467993+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1546559&fcatId=16&ln=1": {
       "title": "Intern - Customer Support",
@@ -28293,7 +28293,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-19T01:50:30.504908+06:00",
-      "last_seen": "2026-10-19T04:43:59.524926+06:00"
+      "last_seen": "2026-10-19T08:04:22.591085+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1546932&fcatId=9&ln=1": {
       "title": "Lead Digital Marketing & Growth Specialist (Medical & Surgical)",
@@ -28396,7 +28396,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-19T01:50:30.574202+06:00",
-      "last_seen": "2026-10-19T04:43:59.586113+06:00"
+      "last_seen": "2026-10-19T08:04:22.572925+06:00"
     },
     "jobs.bdjobs.com/jobdetails?id=1546926&fcatId=6&ln=1": {
       "title": "Management Trainee Officer (MTO) - Sewing",
@@ -28443,7 +28443,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-19T04:43:59.544115+06:00",
-      "last_seen": "2026-10-19T04:43:59.544122+06:00"
+      "last_seen": "2026-10-19T08:04:22.518318+06:00"
     }
   },
   "events": {
@@ -47150,9 +47150,6 @@
     }
   },
   "recent_titles": [
-    "consultant logistics management",
-    "management trainee seamless store operation seamless knitting",
-    "driver",
     "junior officer operations",
     "junior officer human resources and administration company secretary",
     "boiler operator",
@@ -47554,6 +47551,6 @@
     "sub assistant engineer telecom",
     "computer operator"
   ],
-  "last_run": "2026-10-19T04:44:03.524843+06:00",
+  "last_run": "2026-10-19T08:04:22.840306+06:00",
   "pipeline_version": "CareerNewsroom"
 }
