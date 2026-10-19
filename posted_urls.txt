@@ -506,3 +506,5 @@ alljobs.teletalk.com.bd?job_primary_id=15029
 alljobs.teletalk.com.bd?job_primary_id=15011
 alljobs.teletalk.com.bd?job_primary_id=15021
 alljobs.teletalk.com.bd?job_primary_id=15024
+jobs.bdjobs.com/jobdetails?id=1546824&fcatId=17&ln=1
+jobs.bdjobs.com/jobdetails?id=1546730&fcatId=9&ln=1
