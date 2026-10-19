@@ -5295,7 +5295,7 @@
       "bba_mba_target_score": 69,
       "event_id": "4f421a1dc803f7eb53f1a1e4",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-04T22:08:48.845506+06:00",
       "last_seen": "2026-10-04T22:08:48.845514+06:00",
       "posted_at": "2026-10-04T22:09:02.533533+06:00",
@@ -12264,7 +12264,7 @@
       "bba_mba_target_score": 52,
       "event_id": "cc3fcb6c8cf421c1b9b018f0",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-09T23:42:11.879249+06:00",
       "last_seen": "2026-10-09T23:42:11.879255+06:00",
       "posted_at": "2026-10-09T23:42:15.236698+06:00",
@@ -12375,7 +12375,7 @@
       "bba_mba_target_score": 30,
       "event_id": "b6a79808b800d76234ed0849",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-10T03:59:45.088375+06:00",
       "last_seen": "2026-10-10T03:59:45.088383+06:00",
       "posted_at": "2026-10-10T03:59:46.966143+06:00",
@@ -12703,7 +12703,7 @@
       "bba_mba_target_score": 44,
       "event_id": "1e6bc82fda8abee22094f06b",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-10T22:30:28.036620+06:00",
       "last_seen": "2026-10-10T22:30:28.036626+06:00",
       "posted_at": "2026-10-10T22:30:36.259999+06:00",
@@ -14545,7 +14545,7 @@
       "bba_mba_target_score": 60,
       "event_id": "5c521c5be1acc97ebb9eef0e",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-11T22:55:39.540269+06:00",
       "last_seen": "2026-10-11T22:55:39.540272+06:00",
       "posted_at": "2026-10-11T22:55:44.200293+06:00",
@@ -23791,7 +23791,7 @@
       "bba_mba_target_score": 60,
       "event_id": "e07c0671396888f8cade4e1d",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-16T00:50:16.055360+06:00",
       "last_seen": "2026-10-16T00:50:16.055371+06:00",
       "posted_at": "2026-10-16T00:50:23.574411+06:00",
@@ -26945,7 +26945,7 @@
       "bba_mba_target_score": 29,
       "event_id": "36334f7e6798ba27e65c4ae7",
       "record_format": 4,
-      "status": "posted",
+      "status": "expired",
       "first_seen": "2026-10-18T18:55:44.954372+06:00",
       "last_seen": "2026-10-18T18:55:44.954383+06:00",
       "posted_at": "2026-10-18T18:56:04.600350+06:00",
@@ -33249,10 +33249,15 @@
       "posted_date": "2026-10-04",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-04T22:09:02.533562+06:00",
       "published_at": "2026-10-04T22:09:02.533563+06:00",
-      "message_id": 1286
+      "message_id": 1286,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:09.991636+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "607d06ce1865239db51a2f1b": {
       "event_id": "607d06ce1865239db51a2f1b",
@@ -38149,10 +38154,15 @@
       "posted_date": "2026-10-09",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-09T23:42:15.236761+06:00",
       "published_at": "2026-10-09T23:42:15.236765+06:00",
-      "message_id": 1414
+      "message_id": 1414,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:10.464183+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "b6a79808b800d76234ed0849": {
       "event_id": "b6a79808b800d76234ed0849",
@@ -38188,10 +38198,15 @@
       "posted_date": "2026-10-09",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-10T03:59:46.966177+06:00",
       "published_at": "2026-10-10T03:59:46.966180+06:00",
-      "message_id": 1415
+      "message_id": 1415,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:10.933471+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "154611ea31678871ad4ae119": {
       "event_id": "154611ea31678871ad4ae119",
@@ -38622,10 +38637,15 @@
       "posted_date": "2026-10-10",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-10T22:30:36.260010+06:00",
       "published_at": "2026-10-10T22:30:36.260012+06:00",
-      "message_id": 1426
+      "message_id": 1426,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:11.422765+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "3ac0e71cd3504317542ea860": {
       "event_id": "3ac0e71cd3504317542ea860",
@@ -39393,10 +39413,15 @@
       "posted_date": "2026-10-11",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-11T22:55:44.200323+06:00",
       "published_at": "2026-10-11T22:55:44.200325+06:00",
-      "message_id": 1447
+      "message_id": 1447,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:11.896346+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "0b2bd18da31c61b415439e3e": {
       "event_id": "0b2bd18da31c61b415439e3e",
@@ -44701,10 +44726,15 @@
       "posted_date": "2026-10-15",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-16T00:50:23.574442+06:00",
       "published_at": "2026-10-16T00:50:23.574446+06:00",
-      "message_id": 1596
+      "message_id": 1596,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:15.533802+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "26324f2a226ec758581a357e": {
       "event_id": "26324f2a226ec758581a357e",
@@ -46413,10 +46443,15 @@
       "posted_date": "2026-10-18",
       "deadline": "2026-10-19",
       "score": 0,
-      "status": "published",
+      "status": "expired",
       "selected_at": "2026-10-18T18:56:04.600373+06:00",
       "published_at": "2026-10-18T18:56:04.600375+06:00",
-      "message_id": 1644
+      "message_id": 1644,
+      "expiry_update_status": "expired_full",
+      "expired_at": "2026-10-20T03:47:16.005373+06:00",
+      "expired_apply_url_removed": true,
+      "expired_source_url_removed": true,
+      "expiry_error": ""
     },
     "660a19709aacf30f4bac92af": {
       "event_id": "660a19709aacf30f4bac92af",
@@ -47627,10 +47662,6 @@
     }
   },
   "recent_titles": [
-    "boiler operator",
-    "junior officer accounts and finance",
-    "business development executive",
-    "executive coordinator business development",
     "senior executive merchandising footwear",
     "officer store operations",
     "sr executive assistant manager air export documentation crm",
@@ -48032,6 +48063,6 @@
     "cleaner",
     "bearer circuit house"
   ],
-  "last_run": "2026-10-19T21:56:56.145217+06:00",
+  "last_run": "2026-10-20T03:48:16.884401+06:00",
   "pipeline_version": "CareerNewsroom"
 }
