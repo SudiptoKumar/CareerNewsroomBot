@@ -116,6 +116,12 @@ DETAIL_CACHE_TTL_SECONDS = int(os.environ.get("DETAIL_CACHE_TTL_SECONDS", "900")
 BDJOBS_LISTING_URL = "https://jobs.bdjobs.com/jobsearch-cache.asp"
 BDJOBS_LEGACY_LISTING_URL = "https://jobs.bdjobs.com/jobsearch.asp"
 BDJOBS_DETAIL_BASE = "https://jobs.bdjobs.com/jobdetails.asp?id="
+# Current bdjobs.com (post-relaunch) data sources. The legacy .asp listing
+# pages were retired by Bdjobs (404 since 2026-10-19); the new site is an
+# Angular app backed by these two JSON APIs.
+BDJOBS_SEARCH_API_URL = "https://api.bdjobs.com/Jobs/api/JobSearch/GetJobSearch"
+BDJOBS_DETAILS_API_URL = "https://gateway.bdjobs.com/ActtivejobsTest/api/JobSubsystem/jobDetails"
+BDJOBS_DETAIL_URL = "https://bdjobs.com/h/details/"
 BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
 TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
@@ -1116,56 +1122,111 @@ def _fetch_source_document(url, *, timeout=None, referer=None):
     fallback = _fetch_jina(url, timeout=max(JINA_TIMEOUT, timeout or DISCOVERY_TIMEOUT))
     return fallback
 
+def _bdjobs_search_api_page(category_id, page):
+    """One page of the current Bdjobs JobSearch API for a single category.
+
+    The relaunched bdjobs.com is an Angular app; its own search API is the
+    server-side listing source (the legacy .asp listing pages now 404).
+    Results come back newest-first, 50 per page.
+    """
+    params = {
+        "category": int(category_id), "pg": int(page), "rpp": 50,
+        "ToggleJobs": "true", "isPro": "0", "isFresher": "false",
+    }
+    try:
+        response = session.get(BDJOBS_SEARCH_API_URL, params=params, headers=HEADERS, timeout=DISCOVERY_TIMEOUT)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.info("BDJOBS API FETCH FAILED | category=%s | page=%s | error=%s", category_id, page, exc)
+        return []
+    if not isinstance(payload, dict):
+        return []
+    return [rec for rec in (payload.get("data") or []) if isinstance(rec, dict)]
+
+
+def _bdjobs_api_candidate(record, category_id, category_name):
+    """Shape one JobSearch API record like a legacy listing candidate."""
+    job_id = safe_text(record.get("Jobid"))
+    title = _clean_one_line(_strip_html_fragment(record.get("jobTitle")))
+    if not job_id or not title or is_noise_title(title):
+        return None
+    url = f"{BDJOBS_DETAIL_URL}{job_id}?ln=1"
+    fields = {
+        "company": clean_source_field(record.get("companyName")),
+        "experience": compact_experience(_strip_html_fragment(record.get("experience"))),
+        "education": compact_education(_strip_html_fragment(record.get("eduRec"))),
+        "deadline": normalize_date_text(record.get("deadline")),
+        "location": compact_location(record.get("location")),
+        "salary": compact_salary(record.get("Salary")),
+        "vacancy": compact_vacancy(record.get("Vacancies")),
+        "employment_type": compact_employment(record.get("JobType")),
+        "workplace": compact_workplace(record.get("WorkPlace")),
+        "age": "",
+        "posted_date": normalize_date_text(record.get("publishDate")),
+        "application_method": "Online" if record.get("OnlineJob") else "",
+        "gender": "",
+    }
+    excerpt = " | ".join(
+        x for x in (title, fields["company"], fields["location"], fields["employment_type"],
+                    fields["education"], fields["experience"], fields["salary"], fields["deadline"]) if x
+    )
+    return {
+        "title": title,
+        "company": fields["company"],
+        "url": url,
+        "canonical": canonical_url(url),
+        "source": "Bdjobs",
+        "source_url": url,
+        "source_job_id": job_id,
+        "discovery": "bdjobs_search_api",
+        "category_id": category_id,
+        "category_name": category_name,
+        "excerpt": trim_source_text(excerpt, 3500),
+        "listing_posted": fields["posted_date"],
+        "listing_deadline": fields["deadline"],
+        "listing_fields": fields,
+        "raw_source_fields": fields,
+        "source_content": trim_source_text(excerpt, 5000),
+        "discovered_at": now_iso(),
+    }
+
+
 def discover_bdjobs_category(category_id, config):
     category_name = config["name"]
     cap = CATEGORY_P1_CAP if int(config.get("priority", 2)) == 1 else CATEGORY_P2_CAP
     cutoff = datetime.now(BD_TZ) - timedelta(days=MAX_POST_AGE_DAYS)
     collected, seen = [], set()
 
-    for base_url in (_absolute_category_url(category_id), _absolute_category_url(category_id, legacy=True)):
+    for page in range(1, CATEGORY_PAGE_LIMIT + 1):
         if len(collected) >= cap:
             break
-        next_url = base_url
-        seen_pages = set()
-        for page_index in range(1, CATEGORY_PAGE_LIMIT + 1):
-            if next_url in seen_pages:
-                break
-            seen_pages.add(next_url)
-            fetched = _fetch_source_document(next_url, timeout=DISCOVERY_TIMEOUT, referer=BDJOBS_LISTING_URL)
-            if not fetched:
-                break
-            page_url = fetched.get("url") or next_url
-            candidates = _bdjobs_listing_candidates(fetched.get("text", ""), page_url, category_id, category_name)
-            page_dates = []
-            new_count = 0
-            for item in candidates:
-                if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+        records = _bdjobs_search_api_page(category_id, page)
+        if not records:
+            break
+        page_dates = []
+        new_count = 0
+        for record in records:
+            item = _bdjobs_api_candidate(record, category_id, category_name)
+            if not item:
+                continue
+            if item["canonical"] in seen or item["canonical"] in POSTED_URLS:
+                continue
+            pdt = parse_datetime(item.get("listing_posted"))
+            if pdt:
+                page_dates.append(pdt)
+                if pdt < cutoff:
                     continue
-                pdt = parse_datetime(item.get("listing_posted"))
-                if pdt:
-                    page_dates.append(pdt)
-                    if pdt < cutoff:
-                        continue
-                seen.add(item["canonical"])
-                item["discovery_backend"] = fetched.get("backend", "")
-                collected.append(item)
-                new_count += 1
-                if len(collected) >= cap:
-                    break
+            seen.add(item["canonical"])
+            item["discovery_backend"] = "bdjobs_search_api"
+            collected.append(item)
+            new_count += 1
             if len(collected) >= cap:
                 break
-            links = dict(_bdjobs_pagination_links(fetched.get("text", ""), page_url, CATEGORY_PAGE_LIMIT + 2))
-            next_url = links.get(page_index + 1, "")
-            if not next_url:
-                parsed = urlparse(next_url or page_url)
-                if page_index == 1 and page_dates and max(page_dates) >= cutoff:
-                    next_url = parsed._replace(query=(parsed.query + "&" if parsed.query else "") + "page=2").geturl()
-                else:
-                    break
-            if page_dates and max(page_dates) < cutoff:
-                break
-            if new_count == 0:
-                break
+        if page_dates and max(page_dates) < cutoff:
+            break
+        if new_count == 0:
+            break
     logger.info("BDJOBS CATEGORY | %s | %d", category_name, len(collected))
     return collected
 
@@ -2999,6 +3060,117 @@ def _fetch_bdjobs_with_scrapling(item):
     return None
 
 
+def _bdjobs_api_block(value):
+    """Plain-text lines from a Bdjobs API HTML fragment, one line per block."""
+    raw = safe_text(value)
+    if not raw:
+        return ""
+    if "<" not in raw:
+        return _clean_one_line(raw)
+    try:
+        soup = BeautifulSoup(raw, "html.parser")
+        parts = [t.strip() for t in soup.get_text("\n").splitlines() if t.strip()]
+        return "\n".join(parts)
+    except Exception:
+        return _clean_one_line(re.sub(r"<[^>]+>", " ", raw))
+
+
+def _fetch_bdjobs_detail_api(item):
+    """Fetch one job from the current Bdjobs jobDetails API.
+
+    The relaunched detail pages are an Angular shell to plain HTTP clients,
+    so the site's own JSON API (gateway.bdjobs.com .../jobDetails?jobId=) is
+    the reliable server-side source. The payload is rendered into the same
+    labelled plain-text layout the legacy detail page produced, so every
+    downstream parser keeps working unchanged. Returns a fetched-payload
+    dict in the _detail_payload_from_fetch shape, or None.
+    """
+    job_id = safe_text(item.get("source_job_id"))
+    if not job_id:
+        return None
+    try:
+        response = session.get(
+            BDJOBS_DETAILS_API_URL, params={"jobId": job_id},
+            headers=HEADERS, timeout=DETAIL_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.info("BDJOBS API DETAIL FAILED | id=%s | error=%s", job_id, exc)
+        return None
+    records = payload.get("data") if isinstance(payload, dict) else None
+    if not records or not isinstance(records, list) or not isinstance(records[0], dict):
+        return None
+    rec = records[0]
+    if safe_text(rec.get("JobFound")).lower() != "true":
+        return None
+
+    title = _clean_one_line(_strip_html_fragment(rec.get("JobTitle"))) or safe_text(item.get("title"))
+    company = _clean_one_line(_strip_html_fragment(rec.get("CompnayName") or rec.get("CompanyNameENG")))
+    # The experience fragment's first list item is the duration; the rest is
+    # business-area prose. A discovery listing value, when present, is cleaner.
+    exp_lines = [x for x in _bdjobs_api_block(rec.get("experience")).splitlines() if x]
+    experience = exp_lines[0] if exp_lines else ""
+    listing_fields = item.get("listing_fields") or {}
+    if listing_fields.get("experience"):
+        experience = listing_fields["experience"]
+
+    lines = [company, title]
+
+    def add(label, value):
+        value = _clean_one_line(value)
+        if value:
+            lines.append(f"{label}: {value}")
+
+    add("Application Deadline", rec.get("Deadline"))
+    add("Vacancy", rec.get("JobVacancies"))
+    age = safe_text(rec.get("Age"))
+    add("Age", "" if age.lower() in {"na", "n/a", "none"} else age)
+    add("Location", rec.get("JobLocation"))
+    add("Salary", rec.get("JobSalaryRangeText") or rec.get("JobSalaryRange"))
+    add("Experience", experience)
+    add("Published", rec.get("PostedOn"))
+    education = _bdjobs_api_block(rec.get("EducationRequirements"))
+    if education:
+        lines += ["Requirements", "Education", education]
+    workplace = _clean_one_line(rec.get("JobWorkPlace"))
+    if workplace:
+        lines += ["Workplace", workplace]
+    nature = _clean_one_line(rec.get("JobNature"))
+    if nature:
+        lines += ["Employment Status", nature]
+    if safe_text(rec.get("OnlineApply")).lower() == "true":
+        lines += ["Application", "Online"]
+    description = _bdjobs_api_block(rec.get("JobDescription"))
+    if description:
+        lines += ["Job Description", description]
+    context = _bdjobs_api_block(rec.get("Context"))
+    if context:
+        lines += ["Job Context", context]
+    additional = _bdjobs_api_block(rec.get("AdditionJobRequirements"))
+    if additional:
+        lines += ["Additional Requirements", additional]
+    add("Skills", _strip_html_fragment(rec.get("SkillsRequired")))
+    benefits = _bdjobs_api_block(rec.get("JobOtherBenifits") or rec.get("OtherBenefits"))
+    if benefits:
+        lines += ["Compensation & Other Benefits", benefits]
+    if safe_text(rec.get("CompanyHideAddress")).lower() != "true":
+        add("Company Address", _strip_html_fragment(rec.get("CompanyAddress")))
+    business = _bdjobs_api_block(rec.get("CompanyBusiness"))
+    if business:
+        lines += ["Company Business", business]
+
+    text = "\n".join(x for x in lines if x)
+    if len(text) < DETAIL_MIN_TEXT_CHARS:
+        return None
+    return {
+        "ok": True, "status": 200, "text": text, "html": "", "raw_text": text,
+        "url": item.get("url") or item.get("source_url") or "",
+        "backend": "bdjobs_api", "cloudflare": False,
+        "detail_quality": "api_valid", "detail_route": "api:jobDetails",
+    }
+
+
 def _fetch_bdjobs_detail(item):
     """Acquire one real Bdjobs detail document with bounded fallbacks.
 
@@ -3025,6 +3197,15 @@ def _fetch_bdjobs_detail(item):
     last_reason="no_url"
     attempted=[]
     primary=variants[0]
+
+    # The current site's own JSON API is tried first: it returns the full
+    # job document server-side, unlike the Angular-shell detail pages.
+    api_detail = _fetch_bdjobs_detail_api(item)
+    if api_detail:
+        DETAIL_CACHE[key]={"ts":time.monotonic(),"result":api_detail}
+        logger.info("BDJOBS DETAIL SUCCESS | id=%s | route=api:jobDetails | backend=bdjobs_api", item.get("source_job_id",""))
+        return api_detail
+
     for idx, variant in enumerate(variants[:4]):
         timeout = DETAIL_TIMEOUT if idx == 0 else LEGACY_DETAIL_TIMEOUT
         referer = item.get("url") or BDJOBS_LISTING_URL
@@ -5302,3 +5483,4 @@ if __name__ == "__main__":
         reconcile_state_files(args.reconcile_state)
     else:
         run(dry_run=args.dry_run, print_ranking=args.print_ranking)
+
