@@ -4,6 +4,7 @@ import json
 import time
 import html
 import argparse
+import io
 import logging
 import hashlib
 import shutil
@@ -33,6 +34,11 @@ try:
     from scrapling.fetchers import StealthyFetcher
 except ImportError:
     StealthyFetcher = None
+
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
 
 SCRAPLING_BROWSER_ENABLED = os.environ.get("SCRAPLING_BROWSER_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
 SCRAPLING_BROWSER_TIMEOUT = int(os.environ.get("SCRAPLING_BROWSER_TIMEOUT", "60000"))
@@ -126,6 +132,23 @@ BDJOBS_DOMAINS = ["bdjobs.com", "jobs.bdjobs.com"]
 TELETALK_API_URL = "https://alljobs.teletalk.com.bd/api/v1/published-jobs/search"
 TELETALK_HOME_URL = "https://alljobs.teletalk.com.bd/"
 TELETALK_DOMAIN = "alljobs.teletalk.com.bd"
+TELETALK_PAGE_SIZE = 20
+TELETALK_SCAN_MAX = int(os.environ.get("TELETALK_SCAN_MAX", "240"))
+# Bangladesh Bank e-Recruitment (BSC / Bankers' Selection Committee jobs:
+# Bangladesh Bank + all state-owned bank combined circulars live only here).
+BB_ERECRUITMENT_JOBLIST_URL = "https://erecruitment.bb.org.bd/onlineapp/joblist.php"
+BB_DOMAIN = "erecruitment.bb.org.bd"
+# BPSC (BCS + non-cadre recruitment circulars). The psc-exams listing pages
+# are server-rendered tables; circulars are PDFs on Oracle object storage.
+BPSC_BASE_URL = "https://bpsc.gov.bd"
+BPSC_EXAM_TYPE_BCS = "691995ee933eb65569ddc1ba"
+BPSC_EXAM_TYPE_NON_CADRE = "691995ee933eb65569ddc1bb"
+BPSC_COMPANY_NAME = "Bangladesh Public Service Commission (BPSC)"
+GOVERNMENT_SOURCE_DOMAINS = {
+    "Teletalk": [TELETALK_DOMAIN],
+    "Bangladesh Bank": [BB_DOMAIN],
+    "BPSC": ["bpsc.gov.bd"],
+}
 JINA_PREFIX = "https://r.jina.ai/"
 
 CURL_IMPERSONATES = tuple(x.strip() for x in os.environ.get(
@@ -1271,6 +1294,7 @@ def _teletalk_record_fields(record):
         return None
     source_id = safe_text(record.get("job_primary_id") or record.get("jobPrimaryId") or record.get("id"))
     title = _clean_one_line(record.get("job_title") or record.get("jobTitle") or record.get("title"))
+    title_bn = _clean_one_line(record.get("job_title_bn") or record.get("jobTitleBn") or "")
     if not source_id or not title:
         return None
     company = _clean_one_line(record.get("org_name") or record.get("orgName") or record.get("organization") or record.get("company"))
@@ -1289,8 +1313,8 @@ def _teletalk_record_fields(record):
         "selection_process": "", "application_period": "", "application_start": "", "application_end": "",
         "posted_date": posted, "deadline": deadline, "source": "Teletalk", "source_url": source_url,
         "url": source_url, "apply_url": apply_url, "source_job_id": source_id,
-        "discovery": "teletalk_api", "is_government": True,
-        "raw_text": " | ".join(x for x in [title, company, location, education] if x),
+        "discovery": "teletalk_api", "is_government": True, "title_bn": title_bn,
+        "raw_text": " | ".join(x for x in [title, title_bn, company, location, education] if x),
     }
 
 def _teletalk_records(payload):
@@ -1300,34 +1324,219 @@ def _teletalk_records(payload):
     return []
 
 def _discover_teletalk_api():
+    # The API returns one page of TELETALK_PAGE_SIZE newest jobs plus a
+    # `count` of all live jobs; page=N walks the full list. Until 2026-10
+    # only page 1 was read, so eligible circulars pushed off the first page
+    # by a bulk posting were never seen.
     discovered, seen = [], set()
+    total_reported = None
+    page = 1
     try:
-        response = session.get(TELETALK_API_URL, params={"searchKeyword": ""}, headers=HEADERS, timeout=TELETALK_API_TIMEOUT)
-        response.raise_for_status(); payload = response.json()
-        for record in _teletalk_records(payload):
-            fields = _teletalk_record_fields(record)
-            if not fields: continue
-            canonical = canonical_url(fields["source_url"])
-            if not canonical or canonical in seen or canonical in POSTED_URLS: continue
-            seen.add(canonical)
-            discovered.append({
-                "title": fields["title"], "url": fields["url"], "canonical": canonical, "source": "Teletalk",
-                "source_url": fields["source_url"], "source_job_id": fields["source_job_id"], "discovery": "teletalk_api",
-                "excerpt": trim_source_text(fields["raw_text"], 1800), "listing_posted": fields["posted_date"],
-                "listing_deadline": fields["deadline"], "discovered_at": now_iso(), "api_fields": fields, "is_government": True,
-            })
-            if len(discovered) >= GOVERNMENT_DISCOVERY_TARGET: break
-        logger.info("TELETALK API DISCOVERY: %d", len(discovered))
+        while len(discovered) < TELETALK_SCAN_MAX:
+            response = session.get(
+                TELETALK_API_URL,
+                params={"searchKeyword": "", "page": page},
+                headers=HEADERS, timeout=TELETALK_API_TIMEOUT,
+            )
+            response.raise_for_status(); payload = response.json()
+            if isinstance(payload, dict) and isinstance(payload.get("count"), int):
+                total_reported = payload["count"]
+            records = _teletalk_records(payload)
+            if not records:
+                break
+            for record in records:
+                fields = _teletalk_record_fields(record)
+                if not fields: continue
+                canonical = canonical_url(fields["source_url"])
+                if not canonical or canonical in seen or canonical in POSTED_URLS: continue
+                seen.add(canonical)
+                discovered.append({
+                    "title": fields["title"], "title_bn": fields.get("title_bn", ""),
+                    "url": fields["url"], "canonical": canonical, "source": "Teletalk",
+                    "source_url": fields["source_url"], "source_job_id": fields["source_job_id"], "discovery": "teletalk_api",
+                    "excerpt": trim_source_text(fields["raw_text"], 1800), "listing_posted": fields["posted_date"],
+                    "listing_deadline": fields["deadline"], "discovered_at": now_iso(), "api_fields": fields, "is_government": True,
+                })
+                if len(discovered) >= TELETALK_SCAN_MAX: break
+            if len(records) < TELETALK_PAGE_SIZE:
+                break
+            if total_reported is not None and page * TELETALK_PAGE_SIZE >= total_reported:
+                break
+            page += 1
+        logger.info("TELETALK API DISCOVERY: %d (live total=%s, pages=%d)", len(discovered), total_reported, page)
     except Exception as exc:
         logger.warning("Teletalk API discovery failed: %s", exc)
     return discovered
 
+def _discover_bangladesh_bank():
+    """BSC circulars from Bangladesh Bank e-Recruitment (joblist table).
+
+    This portal is the only official surface for Bangladesh Bank + the
+    state-owned banks' combined (BSC) recruitment. It blocks some networks
+    outright (403); a failed fetch simply yields no candidates this run.
+    The table layout is parsed heuristically: a row counts as a job when
+    it carries a detail link and at least one date cell.
+    """
+    discovered, seen = [], set()
+    try:
+        fetched = _fetch_source_document(BB_ERECRUITMENT_JOBLIST_URL, timeout=DISCOVERY_TIMEOUT)
+        if not fetched or not fetched.get("ok"):
+            logger.warning("BB E-RECRUITMENT | fetch failed | status=%s", (fetched or {}).get("status"))
+            return []
+        soup = BeautifulSoup(fetched.get("text", ""), "html.parser")
+        for row in soup.find_all("tr"):
+            link = ""
+            for anchor in row.find_all("a", href=True):
+                href = safe_text(anchor.get("href"))
+                low = href.lower()
+                if "job" in low and ("detail" in low or "preview" in low or "id" in low):
+                    link = urljoin(BB_ERECRUITMENT_JOBLIST_URL, href)
+                    break
+            if not link:
+                continue
+            cells = [_clean_one_line(c.get_text(" ")) for c in row.find_all(["td", "th"])]
+            cells = [c for c in cells if c]
+            date_cells, text_cells = [], []
+            for cell in cells:
+                parsed = normalize_date_text(cell) if len(cell) <= 32 else ""
+                if parsed and re.search(r"\d", cell) and len(re.sub(r"[\d\s./:-]", "", cell)) <= 4:
+                    date_cells.append(parsed)
+                elif not re.fullmatch(r"[\d,]+", cell):
+                    text_cells.append(cell)
+            if not date_cells or not text_cells:
+                continue
+            company = text_cells[0] if len(text_cells) > 1 else "Bangladesh Bank"
+            title = text_cells[1] if len(text_cells) > 1 else text_cells[0]
+            if len(title) < 5 or "organization" in title.lower() or "post name" in title.lower():
+                continue
+            posted = min(date_cells)
+            deadline = max(date_cells)
+            id_match = re.search(r"[?&](?:jobid|job_id|id)=(\d+)", link)
+            source_job_id = id_match.group(1) if id_match else hashlib.md5(link.encode("utf-8")).hexdigest()[:12]
+            canonical = canonical_url(link)
+            if not canonical or canonical in seen or canonical in POSTED_URLS:
+                continue
+            seen.add(canonical)
+            fields = {
+                "company": company, "location": "", "salary": "", "experience": "",
+                "education": "", "vacancy": "", "employment_type": "Full Time",
+                "workplace": "", "age": "", "category": "Bank",
+                "application_method": "Online", "selection_process": "",
+                "application_period": "", "application_start": "", "application_end": "",
+                "posted_date": posted, "deadline": deadline,
+            }
+            discovered.append({
+                "title": title, "url": link, "canonical": canonical, "source": "Bangladesh Bank",
+                "source_url": link, "source_job_id": source_job_id, "discovery": "bb_erecruitment",
+                "excerpt": trim_source_text(f"{title} | {company} | Deadline: {deadline}", 1800),
+                "listing_posted": posted, "listing_deadline": deadline,
+                "discovered_at": now_iso(), "listing_fields": fields,
+                "apply_url": link, "is_government": True,
+            })
+        logger.info("BB E-RECRUITMENT DISCOVERY: %d", len(discovered))
+    except Exception as exc:
+        logger.warning("BB e-Recruitment discovery failed: %s", exc)
+    return discovered
+
+BPSC_NON_RECRUITMENT_MARKERS = (
+    "ফলাফল", "সময়সূচি", "আসন বিন্যাস", "নির্দেশনা", "বাছাই", "ব্যবহারিক",
+    "মৌখিক", "প্রবেশপত্র", "স্থগিত", "বাতিল",
+)
+
+def _bpsc_listing_candidates(listing_url, exam_label):
+    """Recruitment circulars from one BPSC psc-exams listing page.
+
+    Rows are server-rendered table rows (title / PDF / exam type / publish
+    date). Only fresh recruitment circulars qualify: the title must carry
+    বিজ্ঞপ্তি and none of the exam-process markers (results, schedules,
+    seat plans, instructions, viva/practical notices).
+    """
+    candidates = []
+    fetched = _fetch_source_document(listing_url, timeout=DISCOVERY_TIMEOUT)
+    if not fetched or not fetched.get("ok"):
+        logger.warning("BPSC LISTING | fetch failed | %s | status=%s", exam_label, (fetched or {}).get("status"))
+        return candidates
+    soup = BeautifulSoup(fetched.get("text", ""), "html.parser")
+    for row in soup.find_all("tr"):
+        title_cell = row.find("td", attrs={"data-column": "title"})
+        pdf_cell = row.find("td", attrs={"data-column": "pdf"})
+        date_cell = row.find("td", attrs={"data-column": "publish_date"})
+        if not title_cell or not pdf_cell:
+            continue
+        title_bn = _clean_one_line(title_cell.get_text(" "))
+        if "বিজ্ঞপ্তি" not in title_bn:
+            continue
+        if any(marker in title_bn for marker in BPSC_NON_RECRUITMENT_MARKERS):
+            continue
+        if exam_label == "BCS" and "বিশেষ" in title_bn:
+            # BCS (Special) recruits specialist cadres (e.g. doctors) —
+            # outside the BBA/MBA-applicable rule.
+            continue
+        pdf_anchor = pdf_cell.find("a", href=True)
+        if not pdf_anchor:
+            continue
+        pdf_url = urljoin(BPSC_BASE_URL, safe_text(pdf_anchor.get("href")))
+        detail_url = ""
+        for anchor in row.find_all("a", href=True):
+            href = safe_text(anchor.get("href"))
+            if "/pages/psc-exams/" in href:
+                detail_url = urljoin(BPSC_BASE_URL, href)
+                break
+        source_url = detail_url or pdf_url
+        posted = normalize_date_text(date_cell.get_text(" ")) if date_cell else ""
+        pdf_name = unquote(pdf_url.rstrip("/").rsplit("/", 1)[-1])
+        source_job_id = re.sub(r"\.pdf$", "", pdf_name, flags=re.I) or hashlib.md5(source_url.encode("utf-8")).hexdigest()[:12]
+        canonical = canonical_url(source_url)
+        if not canonical or canonical in POSTED_URLS:
+            continue
+        fields = {
+            "company": BPSC_COMPANY_NAME, "location": "", "salary": "", "experience": "",
+            "education": "", "vacancy": "", "employment_type": "Full Time",
+            "workplace": "", "age": "", "category": exam_label,
+            "application_method": "Online", "selection_process": "",
+            "application_period": "", "application_start": "", "application_end": "",
+            "posted_date": posted, "deadline": "",
+        }
+        candidates.append({
+            "title": title_bn, "title_bn": title_bn, "url": source_url, "canonical": canonical,
+            "source": "BPSC", "source_url": source_url, "source_job_id": source_job_id,
+            "discovery": "bpsc_listing", "excerpt": trim_source_text(title_bn, 1800),
+            "listing_posted": posted, "listing_deadline": "",
+            "discovered_at": now_iso(), "listing_fields": fields,
+            "apply_url": pdf_url, "pdf_url": pdf_url, "is_government": True,
+        })
+    logger.info("BPSC DISCOVERY | %s | %d", exam_label, len(candidates))
+    return candidates
+
+def _discover_bpsc():
+    discovered, seen = [], set()
+    for exam_type, label in ((BPSC_EXAM_TYPE_BCS, "BCS"), (BPSC_EXAM_TYPE_NON_CADRE, "Non-Cadre")):
+        listing_url = f"{BPSC_BASE_URL}/pages/psc-exams?filters=%7B%22exam_type%22%3A%20%22{exam_type}%22%7D"
+        try:
+            for item in _bpsc_listing_candidates(listing_url, label):
+                if item["canonical"] in seen:
+                    continue
+                seen.add(item["canonical"])
+                discovered.append(item)
+        except Exception as exc:
+            logger.warning("BPSC discovery failed (%s): %s", label, exc)
+    return discovered
+
+def _discover_government_all():
+    government = []
+    for discover_fn in (_discover_teletalk_api, _discover_bangladesh_bank, _discover_bpsc):
+        try:
+            government.extend(discover_fn())
+        except Exception as exc:
+            logger.warning("Government discovery worker failed (%s): %s", discover_fn.__name__, exc)
+    return government
+
 def discover_all():
     with ThreadPoolExecutor(max_workers=2) as pool:
-        ft = pool.submit(_discover_teletalk_api)
+        ft = pool.submit(_discover_government_all)
         fb = pool.submit(discover_bdjobs)
         try: government = ft.result()
-        except Exception as exc: logger.warning("Teletalk worker failed: %s", exc); government = []
+        except Exception as exc: logger.warning("Government worker failed: %s", exc); government = []
         try: bdjobs = fb.result()
         except Exception as exc: logger.warning("Bdjobs worker failed: %s", exc); bdjobs = []
     merged, seen = [], set()
@@ -1335,7 +1544,14 @@ def discover_all():
         canonical = item.get("canonical") or canonical_url(item.get("source_url", ""))
         if canonical and canonical not in seen:
             seen.add(canonical); merged.append(item)
-    logger.info("DISCOVERED | Teletalk=%d | Bdjobs=%d | merged=%d", len(government), len(bdjobs), len(merged))
+    gov_counts = {}
+    for item in government:
+        gov_counts[item.get("source", "")] = gov_counts.get(item.get("source", ""), 0) + 1
+    logger.info(
+        "DISCOVERED | Teletalk=%d | BangladeshBank=%d | BPSC=%d | Bdjobs=%d | merged=%d",
+        gov_counts.get("Teletalk", 0), gov_counts.get("Bangladesh Bank", 0),
+        gov_counts.get("BPSC", 0), len(bdjobs), len(merged),
+    )
     return merged
 
 
@@ -3370,6 +3586,67 @@ def retrieve_job_content(item):
         "detail_quality": fetched.get("detail_quality", "direct_valid"),
     }
 
+def _fetch_pdf_text(url, *, max_pages=12):
+    """Plain-text extraction for government circular PDFs (BPSC)."""
+    if not url or PdfReader is None:
+        return ""
+    try:
+        response = session.get(url, headers=HEADERS, timeout=DETAIL_TIMEOUT + 10)
+        response.raise_for_status()
+        content = response.content or b""
+        if not content.startswith(b"%PDF"):
+            return ""
+        reader = PdfReader(io.BytesIO(content))
+        parts = []
+        for page in reader.pages[:max_pages]:
+            try:
+                parts.append(page.extract_text() or "")
+            except Exception:
+                continue
+        return trim_source_text("\n".join(parts), MAX_JOB_CONTENT_CHARS)
+    except Exception as exc:
+        logger.info("PDF FETCH FAILED | %s | %s", url, exc)
+        return ""
+
+def _research_bpsc_job(item):
+    # One candidate per recruitment circular (BCS / non-cadre combined
+    # circulars bundle many posts). Title and publisher come from the
+    # listing; the circular PDF only enriches detail fields — its text is
+    # never allowed to replace the title or publisher.
+    listing = dict(item.get("listing_fields") or {})
+    fields = {
+        "title": item.get("title", ""), "company": listing.get("company") or BPSC_COMPANY_NAME,
+        "location": "", "salary": "", "experience": "", "education": "", "vacancy": "",
+        "employment_type": listing.get("employment_type", "Full Time"), "workplace": "", "age": "",
+        "category": listing.get("category", ""), "application_method": "Online",
+        "selection_process": "", "application_period": "", "application_start": "", "application_end": "",
+        "posted_date": item.get("listing_posted", ""), "deadline": item.get("listing_deadline", ""),
+        "source": "BPSC", "source_url": item.get("source_url", ""), "url": item.get("url", ""),
+        "apply_url": item.get("apply_url", ""), "source_job_id": item.get("source_job_id", ""),
+        "discovery": item.get("discovery", "bpsc_listing"), "is_government": True,
+        "title_bn": item.get("title_bn", ""), "raw_text": item.get("excerpt", ""),
+        "canonical": item.get("canonical", canonical_url(item.get("source_url", ""))),
+        "retrieval_backend": "bpsc_listing", "listing_posted": item.get("listing_posted", ""),
+        "listing_deadline": item.get("listing_deadline", ""),
+    }
+    pdf_text = _fetch_pdf_text(item.get("pdf_url") or item.get("apply_url", ""))
+    if pdf_text:
+        parsed = extract_job_fields(pdf_text, "", item.get("pdf_url", ""), item)
+        merged = merge_job_fields(parsed, listing, item)
+        for key in ("location", "education", "experience", "salary", "vacancy", "age",
+                    "deadline", "posted_date", "employment_type", "selection_process",
+                    "application_period"):
+            if merged.get(key):
+                fields[key] = merged[key]
+        fields["raw_text"] = pdf_text
+        fields["retrieval_backend"] = "bpsc_pdf"
+        fields["detail_quality"] = "pdf_text"
+    fields["application_method"] = compact_application(fields.get("application_method", ""), fields.get("apply_url", ""))
+    fields["audience_pre_score"] = job_family_score(fields.get("title", ""), fields.get("raw_text", ""))
+    fields["bba_mba_target_score"] = bba_mba_candidate_score(fields)
+    fields["event_id"] = job_event_key(fields)
+    return fields
+
 def _research_teletalk_job(item):
     fields = dict(item.get("api_fields") or {})
     fields.update({
@@ -3445,6 +3722,8 @@ def merge_job_fields(detail_fields, listing_fields, item):
 def research_job(item):
     if item.get("source") == "Teletalk" and item.get("api_fields"):
         return _research_teletalk_job(item)
+    if item.get("source") == "BPSC":
+        return _research_bpsc_job(item)
 
     retrieved=retrieve_job_content(item)
     if not retrieved:
@@ -3643,12 +3922,96 @@ def private_experience_too_high(job):
     upper = experience_upper_bound(job.get("experience", ""))
     return upper is not None and upper > MAX_PRIVATE_EXPERIENCE_YEARS
 
+# Karn's government coverage rule (2026-10-25): cover government posts a
+# BBA/MBA graduate can apply to — graduate-level, generalist posts. Out:
+# specialist-degree posts (doctor, engineer, nurse, ...), manual/support
+# posts, and HSC-level clerical posts. Title screens run on the English and
+# Bengali titles; Teletalk's listing API has no education field, so titles
+# are the primary signal there.
+GOV_MANUAL_TITLE_TERMS = (
+    "bearer", "cleaner", "sweeper", "security guard", "night guard", "driver",
+    "cook", "gardener", "helper", "peon", "darwan", "labourer", "laborer",
+    "mlss", "aya", "notice server", "process server", "operator", "attendant",
+    "chainman", "electrician",
+    "বেয়ারা", "পরিচ্ছন্নতা", "নিরাপত্তা প্রহরী", "গাড়িচালক", "ড্রাইভার", "পিয়ন",
+    "দারোয়ান", "সুইপার", "বাবুর্চি", "মালী", "আয়া", "এমএলএসএস", "শ্রমিক",
+)
+GOV_CLERICAL_TITLE_TERMS = (
+    "office assistant", "office sahayak", "office support staff", "typist",
+    "stenotypist", "stenographer", "computer operator", "data entry",
+    "accounts assistant", "assistant accountant", "head assistant",
+    "division clerk", "upper division", "lower division", "cashier",
+    "health assistant", "personal assistant", "store keeper", "shohayok",
+    "sahayak",
+    "অফিস সহকারী", "অফিস সহায়ক", "কম্পিউটার অপারেটর", "টাইপিস্ট", "মুদ্রাক্ষরিক",
+    "ডাটা এন্ট্রি", "সাঁটলিপিকার", "সাঁট মুদ্রাক্ষরিক", "হিসাব সহকারী", "স্বাস্থ্য সহকারী",
+)
+GOV_SPECIALIST_TITLE_TERMS = (
+    "engineer", "medical officer", "doctor", "surgeon", "nurse", "midwife",
+    "pharmacist", "architect", "veterinary", "livestock officer", "fisheries",
+    "agricultur", "chemist", "geologist", "metallurgist", "surveyor",
+    "draftsman", "lab technician", "laboratory", "medical technologist",
+    "radiographer", "physiotherapist", "dental", "statistician", "programmer",
+    "software", "technical officer", "(technical)", "(it)", "(ict)",
+    "database administrator", "system analyst", "driller", "technician",
+    "security officer",
+    "প্রকৌশলী", "চিকিৎসক", "মেডিকেল অফিসার", "নার্স", "সেবিকা", "ফার্মাসিস্ট", "স্থপতি",
+)
+# Officer titles in corporations carry the discipline in parentheses —
+# "Assistant Manager (Mechanical)" is an engineering post even though the
+# word "engineer" never appears. A parenthetical discipline from this set
+# makes the post specialist-degree-only.
+GOV_SPECIALIST_DISCIPLINES = {
+    "electrical", "electronics", "mechanical", "civil", "chemical",
+    "petroleum", "metallurgy", "geology", "geological", "mining", "textile",
+    "architecture", "cse", "ict", "telecommunication", "automobile", "power",
+    "law", "medical", "nursing", "pharmacy", "agriculture", "fisheries",
+    "livestock", "statistics", "physics", "chemistry", "mathematics",
+    "microbiology", "biochemistry", "environmental", "environment",
+    "geophysics", "geochemical", "forestry", "naval",
+    "marine", "aeronautical", "industrial", "ipe", "mme", "engineering",
+}
+GOV_SPECIALIST_DEGREE_TERMS = (
+    "mbbs", "bachelor of medicine", "bds", "diploma in engineering",
+    "bsc in engineering", "b.sc. in engineering", "bachelor of engineering",
+    "bsc in nursing", "b.sc. in nursing", "diploma in nursing",
+    "bachelor of pharmacy", "b. pharm", "bpharm", "bsc in agriculture",
+    "b.sc. in agriculture", "bsc in fisheries", "doctor of veterinary", "dvm",
+    "bachelor of architecture", "bsc in computer science",
+    "b.sc. in computer science", "bsc in statistics", "b.sc. in statistics",
+)
+
+def government_eligibility(job):
+    """(ok, reason) for a government job under Karn's BBA/MBA-applicable rule."""
+    title = f"{safe_text(job.get('title'))} {safe_text(job.get('title_bn'))}".lower()
+    if any(term in title for term in GOV_MANUAL_TITLE_TERMS):
+        return False, "government_manual_role"
+    if any(term in title for term in GOV_CLERICAL_TITLE_TERMS):
+        return False, "government_clerical_role"
+    if any(term in title for term in GOV_SPECIALIST_TITLE_TERMS):
+        return False, "government_specialist_role"
+    for segment in re.findall(r"\(([^)]*)\)", title):
+        tokens = {tok.strip(" .") for tok in re.split(r"[/,&\s]+", segment) if tok.strip(" .")}
+        if tokens & GOV_SPECIALIST_DISCIPLINES:
+            return False, "government_specialist_role"
+    if job.get("source") != "BPSC":
+        # Single-post sources only: a BPSC combined circular legitimately
+        # bundles specialist posts next to generalist ones, so its PDF text
+        # must not disqualify the whole circular.
+        blob = f"{safe_text(job.get('education'))} {safe_text(job.get('raw_text'))}".lower()
+        if any(term in blob for term in GOV_SPECIALIST_DEGREE_TERMS):
+            return False, "government_specialist_degree"
+    return True, "ok"
+
 def deterministic_job_gate(job):
     if not job.get("title"): return False, "missing_title"
     if is_noise_title(job["title"], job.get("source_url", "")): return False, "noise_title"
     if job.get("is_government"):
-        if job.get("source") != "Teletalk" or not is_teletalk_url(job.get("source_url", "")): return False, "government_source_not_allowed"
+        gov_domains = GOVERNMENT_SOURCE_DOMAINS.get(job.get("source", ""))
+        if not gov_domains or not is_domain_allowed(job.get("source_url", ""), gov_domains): return False, "government_source_not_allowed"
         if deadline_status(job) == "expired": return False, "expired"
+        eligible, eligibility_reason = government_eligibility(job)
+        if not eligible: return False, eligibility_reason
         return True, "ok_government"
     if not job.get("company"): return False, "missing_company"
     if not is_domain_allowed(job.get("source_url", ""), BDJOBS_DOMAINS): return False, "source_not_allowed"
@@ -3722,7 +4085,7 @@ You are the semantic audit layer for Career News V1.
 Audience: Bangladesh BBA/MBA students, graduates, freshers and early-career business candidates.
 Use only supplied source-backed facts. Never invent missing fields.
 For private jobs, audit education match, business-role fit, career-stage fit, semantic contradictions, specialist-degree requirements and seniority.
-For government Teletalk jobs, do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
+For government jobs (Teletalk, Bangladesh Bank, BPSC), do not apply the private BBA/MBA gate. Audit only source coherence and contradictions.
 For every job, also choose which AVAILABLE source fields should appear in the compact Telegram JOB SNAPSHOT. The values themselves must always come from the supplied source fields, never from model inference. Prefer all materially useful available fields; omit only fields that are absent, redundant, or clearly unsuitable for the compact snapshot. ALWAYS include salary when a source-backed salary is supplied. Also always include deadline and posted_date when available; for private jobs include location and experience when available.
 Return every input candidate.
 """
@@ -4851,6 +5214,14 @@ def source_test():
     else:
         print(f"Teletalk API: FAIL | status={tel.get('status')} | error={tel.get('error','')}")
 
+    tel_payload = tel.get("payload") or {}
+    print(f"Teletalk live total (all pages): {tel_payload.get('count')}")
+    bb_items = _discover_bangladesh_bank()
+    print(f"Bangladesh Bank e-Recruitment (BSC): candidates={len(bb_items)}")
+    bpsc_items = _discover_bpsc()
+    print(f"BPSC circulars (BCS + Non-Cadre): candidates={len(bpsc_items)}")
+    print(f"PDF extraction (pypdf): {'available' if PdfReader else 'MISSING'}")
+
     cid=next(iter(BDBJOBS_CATEGORIES)); url=_absolute_category_url(cid); started=time.monotonic()
     fetched=_fetch_source_document(url,timeout=DISCOVERY_TIMEOUT,referer=BDJOBS_LISTING_URL); elapsed=round(time.monotonic()-started,2)
     if not fetched:
@@ -4946,6 +5317,10 @@ def _research_items_parallel(items):
 def _prepare_shortlists(discovered):
     unique=build_unique_job_pool(discovered)
     gov=[x for x in unique if x.get("is_government")]
+    gov_total=len(gov)
+    gov=[x for x in gov if government_eligibility(x)[0]]
+    if len(gov) != gov_total:
+        logger.info("GOVERNMENT ELIGIBILITY SCREEN | kept=%d dropped=%d", len(gov), gov_total-len(gov))
     private=[x for x in unique if not x.get("is_government")]
     private.sort(key=lambda j:(
         -bba_mba_candidate_score(j),
@@ -5483,4 +5858,5 @@ if __name__ == "__main__":
         reconcile_state_files(args.reconcile_state)
     else:
         run(dry_run=args.dry_run, print_ranking=args.print_ranking)
+
 
