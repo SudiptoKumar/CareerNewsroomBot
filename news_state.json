@@ -33941,7 +33941,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-28T23:29:19.346856+06:00",
-      "last_seen": "2026-10-30T17:44:45.687612+06:00"
+      "last_seen": "2026-10-30T23:18:15.397031+06:00"
     },
     "bdjobs.com/h/details/1549989?ln=1": {
       "title": "Executive - Sales Admin & MIS",
@@ -35405,7 +35405,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T09:02:53.194339+06:00",
-      "last_seen": "2026-10-30T17:44:45.698038+06:00"
+      "last_seen": "2026-10-30T23:18:15.415049+06:00"
     },
     "bdjobs.com/h/details/1550171?ln=1": {
       "title": "Purchase Ledger Assistant (UK based, Evening)",
@@ -35606,7 +35606,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T17:52:25.504948+06:00",
-      "last_seen": "2026-10-30T17:44:45.634599+06:00"
+      "last_seen": "2026-10-30T23:18:15.326307+06:00"
     },
     "bdjobs.com/h/details/1550189?ln=1": {
       "title": "Social Media & Creative Marketing Executive",
@@ -35763,7 +35763,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T17:52:25.614554+06:00",
-      "last_seen": "2026-10-30T17:44:45.709332+06:00"
+      "last_seen": "2026-10-30T23:18:15.434211+06:00"
     },
     "bdjobs.com/h/details/1549914?ln=1": {
       "title": "Senior Accounts Executive",
@@ -36308,7 +36308,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T17:52:25.757083+06:00",
-      "last_seen": "2026-10-30T17:44:45.742647+06:00"
+      "last_seen": "2026-10-30T23:18:15.470451+06:00"
     },
     "bdjobs.com/h/details/1550558?ln=1": {
       "title": "Sales Specialist (Showroom & B2B Sales)",
@@ -36413,7 +36413,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T17:52:25.787303+06:00",
-      "last_seen": "2026-10-30T17:44:45.752877+06:00"
+      "last_seen": "2026-10-30T23:18:15.487274+06:00"
     },
     "bdjobs.com/h/details/1550402?ln=1": {
       "title": "Intern - HR & Admin",
@@ -36683,7 +36683,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-29T23:40:16.293354+06:00",
-      "last_seen": "2026-10-30T17:44:45.676922+06:00"
+      "last_seen": "2026-10-30T23:18:15.378736+06:00"
     },
     "bdjobs.com/h/details/1548902?ln=1": {
       "title": "Officer - Internal Audit",
@@ -37124,7 +37124,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-30T04:06:37.033776+06:00",
-      "last_seen": "2026-10-30T17:44:45.653807+06:00"
+      "last_seen": "2026-10-30T23:18:15.358345+06:00"
     },
     "bdjobs.com/h/details/1550550?ln=1": {
       "title": "Accounts And HR Officer",
@@ -37396,7 +37396,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-10-30T04:06:37.235678+06:00",
-      "last_seen": "2026-10-30T17:44:45.730379+06:00"
+      "last_seen": "2026-10-30T23:18:15.450263+06:00"
     },
     "bdjobs.com/h/details/1550446?ln=1": {
       "title": "Sr. Executive/Executive, Sales HealthTech",
@@ -37728,6 +37728,57 @@
       "deterministic_score": 60,
       "ai_score": 78,
       "final_score": 62.7
+    },
+    "bdjobs.com/h/details/1550680?ln=1": {
+      "title": "Asst. Manager - Marketing & Sales",
+      "company": "Land Mine Properties Ltd.",
+      "location": "Dhaka",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "education": "Bachelor's/Honours",
+      "experience": "2 to 3 years",
+      "salary": "Negotiable",
+      "vacancy": "10",
+      "age": "27-38 Years",
+      "application_method": "Online",
+      "deadline": "2026-11-29",
+      "posted_date": "2026-10-30",
+      "source_url": "https://bdjobs.com/h/details/1550680?ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1550680",
+      "raw_source_fields": {
+        "company": "LandMine Properties Ltd.",
+        "experience": "2 to 3 years",
+        "education": "Bachelor/Honors",
+        "deadline": "Nov 29, 2026",
+        "location": "Dhaka",
+        "salary": "Negotiable",
+        "vacancy": "10",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "27 to 38 years",
+        "posted_date": "Oct 30, 2026",
+        "application_method": "Online",
+        "gender": ""
+      },
+      "source_content": "Land Mine Properties Ltd.\nAsst. Manager - Marketing & Sales\nApplication Deadline: Nov 29, 2026\nVacancy: 10\nAge: 27 to 38 years\nLocation: Dhaka\nSalary: Negotiable\nExperience: 2 to 3 years\nPublished: Oct 30, 2026\nRequirements\nEducation\nBachelor/Honors\nBachelor/Honors\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nTo present company & projects to potential buyers.\nAchieve monthly and quarterly sales targets.\nUnderstand clients' needs and budgets to suggest suitable properties.\nArrange site visits and answer clients' questions.\nFollow up with potential clients to close sales.\nMaintain good relationships with existing clients.\nSubmit daily sales reports, call logs, and visit updates to the Team Leader.\nAdditional Requirements\nAge 27 to 38 years\nOnly Male\nComputer Knowledge is must\nSkills: Negotiation Persuasion Skills, Sales & Marketing, Sales Target Achievement\nCompensation & Other Benefits\nMobile bill,Performance bonus\nFestival Bonus: 2\nSales Incentive is applicable. Yearly 2 outdoor activities.\nCompany Address: House-372, Road-28, Mohakhali DOHS, Dhaka.\nCompany Business\nWelcome to Land Mine Properties Ltd., where your investment in land builds your future home. We specialize in a collaborative real estate model that bridges the gap between land ownership and apartment living. By acquiring land shares in our strategic projects, you secure your rights to a modern apartment at a fraction of the traditional market cost. We are driven by a vision of sustainable growth and community-driven development. Our focus remains on delivering high-quality residential infrastructure that meets modern market demands. With Land Mine Properties Ltd., you are not just an investor; you are a partner in creating a legacy of ownership and comfort.",
+      "canonical": "bdjobs.com/h/details/1550680?ln=1",
+      "apply_url": "",
+      "retrieval_backend": "bdjobs_api",
+      "detail_quality": "api_valid",
+      "raw_text": "Land Mine Properties Ltd.\nAsst. Manager - Marketing & Sales\nApplication Deadline: Nov 29, 2026\nVacancy: 10\nAge: 27 to 38 years\nLocation: Dhaka\nSalary: Negotiable\nExperience: 2 to 3 years\nPublished: Oct 30, 2026\nRequirements\nEducation\nBachelor/Honors\nBachelor/Honors\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nTo present company & projects to potential buyers.\nAchieve monthly and quarterly sales targets.\nUnderstand clients' needs and budgets to suggest suitable properties.\nArrange site visits and answer clients' questions.\nFollow up with potential clients to close sales.\nMaintain good relationships with existing clients.\nSubmit daily sales reports, call logs, and visit updates to the Team Leader.\nAdditional Requirements\nAge 27 to 38 years\nOnly Male\nComputer Knowledge is must\nSkills: Negotiation Persuasion Skills, Sales & Marketing, Sales Target Achievement\nCompensation & Other Benefits\nMobile bill,Performance bonus\nFestival Bonus: 2\nSales Incentive is applicable. Yearly 2 outdoor activities.\nCompany Address: House-372, Road-28, Mohakhali DOHS, Dhaka.\nCompany Business\nWelcome to Land Mine Properties Ltd., where your investment in land builds your future home. We specialize in a collaborative real estate model that bridges the gap between land ownership and apartment living. By acquiring land shares in our strategic projects, you secure your rights to a modern apartment at a fraction of the traditional market cost. We are driven by a vision of sustainable growth and community-driven development. Our focus remains on delivering high-quality residential infrastructure that meets modern market demands. With Land Mine Properties Ltd., you are not just an investor; you are a partner in creating a legacy of ownership and comfort.",
+      "listing_posted": "2026-10-30",
+      "listing_deadline": "2026-11-29",
+      "source_category_id": 9,
+      "source_category_name": "Marketing / Sales",
+      "is_government": false,
+      "audience_pre_score": 42,
+      "bba_mba_target_score": 34,
+      "event_id": "18c631f070acd6885ec158f7",
+      "record_format": 4,
+      "status": "pending",
+      "first_seen": "2026-10-30T23:18:15.307461+06:00",
+      "last_seen": "2026-10-30T23:18:15.307471+06:00"
     }
   },
   "events": {
@@ -67796,8 +67847,6 @@
     }
   },
   "recent_titles": [
-    "accounts and administrative officer for egarosindur community hospital pakundia kishoreganj",
-    "officer hr compliance",
     "executive sr executive accounts",
     "hr intern paid",
     "auditor",
@@ -68199,6 +68248,6 @@
     "accounts audit associate",
     "sales officer cold chain business"
   ],
-  "last_run": "2026-10-30T17:44:49.541702+06:00",
+  "last_run": "2026-10-30T23:18:16.615854+06:00",
   "pipeline_version": "CareerNewsroom"
 }
