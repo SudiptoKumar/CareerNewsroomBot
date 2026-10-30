@@ -58,6 +58,8 @@ try:
 except ImportError:
     Cerebras = None
 
+import cerebras_keys
+
 
 # ============================================================
 # CONFIGURATION
@@ -714,15 +716,35 @@ def reconcile_state_files(local_snapshot_dir):
 # ============================================================
 
 cerebras = None
+_cerebras_key = None
 
 
 def get_cerebras():
-    global cerebras
-    if Cerebras is None or not CEREBRAS_API_KEY:
+    global cerebras, _cerebras_key
+    if Cerebras is None:
         return None
-    if cerebras is None:
-        cerebras = Cerebras(api_key=CEREBRAS_API_KEY)
+    key = cerebras_keys.active_key() or CEREBRAS_API_KEY
+    if not key:
+        return None
+    if cerebras is None or _cerebras_key != key:
+        cerebras = Cerebras(api_key=key)
+        _cerebras_key = key
     return cerebras
+
+
+def cerebras_create(**kwargs):
+    """chat.completions.create with multi-key failover: on a quota/auth
+    status (401/402/403/429) the active key is retired for the run (owner
+    alerted via the Newsroom bot) and the call retries on the next key.
+    Any other error propagates untouched."""
+    while True:
+        try:
+            return get_cerebras().chat.completions.create(**kwargs)
+        except Exception as exc:
+            status = getattr(exc, "status_code", None)
+            if cerebras_keys.is_quota_status(status) and cerebras_keys.failover(status):
+                continue
+            raise
 
 
 
@@ -2254,7 +2276,7 @@ def translate_government_jobs(jobs):
             *[f"{k}: {source_fields.get(k,'')}" for k in source_fields],
         ]))
     try:
-        response=client.chat.completions.create(
+        response=cerebras_create(
             model=CEREBRAS_MODEL,
             messages=[
                 {"role":"system","content":"Return only the supplied fields translated into natural English suitable for a Telegram job post."},
@@ -4223,7 +4245,7 @@ def _call_judge_once(batch, batch_no, retry=False):
         + "\n\n" + "\n\n".join(payload)
     )
     try:
-        response = get_cerebras().chat.completions.create(
+        response = cerebras_create(
             model=CEREBRAS_MODEL,
             messages=[{"role":"system","content":_judge_prompt()},{"role":"user","content":prompt}],
             response_format={"type":"json_schema","json_schema":{"name":f"career_job_audit_{batch_no}","strict":True,"schema":JUDGE_SCHEMA}},
