@@ -20,9 +20,9 @@ jobs:
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-            CEREBRAS_API_KEY_2: ${{ secrets.CEREBRAS_API_KEY_2 }}
-            NEWSROOM_BOT_TOKEN: ${{ secrets.NEWSROOM_BOT_TOKEN }}
-            ALERT_CHAT_ID: ${{ secrets.ALERT_CHAT_ID }}
+      CEREBRAS_API_KEY_2: ${{ secrets.CEREBRAS_API_KEY_2 }}
+      NEWSROOM_BOT_TOKEN: ${{ secrets.NEWSROOM_BOT_TOKEN }}
+      ALERT_CHAT_ID: ${{ secrets.ALERT_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
       CEREBRAS_MODEL: ${{ secrets.CEREBRAS_MODEL || 'gpt-oss-120b' }}
       TELEGRAM_CHANNEL: "@CareerNewsroom"
