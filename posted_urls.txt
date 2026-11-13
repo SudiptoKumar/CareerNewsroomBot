@@ -1202,3 +1202,4 @@ alljobs.teletalk.com.bd?job_primary_id=15234
 alljobs.teletalk.com.bd?job_primary_id=15235
 alljobs.teletalk.com.bd?job_primary_id=15238
 alljobs.teletalk.com.bd?job_primary_id=15248
+bdjobs.com/h/details/1555771?ln=1
