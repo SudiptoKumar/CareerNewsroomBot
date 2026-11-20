@@ -42555,7 +42555,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-18T08:51:45.681677+06:00",
-      "last_seen": "2026-11-20T08:15:42.809378+06:00"
+      "last_seen": "2026-11-20T17:16:22.361170+06:00"
     },
     "bdjobs.com/h/details/1557620?ln=1": {
       "title": "Accounts and Admin Officer (A&AO)",
@@ -44681,7 +44681,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-19T02:21:26.673040+06:00",
-      "last_seen": "2026-11-20T08:15:42.753117+06:00"
+      "last_seen": "2026-11-20T17:16:22.316233+06:00"
     },
     "bdjobs.com/h/details/1557479?ln=1": {
       "title": "Intern - Software Development",
@@ -45222,7 +45222,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-19T02:21:26.957500+06:00",
-      "last_seen": "2026-11-19T08:28:55.012441+06:00"
+      "last_seen": "2026-11-20T17:16:22.436141+06:00"
     },
     "bdjobs.com/h/details/1557468?ln=1": {
       "title": "Executive - Flat Sales",
@@ -45598,7 +45598,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-19T17:35:53.088214+06:00",
-      "last_seen": "2026-11-20T08:15:42.767475+06:00"
+      "last_seen": "2026-11-20T17:16:22.339039+06:00"
     },
     "bdjobs.com/h/details/1558358?ln=1": {
       "title": "Card Sales Officer - (HR Contractual)",
@@ -46905,7 +46905,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T02:27:10.794676+06:00",
-      "last_seen": "2026-11-20T08:15:42.791813+06:00"
+      "last_seen": "2026-11-20T17:16:22.348291+06:00"
     },
     "bdjobs.com/h/details/1558559?ln=1": {
       "title": "Asst. Manager/ Sr. Executive - Marketing And Sales",
@@ -47011,7 +47011,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T02:27:10.840603+06:00",
-      "last_seen": "2026-11-20T08:15:42.823813+06:00"
+      "last_seen": "2026-11-20T17:16:22.372219+06:00"
     },
     "bdjobs.com/h/details/1557735?ln=1": {
       "title": "Marketing Executive",
@@ -47172,7 +47172,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T02:27:10.882654+06:00",
-      "last_seen": "2026-11-20T08:15:42.852293+06:00"
+      "last_seen": "2026-11-20T17:16:22.393271+06:00"
     },
     "bdjobs.com/h/details/1558248?ln=1": {
       "title": "Sales Executive",
@@ -47276,7 +47276,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T02:27:10.906986+06:00",
-      "last_seen": "2026-11-20T08:15:42.876355+06:00"
+      "last_seen": "2026-11-20T17:16:22.411507+06:00"
     },
     "bdjobs.com/h/details/1558383?ln=1": {
       "title": "Executive- Local Procurement",
@@ -47820,7 +47820,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T08:15:42.865184+06:00",
-      "last_seen": "2026-11-20T08:15:42.865192+06:00"
+      "last_seen": "2026-11-20T17:16:22.402970+06:00"
     },
     "bdjobs.com/h/details/1558526?ln=1": {
       "title": "Manager/ Sr. Manager (Corporate Sales)",
@@ -47869,7 +47869,7 @@
       "record_format": 4,
       "status": "pending",
       "first_seen": "2026-11-20T08:15:42.894894+06:00",
-      "last_seen": "2026-11-20T08:15:42.894903+06:00"
+      "last_seen": "2026-11-20T17:16:22.425428+06:00"
     },
     "bdjobs.com/h/details/1558578?ln=1": {
       "title": "Facilitator Prevention",
@@ -47926,6 +47926,118 @@
       "deterministic_score": 74,
       "ai_score": 48,
       "final_score": 70.1
+    },
+    "bdjobs.com/h/details/1558604?ln=1": {
+      "title": "Human Resources (HR) Manager",
+      "company": "Offshore Staffing Solution",
+      "location": "Dhaka (Savar)",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "education": "BBS/Bachelor's",
+      "experience": "1 to 2 years",
+      "salary": "Tk. 20000 - 30000/month",
+      "vacancy": "1",
+      "age": "20-30 Years",
+      "application_method": "Online",
+      "deadline": "2026-12-20",
+      "posted_date": "2026-11-20",
+      "source_url": "https://bdjobs.com/h/details/1558604?ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1558604",
+      "raw_source_fields": {
+        "company": "Offshore Staffing Solution",
+        "experience": "1 to 2 years",
+        "education": "Bachelor of Business Studies (BBS)",
+        "deadline": "Dec 20, 2026",
+        "location": "Dhaka (Savar)",
+        "salary": "Tk. 20000 - 30000 (Monthly)",
+        "vacancy": "1",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "20 to 30 years",
+        "posted_date": "Nov 20, 2026",
+        "application_method": "Online",
+        "gender": ""
+      },
+      "source_content": "Offshore Staffing Solution\nHuman Resources (HR) Manager\nApplication Deadline: Dec 20, 2026\nAge: 20 to 30 years\nLocation: Dhaka (Savar)\nSalary: Tk. 20000 - 30000 (Monthly)\nExperience: 1 to 2 years\nPublished: Nov 20, 2026\nRequirements\nEducation\nBachelor of Business Studies (BBS)\nMasters of Professional Human Resource Management (MPHRM)\nMaster of Law (LLM)\nBachelor of Law (LLB)\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nDepartment:\nHuman Resources\nRole Overview\nWe are seeking an experienced, strategic, and hands-on Human Resources Manager to lead and elevate our existing 8-person HR department. In this role, you will lead the HR function—mentoring our current HR team, maximizing their potential, and aligning our people strategy with broader business goals. You will oversee the entire employee lifecycle, drive operational efficiency, and ensure our company remains a competitive, compliant, and engaging place to work.\nCompensation Package\nSalary: 90 taka per hour\nFood Allowance: 100 taka per working day\nAttendance bonus: 2000 taka\nTotal 20040 taka\nKey Responsibilities\nDepartment Leadership & Strategy\nTeam Leadership & Resource Utilization:\nLead, mentor, and manage an existing team of 8 HR professionals, bringing out their full potential to ensure peak departmental and operational efficiency.\nGoal Alignment:\nGuide the HR team to consistently meet company-wide targets, KPIs, and strategic business objectives.\nWorkforce Planning:\nCollaborate closely with department heads to forecast staffing needs and align hiring roadmaps with long-term company goals.\nTalent Acquisition, Training & Succession\nRecruitment & Pipeline Management:\nOversee the end-to-end hiring process—including job postings, resume screening, interviewing, and final candidate selection—while ensuring our Training team has a steady pipeline of qualified applicants for every training batch.\nOnboarding & Offboarding:\nDesign and manage structured orientation programs for smooth new-hire integration, as well as handle exit interviews and offboarding documentation.\nSkill Gap Analysis & Upskilling:\nIdentify organizational skill gaps and recruit or develop talent to bridge those capabilities.\nSuccession Planning:\nIdentify high-potential employees across the company and build leadership development pathways to prepare them for future management roles.\nPerformance, Culture & Employee Relations\nPerformance Management:\nEstablish clear review frameworks, track employee KPIs, and partner with department managers to address underperformance constructively.\nEmployee Engagement & Advisory:\nServe as a trusted advisor to employees, conduct satisfaction surveys, lead retention initiatives, and foster an inclusive, positive workplace culture.\nConflict Resolution:\nMediate workplace disputes, manage disciplinary procedures, and conduct fair, thorough internal investigations.\nCompensation, Compliance & HR Operations\nCompensation & Benefits:\nResearch market trends and benchmark compensation packages to ensure our benefits remain competitive and attractive to top talent.\nLegal & Safety Compliance:\nEnsure all company policies and practices strictly adhere to local labor laws, equal employment regulations, and workplace safety standards.\nHR Operations & Data Analytics:\nMaintain strict confidentiality of employee records, oversee payroll accuracy, and analyze workforce metrics to provide data-driven insights for executive decision-making.\nReporting\nManagement Reporting:\nPrepare and submit regular HR reports to senior management, covering recruitment progress, employee attendance, workforce performance, turnover rates, training updates, disciplinary matters, and other key HR activities.\nQualifications & Requirements\nEducation:\nBachelor’s degree in Human Resources, Business Administration, Management, or a related field (Master’s degree or HR certifications such as SHRM/HRCI/PGDHRM preferred).\nExperience: Experienced Individuals will be preferred.\nSkills & Competencies:\nProven ability to coach, mentor, and elevate an established team of HR specialists.\nStrong working knowledge of local labor laws, payroll administration, and workplace safety compliance.\nExperience managing high-volume recruitment pipelines alongside structured training programs.\nExcellent interpersonal, conflict-resolution, and advisory skills.\nData-driven mindset with proficiency in HRIS software, Excel, and workforce analytics.\nWhat We Offer\nCompetitive salary and performance-based incentives\nComprehensive benefits package, festival bonuses, provident fund, and qualified paid leaves.\nOpportunity to lead and shape the HR strategy of a growing organization\nAdditional Requirements\nAge 20 to 30 years\nSkills: HR Management, Labor Law, Office Management, payroll management, Administration, Microsoft Excel, Teamwork, Team management, Communication, Mentorship\nCompensation & Other Benefits\nProvident fund,Tour allowance,Medical allowance,Weekly 2 holidays,Over time allowance,Gratuity,Insurance,Performance bonus\nSalary Review: Yearly\nFestival Bonus: 2\n• Attendance Bonus\n• Food Allowance & Snacks\n• Two Festival Bonuses\n• Annual Salary Increment\n• Family Emergency Loan Facilities\n• Team Outings, Birthday Celebrations & Award Events\n• Annual Company Retreats\n• Transportation Allowance\nCompany Address: 4th floor, Akran Bazar Rd (located just before & opposite building of Peace School, when traveling from Birulia Bridge towards Akran Bazar), Samair Dhaal, Birulia, Savar-1345, Dhaka, Bangladesh, Savar, Bangladesh, 1345\nCompany Business\nOffshore Staffing Solutions LTD, a stalwart in the industry for 10 years, excels in IT-enabled client management. Our success is rooted in a dynamic team of amazing employees. We are on the lookout for determined and talented youngsters, eager to embark on a fulfilling career. Our focus extends beyond mere recruitment; we seek individuals poised to contribute their best for the companys well-being. Committed to fostering youth employment, we are dedicated to providing substantial opportunities for the vibrant talent pool in Bangladesh. Join us in creating a better workplace, where ambition meets opportunity. Offshore Staffing Solutions LTD – your gateway to a rewarding career in a global setting.",
+      "canonical": "bdjobs.com/h/details/1558604?ln=1",
+      "apply_url": "",
+      "retrieval_backend": "bdjobs_api",
+      "detail_quality": "api_valid",
+      "raw_text": "Offshore Staffing Solution\nHuman Resources (HR) Manager\nApplication Deadline: Dec 20, 2026\nAge: 20 to 30 years\nLocation: Dhaka (Savar)\nSalary: Tk. 20000 - 30000 (Monthly)\nExperience: 1 to 2 years\nPublished: Nov 20, 2026\nRequirements\nEducation\nBachelor of Business Studies (BBS)\nMasters of Professional Human Resource Management (MPHRM)\nMaster of Law (LLM)\nBachelor of Law (LLB)\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nDepartment:\nHuman Resources\nRole Overview\nWe are seeking an experienced, strategic, and hands-on Human Resources Manager to lead and elevate our existing 8-person HR department. In this role, you will lead the HR function—mentoring our current HR team, maximizing their potential, and aligning our people strategy with broader business goals. You will oversee the entire employee lifecycle, drive operational efficiency, and ensure our company remains a competitive, compliant, and engaging place to work.\nCompensation Package\nSalary: 90 taka per hour\nFood Allowance: 100 taka per working day\nAttendance bonus: 2000 taka\nTotal 20040 taka\nKey Responsibilities\nDepartment Leadership & Strategy\nTeam Leadership & Resource Utilization:\nLead, mentor, and manage an existing team of 8 HR professionals, bringing out their full potential to ensure peak departmental and operational efficiency.\nGoal Alignment:\nGuide the HR team to consistently meet company-wide targets, KPIs, and strategic business objectives.\nWorkforce Planning:\nCollaborate closely with department heads to forecast staffing needs and align hiring roadmaps with long-term company goals.\nTalent Acquisition, Training & Succession\nRecruitment & Pipeline Management:\nOversee the end-to-end hiring process—including job postings, resume screening, interviewing, and final candidate selection—while ensuring our Training team has a steady pipeline of qualified applicants for every training batch.\nOnboarding & Offboarding:\nDesign and manage structured orientation programs for smooth new-hire integration, as well as handle exit interviews and offboarding documentation.\nSkill Gap Analysis & Upskilling:\nIdentify organizational skill gaps and recruit or develop talent to bridge those capabilities.\nSuccession Planning:\nIdentify high-potential employees across the company and build leadership development pathways to prepare them for future management roles.\nPerformance, Culture & Employee Relations\nPerformance Management:\nEstablish clear review frameworks, track employee KPIs, and partner with department managers to address underperformance constructively.\nEmployee Engagement & Advisory:\nServe as a trusted advisor to employees, conduct satisfaction surveys, lead retention initiatives, and foster an inclusive, positive workplace culture.\nConflict Resolution:\nMediate workplace disputes, manage disciplinary procedures, and conduct fair, thorough internal investigations.\nCompensation, Compliance & HR Operations\nCompensation & Benefits:\nResearch market trends and benchmark compensation packages to ensure our benefits remain competitive and attractive to top talent.\nLegal & Safety Compliance:\nEnsure all company policies and practices strictly adhere to local labor laws, equal employment regulations, and workplace safety standards.\nHR Operations & Data Analytics:\nMaintain strict confidentiality of employee records, oversee payroll accuracy, and analyze workforce metrics to provide data-driven insights for executive decision-making.\nReporting\nManagement Reporting:\nPrepare and submit regular HR reports to senior management, covering recruitment progress, employee attendance, workforce performance, turnover rates, training updates, disciplinary matters, and other key HR activities.\nQualifications & Requirements\nEducation:\nBachelor’s degree in Human Resources, Business Administration, Management, or a related field (Master’s degree or HR certifications such as SHRM/HRCI/PGDHRM preferred).\nExperience: Experienced Individuals will be preferred.\nSkills & Competencies:\nProven ability to coach, mentor, and elevate an established team of HR specialists.\nStrong working knowledge of local labor laws, payroll administration, and workplace safety compliance.\nExperience managing high-volume recruitment pipelines alongside structured training programs.\nExcellent interpersonal, conflict-resolution, and advisory skills.\nData-driven mindset with proficiency in HRIS software, Excel, and workforce analytics.\nWhat We Offer\nCompetitive salary and performance-based incentives\nComprehensive benefits package, festival bonuses, provident fund, and qualified paid leaves.\nOpportunity to lead and shape the HR strategy of a growing organization\nAdditional Requirements\nAge 20 to 30 years\nSkills: HR Management, Labor Law, Office Management, payroll management, Administration, Microsoft Excel, Teamwork, Team management, Communication, Mentorship\nCompensation & Other Benefits\nProvident fund,Tour allowance,Medical allowance,Weekly 2 holidays,Over time allowance,Gratuity,Insurance,Performance bonus\nSalary Review: Yearly\nFestival Bonus: 2\n• Attendance Bonus\n• Food Allowance & Snacks\n• Two Festival Bonuses\n• Annual Salary Increment\n• Family Emergency Loan Facilities\n• Team Outings, Birthday Celebrations & Award Events\n• Annual Company Retreats\n• Transportation Allowance\nCompany Address: 4th floor, Akran Bazar Rd (located just before & opposite building of Peace School, when traveling from Birulia Bridge towards Akran Bazar), Samair Dhaal, Birulia, Savar-1345, Dhaka, Bangladesh, Savar, Bangladesh, 1345\nCompany Business\nOffshore Staffing Solutions LTD, a stalwart in the industry for 10 years, excels in IT-enabled client management. Our success is rooted in a dynamic team of amazing employees. We are on the lookout for determined and talented youngsters, eager to embark on a fulfilling career. Our focus extends beyond mere recruitment; we seek individuals poised to contribute their best for the companys well-being. Committed to fostering youth employment, we are dedicated to providing substantial opportunities for the vibrant talent pool in Bangladesh. Join us in creating a better workplace, where ambition meets opportunity. Offshore Staffing Solutions LTD – your gateway to a rewarding career in a global setting.",
+      "listing_posted": "2026-11-20",
+      "listing_deadline": "2026-12-20",
+      "source_category_id": 17,
+      "source_category_name": "HR / Organization Development",
+      "is_government": false,
+      "audience_pre_score": 100,
+      "bba_mba_target_score": 100,
+      "event_id": "1285195f3fbd6e6914b654dd",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-11-20T17:16:22.327913+06:00",
+      "last_seen": "2026-11-20T17:16:22.327917+06:00",
+      "posted_at": "2026-11-20T17:16:24.329186+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 85,
+      "ai_score": 85,
+      "final_score": 85.0
+    },
+    "bdjobs.com/h/details/1558615?ln=1": {
+      "title": "IT Sales Executive",
+      "company": "Genesys",
+      "location": "Dhaka (Uttara Sector 3)",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 1 years",
+      "salary": "Tk. 16000 - 28000/month",
+      "vacancy": "01",
+      "age": "At least 20 Years",
+      "application_method": "Online",
+      "deadline": "2026-11-30",
+      "posted_date": "2026-11-20",
+      "source_url": "https://bdjobs.com/h/details/1558615?ln=1",
+      "source": "Bdjobs",
+      "source_job_id": "1558615",
+      "raw_source_fields": {
+        "company": "Genesys",
+        "experience": "At least 1 years",
+        "education": "Bachelor/Honors",
+        "deadline": "Nov 30, 2026",
+        "location": "Dhaka (Uttara Sector 3)",
+        "salary": "Tk. 16000 - 28000 (Monthly)",
+        "vacancy": "01",
+        "employment_type": "Full Time",
+        "workplace": "Work at office",
+        "age": "At least 20 years",
+        "posted_date": "Nov 20, 2026",
+        "application_method": "Online",
+        "gender": ""
+      },
+      "source_content": "Genesys\nIT Sales Executive\nApplication Deadline: Nov 30, 2026\nVacancy: 01\nAge: At least 20 years\nLocation: Dhaka (Uttara Sector 3)\nSalary: Tk. 16000 - 28000 (Monthly)\nExperience: At least 1 years\nPublished: Nov 20, 2026\nRequirements\nEducation\nBachelor/Honors\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nMake outbound calls to potential clients to promote and sell IT services, including graphic design, digital marketing, website development, and software solutions.\nUnderstand client requirements and recommend suitable products or services.\nFollow up with prospects and convert inquiries and leads into sales.\nClearly communicate service features, benefits, pricing, and business value to potential clients.\nManage and update leads, follow-ups, client communication, and sales activities in the CRM.\nMaintain accurate records of calls, leads, follow-ups, and sales progress.\nAchieve assigned sales targets and contribute to overall business growth.\nPrepare and submit daily, weekly, and monthly work and sales reports to the reporting manager.\nAdditional Requirements\nAge At least 20 years\nOnly Female\n1–2 years of experience in telesales, preferably in IT products, software, digital services, or technology-related sales.\nStrong communication, negotiation, persuasion, and client-handling skills.\nAbility to handle customer objections and confidently close sales.\nBasic understanding of IT products, software, websites, and digital marketing services.\nFamiliarity with CRM software, lead management, and sales reporting.\nSelf-motivated, disciplined, and target-oriented.\nSkills: Good Coversation Skill, IT Knowledge, Microsoft Office, Negotiation, Problem solving and decision making, Sales & Marketing, Telesales, Well-groomed and well mannered\nCompensation & Other Benefits\nMobile bill,Performance bonus\nSalary Review: Yearly\nFestival Bonus: 2\nCompany Address: 6A, Tropical Alauddin Tower, Road 02, Sector 03, Dhaka 1230\nCompany Business\nGenesys is a forward-thinking digital marketing agency specializing in innovative strategies that drive business growth. We combine data-driven insights, creative content, and cutting-edge technology to deliver personalized marketing solutions that elevate brand visibility and engagement. Whether through SEO, social media, paid ads, or web development, Genesys helps businesses thrive in the digital landscape with measurable, impactful results.",
+      "canonical": "bdjobs.com/h/details/1558615?ln=1",
+      "apply_url": "",
+      "retrieval_backend": "bdjobs_api",
+      "detail_quality": "api_valid",
+      "raw_text": "Genesys\nIT Sales Executive\nApplication Deadline: Nov 30, 2026\nVacancy: 01\nAge: At least 20 years\nLocation: Dhaka (Uttara Sector 3)\nSalary: Tk. 16000 - 28000 (Monthly)\nExperience: At least 1 years\nPublished: Nov 20, 2026\nRequirements\nEducation\nBachelor/Honors\nWorkplace\nWork at office\nEmployment Status\nFull Time\nApplication\nOnline\nJob Description\nMake outbound calls to potential clients to promote and sell IT services, including graphic design, digital marketing, website development, and software solutions.\nUnderstand client requirements and recommend suitable products or services.\nFollow up with prospects and convert inquiries and leads into sales.\nClearly communicate service features, benefits, pricing, and business value to potential clients.\nManage and update leads, follow-ups, client communication, and sales activities in the CRM.\nMaintain accurate records of calls, leads, follow-ups, and sales progress.\nAchieve assigned sales targets and contribute to overall business growth.\nPrepare and submit daily, weekly, and monthly work and sales reports to the reporting manager.\nAdditional Requirements\nAge At least 20 years\nOnly Female\n1–2 years of experience in telesales, preferably in IT products, software, digital services, or technology-related sales.\nStrong communication, negotiation, persuasion, and client-handling skills.\nAbility to handle customer objections and confidently close sales.\nBasic understanding of IT products, software, websites, and digital marketing services.\nFamiliarity with CRM software, lead management, and sales reporting.\nSelf-motivated, disciplined, and target-oriented.\nSkills: Good Coversation Skill, IT Knowledge, Microsoft Office, Negotiation, Problem solving and decision making, Sales & Marketing, Telesales, Well-groomed and well mannered\nCompensation & Other Benefits\nMobile bill,Performance bonus\nSalary Review: Yearly\nFestival Bonus: 2\nCompany Address: 6A, Tropical Alauddin Tower, Road 02, Sector 03, Dhaka 1230\nCompany Business\nGenesys is a forward-thinking digital marketing agency specializing in innovative strategies that drive business growth. We combine data-driven insights, creative content, and cutting-edge technology to deliver personalized marketing solutions that elevate brand visibility and engagement. Whether through SEO, social media, paid ads, or web development, Genesys helps businesses thrive in the digital landscape with measurable, impactful results.",
+      "listing_posted": "2026-11-20",
+      "listing_deadline": "2026-11-30",
+      "source_category_id": 8,
+      "source_category_name": "IT / Telecom",
+      "is_government": false,
+      "audience_pre_score": 47,
+      "bba_mba_target_score": 36,
+      "event_id": "85e71e90d6f43b89df8f4649",
+      "record_format": 4,
+      "status": "posted",
+      "first_seen": "2026-11-20T17:16:22.384892+06:00",
+      "last_seen": "2026-11-20T17:16:22.384896+06:00",
+      "posted_at": "2026-11-20T17:16:25.743205+06:00",
+      "pipeline_version": "CareerNewsroom",
+      "deterministic_score": 74,
+      "ai_score": 80,
+      "final_score": 74.9
     }
   },
   "events": {
@@ -104650,12 +104762,91 @@
       "selected_at": "2026-11-20T08:15:48.119427+06:00",
       "published_at": "2026-11-20T08:15:48.119428+06:00",
       "message_id": 2568
+    },
+    "1285195f3fbd6e6914b654dd": {
+      "event_id": "1285195f3fbd6e6914b654dd",
+      "canonical_url": "bdjobs.com/h/details/1558604?ln=1",
+      "source_url": "https://bdjobs.com/h/details/1558604?ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1558604",
+      "title": "Human Resources (HR) Manager",
+      "company": "Offshore Staffing Solution",
+      "location": "Dhaka (Savar)",
+      "education": "BBS/Bachelor's",
+      "experience": "1 to 2 years",
+      "salary": "Tk. 20000 - 30000/month",
+      "vacancy": "1",
+      "age": "20-30 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "Online",
+      "career_category": "Human Resources",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "vacancy",
+        "age",
+        "application_method",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-11-20",
+      "deadline": "2026-12-20",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-11-20T17:16:24.329198+06:00",
+      "published_at": "2026-11-20T17:16:24.329200+06:00",
+      "message_id": 2569
+    },
+    "85e71e90d6f43b89df8f4649": {
+      "event_id": "85e71e90d6f43b89df8f4649",
+      "canonical_url": "bdjobs.com/h/details/1558615?ln=1",
+      "source_url": "https://bdjobs.com/h/details/1558615?ln=1",
+      "apply_url": "",
+      "source": "Bdjobs",
+      "source_job_id": "1558615",
+      "title": "IT Sales Executive",
+      "company": "Genesys",
+      "location": "Dhaka (Uttara Sector 3)",
+      "education": "Bachelor's/Honours",
+      "experience": "At least 1 years",
+      "salary": "Tk. 16000 - 28000/month",
+      "vacancy": "01",
+      "age": "At least 20 Years",
+      "employment_type": "Full Time",
+      "workplace": "On-site",
+      "application_method": "Online",
+      "career_category": "Marketing & Sales",
+      "display_fields": [
+        "location",
+        "employment_type",
+        "workplace",
+        "education",
+        "experience",
+        "salary",
+        "vacancy",
+        "age",
+        "application_method",
+        "deadline",
+        "posted_date"
+      ],
+      "is_government": false,
+      "posted_date": "2026-11-20",
+      "deadline": "2026-11-30",
+      "score": 0,
+      "status": "published",
+      "selected_at": "2026-11-20T17:16:25.743215+06:00",
+      "published_at": "2026-11-20T17:16:25.743217+06:00",
+      "message_id": 2570
     }
   },
   "recent_titles": [
-    "scientific officer",
-    "seo internship",
-    "accountant",
     "assistant manager production maintenance production planning",
     "executive sr executive accounting department",
     "junior accountant international bookkeeping",
@@ -105055,8 +105246,10 @@
     "sales representative sels riprejentebh internship",
     "marketing sales executive",
     "sales executive",
-    "facilitator prevention"
+    "facilitator prevention",
+    "human resources hr manager",
+    "it sales executive"
   ],
-  "last_run": "2026-11-20T08:15:48.203177+06:00",
+  "last_run": "2026-11-20T17:16:25.806390+06:00",
   "pipeline_version": "CareerNewsroom"
 }
